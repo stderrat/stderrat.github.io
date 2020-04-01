@@ -96,11 +96,11 @@
         <ul class="menu">
           <li class="active">Recent Posts:</li>
           
+            <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-04-01-oc-commands/">Helpful oc / kubectl commands</a></li>
+          
             <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-03-31-Istio-Tutorial4/">Openshift 4 and ServiceMesh 4 - Ingress with custom domain</a></li>
           
             <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-03-30-Istio-Tutorial3/">Openshift 4 and ServiceMesh 3 - Ingress Traffic</a></li>
-          
-            <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-03-29-Istio-Tutorial2/">Openshift 4 and ServiceMesh 2 - Deploy Microservices</a></li>
           
         </ul>
       </div>
@@ -120,70 +120,15 @@
 <div id="post">
     <div class="post-header">
     <div id="post-meta" class="row">
-        <strong>31. März 2020</strong>
+        <strong>April 1, 2020</strong>
         
     </div>
-    <h1>Openshift 4 and ServiceMesh 4 - Ingress with custom domain</h1>
+    <h1>Helpful oc / kubectl commands</h1>
 </div>
 <div>
     
-    <div id="toc" class="toc"><div id="toctitle">Table of Contents</div><ul class="sectlevel1"><li><a href="#_modify_gateway_and_virtualservice">Modify Gateway and VirtualService</a></li><li><a href="#_optional_add_custom_domain_to_local_hosts_file">OPTIONAL: Add custom domain to local hosts file</a></li><li><a href="#_create_some_example_traffic">Create some example traffic</a></li></ul></div><!-- toc disabled --><div class="paragraph small"><p><em>Author: Thomas Jungbauer - Last Modified: 2020-04-01 06:02:52 +0200</em></p></div><div class="sect1"><h2 id="_modify_gateway_and_virtualservice">Modify Gateway and VirtualService</h2><div class="sectionbody"><div class="paragraph"><p><a href="/posts-output/2020-03-30-Istio-Tutorial3">Issue #3</a> explains how to get ingress traffic into the Service Mesh, by defining the <strong>Gateway</strong> and the <strong>VirtualService</strong>. We are currently using the default ingress route defined in the <em>istio_system</em> project.<br />
-But what if a custom domain shall be used?<br />
-In such case another route must be defined in the <em>istio-system</em> project and small configuration changes must be applied.
- <br /><br /></p></div><div class="olist arabic"><ol class="arabic"><li><p>First lets create a slightly modified <em>Gateway.yaml</em>:</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: ingress-gateway-exampleapp
-spec:
-  selector:
-    istio: ingressgateway # use istio default controller
-  servers:
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "hello-world.com" <i class="conum" data-value="1"></i><b>(1)</b></code></pre></div></div><div class="colist arabic"><table><tr><td><i class="conum" data-value="1"></i><b>1</b></td><td>add you custom domain here</td></tr></table></div><div class="paragraph"><p> <br />
-The only difference is at the hosts which was changed from '*' to 'hello-world.com'</p></div></li><li><p>As second change, the VirtualService must be modified as well with the custom domain:</p><div class="paragraph"><p>VirtualService.yaml:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: ingress-gateway-exampleapp
-spec:
-  hosts:
-  - "hello-world.com" <i class="conum" data-value="1"></i><b>(1)</b>
-  gateways:
-  - ingress-gateway-exampleapp
-  http:
-  - match:
-    - uri:
-        exact: /
-    route:
-    - destination:
-        host: customer
-        port:
-          number: 8080</code></pre></div></div><div class="colist arabic"><table><tr><td><i class="conum" data-value="1"></i><b>1</b></td><td>add you custom domain here</td></tr></table></div></li><li><p>Replace current objects in OpenShift:</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc replace -f Gateway.yaml -n tutorial
-oc replace -f VirtualService.yaml -n tutorial</code></pre></div></div></li><li><p>Create a new route under the project <em>istio-system</em>:</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: hello-world.com <i class="conum" data-value="1"></i><b>(1)</b>
-  namespace: istio-system <i class="conum" data-value="2"></i><b>(2)</b>
-spec:
-  host: hello-world.com <i class="conum" data-value="3"></i><b>(3)</b>
-  to:
-    kind: Service
-    name: istio-ingressgateway <i class="conum" data-value="4"></i><b>(4)</b>
-  port:
-    targetPort: 8080</code></pre></div></div><div class="colist arabic"><table><tr><td><i class="conum" data-value="1"></i><b>1</b></td><td>add you custom domain here</td></tr><tr><td><i class="conum" data-value="2"></i><b>2</b></td><td>the route must be created at istio-system</td></tr><tr><td><i class="conum" data-value="3"></i><b>3</b></td><td>add you custom domain here</td></tr><tr><td><i class="conum" data-value="4"></i><b>4</b></td><td>this is the service as it was created by the operator</td></tr></table></div></li></ol></div></div></div><div class="sect1"><h2 id="_optional_add_custom_domain_to_local_hosts_file">OPTIONAL: Add custom domain to local hosts file</h2><div class="sectionbody"><div class="paragraph"><p>The custom domain <strong>hello-world.com</strong> must be resolvable somehow, pointing to the ingress router of OpenShift.
-This can be done, by adding the domain into the local hosts file (with all limitations this brings with it)</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash"># Get IP address of:
-oc -n istio-system get route istio-ingressgateway
-echo "x.x.x.x hello-world.com" &gt;&gt; /etc/hosts</code></pre></div></div></div></div><div class="sect1"><h2 id="_create_some_example_traffic">Create some example traffic</h2><div class="sectionbody"><div class="paragraph"><p>We will reuse the script of <a href="posts-output/2020-03-30-Istio-Tutorial3">Issue #3</a> to simulate traffic.
-Since we changed the domain, the connection will go to hello-world.com</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">sh run-check.sh 1000 hello-world.com</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>This will send 1000 requests to our application:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash"># 0: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 6626
-# 1: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 6627
-# 2: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 6628
-# 3: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 6629
-# 4: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 6630
-# 5: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 6631
-...</code></pre></div></div></div></div>
+    <div id="toc" class="toc"><div id="toctitle">Table of Contents</div><ul class="sectlevel2"><li><a href="#_list_all_pods_in_state_running">List all pods in state <em>Running</em></a></li><li><a href="#_list_all_pods_in_state_running_and_show_there_resource_usage">List all pods in state <em>Running</em> and show there resource usage</a></li><li><a href="#_list_events_sort_by_time_created">List events sort by time created</a></li></ul></div><!-- toc disabled --><div class="paragraph small"><p><em>Author: Toni Schmidbauer - Last Modified: 2020-04-01 17:49:57 +0200</em></p></div><div class="paragraph"><p>This is a list of useful oc and/or kubectl commands so they won’t be forgotton. No this is not a joke…​</p></div><div class="sect2"><h3 id="_list_all_pods_in_state_running">List all pods in state <em>Running</em></h3><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods --field-selector=status.phase=Running</code></pre></div></div></div><div class="sect2"><h3 id="_list_all_pods_in_state_running_and_show_there_resource_usage">List all pods in state <em>Running</em> and show there resource usage</h3><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods --field-selector=status.phase=Running -o json|jq ".items[] | {name: .metada
+ta.name, res: .spec.containers[].resources}"</code></pre></div></div></div><div class="sect2"><h3 id="_list_events_sort_by_time_created">List events sort by time created</h3><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash"> oc get events --sort-by='.lastTimestamp'</code></pre></div></div></div>
 </div>
 
 <div id="post-tags">
@@ -192,11 +137,11 @@ Since we changed the domain, the connection will go to hello-world.com</p></div>
     
     <a href="/tags-output/OCP/">OCP</a>
     
-    <a href="/tags-output/Istio/">Istio</a>
+    <a href="/tags-output/kubectl/">kubectl</a>
     
     <a href="/tags-output/OpenShift/">OpenShift</a>
     
-    <a href="/tags-output/Service Mesh/">Service Mesh</a>
+    <a href="/tags-output/oc/">oc</a>
     
 </div>
 
@@ -207,7 +152,7 @@ Since we changed the domain, the connection will go to hello-world.com</p></div>
     <div id="prev-next">
         
         
-        <a class="button right" href="/posts-output/2020-03-30-Istio-Tutorial3/">Openshift 4 and ServiceMesh 3 - Ingress Traffic &raquo;</a>
+        <a class="button right" href="/posts-output/2020-03-31-Istio-Tutorial4/">Openshift 4 and ServiceMesh 4 - Ingress with custom domain &raquo;</a>
         
     </div>
 </div>
