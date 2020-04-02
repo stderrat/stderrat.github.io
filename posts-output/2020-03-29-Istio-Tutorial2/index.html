@@ -9,7 +9,7 @@
     <meta charset="UTF-8">
     <title>Yet Another Useless Blog (YAUB): Openshift 4 and ServiceMesh 2 - Deploy Microservices</title>
     
-<meta name="keywords" content="OCP,kubectl,OpenShift,oc,Istio,Service Mesh">
+<meta name="keywords" content="DestinationRule,OCP,Canary,Grayscale,kubectl,Istio,OpenShift,Service Mesh,oc">
 
 <meta property="og:url" content="http://blog.stderr.at/posts-output/2020-03-29-Istio-Tutorial2/" />
 <meta property="og:title" content="Openshift 4 and ServiceMesh 2 - Deploy Microservices" />
@@ -30,6 +30,7 @@
     <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.7.0/styles/tomorrow-night-eighties.min.css">
     <!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+    <link rel="stylesheet" href="/css/font-awesome-animation.min.css"> 
 
 <style>
  .listingblock:hover .clipboard {
@@ -64,13 +65,13 @@
 
 </head>
 <body>
-
 <div id="left">
 
     <p id="logo">
         <a title="Yet Another Useless Blog (YAUB)" href="/">
-            <span class="fa fa-cloud-upload"></span>
-            <span class="text">YAUB</span>
+            <span class="fa fa-cloud-upload faa-float animated"></span>
+            <span class="text center">YAUB</span>
+            <span class="text center small">Yet another Useless Blog</span>
         </a>
     </p>
 
@@ -99,11 +100,15 @@
         <ul class="menu">
           <li class="active">Recent Posts:</li>
           
+            <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-04-01-Istio-Tutorial5/">Openshift 4 and ServiceMesh 5 - Routing</a></li>
+          
             <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-04-01-oc-commands/">Helpful oc / kubectl commands</a></li>
           
             <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-03-31-Istio-Tutorial4/">Openshift 4 and ServiceMesh 4 - Ingress with custom domain</a></li>
           
             <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-03-30-Istio-Tutorial3/">Openshift 4 and ServiceMesh 3 - Ingress Traffic</a></li>
+          
+            <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-03-29-Istio-Tutorial2/">Openshift 4 and ServiceMesh 2 - Deploy Microservices</a></li>
           
         </ul>
       </div>
@@ -113,6 +118,7 @@
           <li class="active">Links:</li>
           <li class="smallpadding small"><a class="nospacing" href="https://redhat.com">Red Hat</a></li>
           <li class="smallpadding small"><a class="nospacing" href="https://docs.openshift.com/">OpenShift Docs</a></li>
+          <li class="smallpadding small"><a class="nospacing" href="https://github.com/stderrat/stderrat.github.io">Source</a></li>
             
         </ul>
       </div>
@@ -123,14 +129,14 @@
 <div id="post">
     <div class="post-header">
     <div id="post-meta" class="row">
-        <strong>March 29, 2020</strong>
+        <strong>29. März 2020</strong>
         
     </div>
     <h1>Openshift 4 and ServiceMesh 2 - Deploy Microservices</h1>
 </div>
 <div>
     
-    <div id="toc" class="toc"><div id="toctitle">Table of Contents</div><ul class="sectlevel1"><li><a href="#_introduction">Introduction</a></li><li><a href="#_deploy_microservices">Deploy microservices</a><ul class="sectlevel2"><li><a href="#_deploy_microservice_customer">Deploy microservice: <em>customer</em></a></li><li><a href="#_deploy_microservice_preference">Deploy microservice: <em>preference</em></a></li><li><a href="#_deploy_microservice_recommendation">Deploy microservice: <em>recommendation</em></a></li></ul></li><li><a href="#_optional_build_the_images">Optional: build the images</a><ul class="sectlevel2"><li><a href="#_build_customer">Build <em>customer</em></a></li><li><a href="#_build_preference">Build <em>preference</em></a></li><li><a href="#_build_recommendation">Build <em>recommendation</em></a></li></ul></li></ul></div><!-- toc disabled --><div class="paragraph small"><p><em>Author: Thomas Jungbauer - Last Modified: 2020-04-01 17:49:57 +0200</em></p></div><div class="sect1"><h2 id="_introduction">Introduction</h2><div class="sectionbody"><div class="paragraph"><p>As quickly explained at <a href="/posts-output/2020-03-29-Istio-Tutorial1">Issue #1</a>, OpenShift 4.3 and the Service Mesh shall be installed already. At this point you should have all 4 operators installed and ready.
+    <div id="toc" class="toc"><div id="toctitle">Table of Contents</div><ul class="sectlevel1"><li><a href="#_introduction">Introduction</a></li><li><a href="#_deploy_microservices">Deploy microservices</a><ul class="sectlevel2"><li><a href="#_deploy_microservice_customer">Deploy microservice: <em>customer</em></a></li><li><a href="#_deploy_microservice_preference">Deploy microservice: <em>preference</em></a></li><li><a href="#_deploy_microservice_recommendation">Deploy microservice: <em>recommendation</em></a></li></ul></li><li><a href="#_optional_build_the_images">Optional: build the images</a><ul class="sectlevel2"><li><a href="#_build_customer">Build <em>customer</em></a></li><li><a href="#_build_preference">Build <em>preference</em></a></li><li><a href="#_build_recommendation">Build <em>recommendation</em></a></li></ul></li></ul></div><!-- toc disabled --><div class="paragraph small"><p><em>Author: Thomas Jungbauer - Last Modified: 2020-04-02 18:22:17 +0200</em></p></div><div class="sect1"><h2 id="_introduction">Introduction</h2><div class="sectionbody"><div class="paragraph"><p>As quickly explained at <a href="/posts-output/2020-03-29-Istio-Tutorial1">Issue #1</a>, OpenShift 4.3 and the Service Mesh shall be installed already. At this point you should have all 4 operators installed and ready.
 The test application used in this scenario is based on Java and contains 3 microservices in the following traffic flow:</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph text-center"><p>Customer ⇒ Preference ⇒ Recomandation
  <br /><br /></p></div><div class="paragraph"><p>The microservices are the same as used at the <a href="https://learn.openshift.com/servicemesh">Interactive Learning Portal</a>.</p></div></div></div><div class="sect1"><h2 id="_deploy_microservices">Deploy microservices</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>First lets create a new project for our tests</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project tutorial</code></pre></div></div></li><li><p>Add SCC privileges to the default service account of the new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc adm policy add-scc-to-user privileged -z default -n tutorial</code></pre></div></div></li><li><p>Add <em>tutorial</em> to ServiceMeshMemberRoll</p><div class="paragraph"><p>OpenShift will auto-inject the sidecar proxy to pods of a namespace, if the namespace is configured in the ServiceMeshMemberRoll object which was created for the operator.</p></div><div class="olist loweralpha"><ol class="loweralpha" type="a"><li><p>Create the file <em>memberroll.yaml</em>:</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; memberroll.yaml
 apiVersion: maistra.io/v1
@@ -146,12 +152,12 @@ If you already have namespaces configured for ServiceMeshMemberRoll, better modi
 Verify ~/istio-tutorial/customer/kubernetes/Deployment.yml to check where the actual image is coming from: quay.io/rhdevelopers/istio-tutorial-customer:v1.1</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">cd ~/istio-tutorial/customer
 oc apply -f kubernetes/Deployment.yml -n tutorial
 oc apply -f kubernetes/Service.yml -n tutorial
-oc expose service customer</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Check if pods are running with two containers:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods -w</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>The result should look somehow like this:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">NAME                             READY   STATUS    RESTARTS   AGE
+oc expose service customer</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Check if pods are running with two containers:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods -w</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>The result should look somehow like this:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">NAME                             READY   STATUS    RESTARTS   AGE
 customer-6948b8b959-g77bs        2/2     Running   0          52m</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="admonitionblock caution"><table><tr><td class="icon"><i class="fa icon-caution" title="Caution"></i></td><td class="content">
 If there is only 1 container running, indicated by READY = 1/1, then most likely the ServiceMeshMemberRoll was not updated with the name <em>tutorial</em> or contains a wrong project name.
 </td></tr></table></div></div><div class="sect2"><h3 id="_deploy_microservice_preference">Deploy microservice: <em>preference</em></h3><div class="paragraph"><p>The deployment of the microservice <em>preference</em> is exactly like it is done for <em>customer</em>, except that no service must be exposed:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">cd ~/istio-tutorial/preference/
 oc apply -f kubernetes/Deployment.yml -n tutorial
-oc apply -f kubernetes/Service.yml -n tutorial</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Check if pods are running with two containers:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods -w</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>The result should look somehow like this:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">NAME                                 READY   STATUS    RESTARTS   AGE
+oc apply -f kubernetes/Service.yml -n tutorial</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Check if pods are running with two containers:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods -w</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>The result should look somehow like this:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">NAME                                 READY   STATUS    RESTARTS   AGE
 customer-6948b8b959-g77bs            2/2     Running   0          4d15h
 preference-v1-7fdb89c86b-gkk5g       2/2     Running   0          4d14h</code></pre></div></div><div class="paragraph"><p> <br /></p></div></div><div class="sect2"><h3 id="_deploy_microservice_recommendation">Deploy microservice: <em>recommendation</em></h3><div class="paragraph"><p>The deployment of the microservice <em>recommendation</em> is exactly like it is done for <em>preference</em>:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">cd ~/istio-tutorial/recommendation/
 oc apply -f kubernetes/Deployment.yml -n tutorial
@@ -190,8 +196,10 @@ the "v1" tag at the image name is important and must be used. Later other versio
 
     <div id="prev-next">
         
+        <a class="button" href="/posts-output/2020-03-29-Istio-Tutorial1/">&laquo; Openshift 4 and ServiceMesh 1 - Installation</a>
         
-        <a class="right button" href="/posts-output/2020-03-29-Istio-Tutorial1/">Openshift 4 and ServiceMesh 1 - Installation &raquo;</a>
+        
+        <a class="right button" href="/posts-output/2020-03-30-Istio-Tutorial3/">Openshift 4 and ServiceMesh 3 - Ingress Traffic &raquo;</a>
         
     </div>
 

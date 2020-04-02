@@ -7,7 +7,11 @@
       if (!item.getAttribute('id')) {
         item.setAttribute('id', 'listingblock' + (idx++))
       }
-      createBlockClipboard(item)
+
+      /* only show copy button when class 'hidecopy' is not set */
+      if (!$(item).hasClass("hidecopy")) {
+        createBlockClipboard(item)
+      }
     })
 
     try {
