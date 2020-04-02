@@ -98,7 +98,7 @@
     <hr class="menuhr">
       <div id="menucont">
         <ul class="menu">
-          <li class="active">Recent Posts:</li>
+          <li>Recent Posts:</li>
           
             <li class="smallpadding small"><a class="nospacing" href="/posts-output/2020-04-01-Istio-Tutorial5/">Openshift 4 and ServiceMesh 5 - Routing</a></li>
           
@@ -115,7 +115,7 @@
     <hr class="menuhr">
       <div id="menucont">
         <ul class="menu">
-          <li class="active">Links:</li>
+          <li>Links:</li>
           <li class="smallpadding small"><a class="nospacing" href="https://redhat.com">Red Hat</a></li>
           <li class="smallpadding small"><a class="nospacing" href="https://docs.openshift.com/">OpenShift Docs</a></li>
           <li class="smallpadding small"><a class="nospacing" href="https://github.com/stderrat/stderrat.github.io">Source</a></li>
@@ -136,7 +136,7 @@
 </div>
 <div>
     
-    <div id="toc" class="toc"><div id="toctitle">Table of Contents</div><ul class="sectlevel1"><li><a href="#_introduction">Introduction</a></li><li><a href="#_deploy_microservices">Deploy microservices</a><ul class="sectlevel2"><li><a href="#_deploy_microservice_customer">Deploy microservice: <em>customer</em></a></li><li><a href="#_deploy_microservice_preference">Deploy microservice: <em>preference</em></a></li><li><a href="#_deploy_microservice_recommendation">Deploy microservice: <em>recommendation</em></a></li></ul></li><li><a href="#_optional_build_the_images">Optional: build the images</a><ul class="sectlevel2"><li><a href="#_build_customer">Build <em>customer</em></a></li><li><a href="#_build_preference">Build <em>preference</em></a></li><li><a href="#_build_recommendation">Build <em>recommendation</em></a></li></ul></li></ul></div><!-- toc disabled --><div class="paragraph small"><p><em>Author: Thomas Jungbauer - Last Modified: 2020-04-02 18:22:17 +0200</em></p></div><div class="sect1"><h2 id="_introduction">Introduction</h2><div class="sectionbody"><div class="paragraph"><p>As quickly explained at <a href="/posts-output/2020-03-29-Istio-Tutorial1">Issue #1</a>, OpenShift 4.3 and the Service Mesh shall be installed already. At this point you should have all 4 operators installed and ready.
+    <div id="toc" class="toc"><div id="toctitle">Table of Contents</div><ul class="sectlevel1"><li><a href="#_introduction">Introduction</a></li><li><a href="#_deploy_microservices">Deploy microservices</a><ul class="sectlevel2"><li><a href="#_deploy_microservice_customer">Deploy microservice: <em>customer</em></a></li><li><a href="#_deploy_microservice_preference">Deploy microservice: <em>preference</em></a></li><li><a href="#_deploy_microservice_recommendation">Deploy microservice: <em>recommendation</em></a></li></ul></li><li><a href="#_optional_build_the_images">Optional: build the images</a><ul class="sectlevel2"><li><a href="#_build_customer">Build <em>customer</em></a></li><li><a href="#_build_preference">Build <em>preference</em></a></li><li><a href="#_build_recommendation">Build <em>recommendation</em></a></li></ul></li></ul></div><!-- toc disabled --><div class="paragraph small"><p><em>Author: Thomas Jungbauer - Last Modified: 2020-04-02 21:32:22 +0200</em></p></div><div class="sect1"><h2 id="_introduction">Introduction</h2><div class="sectionbody"><div class="paragraph"><p>As quickly explained at <a href="/posts-output/2020-03-29-Istio-Tutorial1">Issue #1</a>, OpenShift 4.3 and the Service Mesh shall be installed already. At this point you should have all 4 operators installed and ready.
 The test application used in this scenario is based on Java and contains 3 microservices in the following traffic flow:</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph text-center"><p>Customer ⇒ Preference ⇒ Recomandation
  <br /><br /></p></div><div class="paragraph"><p>The microservices are the same as used at the <a href="https://learn.openshift.com/servicemesh">Interactive Learning Portal</a>.</p></div></div></div><div class="sect1"><h2 id="_deploy_microservices">Deploy microservices</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>First lets create a new project for our tests</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project tutorial</code></pre></div></div></li><li><p>Add SCC privileges to the default service account of the new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc adm policy add-scc-to-user privileged -z default -n tutorial</code></pre></div></div></li><li><p>Add <em>tutorial</em> to ServiceMeshMemberRoll</p><div class="paragraph"><p>OpenShift will auto-inject the sidecar proxy to pods of a namespace, if the namespace is configured in the ServiceMeshMemberRoll object which was created for the operator.</p></div><div class="olist loweralpha"><ol class="loweralpha" type="a"><li><p>Create the file <em>memberroll.yaml</em>:</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; memberroll.yaml
 apiVersion: maistra.io/v1
