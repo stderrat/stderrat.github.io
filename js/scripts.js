@@ -16,7 +16,7 @@ d)<1/2.75?b*7.5625*a*a+c:a<2/2.75?b*(7.5625*(a-=1.5/2.75)*a+0.75)+c:a<2.5/2.75?b
 /** Responsive Menu **/
 
 $(document).ready(function() {
-	$(".menutitle").click(function() {
+	$(".menutitle").on("click", function() {
 		$(".menu").slideToggle(350,'easeInOutExpo', function() {
 			$(this).attr('style', '').toggleClass('open');
 		});
