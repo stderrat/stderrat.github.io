@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <title>Yet Aother Useless Blog (YAUB): Openshift 4 and ServiceMesh 1 - Installation</title>
     
-<meta name="keywords" content="DestinationRule,Loadbalancer,OCP,Canary,Grayscale,Mirror,kubectl,Istio,Ansible Tower,Ansible,OpenShift,Service Mesh,DO410,oc">
+<meta name="keywords" content="DestinationRule,Loadbalancer,OCP,Canary,Grayscale,Egress,Mirror,kubectl,Istio,Ansible Tower,Ansible,OpenShift,Service Mesh,DO410,oc">
 
 <meta name="description" content="Openshift 4.x and Service Mesh/Istio Tutorial 1 - Installation and First Steps">
 
@@ -116,6 +116,8 @@
         <ul class="menu">
           <li>Recent Posts:</li>
           
+            <a class="nospacing left" href="/posts-output/2020-04-07-Istio-Tutorial7/"><li class="smallpadding small">OpenShift 4 and Service Mesh 7 - Limit Egress/External Traffic</li></a>
+          
             <a class="nospacing left" href="/posts-output/2020-04-06-do410-ansible-ansible-tower-notes/"><li class="smallpadding small">DO410 Ansible and Ansible Tower training notes</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-04-03-Istio-Tutorial6/"><li class="smallpadding small">OpenShift 4 and Service Mesh 6 - Advanced Routing Example</li></a>
@@ -123,8 +125,6 @@
             <a class="nospacing left" href="/posts-output/2020-04-01-Istio-Tutorial5/"><li class="smallpadding small">Openshift 4 and Service Mesh 5 - Routing Example</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-04-01-oc-commands/"><li class="smallpadding small">Helpful oc / kubectl commands</li></a>
-          
-            <a class="nospacing left" href="/posts-output/2020-03-31-Istio-Tutorial4/"><li class="smallpadding small">Openshift 4 and Service Mesh 4 - Ingress with custom domain</li></a>
           
         </ul>
       </div>
@@ -145,14 +145,14 @@
 <div id="post">
     <div class="post-header">
     <div id="post-meta" class="row">
-        <strong>March 29, 2020</strong>
+        <strong>29. März 2020</strong>
         
     </div>
     <h1>Openshift 4 and ServiceMesh 1 - Installation</h1>
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Author: Thomas Jungbauer - Last Modified: 2020-04-06 17:35:52 +0200</em></p></div><div class="paragraph"><p>Everything has a start, this blog as well as the following tutorials. This series of tutorials shall provide a brief and working overview about <strong>OpenShift Service Mesh</strong>. It is starting with the installation and the first steps, and will continue with advanced settings and configuration options.</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_openshift_4_x_and_servicemesh">OpenShift 4.x and ServiceMesh</a></li><li><a href="#_prerequisites">Prerequisites</a></li><li><a href="#_install_red_hat_service_mesh">Install Red Hat Service Mesh</a></li><li><a href="#_link_jaeger_and_grafana_to_kiali">Link Jaeger and Grafana to Kiali</a></li></ul></div><div class="sect1"><h2 id="_openshift_4_x_and_servicemesh">OpenShift 4.x and ServiceMesh</h2><div class="sectionbody"><div class="paragraph"><p>The following tutorials for <strong>OpenShift Service Mesh</strong> are based on the official documentation: <a href="https://docs.openshift.com/container-platform/4.3/service_mesh/servicemesh-release-notes.html" target="_blank" rel="noopener">OpenShift 4.3 Service Mesh</a> and on the <a href="https://learn.openshift.com/servicemesh" target="_blank" rel="noopener">Interactive Learning Portal</a>. All operations have been successfully tested on OpenShift 4.3.
+    <div class="paragraph small"><p><em>Author: Thomas Jungbauer - Last Modified: 2020-04-07 09:08:40 +0200</em></p></div><div class="paragraph"><p>Everything has a start, this blog as well as the following tutorials. This series of tutorials shall provide a brief and working overview about <strong>OpenShift Service Mesh</strong>. It is starting with the installation and the first steps, and will continue with advanced settings and configuration options.</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_openshift_4_x_and_servicemesh">OpenShift 4.x and ServiceMesh</a></li><li><a href="#_prerequisites">Prerequisites</a></li><li><a href="#_install_red_hat_service_mesh">Install Red Hat Service Mesh</a></li><li><a href="#_link_jaeger_and_grafana_to_kiali">Link Jaeger and Grafana to Kiali</a></li></ul></div><div class="sect1"><h2 id="_openshift_4_x_and_servicemesh">OpenShift 4.x and ServiceMesh</h2><div class="sectionbody"><div class="paragraph"><p>The following tutorials for <strong>OpenShift Service Mesh</strong> are based on the official documentation: <a href="https://docs.openshift.com/container-platform/4.3/service_mesh/servicemesh-release-notes.html" target="_blank" rel="noopener">OpenShift 4.3 Service Mesh</a> and on the <a href="https://learn.openshift.com/servicemesh" target="_blank" rel="noopener">Interactive Learning Portal</a>. All operations have been successfully tested on OpenShift 4.3.
 Currently OpenShift supports Istio 1.1.17, which shall be updated in one of the future releases.</p></div><div class="paragraph"><p>To learn the basics of Service Mesh, please consult the documentation as they are not repeated here.</p></div><div class="paragraph"><p>It is assumed that OpenShift has access to external registries, like quay.io.</p></div><div class="paragraph"><p>Other resource I can recommend are:</p></div><div class="ulist"><ul><li><p><a href="https://istiobyexample.dev/" target="_blank" rel="noopener">Istio By Example</a>: A very good and brief overview of different topics by Megan O’Keefe.</p></li></ul></div></div></div><div class="sect1"><h2 id="_prerequisites">Prerequisites</h2><div class="sectionbody"><div class="paragraph"><p>At the very beginning OpenShift must be installed. This tutorial is based on OpenShift 4.3 and a Lab installation on Hetzner was used.
 Moreover, it is assumed that the <a href="https://mirror.openshift.com/pub/openshift-v4/clients/oc/4.3/" target="_blank" rel="noopener">OpenShift Client</a> and Git are installed on the local system.</p></div><div class="paragraph"><p>During the tutorials an example application in the namespace <em>tutorial</em> will be deployed. This application will contain 3 microservices:</p></div><div class="ulist"><ul><li><p>customer (the entry point)</p></li><li><p>preference</p></li><li><p>recommendation</p></li></ul></div><div class="paragraph"><p>This application is also used at the <a href="https://learn.openshift.com/servicemesh" target="_blank" rel="noopener">Interactive Learning Portal</a> which can be tested there interactively. However, the training is still based on OpenShift version 3.</p></div></div></div><div class="sect1"><h2 id="_install_red_hat_service_mesh">Install Red Hat Service Mesh</h2><div class="sectionbody"><div class="paragraph"><p>To deploy Service Mesh on Openshift 4 follow the guide at <a href="https://docs.openshift.com/container-platform/4.3/service_mesh/service_mesh_install/installing-ossm.html" target="_blank" rel="noopener">Installing Red Hat OpenShift Service Mesh</a>.</p></div><div class="paragraph"><p>In short, multiple operators must be installed:</p></div><div class="ulist"><ul><li><p>Elasticsearch</p></li><li><p>Jaeger</p></li><li><p>Kiali</p></li><li><p>Service Mesh</p></li></ul></div><div class="admonitionblock caution"><table><tr><td class="icon"><i class="fa icon-caution" title="Caution"></i></td><td class="content">
 Elasticsearch is a very memory intensive application. Per default it will request 16GB of memory which can be reduced on Lab environments.
@@ -183,10 +183,8 @@ This is visible when the link <em>Distributed Tracing</em> is missing in the lef
 
     <div id="prev-next">
         
-        <a class="button" href="/posts-output/2020-03-29-Istio-Tutorial2/">&laquo; Openshift 4 and ServiceMesh 2 - Deploy Microservices</a>
         
-        
-        <a class="right button" href="/posts-output/2020-03-30-Istio-Tutorial3/">Openshift 4 and ServiceMesh 3 - Ingress Traffic &raquo;</a>
+        <a class="right button" href="/posts-output/2020-03-29-Istio-Tutorial2/">Openshift 4 and ServiceMesh 2 - Deploy Microservices &raquo;</a>
         
     </div>
 
