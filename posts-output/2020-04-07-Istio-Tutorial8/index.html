@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]><html class="ie ie6" lang="en"><![endif]-->
+<!--[if IE 7 ]><html class="ie ie7" lang="en"><![endif]-->
+<!--[if IE 8 ]><html class="ie ie8" lang="en"><![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!--><html lang="en"><!--<![endif]-->
+<head>
+    <meta name="google-site-verification" content="yq2Ib3doJVHVlEW2wtHap5WY54JhS2CCvI40y30F0FI" />
+    <!-- Website Template designed by www.downloadwebsitetemplates.co.uk -->
+    <!-- Modified to fit Cryogen.-->
+    <meta charset="UTF-8">
+    <title>Yet Aother Useless Blog (YAUB): OpenShift 4 and Service Mesh 8 - Fault Injection</title>
+    
+<meta name="keywords" content="DestinationRule,Loadbalancer,OCP,Canary,Grayscale,Egress,Mirror,kubectl,Istio,Ansible Tower,Fault Injection,Ansible,OpenShift,Service Mesh,DO410,oc">
+
+<meta name="description" content="OpenShift 4.x and Service Mesh/Istio Tutorial 8 - Faul Injection/Chaos Testing">
+
+<meta property="og:description" content="OpenShift 4.x and Service Mesh/Istio Tutorial 8 - Faul Injection/Chaos Testing">
+
+<meta property="og:url" content="http://blog.stderr.at/posts-output/2020-04-07-Istio-Tutorial8/" />
+<meta property="og:title" content="OpenShift 4 and Service Mesh 8 - Fault Injection" />
+<meta property="og:type" content="article" />
+
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="/img/ico/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/img/ico/apple-touch-icon-180x180.png">
+    <link rel="apple-touch-icon-precomposed" sizes="128x128" href="/img/ico/apple-touch-icon-128x128.png">
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/img/ico/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="/img/ico/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="/img/ico/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon-precomposed" href="/img/ico/apple-touch-icon-57x57.png">
+    <link rel="shortcut icon" href="/img/ico/favicon.ico">
+    <!--[if IE]><![endif]-->   
+    <link href="/css/style.css" rel="stylesheet" type="text/css" />
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tomorrow-night-eighties.min.css">
+    <!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+    <link rel="stylesheet" href="/css/font-awesome-animation.min.css"> 
+
+<style>
+ .listingblock:hover .clipboard {
+     display: block;
+ }
+
+ .clipboard {
+     display: none;
+     border: 0;
+     font-size: .75em;
+     text-transform: uppercase;
+     font-weight: 500;
+     padding: 6px;
+     color: #999;
+     position: absolute;
+     top: .425rem;
+     right: .5rem;
+     background: transparent;
+ }
+
+ code + .clipboard {
+     top: 2rem !important;
+ }
+
+ .clipboard:hover, .clipboard:focus, .clipboard:active {
+     outline: 0;
+     background-color: #eee9e6;
+ }
+</style>
+
+
+
+</head>
+<body>
+<div id="left">
+
+    <p id="logo">
+        <a title="Yet Aother Useless Blog (YAUB)" href="/">
+            <span class="fa fa-cloud-upload faa-float animated"></span>
+            <span class="text">YAUB</span>
+            <span class="text small">Yet another Useless Blog</span>
+        </a>
+    </p>
+
+    <div id="menucont" class="bodycontainer clearfix">
+        <div class="menutitle">
+            <p><span class="fa fa-reorder"></span><strong>Menu</strong></p>
+        </div>
+        <ul class="menu">
+          <a class="left" title="Home" href="/">
+            <li >Home</li>
+          </a>
+
+          <a class="left" title="Archives" href="/archives/">
+            <li >Archives</li>
+          </a>
+
+            
+            <a class="left" title="Tags" href="/tags/">
+            <li >Tags</li>
+            </a>
+            
+            
+            
+            <a class="left" href="/pages-output/Legal/">
+            <li >
+                Legal Disclosure
+            </li>
+            </a>
+            
+            <a class="left" title="RSS" href="/feed.xml">
+            <li>RSS</li>
+            </a>
+        </ul>
+    </div>
+
+    <hr class="menuhr">
+      <div id="menucont">
+        <ul class="menu">
+          <li>Recent Posts:</li>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-07-Istio-Tutorial8/"><li class="smallpadding small">OpenShift 4 and Service Mesh 8 - Fault Injection</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-06-Istio-Tutorial7/"><li class="smallpadding small">OpenShift 4 and Service Mesh 7 - Limit Egress/External Traffic</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-06-do410-ansible-ansible-tower-notes/"><li class="smallpadding small">DO410 Ansible and Ansible Tower training notes</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-03-Istio-Tutorial6/"><li class="smallpadding small">OpenShift 4 and Service Mesh 6 - Advanced Routing Example</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-01-Istio-Tutorial5/"><li class="smallpadding small">Openshift 4 and Service Mesh 5 - Routing Example</li></a>
+          
+        </ul>
+      </div>
+    <hr class="menuhr">
+      <div id="menucont">
+        <ul class="menu">
+          <li>Links:</li>
+          <a class="nospacing left" href="https://redhat.com" rel="external"><li class="smallpadding small">Red Hat</li></a>
+          <a class="nospacing left" href="https://docs.openshift.com/" rel="external"><li class="smallpadding small">OpenShift Docs</li></a>
+          <a class="nospacing left" href="https://github.com/stderrat/stderrat.github.io" rel="external"><li class="smallpadding small">Source</li></a>
+            
+        </ul>
+      </div>
+</div>
+
+<div id="right" class="clearfix">
+    
+<div id="post">
+    <div class="post-header">
+    <div id="post-meta" class="row">
+        <strong>07. April 2020</strong>
+        
+    </div>
+    <h1>OpenShift 4 and Service Mesh 8 - Fault Injection</h1>
+</div>
+<div>
+    
+    <div class="paragraph small"><p><em>Author: Thomas Jungbauer - Last Modified: 2020-04-07 14:07:55 +0200</em></p></div><div class="paragraph"><p>Tutorial 8 of <strong>OpenShift 4 and Service Mesh</strong> tries to cover Fault Injection by using Chaos testing method to verify if your application is running. This is done by adding the property HTTPFaultInjection to the VirtualService. The settings for this property can be for example: delay, to delay the access or abort, to completely abort the connection.</p></div><div class="paragraph"><p>"<em>Adopting microservices often means more dependencies, and more services you might not control. It also means more requests on the network, increasing the possibility for errors. For these reasons, it’s important to test your services’ behavior when upstream dependencies fail."</em> [<a href="#source_1">1</a>]</p></div><div class="paragraph"><p> <br /><br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_preparation">Preparation</a></li><li><a href="#_abort_connection_with_http_error_503">Abort Connection with HTTP Error 503</a><ul class="sectlevel2"><li><a href="#_clean_up">Clean Up</a></li></ul></li><li><a href="#_test_slow_connection_with_delay">Test slow connection with Delay</a></li><li><a href="#_sources">Sources</a></li></ul></div><div class="sect1"><h2 id="_preparation">Preparation</h2><div class="sectionbody"><div class="paragraph"><p>Before we start this tutorial, we need to clean up our cluster. This is especially important when you did the previous training <a href="/posts-output/2020-04-06-Istio-Tutorial7">Limit Egress/External Traffic</a>.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc delete deployment recommendation-v3
+oc scale deployment recommendation-v2 --replicas=1
+oc delete serviceentry worldclockapi-egress-rule
+oc delete virtualservice worldclockapi-timeout</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Verify that 2 pods for the recommendation services are running (with 2 containers)</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods -l app=recommendation -n tutorial
+NAME                                 READY   STATUS    RESTARTS   AGE
+recommendation-v1-69db8d6c48-h8brv   2/2     Running   0          4d20h
+recommendation-v2-6c5b86bbd8-jnk8b   2/2     Running   0          4d19h</code></pre></div></div><hr /></div></div><div class="sect1"><h2 id="_abort_connection_with_http_error_503">Abort Connection with HTTP Error 503</h2><div class="sectionbody"><div class="paragraph"><p>For the first example, we will need to modify the VirtualService and the DestinationRule. The VirtualService must be extended with a http fault section, which will abort the traffic 50% of the time.</p></div><div class="olist arabic"><ol class="arabic"><li><p>Create the VirtualService</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: recommendation
+spec:
+  hosts:
+  - recommendation
+  http:
+  - fault:
+      abort:
+        httpStatus: 503
+        percent: 50
+    route:
+    - destination:
+        host: recommendation
+        subset: app-recommendation</code></pre></div></div><div class="paragraph"><p> <br />
+Apply the change</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc replace -f VirtualService-abort.yaml</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="admonitionblock warning"><table><tr><td class="icon"><i class="fa icon-warning" title="Warning"></i></td><td class="content">
+Existing VirtualService with the name recommendation will be overwritten.
+</td></tr></table></div></li><li><p>Create the DestinationRule</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: recommendation
+spec:
+  host: recommendation
+  subsets:
+  - labels:
+      app: recommendation
+    name: app-recommendation</code></pre></div></div><div class="paragraph"><p> <br />
+Apply the change</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc replace -f destinationrule-faultinj.yaml</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="admonitionblock warning"><table><tr><td class="icon"><i class="fa icon-warning" title="Warning"></i></td><td class="content">
+Existing Destination with the name recommendation will be overwritten.
+</td></tr></table></div></li><li><p>Check the traffic and verify that 50% of the connections will end with a 503 error:</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">export INGRESS_GATEWAY=$(oc get route customer -n tutorial -o 'jsonpath={.spec.host}')
+sh ~/run.sh 1000 $GATEWAY_URL</code></pre></div></div><div class="paragraph"><p> <br /></p></div></li></ol></div><div class="sect2"><h3 id="_clean_up">Clean Up</h3><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc delete virtualservice recommendation</code></pre></div></div><div class="paragraph"><p> <br /></p></div><hr /></div></div></div><div class="sect1"><h2 id="_test_slow_connection_with_delay">Test slow connection with Delay</h2><div class="sectionbody"><div class="paragraph"><p>More interesting, in my opinion, to test is a slow connection. This can be tested by adding the <em>fixedDelay</em> property into the VirtualService.
+Like in the example below, we will use a VirtualService. This time <strong>delay</strong> instead of <strong>abort</strong> is used. The fixDelay defines a delay of 7 seconds for 50% of the traffic.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: recommendation
+spec:
+  hosts:
+  - recommendation
+  http:
+  - fault:
+      delay:
+        fixedDelay: 7.000s
+        percent: 50
+    route:
+    - destination:
+        host: recommendation
+        subset: app-recommendation</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>If you now send traffic into the application, you will see that some answers will have a delay of 7 seconds. Keep sending traffic in a loop.</p></div><div class="paragraph"><p>Even more visible it will be, when you goto "Distributed Tracing" at the Kiali UI, select the service <em>recommendation</em> and a small lookback of maybe 5min.
+You will find that some requests are very fast, while other will tage about 7 seconds.</p></div><div class="imageblock bordered"><div class="content"><img src="/img/servicemesh/Kiali-delayed-traffic.png" alt="Kiali" width="940" height="558" /></div><div class="title">Figure 1. Jaeger with delayed traffic.</div></div><hr /></div></div><div class="sect1"><h2 id="_sources">Sources</h2><div class="sectionbody"><div class="ulist"><ul><li><p><a id="source_1"></a>[1]: <a href="https://istiobyexample.dev/fault-injection/" target="_blank" rel="noopener">Istio By Example - Fault Injection</a></p></li></ul></div></div></div>
+</div>
+
+<div id="post-tags">
+    <br/> 
+    <b>Tags: </b>
+    
+    <a href="/tags-output/OCP/">OCP</a>
+    
+    <a href="/tags-output/Istio/">Istio</a>
+    
+    <a href="/tags-output/Fault Injection/">Fault Injection</a>
+    
+    <a href="/tags-output/OpenShift/">OpenShift</a>
+    
+    <a href="/tags-output/Service Mesh/">Service Mesh</a>
+    
+</div>
+
+<br/>
+
+    <div id="prev-next">
+        
+        <a class="button" href="/posts-output/2020-04-06-Istio-Tutorial7/">&laquo; OpenShift 4 and Service Mesh 7 - Limit Egress/External Traffic</a>
+        
+        
+    </div>
+
+    
+
+
+</div>
+
+<hr/>
+<div id="footercont" class="small clearfix">Copyright &copy; 2020 Toni Schmidbauer &amp; Thomas Jungbauer
+    <p>Powered by <a href="http://cryogenweb.org">Cryogen</a> | Free Website Template by <a title="free website templates" href="http://www.downloadwebsitetemplates.co.uk" rel="external">Download Website Templates</a></p>
+
+</div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script src="/js/highlight.pack.js" type="text/javascript"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script src="/js/clipboard.js" type="text/javascript"></script>
+<script src="/js/clipboard.integration.js" type="text/javascript"></script>
+
+<script src="/js/scripts.js" type="text/javascript"></script>
+
+
+</body>
+</html>
