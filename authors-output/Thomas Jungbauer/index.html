@@ -8,18 +8,11 @@
     <!-- Website Template designed by www.downloadwebsitetemplates.co.uk -->
     <!-- Modified to fit Cryogen.-->
     <meta charset="UTF-8">
-    <title>Yet Aother Useless Blog (YAUB): DO410 Ansible and Ansible Tower training notes</title>
+    <title>Yet Aother Useless Blog (YAUB): Posts by Thomas Jungbauer </title>
     
-<meta name="keywords" content="DestinationRule,Loadbalancer,OCP,Canary,Grayscale,Egress,JWT,Mirror,kubectl,Istio,Ansible Tower,Fault Injection,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
-
-<meta name="description" content="Notes taken during the DO410 online training course">
-
-<meta property="og:description" content="Notes taken during the DO410 online training course">
-
-<meta property="og:url" content="http://blog.stderr.at/posts-output/2020-04-06-do410-ansible-ansible-tower-notes/" />
-<meta property="og:title" content="DO410 Ansible and Ansible Tower training notes" />
-<meta property="og:type" content="article" />
-
+    <meta name="description" content="TechBlog about OpenShift 4.x and other solutions">
+    <meta name="keywords" content="OpenShift, OCP, ServiceMesh, Red Hat, Istio, Canary, Pod, Container">
+    
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
     <link rel="apple-touch-icon-precomposed" sizes="152x152" href="/img/ico/apple-touch-icon-152x152.png">
     <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/img/ico/apple-touch-icon-180x180.png">
@@ -130,54 +123,70 @@
   <hr />
   <div id="searchResults">
     
-<div id="post">
-    <div class="post-header">
-    <div id="post-meta" class="row">
-        <strong>06. April 2020</strong>
-        
-        <span class="col-lg-6 right">By: Toni Schmidbauer</span>
-        
+<div id="posts">
+    <div id="page-header" class="post-header">
+        <h1>Posts by Thomas Jungbauer</h1>
     </div>
-    <h1>DO410 Ansible and Ansible Tower training notes</h1>
-</div>
-<div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2020-04-12 16:56:23 +0200</em></p></div><div class="paragraph"><p>Notes taken during Red Hat course D410 Ansible and Ansible Tower.</p></div><div class="sect1"><h2 id="_do410_ansible_and_ansible_tower_training_notes">DO410 Ansible and Ansible Tower training notes</h2><div class="sectionbody"><div class="sect2"><h3 id="_ansible_installation">Ansible installation</h3><div class="ulist"><ul><li><p>make sure that <em>libselinux-python</em> is installed</p></li><li><p>Ansible 2.7 requires python 2.6 or 3.5</p></li></ul></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">yum list installed python</code></pre></div></div><div class="ulist"><ul><li><p>windows modules implemented in powershell</p></li><li><p>ansible requires at least .net 4.0</p></li></ul></div></div><div class="sect2"><h3 id="_configuration_files">Configuration files</h3><div class="paragraph"><p>Ansible searches for ansible.cfg in the following order:</p></div><div class="ulist"><ul><li><p>$ANSIBLE_CFG</p></li><li><p>ansible.cfg in the current directory</p></li><li><p>$HOME/ansible.cfg</p></li><li><p>/etc/ansible/ansible.cfg</p></li></ul></div><div class="paragraph"><p>whichever it finds first will be used.</p></div><div class="paragraph"><p>use</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">ansible --version</code></pre></div></div><div class="paragraph"><p>to see which config file is currently used. you can view/dump/see what changed with</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">ansible-config [list|dump|view]</code></pre></div></div></div><div class="sect2"><h3 id="_default_modules">Default modules</h3><div class="paragraph"><p>List all available modules via</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">ansible-doc -l</code></pre></div></div><div class="paragraph"><p>For getting help on a specific module use</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">ansible-doc ping</code></pre></div></div></div><div class="sect2"><h3 id="_ad_hoc_commmands">Ad-hoc commmands</h3><div class="paragraph"><p>To display ansible output on a single line per host for easier readablility use the <em>-o</em> option</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">ansible all -m command -a /bin/hostname -o</code></pre></div></div><div class="paragraph"><p>Use the raw module for directly executing commands on remote systems that do not have python installed.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">ansible -m raw</code></pre></div></div></div><div class="sect2"><h3 id="_ansible_tower">Ansible Tower</h3><div class="paragraph"><p>Notes on deploying and working with ansible tower.</p></div><div class="sect3"><h4 id="_installation">Installation</h4><div class="paragraph"><p>System requirements:</p></div><div class="ulist"><ul><li><p>at least 4GB of RAM</p></li><li><p>actual requirement depends on <em>forks</em> variable</p></li><li><p>recommendation is 100MB memory for each for + 2GB of memory for tower services</p></li><li><p>20GB of disk storage, at least 10GB in /var</p></li></ul></div><div class="paragraph"><p>Steps for installing:</p></div><div class="ulist"><ul><li><p>set passwords in <em>inventory</em></p></li><li><p>run <em>./setup.sh</em></p></li></ul></div></div><div class="sect3"><h4 id="_authentication">Authentication</h4><div class="paragraph"><p>Authentication settings can be changed under Settings /
-Authentication. E.g for configuring Azure AD authentication we are
-going to need</p></div><div class="ulist"><ul><li><p>an Azure AD oauth2 key and</p></li><li><p>a Azure AD oauth2 secret</p></li></ul></div><div class="sect4"><h5 id="_rbac">RBAC</h5><div class="ulist"><ul><li><p>separate roles for organizations and inventories</p></li><li><p>you need to assign roles to organizations and inventories</p></li></ul></div></div></div></div></div></div>
-</div>
-
-<div id="post-tags">
-    <br/> 
-    <b>Tags: </b>
-    
-    <a href="/tags-output/Ansible Tower/">Ansible Tower</a>
-    
-    <a href="/tags-output/Ansible/">Ansible</a>
-    
-    <a href="/tags-output/DO410/">DO410</a>
-    
-</div>
-
-<br/>
-
-    <div id="prev-next">
+    <h4>2020 April</h4>
+    <ul>
         
-        <a class="button" href="/posts-output/2020-04-03-Istio-Tutorial6/">&laquo; OpenShift 4 and Service Mesh 6 - Advanced Routing Example</a>
+        <li>
+            Apr 10 - <a href="/posts-output/2020-04-10-Istio-Update/">OpenShift 4 - Service Mesh 1.1 released</a>
+        </li>
         
+        <li>
+            Apr 09 - <a href="/posts-output/2020-04-09-Istio-Tutorial10/">OpenShift 4 and Service Mesh 10 - Authentication JWT</a>
+        </li>
         
-        <a class="right button" href="/posts-output/2020-04-06-Istio-Tutorial7/">OpenShift 4 and Service Mesh 7 - Limit Egress/External Traffic &raquo;</a>
+        <li>
+            Apr 08 - <a href="/posts-output/2020-04-08-Istio-Tutorial9/">OpenShift 4 and Service Mesh 9 - Mutual TLS Authentication</a>
+        </li>
         
-    </div>
-
+        <li>
+            Apr 07 - <a href="/posts-output/2020-04-07-Istio-Tutorial8/">OpenShift 4 and Service Mesh 8 - Fault Injection</a>
+        </li>
+        
+        <li>
+            Apr 06 - <a href="/posts-output/2020-04-06-Istio-Tutorial7/">OpenShift 4 and Service Mesh 7 - Limit Egress/External Traffic</a>
+        </li>
+        
+        <li>
+            Apr 03 - <a href="/posts-output/2020-04-03-Istio-Tutorial6/">OpenShift 4 and Service Mesh 6 - Advanced Routing Example</a>
+        </li>
+        
+        <li>
+            Apr 01 - <a href="/posts-output/2020-04-01-Istio-Tutorial5/">Openshift 4 and Service Mesh 5 - Routing Example</a>
+        </li>
+        
+    </ul>
     
-
-
+    <h4>2020 März</h4>
+    <ul>
+        
+        <li>
+            Mär 31 - <a href="/posts-output/2020-03-31-Istio-Tutorial4/">Openshift 4 and Service Mesh 4 - Ingress with custom domain</a>
+        </li>
+        
+        <li>
+            Mär 30 - <a href="/posts-output/2020-03-30-Istio-Tutorial3/">Openshift 4 and ServiceMesh 3 - Ingress Traffic</a>
+        </li>
+        
+        <li>
+            Mär 29 - <a href="/posts-output/2020-03-29-Istio-Tutorial2/">Openshift 4 and ServiceMesh 2 - Deploy Microservices</a>
+        </li>
+        
+        <li>
+            Mär 29 - <a href="/posts-output/2020-03-29-Istio-Tutorial1/">Openshift 4 and ServiceMesh 1 - Installation</a>
+        </li>
+        
+    </ul>
+    
 </div>
 
   </div>
 <hr/>
-<div id="footercont" class="small clearfix">Copyright &copy; 2020 Toni Schmidbauer &amp; Thomas Jungbauer
+<div id="footercont" class="small clearfix">Copyright &copy; 2020 Thomas Jungbauer
     <p>Powered by <a href="http://cryogenweb.org">Cryogen</a> | Free Website Template by <a title="free website templates" href="http://www.downloadwebsitetemplates.co.uk" rel="external">Download Website Templates</a></p>
 
 </div>
