@@ -35,9 +35,14 @@
     <link rel="stylesheet" href="/css/tomorrow-night-eighties.min.css">
     <!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
     <link rel="stylesheet" href="/css/font-awesome-animation.min.css"> 
+    <script src="https://unpkg.com/lunr/lunr.js"></script>
+    <script src="/js/index/lunr_index.js" type="text/javascript"></script>
+    <script src="/js/lunrclient.js"></script>
 
 </head>
-<body>
+<body>  
+<button onclick="topFunction()" id="myBtn" class="button fa fa-arrow-up" title="Go to top"></button> 
+
 <div id="left">
 
     <p id="logo">
@@ -48,6 +53,17 @@
         </a>
     </p>
 
+    <!--- Search from -->
+    <form id="lunrSearchForm" name="lunrSearchForm" action="/">
+        <input class="search-input" name="q" placeholder="Enter search term" type="text"> 
+        <input class="button nopadding" type="submit" value="Search">
+    </form>
+    <div class="loading" id="loading-div">
+        <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+        <span class="sr-only">Loading...</span>
+    </div>
+
+    <!-- menu -->
     <div id="menucont" class="bodycontainer clearfix">
         <div class="menutitle">
             <p><span class="fa fa-reorder"></span><strong>Menu</strong></p>
@@ -110,6 +126,9 @@
 </div>
 
 <div id="right" class="clearfix">
+  <div class="resultCount" id="resultCount"></div>
+  <hr />
+  <div id="searchResults">
     
 <div id="post">
     <div class="post-header">
@@ -121,7 +140,7 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Author: Toni Schmidbauer - Last Modified: 2020-04-11 06:32:11 +0200</em></p></div><div class="paragraph"><p>This is a list of useful oc and/or kubectl commands so they won’t be forgotton. No this is not a joke…​</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_list_all_pods_in_state_running">List all pods in state <em>Running</em></a><ul class="sectlevel2"><li><a href="#_list_all_pods_in_state_running_and_show_there_resource_usage">List all pods in state <em>Running</em> and show there resource usage</a></li></ul></li><li><a href="#_list_events_sort_by_time_created">List events sort by time created</a></li><li><a href="#_explain_objects_while_specifing_the_api_version">Explain objects while specifing the api version</a></li><li><a href="#_magic_with_oc_set">Magic with oc set</a><ul class="sectlevel2"><li><a href="#_set_route_weights_when_alternatebackends_in_a_route_are_defined">Set route weights when alternateBackends in a route are defined</a></li><li><a href="#_set_resources_on_the_command_line">Set resources on the command line</a></li></ul></li></ul></div><div class="sect1"><h2 id="_list_all_pods_in_state_running">List all pods in state <em>Running</em></h2><div class="sectionbody"><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods --field-selector=status.phase=Running</code></pre></div></div><div class="sect2"><h3 id="_list_all_pods_in_state_running_and_show_there_resource_usage">List all pods in state <em>Running</em> and show there resource usage</h3><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods --field-selector=status.phase=Running -o json|jq ".items[] | {name: .metada
+    <div class="paragraph small"><p><em>Author: Toni Schmidbauer - Last Modified: 2020-04-12 16:35:48 +0200</em></p></div><div class="paragraph"><p>This is a list of useful oc and/or kubectl commands so they won’t be forgotton. No this is not a joke…​</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_list_all_pods_in_state_running">List all pods in state <em>Running</em></a><ul class="sectlevel2"><li><a href="#_list_all_pods_in_state_running_and_show_there_resource_usage">List all pods in state <em>Running</em> and show there resource usage</a></li></ul></li><li><a href="#_list_events_sort_by_time_created">List events sort by time created</a></li><li><a href="#_explain_objects_while_specifing_the_api_version">Explain objects while specifing the api version</a></li><li><a href="#_magic_with_oc_set">Magic with oc set</a><ul class="sectlevel2"><li><a href="#_set_route_weights_when_alternatebackends_in_a_route_are_defined">Set route weights when alternateBackends in a route are defined</a></li><li><a href="#_set_resources_on_the_command_line">Set resources on the command line</a></li></ul></li></ul></div><div class="sect1"><h2 id="_list_all_pods_in_state_running">List all pods in state <em>Running</em></h2><div class="sectionbody"><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods --field-selector=status.phase=Running</code></pre></div></div><div class="sect2"><h3 id="_list_all_pods_in_state_running_and_show_there_resource_usage">List all pods in state <em>Running</em> and show there resource usage</h3><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods --field-selector=status.phase=Running -o json|jq ".items[] | {name: .metada
 ta.name, res: .spec.containers[].resources}"</code></pre></div></div></div></div></div><div class="sect1"><h2 id="_list_events_sort_by_time_created">List events sort by time created</h2><div class="sectionbody"><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash"> oc get events --sort-by='.lastTimestamp'</code></pre></div></div></div></div><div class="sect1"><h2 id="_explain_objects_while_specifing_the_api_version">Explain objects while specifing the api version</h2><div class="sectionbody"><div class="paragraph"><p>Sometimes when you run <code>oc explain</code> you get a message in DESCRIPTION that this particular version is deprecated, e.g. you are running <code>oc explain deployment</code> and get</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">DESCRIPTION:
      DEPRECATED - This group version of Deployment is deprecated by
      apps/v1/Deployment. See the release notes for more information. Deployment
@@ -160,6 +179,7 @@ Note the DEPRECTATED message above
 
 </div>
 
+  </div>
 <hr/>
 <div id="footercont" class="small clearfix">Copyright &copy; 2020 Toni Schmidbauer &amp; Thomas Jungbauer
     <p>Powered by <a href="http://cryogenweb.org">Cryogen</a> | Free Website Template by <a title="free website templates" href="http://www.downloadwebsitetemplates.co.uk" rel="external">Download Website Templates</a></p>
@@ -173,9 +193,19 @@ Note the DEPRECTATED message above
 
 <script src="/js/clipboard.js" type="text/javascript"></script>
 <script src="/js/clipboard.integration.js" type="text/javascript"></script>
-
 <script src="/js/scripts.js" type="text/javascript"></script>
 
+<script>window.onload = start;</script>
+
+
+
+
+<script>
+  function topFunction() {
+    document.body.scrollTop = 0; // For Safari
+    document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+  } 
+</script>
 
 </body>
 </html>
