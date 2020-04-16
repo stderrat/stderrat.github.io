@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]><html class="ie ie6" lang="en"><![endif]-->
+<!--[if IE 7 ]><html class="ie ie7" lang="en"><![endif]-->
+<!--[if IE 8 ]><html class="ie ie8" lang="en"><![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!--><html lang="en"><!--<![endif]-->
+<head>
+    <meta name="google-site-verification" content="yq2Ib3doJVHVlEW2wtHap5WY54JhS2CCvI40y30F0FI" />
+    <!-- Website Template designed by www.downloadwebsitetemplates.co.uk -->
+    <!-- Modified to fit Cryogen.-->
+    <meta charset="UTF-8">
+    <title>Yaub: OpenShift Pipelines - Tekton Introduction</title>
+    
+<meta name="keywords" content="DestinationRule,Loadbalancer,Tekton,OCP,Canary,Grayscale,Egress,JWT,Mirror,kubectl,Istio,Ansible Tower,Pipelines,Fault Injection,Satellite,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
+
+<meta name="description" content="Using OpenShift 4.x and OpenShift Pipelines using Tekton for your CI/CD process">
+
+<meta property="og:description" content="Using OpenShift 4.x and OpenShift Pipelines using Tekton for your CI/CD process">
+
+<meta property="og:url" content="http://blog.stderr.at/posts-output/2020-04-16-Tekton/" />
+<meta property="og:title" content="OpenShift Pipelines - Tekton Introduction" />
+<meta property="og:type" content="article" />
+
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="/img/ico/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/img/ico/apple-touch-icon-180x180.png">
+    <link rel="apple-touch-icon-precomposed" sizes="128x128" href="/img/ico/apple-touch-icon-128x128.png">
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/img/ico/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="/img/ico/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="/img/ico/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon-precomposed" href="/img/ico/apple-touch-icon-57x57.png">
+    <link rel="shortcut icon" href="/img/ico/favicon.ico">
+    <!--[if IE]><![endif]-->   
+    <link href="/css/style.css" rel="stylesheet" type="text/css" />
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tomorrow-night-eighties.min.css">
+    <!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+    <link rel="stylesheet" href="/css/font-awesome-animation.min.css"> 
+    <script src="https://unpkg.com/lunr/lunr.js"></script>
+    <script src="/js/index/lunr_index.js" type="text/javascript"></script>
+    <script src="/js/lunrclient.js"></script>
+
+</head>
+<body>  
+<button onclick="topFunction()" id="myBtn" class="button fa fa-arrow-up" title="Go to top"></button> 
+
+<div id="left">
+
+    <p id="logo">
+        <a title="Yaub" href="/">
+            <span class="fa fa-cloud-upload faa-float animated"></span>
+            <span class="text">YAUB</span>
+            <span class="text small">Yet another Useless Blog</span>
+        </a>
+    </p>
+
+    <!--- Search from -->
+    <form id="lunrSearchForm" name="lunrSearchForm" action="/">
+        <input class="search-input" name="q" placeholder="Enter search term" type="text"> 
+        <input class="button nopadding" type="submit" value="Search">
+    </form>
+    <div class="loading" id="loading-div">
+        <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+        <span class="sr-only">Loading...</span>
+    </div>
+
+    <!-- menu -->
+    <div id="menucont" class="bodycontainer clearfix">
+        <div class="menutitle">
+            <p><span class="fa fa-reorder"></span><strong>Menu</strong></p>
+        </div>
+        <ul class="menu">
+          <a class="left" title="Home" href="/">
+            <li >Home</li>
+          </a>
+
+          <a class="left" title="Archives" href="/archives/">
+            <li >Archives</li>
+          </a>
+
+            
+            <a class="left" title="Tags" href="/tags/">
+            <li >Tags</li>
+            </a>
+            
+            
+            
+            <a class="left" href="/pages-output/Legal/">
+            <li >
+                Legal Disclosure
+            </li>
+            </a>
+            
+            <a class="left" title="RSS" href="/feed.xml">
+            <li>RSS</li>
+            </a>
+        </ul>
+    </div>
+
+    <hr class="menuhr">
+      <div id="menucont">
+        <ul class="menu">
+          <li>Recent Posts:</li>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-16-Tekton/"><li class="smallpadding small">OpenShift Pipelines - Tekton Introduction</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-15-satellite-cheatsheet/"><li class="smallpadding small">Red Hat Satellite Cheat Sheet</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-10-Istio-Update/"><li class="smallpadding small">OpenShift 4 - Service Mesh 1.1 released</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-09-Istio-Tutorial10/"><li class="smallpadding small">OpenShift 4 and Service Mesh 10 - Authentication JWT</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-08-Istio-Tutorial9/"><li class="smallpadding small">OpenShift 4 and Service Mesh 9 - Mutual TLS Authentication</li></a>
+          
+        </ul>
+      </div>
+    <hr class="menuhr">
+      <div id="menucont">
+        <ul class="menu">
+          <li>Links:</li>
+          <a class="nospacing left" href="https://redhat.com" rel="external"><li class="smallpadding small">Red Hat</li></a>
+          <a class="nospacing left" href="https://docs.openshift.com/" rel="external"><li class="smallpadding small">OpenShift Docs</li></a>
+          <a class="nospacing left" href="https://github.com/stderrat/stderrat.github.io" rel="external"><li class="smallpadding small">Source</li></a>
+            
+        </ul>
+      </div>
+</div>
+
+<div id="right" class="clearfix">
+  <div class="resultCount" id="resultCount"></div>
+  <hr />
+  <div id="searchResults">
+    
+<div id="post">
+    <div class="post-header">
+    <div id="post-meta" class="row">
+        <strong>16. April 2020</strong>
+        
+        <span class="col-lg-6 right">By: Thomas Jungbauer</span>
+        
+    </div>
+    <h1>OpenShift Pipelines - Tekton Introduction</h1>
+</div>
+<div>
+    
+    <div class="paragraph small"><p><em>Last Modified: 2020-04-16 18:13:10 +0200</em></p></div><div class="paragraph"><p><em>OpenShift Pipelines is a cloud-native, continuous integration and delivery (CI/CD) solution for building pipelines using Tekton. Tekton is a flexible, Kubernetes-native, open-source CI/CD framework that enables automating deployments across multiple platforms (Kubernetes, serverless, VMs, etc) by abstracting away the underlying details.</em> [<a href="#source_1">1</a>]</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_openshift_pipelines_features">OpenShift Pipelines features</a></li><li><a href="#_prerequisites">Prerequisites</a></li><li><a href="#_basic_concepts">Basic Concepts</a></li><li><a href="#_installation">Installation</a></li><li><a href="#_prepare_a_tutorial_project">Prepare a tutorial project</a></li><li><a href="#_create_a_task">Create a Task</a></li><li><a href="#_create_a_pipeline">Create a Pipeline</a></li><li><a href="#_trigger_pipeline">Trigger Pipeline</a><ul class="sectlevel2"><li><a href="#_create_pipelineresources">Create PipelineResources</a></li><li><a href="#_execute_pipelines">Execute Pipelines</a></li><li><a href="#_checking_your_application">Checking your application</a></li></ul></li><li><a href="#_openshift_webui">OpenShift WebUI</a></li><li><a href="#_additional_resources">Additional Resources</a></li><li><a href="#_sources">Sources</a></li></ul></div><div class="sect1"><h2 id="_openshift_pipelines_features">OpenShift Pipelines features</h2><div class="sectionbody"><div class="paragraph"><p><em>Source: [<a href="#source_1">1</a>]</em></p></div><div class="ulist"><ul><li><p>Standard CI/CD pipeline definition based on Tekton</p></li><li><p>Build images with Kubernetes tools such as S2I, Buildah, Buildpacks, Kaniko, etc</p></li><li><p>Deploy applications to multiple platforms such as Kubernetes, serverless and VMs</p></li><li><p>Easy to extend and integrate with existing tools</p></li><li><p>Scale pipelines on-demand</p></li><li><p>Portable across any Kubernetes platform</p></li><li><p>Designed for microservices and decentralized teams</p></li><li><p>Integrated with the OpenShift Developer Console</p></li></ul></div></div></div><div class="sect1"><h2 id="_prerequisites">Prerequisites</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>OpenShift 4.x cluster.  Try yourself at <a href="https://try.openshift.com" class="bare">https://try.openshift.com</a></p></li><li><p><strong>Optional</strong>: <a href="https://github.com/tektoncd/cli#installing-tkn" target="_blank" rel="noopener">Tekton CLI</a> - Optional for now, since you could do everything via UI as well.</p></li><li><p>oc/kubectl CLI or WebUI</p></li></ol></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
+The Tekton CLI is optional in case you prefer to do everything via the OpenShift WebUI. However, below examples make use of the Tekton CLI and I personally would recommend to at least install it. (Like oc client it is good to have a CLI option as well). In any case, all described action can be done directly via the WebUI as well.
+</td></tr></table></div></div></div><div class="sect1"><h2 id="_basic_concepts">Basic Concepts</h2><div class="sectionbody"><div class="paragraph"><p>Tekton makes use of several custom resources (CRD).</p></div><div class="paragraph"><p>These CRDs are:</p></div><div class="olist arabic"><ol class="arabic"><li><p><span class="black silver-background">Task</span>: each step in a pipeline is a task, while a task can contain several steps itself, which are required to perform a specific task. For each Task a pod will be allocated and for each step inside this Task a container will be used. This helps in better scalability and better performance throughout the pipeline process.</p></li><li><p><span class="black silver-background">Pipeline</span>: is a series of tasks, combined to work together in a defined (structured) way</p></li><li><p><span class="black silver-background">TaskRun</span>: is the result of a Task, all combined TaskRuns are used in the PipelineRun</p></li><li><p><span class="black silver-background">PipelineRun</span>: is the actual execution of a whole Pipeline, containing the results of the pipeline (success, failed…​)</p></li></ol></div><div class="paragraph"><p>Pipelines and Tasks should be generic and never define possible variables, like input git repository, directly in their definition. For this, the concept of PipelineResources has been created, which defines these parameters and which are used during a PipelineRun.</p></div></div></div><div class="sect1"><h2 id="_installation">Installation</h2><div class="sectionbody"><div class="paragraph"><p>The <strong>OpenShift Pipeline</strong> is an operator which can e installed using the following yaml:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; deploy-OpenShift-Pipelines.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-pipelines-operator
+  namespace: openshift-operators
+spec:
+  channel: dev-preview
+  name: openshift-pipelines-operator
+  source: community-operators
+  sourceNamespace: openshift-marketplace
+EOF</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc create -f deploy-OpenShift-Pipelines.yaml</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>As an alternative, you can also use the WebUI to rollout the operator:</p></div><div class="olist arabic"><ol class="arabic"><li><p>Search for "OpenShift Pipeline" under OperatorHub and install it</p></li><li><p>Select:</p><div class="olist loweralpha"><ol class="loweralpha" type="a"><li><p>All Namespaces: since the operator needs to watch for Tekton Custom Resources across all namespaces.</p></li><li><p>Channel: Dev Preview</p></li><li><p>Approve Strategy: Automatic</p></li></ol></div></li></ol></div></div></div><div class="sect1"><h2 id="_prepare_a_tutorial_project">Prepare a tutorial project</h2><div class="sectionbody"><div class="paragraph"><p>To test our OpenShift Pipelines, we need to deploy an example application. This application let’s you vote what pet you like more: Cats or Dogs? It contais of a backend and a frontend part, which both will be deployed in a namespace.</p></div><div class="paragraph"><p>Let’s first create a new project:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project pipelines-tutorial</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>The OpenShift Pipeline operator will automatically create a <em>pipeline</em> serviceaccount with all required permissions to build and push an image and which is used by PipelineRuns:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get sa pipeline
+NAME       SECRETS   AGE
+pipeline   2         15s</code></pre></div></div><hr /></div></div><div class="sect1"><h2 id="_create_a_task">Create a Task</h2><div class="sectionbody"><div class="paragraph"><p>A Task is the smallest block of a Pipeline which by itself can contain one or more steps which are executed in order to process a specific element. For each Task a pod is allocated and each step is running in a container inside this pod. Tasks are reusable by other Pipelines. <em>Input</em> and <em>Output</em> specifications can be used to interact with other Tasks.</p></div><div class="paragraph"><p>Let’s create two tasks <a href="https://github.com/openshift/pipelines-tutorial/blob/master/01_pipeline" target="_blank" rel="noopener">Source: Pipeline-Tutorial</a></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; deploy-Example-Tasks.yaml
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: apply-manifests
+spec:
+  inputs:
+    resources:
+      - {type: git, name: source}
+    params:
+      - name: manifest_dir
+        description: The directory in source that contains yaml manifests
+        type: string
+        default: "k8s"
+  steps:
+    - name: apply
+      image: quay.io/openshift/origin-cli:latest
+      workingDir: /workspace/source
+      command: ["/bin/bash", "-c"]
+      args:
+        - |-
+          echo Applying manifests in $(inputs.params.manifest_dir) directory
+          oc apply -f $(inputs.params.manifest_dir)
+          echo -----------------------------------
+---
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: update-deployment
+spec:
+  inputs:
+    resources:
+      - {type: image, name: image}
+    params:
+      - name: deployment
+        description: The name of the deployment patch the image
+        type: string
+  steps:
+    - name: patch
+      image: quay.io/openshift/origin-cli:latest
+      command: ["/bin/bash", "-c"]
+      args:
+        - |-
+          oc patch deployment $(inputs.params.deployment) --patch='{"spec":{"template":{"spec":{
+            "containers":[{
+              "name": "$(inputs.params.deployment)",
+              "image":"$(inputs.resources.image.url)"
+            }]
+          }}}}'
+EOF</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc create -f deploy-Example-Tasks.yaml</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Verify that the two tasks have been created using the Tekton CLI:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">tkn task ls
+
+NAME                AGE
+apply-manifests     52 seconds ago
+update-deployment   52 seconds ago</code></pre></div></div><hr /></div></div><div class="sect1"><h2 id="_create_a_pipeline">Create a Pipeline</h2><div class="sectionbody"><div class="paragraph"><p>A pipeline is a set of Tasks, which should be executed in a defined way to achieve a specific goal.</p></div><div class="paragraph"><p>The example Pipeline below uses two resources:</p></div><div class="ulist"><ul><li><p>git-repo: defines the Git-Source</p></li><li><p>image: Defines the target at a repository</p></li></ul></div><div class="paragraph"><p>It first uses the Task <strong>buildah</strong>, which is a standard Task the OpenShift operator created automatically. This task will build the image. The resulted image is pushed to an image registry, defined in the <strong>output</strong> parameter. After that our created tasks <strong>apply-manifest</strong> and <strong>update-deployment</strong> are executed. The execution order of these tasks is defined with the <strong>runAfter</strong> Parameter in the yaml definition.</p></div><div class="paragraph"><p> <br /></p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
+The Pipeline should be re-usable accross multiple projects or environments, thats why the resources (git-repo and image) are not defined here. When a Pipeline is executed, these resources will get defined.
+</td></tr></table></div><div class="paragraph"><p> <br /></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; deploy-Example-Pipeline.yaml
+apiVersion: tekton.dev/v1alpha1
+kind: Pipeline
+metadata:
+  name: build-and-deploy
+spec:
+  resources:
+  - name: git-repo
+    type: git
+  - name: image
+    type: image
+  params:
+  - name: deployment-name
+    type: string
+    description: name of the deployment to be patched
+  tasks:
+  - name: build-image
+    taskRef:
+      name: buildah
+      kind: ClusterTask
+    resources:
+      inputs:
+      - name: source
+        resource: git-repo
+      outputs:
+      - name: image
+        resource: image
+    params:
+    - name: TLSVERIFY
+      value: "false"
+  - name: apply-manifests
+    taskRef:
+      name: apply-manifests
+    resources:
+      inputs:
+      - name: source
+        resource: git-repo
+    runAfter:
+    - build-image
+  - name: update-deployment
+    taskRef:
+      name: update-deployment
+    resources:
+      inputs:
+      - name: image
+        resource: image
+    params:
+    - name: deployment
+      value: $(params.deployment-name)
+    runAfter:
+    - apply-manifests
+EOF</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc create -f deploy-Example-Pipeline.yaml</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Verify that the Pipeline has been created using the Tekton CLI:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">tkn pipeline ls
+
+NAME               AGE             LAST RUN   STARTED   DURATION   STATUS
+build-and-deploy   3 seconds ago   ---        ---       ---        ---</code></pre></div></div><hr /></div></div><div class="sect1"><h2 id="_trigger_pipeline">Trigger Pipeline</h2><div class="sectionbody"><div class="paragraph"><p>After the Pipeline has been created, it can be triggered to execute the Tasks.</p></div><div class="sect2"><h3 id="_create_pipelineresources">Create PipelineResources</h3><div class="paragraph"><p>Since the Pipeline is generic, we need to define 2 <strong>PipelineResources</strong> first, to execute a Pipepline.
+Our example application contains a frontend (vote-ui) AND a backend (vote-api), therefore 4 PipelineResources will be created. (2 times git repository to clone the source and 2 time output image)</p></div><div class="paragraph"><p>Quick overview:</p></div><div class="ulist"><ul><li><p>ui-repo: will be used as <em>git_repo</em> in the Pipepline for the Frontend</p></li><li><p>ui-image: will be used as <em>image</em> in the Pipeline for the Frontend</p></li><li><p>api-repo: will be used as <em>git_repo</em> in the Pipepline for the Backend</p></li><li><p>api-image: will be used as <em>image</em> in the Pipeline for the Backend</p></li></ul></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; deploy-Example-PipelineResources.yaml
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: ui-repo
+spec:
+  type: git
+  params:
+  - name: url
+    value: http://github.com/openshift-pipelines/vote-ui.git
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: ui-image
+spec:
+  type: image
+  params:
+  - name: url
+    value: image-registry.openshift-image-registry.svc:5000/pipelines-tutorial/vote-ui:latest
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: api-repo
+spec:
+  type: git
+  params:
+  - name: url
+    value: http://github.com/openshift-pipelines/vote-api.git
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: api-image
+spec:
+  type: image
+  params:
+  - name: url
+    value: image-registry.openshift-image-registry.svc:5000/pipelines-tutorial/vote-api:latest
+EOF</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc create -f deploy-Example-PipelineResources.yaml</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>The resources can be listed with:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">tkn resource ls
+
+NAME        TYPE    DETAILS
+api-repo    git     url: http://github.com/openshift-pipelines/vote-api.git
+ui-repo     git     url: http://github.com/openshift-pipelines/vote-ui.git
+api-image   image   url: image-registry.openshift-image-registry.svc:5000/pipelines-tutorial/vote-api:latest
+ui-image    image   url: image-registry.openshift-image-registry.svc:5000/pipelines-tutorial/vote-ui:latest</code></pre></div></div></div><div class="sect2"><h3 id="_execute_pipelines">Execute Pipelines</h3><div class="paragraph"><p>We start a PipelineRune for the backend and frontend of our application.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; deploy-Example-PipelineRun.yaml
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineRun
+metadata:
+  name: build-deploy-api-pipelinerun
+spec:
+  pipelineRef:
+    name: build-and-deploy
+  resources:
+  - name: git-repo
+    resourceRef:
+      name: api-repo
+  - name: image
+    resourceRef:
+      name: api-image
+  params:
+  - name: deployment-name
+    value: vote-api
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineRun
+metadata:
+  name: build-deploy-ui-pipelinerun
+spec:
+  pipelineRef:
+    name: build-and-deploy
+  resources:
+  - name: git-repo
+    resourceRef:
+      name: ui-repo
+  - name: image
+    resourceRef:
+      name: ui-image
+  params:
+  - name: deployment-name
+    value: vote-ui
+EOF</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc create -f deploy-Example-PipelineRun.yaml</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>The PipelineRuns can be listed with</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">tkn pipelinerun ls
+
+NAME                           STARTED         DURATION   STATUS
+build-deploy-api-pipelinerun   3 minutes ago   ---        Running
+build-deploy-ui-pipelinerun    3 minutes ago   ---        Running</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Moreover, the logs can be viewed with the following command and select the appropriate PipelineRun:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">tkn pipeline logs -f
+? Select pipelinerun:  [Use arrows to move, type to filter]
+&gt; build-deploy-api-pipelinerun started 2 minutes ago
+  build-deploy-ui-pipelinerun started 2 minutes ago</code></pre></div></div></div><div class="sect2"><h3 id="_checking_your_application">Checking your application</h3><div class="paragraph"><p>Now our Pipeline built and deployed the voting application, where you can vote if you prefere cats or dogs (Cats or course :) )</p></div><div class="paragraph"><p>Get the route of your project and open the URL in the browser. (Should be something like vote-ui-pipelines-tutorial.apps.yourclustername)</p></div><div class="imageblock bordered"><div class="content"><img src="/img/pipelines/Tekton-Vote-App.png" alt="Tekton" /></div><div class="title">Figure 1. Tekton: Example Application</div></div><div class="paragraph"><p> <br /></p></div><hr /></div></div></div><div class="sect1"><h2 id="_openshift_webui">OpenShift WebUI</h2><div class="sectionbody"><div class="paragraph"><p>With the OpenShift Pipeline operator a new menu item is introduced on the WebUI of OpenShift. All Tekton CLI command which are used above, can actually be replaced with the web interface, in case you prefere this. The big advantage is th graphical presentation of Pipelines and their lifetime.</p></div><div class="paragraph"><p>I will not create screenshots for every screen, but for example pipelines:</p></div><div class="paragraph"><p>Under <em>Pipelines</em> a list of pipelines will be shown.</p></div><div class="imageblock bordered"><div class="content"><img src="/img/pipelines/Pipelines.png" alt="Tekton" width="640" /></div><div class="title">Figure 2. OpenShift UI: List of Pipelines</div></div><div class="paragraph"><p> <br /></p></div></div></div><div class="sect1"><h2 id="_additional_resources">Additional Resources</h2><div class="sectionbody">
+
+</div></div><div class="sect1"><h2 id="_sources">Sources</h2><div class="sectionbody"><div class="ulist"><ul><li><p><a id="source_1"></a>[1]: <a href="https://github.com/openshift/pipelines-tutorial" target="_blank" rel="noopener">OpenShift Pipelines Tutorial</a></p></li><li><p><a href="https://tekton.dev/">Tekon</a></p></li><li><p><a href="https://github.com/tektoncd/catalog" target="_blank" rel="noopener">Tekton Task Catalog</a></p></li></ul></div></div></div>
+</div>
+
+<div id="post-tags">
+    <br/> 
+    <b>Tags: </b>
+    
+    <a href="/tags-output/Tekton/">Tekton</a>
+    
+    <a href="/tags-output/OCP/">OCP</a>
+    
+    <a href="/tags-output/Pipelines/">Pipelines</a>
+    
+    <a href="/tags-output/OpenShift/">OpenShift</a>
+    
+</div>
+
+<br/>
+
+    <div id="prev-next">
+        
+        <a class="button" href="/posts-output/2020-04-15-satellite-cheatsheet/">&laquo; Red Hat Satellite Cheat Sheet</a>
+        
+        
+    </div>
+
+    
+
+
+</div>
+
+  </div>
+<hr/>
+<div id="footercont" class="small clearfix">Copyright &copy; 2020 Toni Schmidbauer &amp; Thomas Jungbauer
+    <p>Powered by <a href="http://cryogenweb.org">Cryogen</a> | Free Website Template by <a title="free website templates" href="http://www.downloadwebsitetemplates.co.uk" rel="external">Download Website Templates</a></p>
+
+</div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script src="/js/highlight.pack.js" type="text/javascript"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script src="/js/clipboard.js" type="text/javascript"></script>
+<script src="/js/clipboard.integration.js" type="text/javascript"></script>
+<script src="/js/scripts.js" type="text/javascript"></script>
+
+<script>window.onload = start;</script>
+
+
+
+
+<script>
+  function topFunction() {
+    document.body.scrollTop = 0; // For Safari
+    document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+  } 
+</script>
+
+</body>
+</html>
