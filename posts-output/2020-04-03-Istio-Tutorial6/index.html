@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <title>Yaub: OpenShift 4 and Service Mesh 6 - Advanced Routing Example</title>
     
-<meta name="keywords" content="DestinationRule,Loadbalancer,Tekton,OCP,Canary,Grayscale,Egress,JWT,Mirror,kubectl,Istio,Ansible Tower,Pipelines,Fault Injection,Satellite,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
+<meta name="keywords" content="DestinationRule,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,kubectl,Istio,Ansible Tower,Pipelines,Fault Injection,Satellite,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
 
 <meta name="description" content="OpenShift 4.x and Service Mesh/istio Tutorial 6 - Advanced Routing. Try routing traffic based on canary, mirroring or loadbalancing traffic.">
 
@@ -101,6 +101,8 @@
         <ul class="menu">
           <li>Recent Posts:</li>
           
+            <a class="nospacing left" href="/posts-output/2020-04-27-AnsibleAzureResourceManager/"><li class="smallpadding small">Ansible - Azure Resource Manager Example</li></a>
+          
             <a class="nospacing left" href="/posts-output/2020-04-16-Tekton/"><li class="smallpadding small">OpenShift Pipelines - Tekton Introduction</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-04-15-satellite-cheatsheet/"><li class="smallpadding small">Red Hat Satellite Cheat Sheet</li></a>
@@ -108,8 +110,6 @@
             <a class="nospacing left" href="/posts-output/2020-04-10-Istio-Update/"><li class="smallpadding small">OpenShift 4 - Service Mesh 1.1 released</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-04-09-Istio-Tutorial10/"><li class="smallpadding small">OpenShift 4 and Service Mesh 10 - Authentication JWT</li></a>
-          
-            <a class="nospacing left" href="/posts-output/2020-04-08-Istio-Tutorial9/"><li class="smallpadding small">OpenShift 4 and Service Mesh 9 - Mutual TLS Authentication</li></a>
           
         </ul>
       </div>
@@ -142,7 +142,7 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2020-04-17 13:09:23 +0200</em></p></div><div class="paragraph"><p>Welcome to part 6 of <strong>OpenShift 4 and Service Mesh</strong> Advanced routing, like Canary Deployments, traffic mirroring and loadbalancing are discussed and tested. All operations have been successdully tested on OpenShift 4.3.
+    <div class="paragraph small"><p><em>Last Modified: 2020-04-27 11:39:01 +0200</em></p></div><div class="paragraph"><p>Welcome to part 6 of <strong>OpenShift 4 and Service Mesh</strong> Advanced routing, like Canary Deployments, traffic mirroring and loadbalancing are discussed and tested. All operations have been successdully tested on OpenShift 4.3.
  <br /><br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_advanced_routing">Advanced Routing</a><ul class="sectlevel2"><li><a href="#_canary_deployments">Canary Deployments</a></li><li><a href="#_routing_based_on_user_agent_header">Routing based on user-agent header</a></li><li><a href="#_mirroring_traffic">Mirroring Traffic</a></li><li><a href="#_load_balancing">Load Balancing</a></li></ul></li></ul></div><div class="sect1"><h2 id="_advanced_routing">Advanced Routing</h2><div class="sectionbody"><div class="paragraph"><p>During <a href="/posts-output/2020-04-01-Istio-Tutorial5">Issue #5</a> some simple routing was implemented. The traffic was split by 100% to a new version (v2) of the <em>recommendation</em> microservice.
 This section shall give a brief overview of advanced routing possibilities.</p></div><div class="sect2"><h3 id="_canary_deployments">Canary Deployments</h3><div class="paragraph"><p>A canary deployment is a strategy to roll out a new version of your service by using traffic splitting. A small amount of traffic (10%) will be sent to the new version, while most of the traffic will be sent to the old version still. The traffic to the new version can be analysed and if everything works as expected more and more traffic can be sent to the new version.</p></div><div class="paragraph"><p>To enable split traffic, the VirtualService must be update:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService

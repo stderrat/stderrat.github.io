@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]><html class="ie ie6" lang="en"><![endif]-->
+<!--[if IE 7 ]><html class="ie ie7" lang="en"><![endif]-->
+<!--[if IE 8 ]><html class="ie ie8" lang="en"><![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!--><html lang="en"><!--<![endif]-->
+<head>
+    <meta name="google-site-verification" content="yq2Ib3doJVHVlEW2wtHap5WY54JhS2CCvI40y30F0FI" />
+    <!-- Website Template designed by www.downloadwebsitetemplates.co.uk -->
+    <!-- Modified to fit Cryogen.-->
+    <meta charset="UTF-8">
+    <title>Yaub: Ansible - Azure Resource Manager Example</title>
+    
+<meta name="keywords" content="DestinationRule,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,kubectl,Istio,Ansible Tower,Pipelines,Fault Injection,Satellite,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
+
+<meta name="description" content="Using Ansible Azure Resource Manager to create a Virtual Machine">
+
+<meta property="og:description" content="Using Ansible Azure Resource Manager to create a Virtual Machine">
+
+<meta property="og:url" content="http://blog.stderr.at/posts-output/2020-04-27-AnsibleAzureResourceManager/" />
+<meta property="og:title" content="Ansible - Azure Resource Manager Example" />
+<meta property="og:type" content="article" />
+
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="/img/ico/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/img/ico/apple-touch-icon-180x180.png">
+    <link rel="apple-touch-icon-precomposed" sizes="128x128" href="/img/ico/apple-touch-icon-128x128.png">
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/img/ico/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="/img/ico/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="/img/ico/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon-precomposed" href="/img/ico/apple-touch-icon-57x57.png">
+    <link rel="shortcut icon" href="/img/ico/favicon.ico">
+    <!--[if IE]><![endif]-->   
+    <link href="/css/style.css" rel="stylesheet" type="text/css" />
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tomorrow-night-eighties.min.css">
+    <!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+    <link rel="stylesheet" href="/css/font-awesome-animation.min.css"> 
+    <script src="https://unpkg.com/lunr/lunr.js"></script>
+    <script src="/js/index/lunr_index.js" type="text/javascript"></script>
+    <script src="/js/lunrclient.js"></script>
+
+</head>
+<body>  
+<button onclick="topFunction()" id="myBtn" class="button fa fa-arrow-up" title="Go to top"></button> 
+
+<div id="left">
+
+    <p id="logo">
+        <a title="Yaub" href="/">
+            <span class="fa fa-cloud-upload faa-float animated"></span>
+            <span class="text">YAUB</span>
+            <span class="text small">Yet another Useless Blog</span>
+        </a>
+    </p>
+
+    <!--- Search from -->
+    <form id="lunrSearchForm" name="lunrSearchForm" action="/">
+        <input class="search-input" name="q" placeholder="Enter search term" type="text"> 
+        <input class="button nopadding" type="submit" value="Search">
+    </form>
+    <div class="loading" id="loading-div">
+        <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+        <span class="sr-only">Loading...</span>
+    </div>
+
+    <!-- menu -->
+    <div id="menucont" class="bodycontainer clearfix">
+        <div class="menutitle">
+            <p><span class="fa fa-reorder"></span><strong>Menu</strong></p>
+        </div>
+        <ul class="menu">
+          <a class="left" title="Home" href="/">
+            <li >Home</li>
+          </a>
+
+          <a class="left" title="Archives" href="/archives/">
+            <li >Archives</li>
+          </a>
+
+            
+            <a class="left" title="Tags" href="/tags/">
+            <li >Tags</li>
+            </a>
+            
+            
+            
+            <a class="left" href="/pages-output/Legal/">
+            <li >
+                Legal Disclosure
+            </li>
+            </a>
+            
+            <a class="left" title="RSS" href="/feed.xml">
+            <li>RSS</li>
+            </a>
+        </ul>
+    </div>
+
+    <hr class="menuhr">
+      <div id="menucont">
+        <ul class="menu">
+          <li>Recent Posts:</li>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-27-AnsibleAzureResourceManager/"><li class="smallpadding small">Ansible - Azure Resource Manager Example</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-16-Tekton/"><li class="smallpadding small">OpenShift Pipelines - Tekton Introduction</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-15-satellite-cheatsheet/"><li class="smallpadding small">Red Hat Satellite Cheat Sheet</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-10-Istio-Update/"><li class="smallpadding small">OpenShift 4 - Service Mesh 1.1 released</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-04-09-Istio-Tutorial10/"><li class="smallpadding small">OpenShift 4 and Service Mesh 10 - Authentication JWT</li></a>
+          
+        </ul>
+      </div>
+    <hr class="menuhr">
+      <div id="menucont">
+        <ul class="menu">
+          <li>Links:</li>
+          <a class="nospacing left" href="https://redhat.com" rel="external"><li class="smallpadding small">Red Hat</li></a>
+          <a class="nospacing left" href="https://docs.openshift.com/" rel="external"><li class="smallpadding small">OpenShift Docs</li></a>
+          <a class="nospacing left" href="https://github.com/stderrat/stderrat.github.io" rel="external"><li class="smallpadding small">Source</li></a>
+            
+        </ul>
+      </div>
+</div>
+
+<div id="right" class="clearfix">
+  <div class="resultCount" id="resultCount"></div>
+  <hr />
+  <div id="searchResults">
+    
+<div id="post">
+    <div class="post-header">
+    <div id="post-meta" class="row">
+        <strong>27. April 2020</strong>
+        
+        <span class="col-lg-6 right">By: Thomas Jungbauer</span>
+        
+    </div>
+    <h1>Ansible - Azure Resource Manager Example</h1>
+</div>
+<div>
+    
+    <div class="paragraph small"><p><em>Last Modified: 2020-04-27 11:39:01 +0200</em></p></div><div class="paragraph"><p>Using Ansible Resource Manager with an ARM template and a simple Ansible playbook to deploy a Virtual Machine with Disk, virtual network, public IP and so on.</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_introduction">Introduction</a></li><li><a href="#_additional_resources">Additional Resources</a><ul class="sectlevel2"><li><a href="#_ansible_playbook_create_azure_deplyoment_yml">Ansible Playbook: Create-Azure-Deplyoment.yml</a></li><li><a href="#_resourcemanagertemplate_json">ResourceManagerTemplate.json</a></li></ul></li><li><a href="#_sources">Sources</a></li></ul></div><div class="sect1"><h2 id="_introduction">Introduction</h2><div class="sectionbody"><div class="paragraph"><p><em>Source: [<a href="#source_1">1</a>]</em></p></div><div class="paragraph"><p>In order to deploy a Virtual Machine and all depended resources using the Azure Resource Manager (ARM) template with Ansible, you will need three things:</p></div><div class="ulist"><ul><li><p>The ARM Template</p></li><li><p>The parameters you want to use</p></li><li><p>The Ansible playbook</p></li></ul></div><div class="paragraph"><p>All can be found below.
+Store them and simply call:</p></div><div class="paragraph"><p> <br /></p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">ansible-playbook Azure/create_azure_deployment.yml</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
+it will take several minutes, until everything has been deployment in Azure.
+</td></tr></table></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
+Instead of using a json file locally you can upload the template file (as well as a parameters file) to a version control system and use it from there.
+</td></tr></table></div></div></div><div class="sect1"><h2 id="_additional_resources">Additional Resources</h2><div class="sectionbody"><div class="sect2"><h3 id="_ansible_playbook_create_azure_deplyoment_yml">Ansible Playbook: Create-Azure-Deplyoment.yml</h3><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">---
+- name: Get facts of a VM
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+
+  tasks:
+
+  #- name: Destroy Azure Deploy
+  #  azure_rm_deployment:
+  #    resource_group: tju-ResourceGroup
+  #    name: tju-testDeployment
+  #    state: absent
+
+  - name: Create Azure Resource Group deployment
+    azure_rm_deployment:
+      state: present
+      resource_group_name: tju-ResourceGroup
+      name: tju-testDeployment
+      #template_link: '&lt;YOUR RAW Github template file&gt;'
+      #parameters_link: '&lt;YOUR RAW Github parameters file&gt;'
+      template: "{{ lookup('file', 'ResourceManagerTemplate.json') }}"
+      parameters:
+        projectName:
+          value: tjuProject
+        location:
+          value: "East US"
+        adminUsername:
+          value: tjungbauer
+        adminPublicKey:
+          value: "{{ lookup('file', '/Users/tjungbauer/.ssh/id_rsa.pub') }}"
+        operatingSystem:
+          value: CentOS
+        operatingSystemPublisher:
+          value: OpenLogic
+        operatingSystemSKU:
+          value: '7.1'
+        vmSize:
+          value: Standard_D2s_v3
+    register: azure
+
+  - name: Add new instance to host group
+    add_host:
+      hostname: "{{ item['ips'][0].public_ip }}"
+      groupname: azure_vms
+    loop: "{{ azure.deployment.instances }}"</code></pre></div></div></div><div class="sect2"><h3 id="_resourcemanagertemplate_json">ResourceManagerTemplate.json</h3><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-json" data-lang="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "projectName": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies a name for generating resource names."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Specifies the location for all resources."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies a username for the Virtual Machine."
+      }
+    },
+    "adminPublicKey": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies the SSH rsa public key file as a string. Use \"ssh-keygen -t rsa -b 2048\" to generate your SSH key pairs."
+      }
+    },
+    "operatingSystem": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies the Operating System. i.e. CentOS"
+      }
+    },
+    "operatingSystemPublisher": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies the publisher. i.e. OpenLogic"
+      }
+    },
+    "operatingSystemSKU": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies the version of the OS. i.e. 7.1"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies the the VM size. i.e. Standard_D2s_v3"
+      }
+    }
+  },
+  "variables": {
+    "vNetName": "[concat(parameters('projectName'), '-vnet')]",
+    "vNetAddressPrefixes": "10.0.0.0/16",
+    "vNetSubnetName": "default",
+    "vNetSubnetAddressPrefix": "10.0.0.0/24",
+    "vmName": "[concat(parameters('projectName'), '-vm')]",
+    "publicIPAddressName": "[concat(parameters('projectName'), '-ip')]",
+    "networkInterfaceName": "[concat(parameters('projectName'), '-nic')]",
+    "networkSecurityGroupName": "[concat(parameters('projectName'), '-nsg')]",
+    "networkSecurityGroupName2": "[concat(variables('vNetSubnetName'), '-nsg')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2018-11-01",
+      "name": "[variables('networkSecurityGroupName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "ssh_rule",
+            "properties": {
+              "description": "Locks inbound down to ssh default port 22.",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 123,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2018-11-01",
+      "name": "[variables('publicIPAddressName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      },
+      "sku": {
+        "name": "Basic"
+      }
+    },
+    {
+      "comments": "Simple Network Security Group for subnet [variables('vNetSubnetName')]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2019-08-01",
+      "name": "[variables('networkSecurityGroupName2')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "default-allow-22",
+            "properties": {
+              "priority": 1000,
+              "access": "Allow",
+              "direction": "Inbound",
+              "destinationPortRange": "22",
+              "protocol": "Tcp",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationAddressPrefix": "*"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2018-11-01",
+      "name": "[variables('vNetName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName2'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vNetAddressPrefixes')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('vNetSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('vNetSubnetAddressPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName2'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2018-11-01",
+      "name": "[variables('networkInterfaceName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNetName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), variables('vNetSubnetName'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2018-10-01",
+      "name": "[variables('vmName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[variables('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                  "keyData": "[parameters('adminPublicKey')]"
+                }
+              ]
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[parameters('operatingSystemPublisher')]",
+            "offer": "[parameters('operatingSystem')]",
+            "sku": "[parameters('operatingSystemSKU')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "fromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('networkInterfaceName'))]"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "adminUsername": {
+      "type": "string",
+      "value": "[parameters('adminUsername')]"
+    }
+  }
+}</code></pre></div></div></div></div></div><div class="sect1"><h2 id="_sources">Sources</h2><div class="sectionbody"><div class="ulist"><ul><li><p><a id="source_1"></a>[1]: <a href="https://docs.ansible.com/ansible/latest/modules/azure_rm_deployment_module.html" target="_blank" rel="noopener">azure_rm_deployment – Create or destroy Azure Resource Manager template deployments</a></p></li></ul></div></div></div>
+</div>
+
+<div id="post-tags">
+    <br/> 
+    <b>Tags: </b>
+    
+    <a href="/tags-output/Azure/">Azure</a>
+    
+    <a href="/tags-output/Ansible/">Ansible</a>
+    
+</div>
+
+<br/>
+
+    <div id="prev-next">
+        
+        <a class="button" href="/posts-output/2020-04-16-Tekton/">&laquo; OpenShift Pipelines - Tekton Introduction</a>
+        
+        
+    </div>
+
+    
+
+
+</div>
+
+  </div>
+<hr/>
+<div id="footercont" class="small clearfix">Copyright &copy; 2020 Toni Schmidbauer &amp; Thomas Jungbauer
+    <p>Powered by <a href="http://cryogenweb.org">Cryogen</a> | Free Website Template by <a title="free website templates" href="http://www.downloadwebsitetemplates.co.uk" rel="external">Download Website Templates</a></p>
+
+</div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script src="/js/highlight.pack.js" type="text/javascript"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script src="/js/clipboard.js" type="text/javascript"></script>
+<script src="/js/clipboard.integration.js" type="text/javascript"></script>
+<script src="/js/scripts.js" type="text/javascript"></script>
+
+<script>window.onload = start;</script>
+
+
+
+
+<script>
+  function topFunction() {
+    document.body.scrollTop = 0; // For Safari
+    document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+  } 
+</script>
+
+</body>
+</html>

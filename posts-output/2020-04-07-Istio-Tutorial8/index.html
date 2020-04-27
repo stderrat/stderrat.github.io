@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <title>Yaub: OpenShift 4 and Service Mesh 8 - Fault Injection</title>
     
-<meta name="keywords" content="DestinationRule,Loadbalancer,Tekton,OCP,Canary,Grayscale,Egress,JWT,Mirror,kubectl,Istio,Ansible Tower,Pipelines,Fault Injection,Satellite,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
+<meta name="keywords" content="DestinationRule,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,kubectl,Istio,Ansible Tower,Pipelines,Fault Injection,Satellite,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
 
 <meta name="description" content="OpenShift 4.x and Service Mesh/Istio Tutorial 8 - Faul Injection/Chaos Testing">
 
@@ -101,6 +101,8 @@
         <ul class="menu">
           <li>Recent Posts:</li>
           
+            <a class="nospacing left" href="/posts-output/2020-04-27-AnsibleAzureResourceManager/"><li class="smallpadding small">Ansible - Azure Resource Manager Example</li></a>
+          
             <a class="nospacing left" href="/posts-output/2020-04-16-Tekton/"><li class="smallpadding small">OpenShift Pipelines - Tekton Introduction</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-04-15-satellite-cheatsheet/"><li class="smallpadding small">Red Hat Satellite Cheat Sheet</li></a>
@@ -108,8 +110,6 @@
             <a class="nospacing left" href="/posts-output/2020-04-10-Istio-Update/"><li class="smallpadding small">OpenShift 4 - Service Mesh 1.1 released</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-04-09-Istio-Tutorial10/"><li class="smallpadding small">OpenShift 4 and Service Mesh 10 - Authentication JWT</li></a>
-          
-            <a class="nospacing left" href="/posts-output/2020-04-08-Istio-Tutorial9/"><li class="smallpadding small">OpenShift 4 and Service Mesh 9 - Mutual TLS Authentication</li></a>
           
         </ul>
       </div>
@@ -142,7 +142,7 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2020-04-17 13:09:23 +0200</em></p></div><div class="paragraph"><p>Tutorial 8 of <strong>OpenShift 4 and Service Mesh</strong> tries to cover Fault Injection by using Chaos testing method to verify if your application is running. This is done by adding the property HTTPFaultInjection to the VirtualService. The settings for this property can be for example: delay, to delay the access or abort, to completely abort the connection.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>"<em>Adopting microservices often means more dependencies, and more services you might not control. It also means more requests on the network, increasing the possibility for errors. For these reasons, it’s important to test your services’ behavior when upstream dependencies fail."</em> [<a href="#source_1">1</a>]</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_preparation">Preparation</a></li><li><a href="#_abort_connection_with_http_error_503">Abort Connection with HTTP Error 503</a><ul class="sectlevel2"><li><a href="#_clean_up">Clean Up</a></li></ul></li><li><a href="#_test_slow_connection_with_delay">Test slow connection with Delay</a></li><li><a href="#_retry_on_errors">Retry on errors</a></li><li><a href="#_sources">Sources</a></li></ul></div><div class="sect1"><h2 id="_preparation">Preparation</h2><div class="sectionbody"><div class="paragraph"><p>Before we start this tutorial, we need to clean up our cluster. This is especially important when you did the previous training <a href="/posts-output/2020-04-06-Istio-Tutorial7">Limit Egress/External Traffic</a>.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc delete deployment recommendation-v3
+    <div class="paragraph small"><p><em>Last Modified: 2020-04-27 11:39:01 +0200</em></p></div><div class="paragraph"><p>Tutorial 8 of <strong>OpenShift 4 and Service Mesh</strong> tries to cover Fault Injection by using Chaos testing method to verify if your application is running. This is done by adding the property HTTPFaultInjection to the VirtualService. The settings for this property can be for example: delay, to delay the access or abort, to completely abort the connection.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>"<em>Adopting microservices often means more dependencies, and more services you might not control. It also means more requests on the network, increasing the possibility for errors. For these reasons, it’s important to test your services’ behavior when upstream dependencies fail."</em> [<a href="#source_1">1</a>]</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_preparation">Preparation</a></li><li><a href="#_abort_connection_with_http_error_503">Abort Connection with HTTP Error 503</a><ul class="sectlevel2"><li><a href="#_clean_up">Clean Up</a></li></ul></li><li><a href="#_test_slow_connection_with_delay">Test slow connection with Delay</a></li><li><a href="#_retry_on_errors">Retry on errors</a></li><li><a href="#_sources">Sources</a></li></ul></div><div class="sect1"><h2 id="_preparation">Preparation</h2><div class="sectionbody"><div class="paragraph"><p>Before we start this tutorial, we need to clean up our cluster. This is especially important when you did the previous training <a href="/posts-output/2020-04-06-Istio-Tutorial7">Limit Egress/External Traffic</a>.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc delete deployment recommendation-v3
 oc scale deployment recommendation-v2 --replicas=1
 oc delete serviceentry worldclockapi-egress-rule
 oc delete virtualservice worldclockapi-timeout</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Verify that 2 pods for the recommendation services are running (with 2 containers)</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods -l app=recommendation -n tutorial
