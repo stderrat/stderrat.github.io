@@ -4,6 +4,7 @@ function start()
   externalLinks();
   startlunr();
   scroll2top();
+  blurbutton();
   sortList();
 }
 
@@ -34,6 +35,14 @@ $(document).ready(function() {
 });
 
 
+
+var sticky = new Waypoint.Sticky({
+  element: $('.farright')[0]
+})
+
+
+
+
 function scroll2top() {
   mybutton = document.getElementById("myBtn");
   
@@ -47,6 +56,17 @@ function scroll2top() {
       mybutton.style.display = "none";
     }
   }
+}
+
+function blurbutton() {
+  $(document).ready(function () {
+      $(document).on('mouseenter', '.content', function () {
+        $(this).find(":button").show("600","swing");
+      }).on('mouseleave', '.content', function () {
+        $(this).find(":button").hide("600","swing");
+      });
+    }
+  );
 }
 
 function sortList() {

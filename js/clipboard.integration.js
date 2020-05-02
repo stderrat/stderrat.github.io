@@ -18,9 +18,9 @@
       var clipboard = new ClipboardJS('.asciidoctorcopypaste')
       clipboard.on('success', function (e) {
         var element = e.trigger
-        element.innerHTML = 'Copied!'
+        element.innerHTML = '<p class="fa fa-check asciidoctorcopypaste"></p>'
         setTimeout(function () {
-          element.innerHTML = 'Copy'
+          element.innerHTML = '<p></p>'
         }, 1000)
         e.clearSelection()
       })
@@ -33,9 +33,9 @@
     find('.content', block).forEach(function (content) {
       var id = block.getAttribute('id') + '_content'
       content.setAttribute('id', id)
-      var str = '<button class="asciidoctorcopypaste" id="' +
+      var str = '<button class="fa fa-paste asciidoctorcopypaste" id="' +
                 id + '-copy-button" data-clipboard-target="#' +
-                id + '">Copy</button>'
+                id + '"><p></p></button>'
       var title = find('.title', block)
       if (title.length) {
         title[0].innerHTML = title[0].innerHTML + '&nbsp;&nbsp;' + str
