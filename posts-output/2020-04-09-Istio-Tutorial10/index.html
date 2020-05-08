@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <title>Yaub: OpenShift 4 and Service Mesh 10 - Authentication JWT</title>
     
-<meta name="keywords" content="Bookinfo,Example,DestinationRule,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,kubectl,Istio,Ansible Tower,Pipelines,Fault Injection,Satellite,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
+<meta name="keywords" content="Bookinfo,Example,github,DestinationRule,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,kubectl,Istio,git,Ansible Tower,Pipelines,Fault Injection,Satellite,Ansible,OpenShift,Service Mesh,mTLS,DO410,oc">
 
 <meta name="description" content="OpenShift 4.x and Service Mesh/Istio Tutorial 10 - Authentication with JWT">
 
@@ -101,6 +101,8 @@
         <ul class="menu">
           <li>Recent Posts:</li>
           
+            <a class="nospacing left" href="/posts-output/2020-05-08-git-and-github-basics/"><li class="smallpadding small">Basic usage of git when working with projects on github </li></a>
+          
             <a class="nospacing left" href="/posts-output/2020-04-30-Istio-Tutorial11/"><li class="smallpadding small">OpenShift 4 and Service Mesh 11 - Deploy Example Bookinfo Application</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-04-27-AnsibleAzureResourceManager/"><li class="smallpadding small">Ansible - Azure Resource Manager Example</li></a>
@@ -108,8 +110,6 @@
             <a class="nospacing left" href="/posts-output/2020-04-16-Tekton/"><li class="smallpadding small">OpenShift Pipelines - Tekton Introduction</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-04-15-satellite-cheatsheet/"><li class="smallpadding small">Red Hat Satellite Cheat Sheet</li></a>
-          
-            <a class="nospacing left" href="/posts-output/2020-04-10-Istio-Update/"><li class="smallpadding small">OpenShift 4 - Service Mesh 1.1 released</li></a>
           
         </ul>
       </div>
@@ -133,7 +133,7 @@
 <div id="post">
     <div class="post-header">
     <div id="post-meta" class="row">
-        <strong>09. April 2020</strong>
+        <strong>April 9, 2020</strong>
         
         <span class="col-lg-6 right">By: Thomas Jungbauer</span>
         
@@ -142,8 +142,8 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2020-05-06 13:27:16 +0200</em></p></div><div class="paragraph"><p>Welcome to tutorial 10 of <strong>OpenShift 4 and Service Mesh</strong>, where we will discuss authentication with JWT.
-JSON Web Token (JWT) is an open standard that allows to transmit information between two parties securely as a JSON object. It is an authentication token, which is verified and signed and therefore trusted. The signing can be achieved by using a secret or a public/private key pair.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Service Mesh can be used to configure a policy which enables JWT for your services.</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_preparation">Preparation</a></li><li><a href="#_enabling_end_user_authentication">Enabling End-User Authentication</a></li><li><a href="#_clean_up">Clean Up</a></li></ul></div><div class="sect1"><h2 id="_preparation"><a href="#_preparation" aria-label="Permalink to Preparation" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Preparation</h2><div class="sectionbody"><div class="paragraph"><p>Be sure that you have at least the Gateway and VirtualService configured:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get istio-io -n tutorial</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Which should return the following:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">NAME                                                     AGE
+    <div class="paragraph small"><p><em>Last Modified: 2020-05-08 13:25:02 +0200</em></p></div><div class="paragraph"><p>Welcome to tutorial 10 of <strong>OpenShift 4 and Service Mesh</strong>, where we will discuss authentication with JWT.
+JSON Web Token (JWT) is an open standard that allows to transmit information between two parties securely as a JSON object. It is an authentication token, which is verified and signed and therefore trusted. The signing can be achieved by using a secret or a public/private key pair.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Service Mesh can be used to configure a policy which enables JWT for your services.</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_preparation">Preparation</a></li><li><a href="#_enabling_end_user_authentication">Enabling End-User Authentication</a></li><li><a href="#_clean_up">Clean Up</a></li></ul></div><div class="sect1"><h2 id="_preparation">Preparation</h2><div class="sectionbody"><div class="paragraph"><p>Be sure that you have at least the Gateway and VirtualService configured:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get istio-io -n tutorial</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Which should return the following:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">NAME                                                     AGE
 gateway.networking.istio.io/ingress-gateway-exampleapp   45h
 
 NAME                                                 HOST             AGE
@@ -156,7 +156,7 @@ sh ~/run.sh 1000 $GATEWAY_URL</code></pre></div></div><div class="paragraph"><p>
 # 2: customer =&gt; preference =&gt; recommendation v2 from '3cbba7a9cde5': 31623
 # 3: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 33057
 # 4: customer =&gt; preference =&gt; recommendation v2 from '3cbba7a9cde5': 31624
-# 5: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 33058</code></pre></div></div></div></div><div class="sect1"><h2 id="_enabling_end_user_authentication"><a href="#_enabling_end_user_authentication" aria-label="Permalink to Enabling End-User Authentication" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Enabling End-User Authentication</h2><div class="sectionbody"><div class="paragraph"><p>To test this feature we will need a valid token (JWT). More details can be found at the <a href="https://istio.io/docs/tasks/security/authentication/authn-policy/#end-user-authentication" target="_blank" rel="noopener">Istio example</a></p></div><div class="paragraph"><p>All we need to create a Policy object</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: "authentication.istio.io/v1alpha1"
+# 5: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 33058</code></pre></div></div></div></div><div class="sect1"><h2 id="_enabling_end_user_authentication">Enabling End-User Authentication</h2><div class="sectionbody"><div class="paragraph"><p>To test this feature we will need a valid token (JWT). More details can be found at the <a href="https://istio.io/docs/tasks/security/authentication/authn-policy/#end-user-authentication" target="_blank" rel="noopener">Istio example</a></p></div><div class="paragraph"><p>All we need to create a Policy object</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: "authentication.istio.io/v1alpha1"
 kind: "Policy"
 metadata:
   name: "jwt-example"
@@ -177,7 +177,7 @@ export TOKEN=$(curl https://raw.githubusercontent.com/istio/istio/release-1.1/se
 
 for x in $(seq 1 1000);
   do curl --header "Authorization: Bearer $TOKEN" $GATEWAY_URL -s;
-done</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>In Kiali the traffic is now working again and authenticated.</p></div><div class="imageblock bordered"><div class="content"><img src="/img/servicemesh/Kiali-JWT2.png" alt="Kiali" /></div><div class="title">Figure 2. Kiali: Traffic authenticated.</div></div></div></div><div class="sect1"><h2 id="_clean_up"><a href="#_clean_up" aria-label="Permalink to Clean Up" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Clean Up</h2><div class="sectionbody"><div class="paragraph"><p>Remove the policy again, to be ready for the next tutorial.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc delete policy jwt-example -n tutorial</code></pre></div></div></div></div>
+done</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>In Kiali the traffic is now working again and authenticated.</p></div><div class="imageblock bordered"><div class="content"><img src="/img/servicemesh/Kiali-JWT2.png" alt="Kiali" /></div><div class="title">Figure 2. Kiali: Traffic authenticated.</div></div></div></div><div class="sect1"><h2 id="_clean_up">Clean Up</h2><div class="sectionbody"><div class="paragraph"><p>Remove the policy again, to be ready for the next tutorial.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc delete policy jwt-example -n tutorial</code></pre></div></div></div></div>
 </div>
 
 <div id="post-tags">
