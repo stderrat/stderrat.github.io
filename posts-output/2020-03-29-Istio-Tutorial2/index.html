@@ -20,14 +20,14 @@
 <meta property="og:title" content="Openshift 4 and ServiceMesh 2 - Deploy Microservices" />
 <meta property="og:type" content="article" />
 
-    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
-    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="/img/ico/apple-touch-icon-152x152.png">
-    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="/img/ico/apple-touch-icon-180x180.png">
-    <link rel="apple-touch-icon-precomposed" sizes="128x128" href="/img/ico/apple-touch-icon-128x128.png">
-    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="/img/ico/apple-touch-icon-144x144.png">
-    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="/img/ico/apple-touch-icon-114x114.png">
-    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="/img/ico/apple-touch-icon-72x72.png">
-    <link rel="apple-touch-icon-precomposed" href="/img/ico/apple-touch-icon-57x57.png">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=5" name="viewport">
+    <link rel="apple-touch-icon" sizes="152x152" href="/img/ico/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/ico/apple-touch-icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="/img/ico/apple-touch-icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/img/ico/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/img/ico/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/img/ico/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" href="/img/ico/apple-touch-icon-57x57.png">
     <link rel="shortcut icon" href="/img/ico/favicon.ico">
     <!--[if IE]><![endif]-->   
     <link href="/css/style.css" rel="stylesheet" type="text/css" />
@@ -55,8 +55,8 @@
 
     <!--- Search from -->
     <form id="lunrSearchForm" name="lunrSearchForm" action="/">
-        <input class="search-input" name="q" placeholder="Enter search term" type="text"> 
-        <input class="button nopadding" type="submit" value="Search">
+        <label><input class="search-input" name="q" placeholder="Enter search term" type="text"></label>
+        <label><input class="button nopadding" type="submit" value="Search"></label>
     </form>
     <div class="loading" id="loading-div">
         <i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
@@ -142,7 +142,7 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2020-05-12 07:10:48 UTC</em></p></div><div class="paragraph"><p>The second tutorials explains how to install an example application containing thee microservices. All operations have been successfully tested on OpenShift 4.3.
+    <div class="paragraph small"><p><em>Last Modified: 2020-05-12 07:45:16 UTC</em></p></div><div class="paragraph"><p>The second tutorials explains how to install an example application containing thee microservices. All operations have been successfully tested on OpenShift 4.3.
  <br /><br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_introduction">Introduction</a></li><li><a href="#_deploy_microservices">Deploy microservices</a><ul class="sectlevel2"><li><a href="#_deploy_microservice_customer">Deploy microservice: <em>customer</em></a></li><li><a href="#_deploy_microservice_preference">Deploy microservice: <em>preference</em></a></li><li><a href="#_deploy_microservice_recommendation">Deploy microservice: <em>recommendation</em></a></li></ul></li><li><a href="#_optional_build_the_images">Optional: build the images</a><ul class="sectlevel2"><li><a href="#_build_customer">Build <em>customer</em></a></li><li><a href="#_build_preference">Build <em>preference</em></a></li><li><a href="#_build_recommendation">Build <em>recommendation</em></a></li></ul></li></ul></div><div class="sect1"><h2 id="_introduction"><a href="#_introduction" aria-label="Permalink to Introduction" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Introduction</h2><div class="sectionbody"><div class="paragraph"><p>As quickly explained at <a href="/posts-output/2020-03-29-Istio-Tutorial1">Issue #1</a>, OpenShift 4.3 and the Service Mesh shall be installed already. At this point you should have all 4 operators installed and ready.
 The test application used in this scenario is based on Java and contains 3 microservices in the following traffic flow:</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph text-center"><p>Customer ⇒ Preference ⇒ Recomandation
  <br /><br /></p></div><div class="paragraph"><p>The microservices are the same as used at the <a href="https://learn.openshift.com/servicemesh">Interactive Learning Portal</a>.</p></div></div></div><div class="sect1"><h2 id="_deploy_microservices"><a href="#_deploy_microservices" aria-label="Permalink to Deploy microservices" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Deploy microservices</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>First lets create a new project for our tests</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project tutorial</code></pre></div></div></li><li><p><strong>EITHER</strong>: Add <em>tutorial</em> to ServiceMeshMemberRoll</p><div class="paragraph silver-textarea-background"><p><span class="black yellow-background"><strong>UPDATE</strong></span>: Service Mesh 1.1 now supports the object <strong>ServiceMember</strong> which can created under the application namespace and which automatically configures the ServiceMemberRoll. However, below description still works.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>OpenShift will auto-inject the sidecar proxy to pods of a namespace, if the namespace is configured in the ServiceMeshMemberRoll object which was created for the operator.</p></div><div class="olist loweralpha"><ol class="loweralpha" type="a"><li><p>Create the file <em>memberroll.yaml</em>:</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; memberroll.yaml
