@@ -57,9 +57,9 @@ function scroll2top() {
 function blurbutton() {
   $(document).ready(function () {
       $(document).on('mouseenter', '.content', function () {
-        $(this).find(":button").show("600","swing");
+        $(this).find(":button").show("400","swing");
       }).on('mouseleave', '.content', function () {
-        $(this).find(":button").hide("600","swing");
+        $(this).find(":button").hide("400","swing");
       });
     }
   );
