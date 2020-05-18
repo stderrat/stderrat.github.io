@@ -8,16 +8,16 @@
     <!-- Website Template designed by www.downloadwebsitetemplates.co.uk -->
     <!-- Modified to fit Cryogen.-->
     <meta charset="UTF-8">
-    <title>Yaub: Openshift 4 and ServiceMesh 3 - Ingress Traffic</title>
+    <title>Yaub: OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</title>
     
 <meta name="keywords" content="Route,Bookinfo,Example,github,DestinationRule,Authorization,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,Security,kubectl,Istio,git,Ansible Tower,Pipelines,Fault Injection,Satellite,Container Security,Ansible,Quay,OpenShift,Service Mesh,mTLS,DO410,oc,Registry">
 
-<meta name="description" content="Openshift 4.x and Service Mesh/Istio Tutorial 3 - Get traffic into your Service Mesh and use Kiali to make your traffic visible.">
+<meta name="description" content="OpenShift 4.x and Service Mesh/Istio Tutorial 13 - Automatic route creation">
 
-<meta property="og:description" content="Openshift 4.x and Service Mesh/Istio Tutorial 3 - Get traffic into your Service Mesh and use Kiali to make your traffic visible.">
+<meta property="og:description" content="OpenShift 4.x and Service Mesh/Istio Tutorial 13 - Automatic route creation">
 
-<meta property="og:url" content="http://blog.stderr.at/posts-output/2020-03-30-Istio-Tutorial3/" />
-<meta property="og:title" content="Openshift 4 and ServiceMesh 3 - Ingress Traffic" />
+<meta property="og:url" content="http://blog.stderr.at/posts-output/2020-05-12-Istio-Tutorial13/" />
+<meta property="og:title" content="OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation" />
 <meta property="og:type" content="article" />
 
     <meta content="width=device-width, initial-scale=1, maximum-scale=5" name="viewport">
@@ -133,85 +133,90 @@
 <div id="post">
     <div class="post-header">
     <div id="post-meta" class="row">
-        <strong>March 30, 2020</strong>
+        <strong>May 12, 2020</strong>
         
         <span class="col-lg-6 right">By: Thomas Jungbauer</span>
         
     </div>
-    <h1>Openshift 4 and ServiceMesh 3 - Ingress Traffic</h1>
+    <h1>OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</h1>
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2020-05-18 08:53:24 UTC</em></p></div><div class="paragraph"><p>Part 3 of tutorial series <strong>OpenShift 4 and Service Mesh</strong> will show you how to create a Gateway and a VirtualService, so external traffic actually reaches your Mesh. It also provides an example script to run some curl in a loop.
- <br /><br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_configure_gateway_and_virtualservice_example">Configure Gateway and VirtualService Example</a></li><li><a href="#_create_some_example_traffic">Create some example traffic</a></li><li><a href="#_verify_in_kiali">Verify in Kiali</a></li></ul></div><div class="sect1"><h2 id="_configure_gateway_and_virtualservice_example"><a href="#_configure_gateway_and_virtualservice_example" aria-label="Permalink to Configure Gateway and VirtualService Example" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Configure Gateway and VirtualService Example</h2><div class="sectionbody"><div class="paragraph"><p>With the microservices deployed during <a href="/posts-output/2020-03-29-Istio-Tutorial2">Issue #2</a>, it makes sense to test the access somehow. In order to bring traffic into the application a Gateway object and a VirtualService object must be created.
- <br /><br /></p></div><div class="paragraph"><p>The <em>Gateway</em> will be the entry point which forward the traffic to the <em>istio ingressgateway</em></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+    <div class="paragraph small"><p><em>Last Modified: 2020-05-18 08:53:24 UTC</em></p></div><div class="paragraph"><p>Red Hat Service Mesh 1.1 allows you to enable a "<strong>Automatic Route Creation</strong>" which will take care about the routes for a specific Gateway. Instead of defining * for hosts, a list of domains can be defined. The Istio OpenShift Routing (ior) synchronizes the routes and creates them inside the Istio namespace. If a Gateway is deleted, the routes will also be removed again.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>This new features makes the manual creation of the route obsolete, as it was explained here: <a href="/posts-output/2020-03-31-Istio-Tutorial4">Openshift 4 and Service Mesh 4 - Ingress with custom domain</a></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_enable_automatic_route_creation">Enable Automatic Route Creation</a></li><li><a href="#_verify_current_service">Verify current service</a></li><li><a href="#_create_a_new_gateway">Create a new Gateway</a></li></ul></div><div class="sect1"><h2 id="_enable_automatic_route_creation"><a href="#_enable_automatic_route_creation" aria-label="Permalink to Enable Automatic Route Creation" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Enable Automatic Route Creation</h2><div class="sectionbody"><div class="paragraph"><p>Before this feature can be used, it must be enabled. To do so the <strong>ServiceMeshContolPlace</strong>, typically found in the namespace <em>istio-system</em> must be modified.
+Add the line <strong>ior_enabled: true</strong> to the <em>istio-ingressgate</em> configuration.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">...
+spec:
+  istio:
+    gateways:
+      istio-egressgateway:
+        autoscaleEnabled: false
+      istio-ingressgateway:
+        autoscaleEnabled: false
+        ior_enabled: true
+...</code></pre></div></div></div></div><div class="sect1"><h2 id="_verify_current_service"><a href="#_verify_current_service" aria-label="Permalink to Verify current service" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Verify current service</h2><div class="sectionbody"><div class="paragraph"><p>Let’s check our <em>tutorial</em> application, if it is still working.</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc project tutorial
+
+export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath='{.spec.host}')
+curl $GATEWAY_URL/customer
+
+customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 30</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Let’s review and remove the current used Gateway. As you can see the hosts is set to '*'</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">oc get istio-io
+
+oc get gateway.networking.istio.io/customer-gateway -o yaml
+apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
-  name: ingress-gateway-exampleapp
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"networking.istio.io/v1alpha3","kind":"Gateway","metadata":{"annotations":{},"name":"customer-gateway","namespace":"tutorial"},"spec":{"selector":{"istio":"ingressgateway"},"servers":[{"hosts":["*"],"port":{"name":"http","number":80,"protocol":"HTTP"}}]}}
+  creationTimestamp: "2020-05-13T07:52:20Z"
+  generation: 1
+  name: customer-gateway
+  namespace: tutorial
+  resourceVersion: "41370056"
+  selfLink: /apis/networking.istio.io/v1alpha3/namespaces/tutorial/gateways/customer-gateway
+  uid: 96e82ed9-e870-493c-941f-bfa83c892b94
 spec:
   selector:
-    istio: ingressgateway # use istio default controller
+    istio: ingressgateway
+  servers:
+  - hosts:
+    - '*'
+    port:
+      name: http
+      number: 80
+      protocol: HTTP</code></pre></div></div><div class="paragraph"><p> <br /></p></div></div></div><div class="sect1"><h2 id="_create_a_new_gateway"><a href="#_create_a_new_gateway" aria-label="Permalink to Create a new Gateway" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Create a new Gateway</h2><div class="sectionbody"><div class="paragraph"><p>First let’s remove the current Gateway</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bach" data-lang="bach">oc delete gateway.networking.istio.io/customer-gateway</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Now lets create a new Gateway, but this time we define some names for the hosts section:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; Gateway-ior.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: customer-gateway
+spec:
+  selector:
+    istio: ingressgateway
   servers:
   - port:
       number: 80
       name: http
       protocol: HTTP
     hosts:
-    - "*"</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>As 2nd object a VirtualService must be created:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: ingress-gateway-exampleapp
-spec:
-  hosts:
-  - "*"
-  gateways:
-  - ingress-gateway-exampleapp
-  http:
-  - match:
-    - uri:
-        exact: /
-    route:
-    - destination:
-        host: customer
-        port:
-          number: 8080</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Get all istio-io related objects of your project. These objects represent the network objects of Service Mesh, like Gateway, VirtualService and DestinationRule (explained later)</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get istio-io -n tutorial
-NAME                                                 HOST             AGE
-destinationrule.networking.istio.io/recommendation   recommendation   3d21h
+    - www.example.com
+    - svc.example.com
+EOF
 
-NAME                                          AGE
-gateway.networking.istio.io/ingress-gateway   4d15h
+oc apply -f Gateway-ior.yaml -n tutorial</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>When you now check the routes, 2 new routes have been added:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get routes -n istio-system
+NAME                              HOST/PORT                                                           PATH   SERVICES               PORT    TERMINATION          WILDCARD
+...
+tutorial-customer-gateway-kmqrl   www.example.com                                                            istio-ingressgateway   http2                        None
+tutorial-customer-gateway-ks7q7   svc.example.com                                                            istio-ingressgateway   http2                        None</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>To test the connectivity, you need to be sure that the hosts, used in the Gateway, are resolvable.
+If they are then you can access your service:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">curl www.example.com/customer
+customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 31
 
-NAME                                                 GATEWAYS            HOSTS              AGE
-virtualservice.networking.istio.io/ingress-gateway   [ingress-gateway]   [*]        4d15h</code></pre></div></div></div></div><div class="sect1"><h2 id="_create_some_example_traffic"><a href="#_create_some_example_traffic" aria-label="Permalink to Create some example traffic" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Create some example traffic</h2><div class="sectionbody"><div class="paragraph"><p>Before we start, lets fetch the default route of our Service Mesh:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath='{.spec.host}')</code></pre></div></div><div class="paragraph"><p>This should return: <strong>istio-ingressgateway-istio-system.apps.&lt;clustername&gt;</strong><br /></p></div><div class="paragraph"><p>Now, let’s create a shell script to run some curl commands in a loop and can be easily reused for other scenarios:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">#!/bin/bash
-
-numberOfRequests=$1
-host2check=$2
-
-if [ $# -eq 0 ]; then
-    echo "better define: &lt;script&gt; #ofrequests hostname2check"
-    echo "Example: run.sh 100 hello.com"
-	let "numberOfRequests=100"
-else
-	let "i = 0"
-	while [ $i -lt $numberOfRequests ]; do
-	  echo -n "# $i: "; curl $2
-	  let "i=$((i + 1))"
-	done
-fi</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Run the script and check the output:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">sh run-check.sh 1000 $GATEWAY_URL</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>This will send 1000 requests to our application:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash"># 0: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3622
-# 1: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3623
-# 2: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3624
-# 3: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3625
-# 4: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3626
-# 5: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3627
-...</code></pre></div></div></div></div><div class="sect1"><h2 id="_verify_in_kiali"><a href="#_verify_in_kiali" aria-label="Permalink to Verify in Kiali" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Verify in Kiali</h2><div class="sectionbody"><div class="paragraph"><p>To verify in Kiali our application, open the URL in your browser and login using your OpenShift credentials.</p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
-If you do not know the URL for Kiali, execute the following command<br />
-oc get route kiali -n istio-system
-</td></tr></table></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Switch the the <strong>Graph</strong> view and you should see the following picture:</p></div><div class="imageblock bordered"><div class="content"><img src="/img/Kiali-Example-1.png" alt="Kiali" /></div><div class="title">Figure 1. Kiali Graph</div></div></div></div>
+curl svc.example.com/customer
+customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 32</code></pre></div></div></div></div>
 </div>
 
 <div id="post-tags">
     <br/> 
     <b>Tags: </b>
+    
+    <a class="post-tags-class" href="/tags-output/Route/">Route</a>
     
     <a class="post-tags-class" href="/tags-output/OCP/">OCP</a>
     
@@ -227,10 +232,10 @@ oc get route kiali -n istio-system
 
     <div id="prev-next">
         
-        <a class="button" href="/posts-output/2020-03-29-Istio-Tutorial1/">&laquo; Openshift 4 and ServiceMesh 1 - Installation</a>
+        <a class="button" href="/posts-output/2020-05-12-Istio-Tutorial12/">&laquo; OpenShift 4 and Service Mesh 12 - Authorization (RBAC)</a>
         
         
-        <a class="right button" href="/posts-output/2020-03-31-Istio-Tutorial4/">Openshift 4 and Service Mesh 4 - Ingress with custom domain &raquo;</a>
+        <a class="right button" href="/posts-output/2020-05-13-Quay-Tutorial1/">Red Hat Quay Registry - Overview and Installation &raquo;</a>
         
     </div>
 
