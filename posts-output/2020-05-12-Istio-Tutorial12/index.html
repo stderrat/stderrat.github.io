@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <title>Yaub: OpenShift 4 and Service Mesh 12 - Authorization (RBAC)</title>
     
-<meta name="keywords" content="Route,Bookinfo,Example,github,DestinationRule,Authorization,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,Security,kubectl,Istio,git,Ansible Tower,Pipelines,Fault Injection,Satellite,Container Security,Ansible,Quay,OpenShift,Service Mesh,mTLS,DO410,oc,Registry">
+<meta name="keywords" content="Route,ArgoCD,Bookinfo,Example,github,DestinationRule,Authorization,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,Gitops,Security,kubectl,Istio,git,Ansible Tower,Pipelines,Fault Injection,Satellite,Container Security,Ansible,Quay,OpenShift,Service Mesh,mTLS,DO410,oc,Registry">
 
 <meta name="description" content="OpenShift 4.x and Service Mesh/Istio Tutorial 12 - Authorization Role Based Access Control (RBAC)">
 
@@ -101,15 +101,15 @@
         <ul class="menu">
           <li>Recent Posts:</li>
           
+            <a class="nospacing left" href="/posts-output/2020-08-06-ArgoCD/"><li class="smallpadding small">GitOps - Argo CD</li></a>
+          
             <a class="nospacing left" href="/posts-output/2020-05-13-Quay-Tutorial1/"><li class="smallpadding small">Red Hat Quay Registry - Overview and Installation</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-05-13-Istio-Tutorial13/"><li class="smallpadding small">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-05-12-Istio-Tutorial12/"><li class="smallpadding small">OpenShift 4 and Service Mesh 12 - Authorization (RBAC)</li></a>
           
-            <a class="nospacing left" href="/posts-output/2020-05-12-Istio-Tutorial13/"><li class="smallpadding small">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</li></a>
-          
             <a class="nospacing left" href="/posts-output/2020-05-08-git-and-github-basics/"><li class="smallpadding small">Basic usage of git when working with projects on github </li></a>
-          
-            <a class="nospacing left" href="/posts-output/2020-04-30-Istio-Tutorial11/"><li class="smallpadding small">OpenShift 4 and Service Mesh 11 - Deploy Example Bookinfo Application</li></a>
           
         </ul>
       </div>
@@ -142,12 +142,12 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2020-05-19 09:38:05 UTC</em></p></div><div class="paragraph"><p>Per default all requests inside a Service Mesh are allowed, which can be a problem security-wise.
+    <div class="paragraph small"><p><em>Last Modified: 2020-08-06 14:48:12 UTC</em></p></div><div class="paragraph"><p>Per default all requests inside a Service Mesh are allowed, which can be a problem security-wise.
 To solve this, authorization, which verifies if the user is allowed to perform a certain action, is required.
 Istio’s authorization provides access control on mesh-level, namespace-level and workload-level.</p></div><div class="paragraph"><p>With the resource <strong>AuthorizationPolicy</strong> granular policies can be defined.
-These policies are loaded to and verified by the Envoy Proxy which then authorizes a request.</p></div><div class="paragraph"><p> <br /></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_implicit_enablement">Implicit enablement</a></li><li><a href="#_preparing_environment">Preparing Environment</a></li><li><a href="#_configure_authentication_policy">Configure Authentication Policy</a></li><li><a href="#_configure_role_based_access_control_rbac">Configure Role Based Access Control (RBAC)</a></li></ul></div><div class="sect1"><h2 id="_implicit_enablement"><a href="#_implicit_enablement" aria-label="Permalink to Implicit enablement" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Implicit enablement</h2><div class="sectionbody"><div class="paragraph"><p>To enable authorization the only thing you need is to do is to define the <strong>AuthorizationPolicy</strong>. If the resource is not defined, then no access control will be used, instead any traffic is allowed. If <strong>AuthorizationPolicy</strong> is applied to a workload, then by default any traffic is denied unless it is explicitly allowed.</p></div><div class="paragraph"><p> <br /></p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
+These policies are loaded to and verified by the Envoy Proxy which then authorizes a request.</p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_implicit_enablement">Implicit enablement</a></li><li><a href="#_preparing_environment">Preparing Environment</a></li><li><a href="#_configure_authentication_policy">Configure Authentication Policy</a></li><li><a href="#_configure_role_based_access_control_rbac">Configure Role Based Access Control (RBAC)</a></li></ul></div><div class="sect1"><h2 id="_implicit_enablement"><a href="#_implicit_enablement" aria-label="Permalink to Implicit enablement" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Implicit enablement</h2><div class="sectionbody"><div class="paragraph"><p>To enable authorization the only thing you need is to do is to define the <strong>AuthorizationPolicy</strong>. If the resource is not defined, then no access control will be used, instead any traffic is allowed. If <strong>AuthorizationPolicy</strong> is applied to a workload, then by default any traffic is denied unless it is explicitly allowed.</p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
 This is applicable to Service Mesh version 1.1+
-</td></tr></table></div><div class="paragraph"><p> <br /></p></div><hr /></div></div><div class="sect1"><h2 id="_preparing_environment"><a href="#_preparing_environment" aria-label="Permalink to Preparing Environment" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Preparing Environment</h2><div class="sectionbody"><div class="paragraph"><p>The following steps will configure an example Role Based Access Control (RBAC). It will start from scratch. If you just want to quickly configure the authorization and have anything else in place, you can start form here: <a href="#_configure_authentication_policy">Configure Authentication Policy</a></p></div><div class="paragraph"><p> <br /></p></div><div class="olist arabic"><ol class="arabic"><li><p>Create a new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project tutorial</code></pre></div></div></li><li><p>Be sure that a Service Mesh Member Roll exists for this new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; memberroll.yaml
+</td></tr></table></div><hr /></div></div><div class="sect1"><h2 id="_preparing_environment"><a href="#_preparing_environment" aria-label="Permalink to Preparing Environment" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Preparing Environment</h2><div class="sectionbody"><div class="paragraph"><p>The following steps will configure an example Role Based Access Control (RBAC). It will start from scratch. If you just want to quickly configure the authorization and have anything else in place, you can start form here: <a href="#_configure_authentication_policy">Configure Authentication Policy</a></p></div><div class="paragraph"><p> <br /></p></div><div class="olist arabic"><ol class="arabic"><li><p>Create a new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project tutorial</code></pre></div></div></li><li><p>Be sure that a Service Mesh Member Roll exists for this new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; memberroll.yaml
 apiVersion: maistra.io/v1
 kind: ServiceMeshMemberRoll
 metadata:
@@ -165,7 +165,7 @@ oc expose service customer
 oc apply -f istio-tutorial/preference/kubernetes/Deployment.yml -n tutorial
 oc apply -f istio-tutorial/preference/kubernetes/Service.yml -n tutorial
 oc apply -f istio-tutorial/recommendation/kubernetes/Deployment.yml -n tutorial
-oc apply -f istio-tutorial/recommendation/kubernetes/Service.yml -n tutorial</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Wait until all pods are running. There should be 2 containers for all pods:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods -w</code></pre></div></div></li><li><p>Create Gateway and VirtualService</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; Gateway_VirtualService.yaml
+oc apply -f istio-tutorial/recommendation/kubernetes/Service.yml -n tutorial</code></pre></div></div><div class="paragraph"><p>Wait until all pods are running. There should be 2 containers for all pods:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods -w</code></pre></div></div></li><li><p>Create Gateway and VirtualService</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; Gateway_VirtualService.yaml
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -205,7 +205,7 @@ EOF
 
 oc apply -f Gateway_VirtualService.yaml -n tutorial</code></pre></div></div></li><li><p>Verify if the application is working
 You can either use the run.sh from previous tutorials, or simply try the following curl</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath='{.spec.host}'); echo $GATEWAY_URL
-curl $GATEWAY_URL/customer</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>This should return the following line:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 1</code></pre></div></div></li><li><p>Optionally check the connection from inside the customer container</p><div class="paragraph"><p>get pods name and enter it:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods
+curl $GATEWAY_URL/customer</code></pre></div></div><div class="paragraph"><p>This should return the following line:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 1</code></pre></div></div></li><li><p>Optionally check the connection from inside the customer container</p><div class="paragraph"><p>get pods name and enter it:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc get pods
 NAME                                 READY   STATUS    RESTARTS   AGE
 customer-6948b8b959-dhsm9            2/2     Running   0          177m
 preference-v1-7fdb89c86b-dvzs9       2/2     Running   0          177m
@@ -238,7 +238,7 @@ EOF
 
 oc apply -f authentication-policy.yaml -n tutorial</code></pre></div></div></li><li><p>Access should be denied after a few seconds</p><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">curl $GATEWAY_URL/customer
 Origin authentication failed.%</code></pre></div></div></li><li><p>Use token to authenticate</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">token=$(curl https://gist.githubusercontent.com/lordofthejars/a02485d70c99eba70980e0a92b2c97ed/raw/f16b938464b01a2e721567217f672f11dc4ef565/token.simple.jwt -s)
-curl -H "Authorization: Bearer $token" $GATEWAY_URL/customer</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>This will result in a correct response</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 5</code></pre></div></div></li></ol></div></div></div><div class="sect1"><h2 id="_configure_role_based_access_control_rbac"><a href="#_configure_role_based_access_control_rbac" aria-label="Permalink to Configure Role Based Access Control (RBAC)" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Configure Role Based Access Control (RBAC)</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>Create the resource <strong>AuthorizationPolicy</strong></p><div class="paragraph"><p>This is a new resources, supported since Service Mesh 1.1. It will allow GET method when the role equals to "<em>customer</em>"</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; AuthorizationPolicy.yaml
+curl -H "Authorization: Bearer $token" $GATEWAY_URL/customer</code></pre></div></div><div class="paragraph"><p>This will result in a correct response</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 5</code></pre></div></div></li></ol></div></div></div><div class="sect1"><h2 id="_configure_role_based_access_control_rbac"><a href="#_configure_role_based_access_control_rbac" aria-label="Permalink to Configure Role Based Access Control (RBAC)" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Configure Role Based Access Control (RBAC)</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>Create the resource <strong>AuthorizationPolicy</strong></p><div class="paragraph"><p>This is a new resources, supported since Service Mesh 1.1. It will allow GET method when the role equals to "<em>customer</em>"</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; AuthorizationPolicy.yaml
 apiVersion: "security.istio.io/v1beta1"
 kind: "AuthorizationPolicy"
 metadata:
@@ -254,7 +254,7 @@ spec:
 EOF
 
 oc apply -f AuthorizationPolicy.yaml -n tutorial</code></pre></div></div></li><li><p>Get a token for the role and retry to connect to the service,</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">token=$(curl https://gist.githubusercontent.com/lordofthejars/f590c80b8d83ea1244febb2c73954739/raw/21ec0ba0184726444d99018761cf0cd0ece35971/token.role.jwt -s)
-curl -H "Authorization: Bearer $token" $GATEWAY_URL/customer</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>This results in:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 8</code></pre></div></div></li><li><p>Let’s verify the setting and change the AuthorizationPolicy.
+curl -H "Authorization: Bearer $token" $GATEWAY_URL/customer</code></pre></div></div><div class="paragraph"><p>This results in:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 8</code></pre></div></div></li><li><p>Let’s verify the setting and change the AuthorizationPolicy.
 This will break the authorization, since the token provides roles=customer and we set the Policy to "whereistherole"</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; AuthorizationPolicy-Hack.yaml
 apiVersion: "security.istio.io/v1beta1"
 kind: "AuthorizationPolicy"
@@ -270,7 +270,7 @@ spec:
       values: ["whereistherole"]
 EOF
 
-oc replace -f AuthorizationPolicy-Hack.yaml -n tutorial</code></pre></div></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>If you now try to access the service, with the token, which provides "customer" as role, it will lead to an error:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">token=$(curl https://gist.githubusercontent.com/lordofthejars/f590c80b8d83ea1244febb2c73954739/raw/21ec0ba0184726444d99018761cf0cd0ece35971/token.role.jwt -s)
+oc replace -f AuthorizationPolicy-Hack.yaml -n tutorial</code></pre></div></div><div class="paragraph"><p>If you now try to access the service, with the token, which provides "customer" as role, it will lead to an error:</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">token=$(curl https://gist.githubusercontent.com/lordofthejars/f590c80b8d83ea1244febb2c73954739/raw/21ec0ba0184726444d99018761cf0cd0ece35971/token.role.jwt -s)
 curl -H "Authorization: Bearer $token" $GATEWAY_URL/customer
 
 RBAC: access denied</code></pre></div></div></li></ol></div></div></div>
@@ -298,10 +298,10 @@ RBAC: access denied</code></pre></div></div></li></ol></div></div></div>
 
     <div id="prev-next">
         
-        <a class="button" href="/posts-output/2020-05-12-Istio-Tutorial13/">&laquo; OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</a>
+        <a class="button" href="/posts-output/2020-05-08-git-and-github-basics/">&laquo; Basic usage of git when working with projects on github </a>
         
         
-        <a class="right button" href="/posts-output/2020-05-13-Quay-Tutorial1/">Red Hat Quay Registry - Overview and Installation &raquo;</a>
+        <a class="right button" href="/posts-output/2020-05-13-Istio-Tutorial13/">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation &raquo;</a>
         
     </div>
 
