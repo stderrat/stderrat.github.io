@@ -107,9 +107,9 @@
           
             <a class="nospacing left" href="/posts-output/2020-08-06-ArgoCD/"><li class="smallpadding small">GitOps - Argo CD</li></a>
           
-            <a class="nospacing left" href="/posts-output/2020-05-13-Istio-Tutorial13/"><li class="smallpadding small">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</li></a>
-          
             <a class="nospacing left" href="/posts-output/2020-05-13-Quay-Tutorial1/"><li class="smallpadding small">Red Hat Quay Registry - Overview and Installation</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-05-13-Istio-Tutorial13/"><li class="smallpadding small">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</li></a>
           
         </ul>
       </div>
@@ -142,12 +142,12 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2021-01-27 17:49:05 UTC</em></p></div><div class="paragraph"><p>Per default all requests inside a Service Mesh are allowed, which can be a problem security-wise.
+    <div class="paragraph small"><p><em>Last Modified: 2021-04-07 08:13:42 UTC</em></p></div><div class="paragraph"><p>Per default all requests inside a Service Mesh are allowed, which can be a problem security-wise.
 To solve this, authorization, which verifies if the user is allowed to perform a certain action, is required.
 Istio’s authorization provides access control on mesh-level, namespace-level and workload-level.</p></div><div class="paragraph"><p>With the resource <strong>AuthorizationPolicy</strong> granular policies can be defined.
-These policies are loaded to and verified by the Envoy Proxy which then authorizes a request.</p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_implicit_enablement">Implicit enablement</a></li><li><a href="#_preparing_environment">Preparing Environment</a></li><li><a href="#_configure_authentication_policy">Configure Authentication Policy</a></li><li><a href="#_configure_role_based_access_control_rbac">Configure Role Based Access Control (RBAC)</a></li></ul></div><div class="sect1"><h2 id="_implicit_enablement"><a href="#_implicit_enablement" aria-label="Permalink to Implicit enablement" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Implicit enablement</h2><div class="sectionbody"><div class="paragraph"><p>To enable authorization the only thing you need is to do is to define the <strong>AuthorizationPolicy</strong>. If the resource is not defined, then no access control will be used, instead any traffic is allowed. If <strong>AuthorizationPolicy</strong> is applied to a workload, then by default any traffic is denied unless it is explicitly allowed.</p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
+These policies are loaded to and verified by the Envoy Proxy which then authorizes a request.</p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_implicit_enablement">Implicit enablement</a></li><li><a href="#_preparing_environment">Preparing Environment</a></li><li><a href="#_configure_authentication_policy">Configure Authentication Policy</a></li><li><a href="#_configure_role_based_access_control_rbac">Configure Role Based Access Control (RBAC)</a></li></ul></div><div class="sect1"><h2 id="_implicit_enablement">Implicit enablement</h2><div class="sectionbody"><div class="paragraph"><p>To enable authorization the only thing you need is to do is to define the <strong>AuthorizationPolicy</strong>. If the resource is not defined, then no access control will be used, instead any traffic is allowed. If <strong>AuthorizationPolicy</strong> is applied to a workload, then by default any traffic is denied unless it is explicitly allowed.</p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
 This is applicable to Service Mesh version 1.1+
-</td></tr></table></div><hr /></div></div><div class="sect1"><h2 id="_preparing_environment"><a href="#_preparing_environment" aria-label="Permalink to Preparing Environment" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Preparing Environment</h2><div class="sectionbody"><div class="paragraph"><p>The following steps will configure an example Role Based Access Control (RBAC). It will start from scratch. If you just want to quickly configure the authorization and have anything else in place, you can start form here: <a href="#_configure_authentication_policy">Configure Authentication Policy</a></p></div><div class="paragraph"><p> <br /></p></div><div class="olist arabic"><ol class="arabic"><li><p>Create a new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project tutorial</code></pre></div></div></li><li><p>Be sure that a Service Mesh Member Roll exists for this new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; memberroll.yaml
+</td></tr></table></div><hr /></div></div><div class="sect1"><h2 id="_preparing_environment">Preparing Environment</h2><div class="sectionbody"><div class="paragraph"><p>The following steps will configure an example Role Based Access Control (RBAC). It will start from scratch. If you just want to quickly configure the authorization and have anything else in place, you can start form here: <a href="#_configure_authentication_policy">Configure Authentication Policy</a></p></div><div class="paragraph"><p> <br /></p></div><div class="olist arabic"><ol class="arabic"><li><p>Create a new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project tutorial</code></pre></div></div></li><li><p>Be sure that a Service Mesh Member Roll exists for this new project</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; memberroll.yaml
 apiVersion: maistra.io/v1
 kind: ServiceMeshMemberRoll
 metadata:
@@ -218,7 +218,7 @@ sh-4.4$ curl preference:8080
 preference =&gt; recommendation v1 from 'f11b097f1dd0': 3
 
 sh-4.4$ curl recommendation:8080
-recommendation v1 from 'f11b097f1dd0': 4</code></pre></div></div></li></ol></div><hr /></div></div><div class="sect1"><h2 id="_configure_authentication_policy"><a href="#_configure_authentication_policy" aria-label="Permalink to Configure Authentication Policy" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Configure Authentication Policy</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>Enabling User-End authentication</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; authentication-policy.yaml
+recommendation v1 from 'f11b097f1dd0': 4</code></pre></div></div></li></ol></div><hr /></div></div><div class="sect1"><h2 id="_configure_authentication_policy">Configure Authentication Policy</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>Enabling User-End authentication</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; authentication-policy.yaml
 apiVersion: "authentication.istio.io/v1alpha1"
 kind: "Policy"
 metadata:
@@ -238,7 +238,7 @@ EOF
 
 oc apply -f authentication-policy.yaml -n tutorial</code></pre></div></div></li><li><p>Access should be denied after a few seconds</p><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">curl $GATEWAY_URL/customer
 Origin authentication failed.%</code></pre></div></div></li><li><p>Use token to authenticate</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">token=$(curl https://gist.githubusercontent.com/lordofthejars/a02485d70c99eba70980e0a92b2c97ed/raw/f16b938464b01a2e721567217f672f11dc4ef565/token.simple.jwt -s)
-curl -H "Authorization: Bearer $token" $GATEWAY_URL/customer</code></pre></div></div><div class="paragraph"><p>This will result in a correct response</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 5</code></pre></div></div></li></ol></div></div></div><div class="sect1"><h2 id="_configure_role_based_access_control_rbac"><a href="#_configure_role_based_access_control_rbac" aria-label="Permalink to Configure Role Based Access Control (RBAC)" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Configure Role Based Access Control (RBAC)</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>Create the resource <strong>AuthorizationPolicy</strong></p><div class="paragraph"><p>This is a new resources, supported since Service Mesh 1.1. It will allow GET method when the role equals to "<em>customer</em>"</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; AuthorizationPolicy.yaml
+curl -H "Authorization: Bearer $token" $GATEWAY_URL/customer</code></pre></div></div><div class="paragraph"><p>This will result in a correct response</p></div><div class="listingblock hidecopy"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 5</code></pre></div></div></li></ol></div></div></div><div class="sect1"><h2 id="_configure_role_based_access_control_rbac">Configure Role Based Access Control (RBAC)</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>Create the resource <strong>AuthorizationPolicy</strong></p><div class="paragraph"><p>This is a new resources, supported since Service Mesh 1.1. It will allow GET method when the role equals to "<em>customer</em>"</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; AuthorizationPolicy.yaml
 apiVersion: "security.istio.io/v1beta1"
 kind: "AuthorizationPolicy"
 metadata:
@@ -290,7 +290,7 @@ RBAC: access denied</code></pre></div></div></li></ol></div></div></div>
     
     <a class="post-tags-class" href="/tags-output/OpenShift/">OpenShift</a>
     
-    <a class="post-tags-class" href="/tags-output/Service Mesh/">Service Mesh</a>
+    <a class="post-tags-class" href="/tags-output/Service%20Mesh/">Service Mesh</a>
     
 </div>
 
@@ -301,7 +301,7 @@ RBAC: access denied</code></pre></div></div></li></ol></div></div></div>
         <a class="button" href="/posts-output/2020-05-08-git-and-github-basics/">&laquo; Basic usage of git when working with projects on github </a>
         
         
-        <a class="right button" href="/posts-output/2020-05-13-Quay-Tutorial1/">Red Hat Quay Registry - Overview and Installation &raquo;</a>
+        <a class="right button" href="/posts-output/2020-05-13-Istio-Tutorial13/">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation &raquo;</a>
         
     </div>
 
@@ -330,12 +330,12 @@ RBAC: access denied</code></pre></div></div></li></ol></div></div></div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-<script src="/js/highlight.pack.js" type="text/javascript"></script>
+<script src="/js/highlight.pack.js" type="application/javascript"></script>
 <script>hljs.initHighlightingOnLoad();</script>
 
-<script src="/js/clipboard.min.js" type="text/javascript"></script>
-<script src="/js/clipboard.integration.js" type="text/javascript"></script>
-<script src="/js/scripts.js" type="text/javascript"></script>
+<script src="/js/clipboard.min.js" type="application/javascript"></script>
+<script src="/js/clipboard.integration.js" type="application/javascript"></script>
+<script src="/js/scripts.js" type="application/javascript"></script>
 
 <script>window.onload = start;</script>
 

@@ -107,9 +107,9 @@
           
             <a class="nospacing left" href="/posts-output/2020-08-06-ArgoCD/"><li class="smallpadding small">GitOps - Argo CD</li></a>
           
-            <a class="nospacing left" href="/posts-output/2020-05-13-Istio-Tutorial13/"><li class="smallpadding small">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</li></a>
-          
             <a class="nospacing left" href="/posts-output/2020-05-13-Quay-Tutorial1/"><li class="smallpadding small">Red Hat Quay Registry - Overview and Installation</li></a>
+          
+            <a class="nospacing left" href="/posts-output/2020-05-13-Istio-Tutorial13/"><li class="smallpadding small">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</li></a>
           
         </ul>
       </div>
@@ -142,7 +142,7 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2021-01-27 17:49:05 UTC</em></p></div><div class="paragraph"><p>Part 3 of tutorial series <strong>OpenShift 4 and Service Mesh</strong> will show you how to create a Gateway and a VirtualService, so external traffic actually reaches your Mesh. It also provides an example script to run some curl in a loop.</p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_configure_gateway_and_virtualservice_example">Configure Gateway and VirtualService Example</a></li><li><a href="#_create_some_example_traffic">Create some example traffic</a></li><li><a href="#_verify_in_kiali">Verify in Kiali</a></li></ul></div><div class="sect1"><h2 id="_configure_gateway_and_virtualservice_example"><a href="#_configure_gateway_and_virtualservice_example" aria-label="Permalink to Configure Gateway and VirtualService Example" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Configure Gateway and VirtualService Example</h2><div class="sectionbody"><div class="paragraph"><p>With the microservices deployed during <a href="/posts-output/2020-03-29-Istio-Tutorial2">Issue #2</a>, it makes sense to test the access somehow. In order to bring traffic into the application a Gateway object and a VirtualService object must be created.
+    <div class="paragraph small"><p><em>Last Modified: 2021-04-07 08:13:42 UTC</em></p></div><div class="paragraph"><p>Part 3 of tutorial series <strong>OpenShift 4 and Service Mesh</strong> will show you how to create a Gateway and a VirtualService, so external traffic actually reaches your Mesh. It also provides an example script to run some curl in a loop.</p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_configure_gateway_and_virtualservice_example">Configure Gateway and VirtualService Example</a></li><li><a href="#_create_some_example_traffic">Create some example traffic</a></li><li><a href="#_verify_in_kiali">Verify in Kiali</a></li></ul></div><div class="sect1"><h2 id="_configure_gateway_and_virtualservice_example">Configure Gateway and VirtualService Example</h2><div class="sectionbody"><div class="paragraph"><p>With the microservices deployed during <a href="/posts-output/2020-03-29-Istio-Tutorial2">Issue #2</a>, it makes sense to test the access somehow. In order to bring traffic into the application a Gateway object and a VirtualService object must be created.
  <br /><br /></p></div><div class="paragraph"><p>The <em>Gateway</em> will be the entry point which forward the traffic to the <em>istio ingressgateway</em></p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -181,7 +181,7 @@ NAME                                          AGE
 gateway.networking.istio.io/ingress-gateway   4d15h
 
 NAME                                                 GATEWAYS            HOSTS              AGE
-virtualservice.networking.istio.io/ingress-gateway   [ingress-gateway]   [*]        4d15h</code></pre></div></div></div></div><div class="sect1"><h2 id="_create_some_example_traffic"><a href="#_create_some_example_traffic" aria-label="Permalink to Create some example traffic" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Create some example traffic</h2><div class="sectionbody"><div class="paragraph"><p>Before we start, lets fetch the default route of our Service Mesh:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath='{.spec.host}')</code></pre></div></div><div class="paragraph"><p>This should return: <strong>istio-ingressgateway-istio-system.apps.&lt;clustername&gt;</strong><br /></p></div><div class="paragraph"><p>Now, let’s create a shell script to run some curl commands in a loop and can be easily reused for other scenarios:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">#!/bin/bash
+virtualservice.networking.istio.io/ingress-gateway   [ingress-gateway]   [*]        4d15h</code></pre></div></div></div></div><div class="sect1"><h2 id="_create_some_example_traffic">Create some example traffic</h2><div class="sectionbody"><div class="paragraph"><p>Before we start, lets fetch the default route of our Service Mesh:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath='{.spec.host}')</code></pre></div></div><div class="paragraph"><p>This should return: <strong>istio-ingressgateway-istio-system.apps.&lt;clustername&gt;</strong><br /></p></div><div class="paragraph"><p>Now, let’s create a shell script to run some curl commands in a loop and can be easily reused for other scenarios:</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">#!/bin/bash
 
 numberOfRequests=$1
 host2check=$2
@@ -202,7 +202,7 @@ fi</code></pre></div></div><div class="paragraph"><p>Run the script and check th
 # 3: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3625
 # 4: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3626
 # 5: customer =&gt; preference =&gt; recommendation v1 from 'f11b097f1dd0': 3627
-...</code></pre></div></div></div></div><div class="sect1"><h2 id="_verify_in_kiali"><a href="#_verify_in_kiali" aria-label="Permalink to Verify in Kiali" class="anchor"><svg aria-hidden="true" focusable="false" width="16" height="16"><use xlink:href="/img/icons.svg#icon-link"></use></svg></a>Verify in Kiali</h2><div class="sectionbody"><div class="paragraph"><p>To verify in Kiali our application, open the URL in your browser and login using your OpenShift credentials.</p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
+...</code></pre></div></div></div></div><div class="sect1"><h2 id="_verify_in_kiali">Verify in Kiali</h2><div class="sectionbody"><div class="paragraph"><p>To verify in Kiali our application, open the URL in your browser and login using your OpenShift credentials.</p></div><div class="admonitionblock note"><table><tr><td class="icon"><i class="fa icon-note" title="Note"></i></td><td class="content">
 If you do not know the URL for Kiali, execute the following command<br />
 oc get route kiali -n istio-system
 </td></tr></table></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>Switch the the <strong>Graph</strong> view and you should see the following picture:</p></div><div class="imageblock bordered"><div class="content"><img src="/img/Kiali-Example-1.png" alt="Kiali" /></div><div class="title">Figure 1. Kiali Graph</div></div></div></div>
@@ -218,7 +218,7 @@ oc get route kiali -n istio-system
     
     <a class="post-tags-class" href="/tags-output/OpenShift/">OpenShift</a>
     
-    <a class="post-tags-class" href="/tags-output/Service Mesh/">Service Mesh</a>
+    <a class="post-tags-class" href="/tags-output/Service%20Mesh/">Service Mesh</a>
     
 </div>
 
@@ -258,12 +258,12 @@ oc get route kiali -n istio-system
 </div>
 
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-<script src="/js/highlight.pack.js" type="text/javascript"></script>
+<script src="/js/highlight.pack.js" type="application/javascript"></script>
 <script>hljs.initHighlightingOnLoad();</script>
 
-<script src="/js/clipboard.min.js" type="text/javascript"></script>
-<script src="/js/clipboard.integration.js" type="text/javascript"></script>
-<script src="/js/scripts.js" type="text/javascript"></script>
+<script src="/js/clipboard.min.js" type="application/javascript"></script>
+<script src="/js/clipboard.integration.js" type="application/javascript"></script>
+<script src="/js/scripts.js" type="application/javascript"></script>
 
 <script>window.onload = start;</script>
 
