@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <title>Yaub: OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</title>
     
-<meta name="keywords" content="Route,ArgoCD,Bookinfo,Example,github,DestinationRule,Authorization,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,Gitops,Security,kubectl,Istio,git,Ansible Tower,Operator,Pipelines,Fault Injection,Satellite,Grafana,Container Security,Thanos,Ansible,Quay,OpenShift,Service Mesh,mTLS,DO410,Kubernetes,oc,Registry">
+<meta name="keywords" content="Route,ArgoCD,Storage,Bookinfo,Example,github,DestinationRule,Authorization,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,Gitops,Security,kubectl,Istio,git,Ansible Tower,Operator,Pipelines,Fault Injection,Satellite,Grafana,Container Security,Thanos,Ansible,Quay,OpenShift,Service Mesh,mTLS,DO410,Kubernetes,Block devices,oc,Registry">
 
 <meta name="description" content="OpenShift 4.x and Service Mesh/Istio Tutorial 13 - Automatic route creation">
 
@@ -101,6 +101,8 @@
         <ul class="menu">
           <li>Recent Posts:</li>
           
+            <a class="nospacing left" href="/posts-output/2021-02-27-understanding-block-devices/"><li class="smallpadding small">Understanding RWO block device handling in OpenShift</li></a>
+          
             <a class="nospacing left" href="/posts-output/2021-01-27-WritingOperatorAnsible/"><li class="smallpadding small">Writing Operator using Ansible</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-12-10-Thanos-vs-Thanos/"><li class="smallpadding small">Thanos Querier vs Thanos Querier</li></a>
@@ -108,8 +110,6 @@
             <a class="nospacing left" href="/posts-output/2020-08-06-ArgoCD/"><li class="smallpadding small">GitOps - Argo CD</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-05-13-Quay-Tutorial1/"><li class="smallpadding small">Red Hat Quay Registry - Overview and Installation</li></a>
-          
-            <a class="nospacing left" href="/posts-output/2020-05-13-Istio-Tutorial13/"><li class="smallpadding small">OpenShift 4 and Service Mesh 13 - Enable Automatic Route Creation</li></a>
           
         </ul>
       </div>
@@ -142,7 +142,7 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2021-04-07 08:23:01 UTC</em></p></div><div class="paragraph"><p>Red Hat Service Mesh 1.1 allows you to enable a "<strong>Automatic Route Creation</strong>" which will take care about the routes for a specific Gateway. Instead of defining * for hosts, a list of domains can be defined. The Istio OpenShift Routing (ior) synchronizes the routes and creates them inside the Istio namespace. If a Gateway is deleted, the routes will also be removed again.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>This new features makes the manual creation of the route obsolete, as it was explained here: <a href="/posts-output/2020-03-31-Istio-Tutorial4">Openshift 4 and Service Mesh 4 - Ingress with custom domain</a></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_enable_automatic_route_creation">Enable Automatic Route Creation</a></li><li><a href="#_verify_current_service">Verify current service</a></li><li><a href="#_create_a_new_gateway">Create a new Gateway</a></li></ul></div><div class="sect1"><h2 id="_enable_automatic_route_creation">Enable Automatic Route Creation</h2><div class="sectionbody"><div class="paragraph"><p>Before this feature can be used, it must be enabled. To do so the <strong>ServiceMeshContolPlace</strong>, typically found in the namespace <em>istio-system</em> must be modified.
+    <div class="paragraph small"><p><em>Last Modified: 2021-04-07 10:22:22 UTC</em></p></div><div class="paragraph"><p>Red Hat Service Mesh 1.1 allows you to enable a "<strong>Automatic Route Creation</strong>" which will take care about the routes for a specific Gateway. Instead of defining * for hosts, a list of domains can be defined. The Istio OpenShift Routing (ior) synchronizes the routes and creates them inside the Istio namespace. If a Gateway is deleted, the routes will also be removed again.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>This new features makes the manual creation of the route obsolete, as it was explained here: <a href="/posts-output/2020-03-31-Istio-Tutorial4">Openshift 4 and Service Mesh 4 - Ingress with custom domain</a></p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_enable_automatic_route_creation">Enable Automatic Route Creation</a></li><li><a href="#_verify_current_service">Verify current service</a></li><li><a href="#_create_a_new_gateway">Create a new Gateway</a></li></ul></div><div class="sect1"><h2 id="_enable_automatic_route_creation">Enable Automatic Route Creation</h2><div class="sectionbody"><div class="paragraph"><p>Before this feature can be used, it must be enabled. To do so the <strong>ServiceMeshContolPlace</strong>, typically found in the namespace <em>istio-system</em> must be modified.
 Add the line <strong>ior_enabled: true</strong> to the <em>istio-ingressgate</em> configuration.</p></div><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">...
 spec:
   istio:
