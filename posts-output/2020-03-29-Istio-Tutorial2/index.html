@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <title>Yaub: Openshift 4 and ServiceMesh 2 - Deploy Microservices</title>
     
-<meta name="keywords" content="Route,ArgoCD,Storage,Bookinfo,Example,github,DestinationRule,Authorization,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,Gitops,Security,kubectl,Istio,git,Ansible Tower,Operator,Pipelines,Fault Injection,Satellite,Grafana,Container Security,Thanos,Ansible,Quay,OpenShift,Service Mesh,mTLS,DO410,Kubernetes,Block devices,oc,Registry">
+<meta name="keywords" content="Route,ArgoCD,Storage,Bookinfo,Example,github,DestinationRule,Authorization,security,Loadbalancer,Tekton,OCP,Canary,Azure,Grayscale,Egress,JWT,Mirror,Gitops,Security,kubectl,Istio,git,Ansible Tower,Operator,Pipelines,Fault Injection,Satellite,compliance,Grafana,Hardening,Container Security,Thanos,Ansible,Quay,OpenShift,Service Mesh,mTLS,DO410,Kubernetes,Block devices,oc,Registry">
 
 <meta name="description" content="Openshift 4.x and Service Mesh/Istio Tutorial 2 - Deploy some example microservices, which are used in future tutorials.">
 
@@ -101,6 +101,8 @@
         <ul class="menu">
           <li>Recent Posts:</li>
           
+            <a class="nospacing left" href="/posts-output/2021-07-19-ComplianceOperator/"><li class="smallpadding small">Compliance Operator</li></a>
+          
             <a class="nospacing left" href="/posts-output/2021-02-27-understanding-block-devices/"><li class="smallpadding small">Understanding RWO block device handling in OpenShift</li></a>
           
             <a class="nospacing left" href="/posts-output/2021-01-27-WritingOperatorAnsible/"><li class="smallpadding small">Writing Operator using Ansible</li></a>
@@ -108,8 +110,6 @@
             <a class="nospacing left" href="/posts-output/2020-12-10-Thanos-vs-Thanos/"><li class="smallpadding small">Thanos Querier vs Thanos Querier</li></a>
           
             <a class="nospacing left" href="/posts-output/2020-08-06-ArgoCD/"><li class="smallpadding small">GitOps - Argo CD</li></a>
-          
-            <a class="nospacing left" href="/posts-output/2020-05-13-Quay-Tutorial1/"><li class="smallpadding small">Red Hat Quay Registry - Overview and Installation</li></a>
           
         </ul>
       </div>
@@ -142,7 +142,7 @@
 </div>
 <div>
     
-    <div class="paragraph small"><p><em>Last Modified: 2021-04-27 06:31:03 UTC</em></p></div><div class="paragraph"><p>The second tutorials explains how to install an example application containing thee microservices. All operations have been successfully tested on OpenShift 4.3.</p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_introduction">Introduction</a></li><li><a href="#_deploy_microservices">Deploy microservices</a><ul class="sectlevel2"><li><a href="#_deploy_microservice_customer">Deploy microservice: <em>customer</em></a></li><li><a href="#_deploy_microservice_preference">Deploy microservice: <em>preference</em></a></li><li><a href="#_deploy_microservice_recommendation">Deploy microservice: <em>recommendation</em></a></li></ul></li><li><a href="#_optional_build_the_images">Optional: build the images</a><ul class="sectlevel2"><li><a href="#_build_customer">Build <em>customer</em></a></li><li><a href="#_build_preference">Build <em>preference</em></a></li><li><a href="#_build_recommendation">Build <em>recommendation</em></a></li></ul></li></ul></div><div class="sect1"><h2 id="_introduction">Introduction</h2><div class="sectionbody"><div class="paragraph"><p>As quickly explained at <a href="/posts-output/2020-03-29-Istio-Tutorial1">Issue #1</a>, OpenShift 4.3 and the Service Mesh shall be installed already. At this point you should have all 4 operators installed and ready.
+    <div class="paragraph small"><p><em>Last Modified: 2021-07-20 10:57:29 UTC</em></p></div><div class="paragraph"><p>The second tutorials explains how to install an example application containing thee microservices. All operations have been successfully tested on OpenShift 4.3.</p></div><div id="toc" class="toc"><div id="toctitle" class="title">Table of Contents</div><ul class="sectlevel1"><li><a href="#_introduction">Introduction</a></li><li><a href="#_deploy_microservices">Deploy microservices</a><ul class="sectlevel2"><li><a href="#_deploy_microservice_customer">Deploy microservice: <em>customer</em></a></li><li><a href="#_deploy_microservice_preference">Deploy microservice: <em>preference</em></a></li><li><a href="#_deploy_microservice_recommendation">Deploy microservice: <em>recommendation</em></a></li></ul></li><li><a href="#_optional_build_the_images">Optional: build the images</a><ul class="sectlevel2"><li><a href="#_build_customer">Build <em>customer</em></a></li><li><a href="#_build_preference">Build <em>preference</em></a></li><li><a href="#_build_recommendation">Build <em>recommendation</em></a></li></ul></li></ul></div><div class="sect1"><h2 id="_introduction">Introduction</h2><div class="sectionbody"><div class="paragraph"><p>As quickly explained at <a href="/posts-output/2020-03-29-Istio-Tutorial1">Issue #1</a>, OpenShift 4.3 and the Service Mesh shall be installed already. At this point you should have all 4 operators installed and ready.
 The test application used in this scenario is based on Java and contains 3 microservices in the following traffic flow:</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph text-center"><p>Customer ⇒ Preference ⇒ Recomandation
  <br /><br /></p></div><div class="paragraph"><p>The microservices are the same as used at the <a href="https://learn.openshift.com/servicemesh">Interactive Learning Portal</a>.</p></div></div></div><div class="sect1"><h2 id="_deploy_microservices">Deploy microservices</h2><div class="sectionbody"><div class="olist arabic"><ol class="arabic"><li><p>First lets create a new project for our tests</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-bash" data-lang="bash">oc new-project tutorial</code></pre></div></div></li><li><p><strong>EITHER</strong>: Add <em>tutorial</em> to ServiceMeshMemberRoll</p><div class="paragraph silver-textarea-background"><p><span class="black yellow-background"><strong>UPDATE</strong></span>: Service Mesh 1.1 now supports the object <strong>ServiceMember</strong> which can created under the application namespace and which automatically configures the ServiceMemberRoll. However, below description still works.</p></div><div class="paragraph"><p> <br /></p></div><div class="paragraph"><p>OpenShift will auto-inject the sidecar proxy to pods of a namespace, if the namespace is configured in the ServiceMeshMemberRoll object which was created for the operator.</p></div><div class="olist loweralpha"><ol class="loweralpha" type="a"><li><p>Create the file <em>memberroll.yaml</em>:</p><div class="listingblock"><div class="content"><pre class="highlight"><code class="language-yaml" data-lang="yaml">cat &lt;&lt;'EOF' &gt; memberroll.yaml
 apiVersion: maistra.io/v1
