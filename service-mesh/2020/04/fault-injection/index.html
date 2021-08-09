@@ -1,0 +1,673 @@
+<!doctype html><html lang=en class="js csstransforms3d">
+<head>
+<meta name=google-site-verification content="yq2Ib3doJVHVlEW2wtHap5WY54JhS2CCvI40y30F0FI">
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=generator content="Hugo 0.87.0">
+<meta name=description content="OpenShift 4.x and Service Mesh/Istio Tutorial 8 - Faul Injection/Chaos Testing">
+<meta name=author content="Toni Schmidbauer & Thomas Jungbauer">
+<link rel=icon href=/images/favicon.ico type=image/png>
+<link rel=apple-touch-icon sizes=152x152 href=/images/apple-touch-icon-152x152.png>
+<link rel=apple-touch-icon sizes=180x180 href=/images/apple-touch-icon-180x180.png>
+<link rel=apple-touch-icon sizes=128x128 href=/images/apple-touch-icon-128x128.png>
+<link rel=apple-touch-icon sizes=144x144 href=/images/apple-touch-icon-144x144.png>
+<link rel=apple-touch-icon sizes=114x114 href=/images/apple-touch-icon-114x114.png>
+<link rel=apple-touch-icon sizes=72x72 href=/images/apple-touch-icon-72x72.png>
+<link rel=apple-touch-icon href=/images/apple-touch-icon-57x57.png>
+<link rel="shortcut icon" href=/images/favicon.ico>
+<link rel=apple-touch-icon sizes=57x57 href=/images/apple-icon-57x57.png>
+<link rel=apple-touch-icon sizes=60x60 href=/images/apple-icon-60x60.png>
+<link rel=apple-touch-icon sizes=76x76 href=/images/apple-icon-76x76.png>
+<link rel=apple-touch-icon sizes=120x120 href=/images/apple-icon-120x120.png>
+<link rel=icon type=image/png sizes=192x192 href=/images/android-icon-192x192.png>
+<link rel=icon type=image/png sizes=32x32 href=/images/favicon-32x32.png>
+<link rel=icon type=image/png sizes=96x96 href=/images/favicon-96x96.png>
+<link rel=icon type=image/png sizes=16x16 href=/images/favicon-16x16.png>
+<title>Fault Injection :: TechBlog about OpenShift/Ansible/Satellite and much more</title>
+<link rel=manifest href=/manifest.json>
+<meta name=theme-color content="#317EFB">
+<link href=/css/nucleus.css?1628510415 rel=stylesheet>
+<link href=/css/fontawesome-all.min.css?1628510415 rel=stylesheet>
+<link href=/css/font-awesome-animation.min.css?1628510415 rel=stylesheet>
+<link href=/css/hybrid.css?1628510415 rel=stylesheet>
+<link href=/css/featherlight.min.css?1628510415 rel=stylesheet>
+<link href=/css/perfect-scrollbar.min.css?1628510415 rel=stylesheet>
+<link href=/css/auto-complete.css?1628510415 rel=stylesheet>
+<link href=/css/atom-one-dark-reasonable.css?1628510415 rel=stylesheet>
+<link href=/css/theme.css?1628510415 rel=stylesheet>
+<link href=/css/tabs.css?1628510415 rel=stylesheet>
+<link href=/css/hugo-theme.css?1628510415 rel=stylesheet>
+<link href=/css/theme-yaub.css?1628510415 rel=stylesheet>
+<script src=/js/jquery-3.6.0.min.js?1628510415></script>
+<style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
+</head>
+<body data-url=/service-mesh/2020/04/fault-injection/>
+<button onclick=scrollTopAnimated() id=myBtn class="top-btn button fa fa-arrow-up" title="Go to top"></button>
+<nav id=sidebar>
+<div id=header-wrapper>
+<div id=header>
+<a id=logo href=/>
+<p class="fa fa-cloud-upload-alt faa-float animated"></p>
+<span class=text>YAUB</span>
+<p class=logoarea><span class="text small">Yet another Useless Blog</span></p>
+</a>
+</div>
+<div class=searchbox>
+<label for=search-by><i class="fas fa-search"></i></label>
+<input data-search-input id=search-by type=search placeholder=Search...>
+<span data-search-clear><i class="fas fa-times"></i></span>
+</div>
+<script type=text/javascript src=/js/lunr.min.js?1628510415></script>
+<script type=text/javascript src=/js/auto-complete.js?1628510415></script>
+<script type=text/javascript>var baseurl="https://blog.stderr.at/"</script>
+<script type=text/javascript src=/js/search.js?1628510415></script>
+</div>
+<section id=homelinks>
+<ul>
+<li>
+<a class=padding href=/><i class="fas fa-home"></i> Home</a>
+</li>
+</ul>
+</section>
+<div class=highlightable>
+<ul class=topics>
+<li data-nav-id=/openshift/ title=OpenShift class=dd-item>
+<a href=/openshift/>
+OpenShift
+</a>
+<ul>
+<li data-nav-id=/openshift/2020-04-01-oc-commands/ title="Helpful oc / kubectl commands" class=dd-item>
+<a href=/openshift/2020-04-01-oc-commands/>
+Helpful oc / kubectl commands
+</a>
+</li>
+<li data-nav-id=/openshift/2020-04-16-tekton/ title="OpenShift Pipelines - Tekton Introduction" class=dd-item>
+<a href=/openshift/2020-04-16-tekton/>
+OpenShift Pipelines - Tekton Introduction
+</a>
+</li>
+<li data-nav-id=/openshift/2020-05-13-quay-tutorial1/ title="Red Hat Quay Registry - Overview and Installation" class=dd-item>
+<a href=/openshift/2020-05-13-quay-tutorial1/>
+Red Hat Quay Registry - Overview and Installation
+</a>
+</li>
+<li data-nav-id=/openshift/2020-08-06-argocd/ title="GitOps - Argo CD" class=dd-item>
+<a href=/openshift/2020-08-06-argocd/>
+GitOps - Argo CD
+</a>
+</li>
+<li data-nav-id=/openshift/2020-12-10-thanos-vs-thanos/ title="Thanos Querier vs Thanos Querier" class=dd-item>
+<a href=/openshift/2020-12-10-thanos-vs-thanos/>
+Thanos Querier vs Thanos Querier
+</a>
+</li>
+<li data-nav-id=/openshift/2021-01-27-writingoperatoransible/ title="Writing Operator using Ansible" class=dd-item>
+<a href=/openshift/2021-01-27-writingoperatoransible/>
+Writing Operator using Ansible
+</a>
+</li>
+<li data-nav-id=/openshift/2021-02-27-understanding-block-devices/ title="Understanding RWO block device handling in OpenShift" class=dd-item>
+<a href=/openshift/2021-02-27-understanding-block-devices/>
+Understanding RWO block device handling in OpenShift
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/compliance/ title=Compliance class=dd-item>
+<a href=/compliance/>
+Compliance
+</a>
+<ul>
+<li data-nav-id=/compliance/2021/07/compliance-operator/ title="Compliance Operator" class=dd-item>
+<a href=/compliance/2021/07/compliance-operator/>
+Compliance Operator
+</a>
+</li>
+<li data-nav-id=/compliance/2021/07/oc-compliance-command-line-plugin/ title="oc compliance command line plugin" class=dd-item>
+<a href=/compliance/2021/07/oc-compliance-command-line-plugin/>
+oc compliance command line plugin
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/service-mesh/ title="Service Mesh" class="dd-item
+parent">
+<a href=/service-mesh/>
+Service Mesh
+</a>
+<ul>
+<li data-nav-id=/service-mesh/2020/03/installation/ title=Installation class=dd-item>
+<a href=/service-mesh/2020/03/installation/>
+Installation
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/deploy-microservices/ title="Deploy Microservices" class=dd-item>
+<a href=/service-mesh/2020/03/deploy-microservices/>
+Deploy Microservices
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/ingress-traffic/ title="Ingress Traffic" class=dd-item>
+<a href=/service-mesh/2020/03/ingress-traffic/>
+Ingress Traffic
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/ingress-with-custom-domain/ title="Ingress with custom domain" class=dd-item>
+<a href=/service-mesh/2020/03/ingress-with-custom-domain/>
+Ingress with custom domain
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/routing-example/ title="Routing Example" class=dd-item>
+<a href=/service-mesh/2020/04/routing-example/>
+Routing Example
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/advanced-routing-example/ title="Advanced Routing Example" class=dd-item>
+<a href=/service-mesh/2020/04/advanced-routing-example/>
+Advanced Routing Example
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/limit-egress/external-traffic/ title="Limit Egress/External Traffic" class=dd-item>
+<a href=/service-mesh/2020/04/limit-egress/external-traffic/>
+Limit Egress/External Traffic
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/fault-injection/ title="Fault Injection" class="dd-item active">
+<a href=/service-mesh/2020/04/fault-injection/>
+Fault Injection
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/mutual-tls-authentication/ title="Mutual TLS Authentication" class=dd-item>
+<a href=/service-mesh/2020/04/mutual-tls-authentication/>
+Mutual TLS Authentication
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/authentication-jwt/ title="Authentication JWT" class=dd-item>
+<a href=/service-mesh/2020/04/authentication-jwt/>
+Authentication JWT
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/service-mesh-1.1-released/ title="Service Mesh 1.1 released" class=dd-item>
+<a href=/service-mesh/2020/04/service-mesh-1.1-released/>
+Service Mesh 1.1 released
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/deploy-example-bookinfo-application/ title="Deploy Example Bookinfo Application" class=dd-item>
+<a href=/service-mesh/2020/04/deploy-example-bookinfo-application/>
+Deploy Example Bookinfo Application
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/05/authorization-rbac/ title="Authorization (RBAC)" class=dd-item>
+<a href=/service-mesh/2020/05/authorization-rbac/>
+Authorization (RBAC)
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/05/enable-automatic-route-creation/ title="Enable Automatic Route Creation" class=dd-item>
+<a href=/service-mesh/2020/05/enable-automatic-route-creation/>
+Enable Automatic Route Creation
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/general/ title=General class=dd-item>
+<a href=/general/>
+General
+</a>
+<ul>
+<li data-nav-id=/general/2020/04/red-hat-satellite-cheat-sheet/ title="Red Hat Satellite Cheat Sheet" class=dd-item>
+<a href=/general/2020/04/red-hat-satellite-cheat-sheet/>
+Red Hat Satellite Cheat Sheet
+</a>
+</li>
+<li data-nav-id=/general/2020/05/basic-usage-of-git/ title="Basic usage of git" class=dd-item>
+<a href=/general/2020/05/basic-usage-of-git/>
+Basic usage of git
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/ansible/ title=Ansible class=dd-item>
+<a href=/ansible/>
+Ansible
+</a>
+<ul>
+<li data-nav-id=/ansible/2020/04/ansible-azure-resource-manager-example/ title="Ansible - Azure Resource Manager Example" class=dd-item>
+<a href=/ansible/2020/04/ansible-azure-resource-manager-example/>
+Ansible - Azure Resource Manager Example
+</a>
+</li>
+<li data-nav-id=/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/ title="DO410 Ansible and Ansible Tower training notes" class=dd-item>
+<a href=/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/>
+DO410 Ansible and Ansible Tower training notes
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/archive/ title=Archive class=dd-item>
+<a href=/archive/>
+Archive
+</a>
+</li>
+<li data-nav-id=/legaldisclosure/ title="Legal Disclosure" class=dd-item>
+<a href=/legaldisclosure/>
+Legal Disclosure
+</a>
+</li>
+<li data-nav-id=/rss/ title="RSS Feeds" class=dd-item>
+<a href=/rss/>
+RSS Feeds
+</a>
+</li>
+</ul>
+<section id=shortcuts>
+<h3 class=shortcut-title>More</h3>
+<ul>
+<li>
+<a class=padding href=https://blog.stderr.at/tags><i class="fas fa-tags"></i> Tags</a>
+</li>
+<li>
+<a class=padding href=https://blog.stderr.at/categories><i class="far fa-bookmark"></i> Catagories</a>
+</li>
+<li>
+<a class=padding href=https://www.redhat.com><i class="fab fa-redhat"></i> Red Hat</a>
+</li>
+</ul>
+</section>
+<section id=footer>
+</section>
+</div>
+</nav>
+<section id=body>
+<div id=overlay></div>
+<aside id=toc-field class="hidden lg:block tableOfContentContainer">
+<header id=TableOfContentsHeader>What's on this Page</header>
+<nav id=TableOfContents>
+<ul>
+<li><a href=#_preparation>Preparation</a></li>
+<li><a href=#_abort_connection_with_http_error_503>Abort Connection with HTTP Error 503</a>
+<ul>
+<li><a href=#_clean_up>Clean Up</a></li>
+</ul>
+</li>
+<li><a href=#_test_slow_connection_with_delay>Test slow connection with Delay</a></li>
+<li><a href=#_retry_on_errors>Retry on errors</a></li>
+<li><a href=#_sources>Sources</a></li>
+</ul>
+</nav>
+<div id=navigation>
+<a class=nav-prev href=/service-mesh/2020/04/limit-egress/external-traffic/ title="Limit Egress/External Traffic"> <i class="fa fa-chevron-left"></i></a>
+<a class=nav-next href=/service-mesh/2020/04/mutual-tls-authentication/ title="Mutual TLS Authentication" style=margin-right:0><i class="fa fa-chevron-right"></i></a>
+</div>
+</aside>
+<div class="padding highlightable">
+<div>
+<div id=top-bar>
+<div id=top-github-link>
+<a class=github-link title="Edit this page" href=https://github.com/stderrat/stderrat.github.io/service-mesh/2020-04-07-Istio-Tutorial8.adoc target=blank>
+<i class="fas fa-code-branch"></i>
+<span id=top-github-link-text>Edit this page</span>
+</a>
+</div>
+<div id=breadcrumbs itemscope itemtype=http://data-vocabulary.org/Breadcrumb>
+<span id=sidebar-toggle-span>
+<a href=# id=sidebar-toggle data-sidebar-toggle>
+<i class="fas fa-bars"></i>
+</a>
+</span>
+<span id=toc-menu><i class="fas fa-list-alt"></i></span>
+<span class=links>
+<a href=/>YAUB Yet Another Useless Blog</a> > <a href=/service-mesh/>Service Mesh</a> > Fault Injection
+</span>
+</div>
+<div class=progress>
+<div class=wrapper>
+<nav id=TableOfContents>
+<ul>
+<li><a href=#_preparation>Preparation</a></li>
+<li><a href=#_abort_connection_with_http_error_503>Abort Connection with HTTP Error 503</a>
+<ul>
+<li><a href=#_clean_up>Clean Up</a></li>
+</ul>
+</li>
+<li><a href=#_test_slow_connection_with_delay>Test slow connection with Delay</a></li>
+<li><a href=#_retry_on_errors>Retry on errors</a></li>
+<li><a href=#_sources>Sources</a></li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+</div>
+<div id=head-tags>
+<div class=tags>
+<a class=tag-link href=/tags/istio>Istio</a>
+<a class=tag-link href=/tags/service-mesh>Service Mesh</a>
+<a class=tag-link href=/tags/openshift>OpenShift</a>
+<a class=tag-link href=/tags/ocp>OCP</a>
+<a class=tag-link href=/tags/fault-injection>Fault Injection</a>
+</div>
+</div>
+<div id=body-inner>
+<h1>
+Fault Injection
+</h1>
+<p class=tracked>
+<time class="f6 mv4 dib tracked" datetime=2020-04-07T00:00:00Z>
+<strong>April 7, 2020</strong>
+</time>
+By:
+Thomas Jungbauer
+</p>
+<div class=paragraph>
+<p>Tutorial 8 of <strong>OpenShift 4 and Service Mesh</strong> tries to cover Fault Injection by using Chaos testing method to verify if your application is running. This is done by adding the property HTTPFaultInjection to the VirtualService. The settings for this property can be for example: delay, to delay the access or abort, to completely abort the connection.</p>
+</div>
+<div class=paragraph>
+<p>"<em>Adopting microservices often means more dependencies, and more services you might not control. It also means more requests on the network, increasing the possibility for errors. For these reasons, it’s important to test your services’ behavior when upstream dependencies fail."</em> [<a href=#source_1>1</a>]</p>
+</div>
+<div class=sect1>
+<h2 id=_preparation>Preparation</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Before we start this tutorial, we need to clean up our cluster. This is especially important when you did the previous training <a href=/service-mesh/2020/04/limit-egress/external-traffic>Limit Egress/External Traffic</a>.</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc delete deployment recommendation-v3
+oc scale deployment recommendation-v2 --replicas=1
+oc delete serviceentry worldclockapi-egress-rule
+oc delete virtualservice worldclockapi-timeout</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Verify that 2 pods for the recommendation services are running (with 2 containers)</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get pods -l app=recommendation -n tutorial
+NAME                                 READY   STATUS    RESTARTS   AGE
+recommendation-v1-69db8d6c48-h8brv   2/2     Running   0          4d20h
+recommendation-v2-6c5b86bbd8-jnk8b   2/2     Running   0          4d19h</code></pre>
+</div>
+</div>
+<hr>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_abort_connection_with_http_error_503>Abort Connection with HTTP Error 503</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>For the first example, we will need to modify the VirtualService and the DestinationRule. The VirtualService must be extended with a http fault section, which will abort the traffic 50% of the time.</p>
+</div>
+<div class="olist arabic">
+<ol class=arabic>
+<li>
+<p>Create the VirtualService</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-yaml data-lang=yaml>apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: recommendation
+spec:
+  hosts:
+  - recommendation
+  http:
+  - fault:
+      abort:
+        httpStatus: 503
+        percent: 50
+    route:
+    - destination:
+        host: recommendation
+        subset: app-recommendation</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Apply the change</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc replace -f VirtualService-abort.yaml</code></pre>
+</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class=icon>
+<i class="fa icon-warning" title=Warning></i>
+</td>
+<td class=content>
+Existing VirtualService with the name recommendation will be overwritten.
+</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>Create the DestinationRule</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-yaml data-lang=yaml>apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: recommendation
+spec:
+  host: recommendation
+  subsets:
+  - labels:
+      app: recommendation
+    name: app-recommendation</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Apply the change</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc replace -f destinationrule-faultinj.yaml</code></pre>
+</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class=icon>
+<i class="fa icon-warning" title=Warning></i>
+</td>
+<td class=content>
+Existing Destination with the name recommendation will be overwritten.
+</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>Check the traffic and verify that 50% of the connections will end with a 503 error:</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>export INGRESS_GATEWAY=$(oc get route customer -n tutorial -o &#39;jsonpath={.spec.host}&#39;)
+sh ~/run.sh 1000 $GATEWAY_URL</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div class=sect2>
+<h3 id=_clean_up>Clean Up</h3>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc delete virtualservice recommendation</code></pre>
+</div>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_test_slow_connection_with_delay>Test slow connection with Delay</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>More interesting, in my opinion, to test is a slow connection. This can be tested by adding the <em>fixedDelay</em> property into the VirtualService.
+Like in the example below, we will use a VirtualService. This time <strong>delay</strong> instead of <strong>abort</strong> is used. The fixDelay defines a delay of 7 seconds for 50% of the traffic.</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-yaml data-lang=yaml>apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: recommendation
+spec:
+  hosts:
+  - recommendation
+  http:
+  - fault:
+      delay:
+        fixedDelay: 7.000s
+        percent: 50
+    route:
+    - destination:
+        host: recommendation
+        subset: app-recommendation</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>If you now send traffic into the application, you will see that some answers will have a delay of 7 seconds. Keep sending traffic in a loop.</p>
+</div>
+<div class=paragraph>
+<p>Even more visible it will be, when you goto "Distributed Tracing" at the Kiali UI, select the service <em>recommendation</em> and a small lookback of maybe 5min.
+You will find that some requests are very fast, while other will tage about 7 seconds.</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src=/service-mesh/images/Kiali-delayed-traffic.png alt="Kiali delayed traffic">
+</div>
+<div class=title>Figure 1. Jaeger with delayed traffic.</div>
+</div>
+<hr>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_retry_on_errors>Retry on errors</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>If a microservice is answering with an error, Service Mesh/Istio will automatically try to reach another pod providing the service. These retries can be modified. In order to make everything visible, we will use Kiali to monitor the traffic.</p>
+</div>
+<div class=paragraph>
+<p> <br></p>
+</div>
+<div class="olist arabic">
+<ol class=arabic>
+<li>
+<p>We start by sending traffic into the application. This should be split evenly between v1 and v2 of the recommendation microservice</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>sh ~/run.sh 1000 $GATEWAY_URL</code></pre>
+</div>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash># 8329: customer =&gt; preference =&gt; recommendation v1 from &#39;f11b097f1dd0&#39;: 11145
+# 8330: customer =&gt; preference =&gt; recommendation v2 from &#39;3cbba7a9cde5&#39;: 9712
+# 8331: customer =&gt; preference =&gt; recommendation v1 from &#39;f11b097f1dd0&#39;: 11146
+# 8332: customer =&gt; preference =&gt; recommendation v2 from &#39;3cbba7a9cde5&#39;: 9713
+# 8333: customer =&gt; preference =&gt; recommendation v1 from &#39;f11b097f1dd0&#39;: 11147</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>In Kiali this ia visible in the Graphs, using the settings: "Versioned app graph" and "Requests percentage"</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src=/service-mesh/images/Kiali-retry-traffic-split-50.png alt="Kiali retry traffic split 50">
+</div>
+<div class=title>Figure 2. Traffic is split by 50% between recommendation v1 nd v2</div>
+</div>
+</li>
+<li>
+<p>As second step we need to enable the <em>nasty</em> mode for the microservice v2. This will simulate an outage, respoding with error 503 all the time. This change must be done <strong>inside</strong> the container:</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc exec -it $(oc get pods|grep recommendation-v2|awk &#39;{ print $1 }&#39;|head -1) -c recommendation /bin/bash</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Inside the container use the following command and exit the container again</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>curl localhost:8080/misbehave</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Kiali will now show that v1 will get 100% of the traffic, while v2 is shown as red. When you select the red square of v2 and then move the mouse over the red cross for the failing application, you will see that the pd itself is ready, but that 100% of the traffic is currently failing.</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src=/service-mesh/images/Kiali-retry-traffic-retry.png alt="Kiali retry traffic retry">
+</div>
+<div class=title>Figure 3. Traffic for v2 is failing</div>
+</div>
+</li>
+<li>
+<p>revert the change and fix v2 service</p>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc exec -it $(oc get pods|grep recommendation-v2|awk &#39;{ print $1 }&#39;|head -1) -c recommendation /bin/bash</code></pre>
+</div>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>curl localhost:8080/behave</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Verify in Kiali that everything is "green" again and that the traffic is split by 50% between v1 and v2.</p>
+</div>
+</li>
+</ol>
+</div>
+<hr>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_sources>Sources</h2>
+<div class=sectionbody>
+<div class=ulist>
+<ul>
+<li>
+<p><a id=source_1></a>[1]: <a href=https://istiobyexample.dev/fault-injection/ target=_blank rel=noopener>Istio By Example - Fault Injection</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<footer class=footline>
+</footer>
+</div>
+</div>
+<div id=navigation-bottom>
+<a class="nav-prev btn btn-default" href=/service-mesh/2020/04/limit-egress/external-traffic/ title="Limit Egress/External Traffic"> <i class="fa fa-chevron-left btn-bottom-prev"></i><span class=btn-bottom-text>Previous: </span> Limit Egress/External Traffic</a>
+<a class="nav-next btn btn-default" href=/service-mesh/2020/04/mutual-tls-authentication/ title="Mutual TLS Authentication" style=margin-right:0><i class="fa fa-chevron-right btn-bottom-next"></i><span class=btn-bottom-text>Next:</span> Mutual TLS Authentication</a>
+</div>
+<div class=copyright>
+<p>Copyright &copy; 2020 - 2021 Toni Schmidbauer & Thomas Jungbauer</p>
+<p>Built with <a href=https://github.com/matcornic/hugo-theme-learn target=_blank rel="noopener noreferrer">Hugo Learn Theme</i></a> and <a href=https://gohugo.io/ target=_blank rel="noopener noreferrer">Hugo</a> using <a href=https://asciidoctor.org/ target=_blank rel="noopener noreferrer">Asciidoctor</a></p>
+</div>
+</section>
+<div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
+<div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
+</div>
+<script src=/js/clipboard.min.js?1628510419></script>
+<script src=/js/perfect-scrollbar.min.js?1628510419></script>
+<script src=/js/perfect-scrollbar.jquery.min.js?1628510419></script>
+<script src=/js/jquery.sticky.js?1628510419></script>
+<script src=/js/featherlight.min.js?1628510419></script>
+<script src=/js/highlight.pack.js?1628510419></script>
+<script>hljs.initHighlightingOnLoad()</script>
+<script src=/js/modernizr.custom-3.6.0.js?1628510419></script>
+<script src=/js/learn.js?1628510419></script>
+<script src=/js/hugo-learn.js?1628510419></script>
+<script src=/js/yaub.js?1628510419></script>
+<script>window.addEventListener('DOMContentLoaded',()=>{const a=new IntersectionObserver(a=>{a.forEach(a=>{const b=a.target.getAttribute('id');a.intersectionRatio>0&&(clearActiveStatesInTableOfContents(),document.querySelector(`aside nav li a[href="#${b}"]`).parentElement.classList.add('active'))})});document.querySelectorAll('h1[id],h2[id],h3[id],h4[id]').forEach(b=>{a.observe(b)})});function clearActiveStatesInTableOfContents(){document.querySelectorAll('aside nav li').forEach(a=>{a.classList.remove('active')})}</script>
+<script type=text/javascript>function scrollTopAnimated(){$("html, body").animate({scrollTop:"0"},500)}</script>
+<script>function topFunction(){document.body.scrollTop=0,document.documentElement.scrollTop=0}$(".summary-box").click(function(){return window.location=$(this).find("a").attr("href"),!1})</script>
+</body>
+</html>
