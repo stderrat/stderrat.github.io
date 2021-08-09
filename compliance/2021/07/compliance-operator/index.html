@@ -1,0 +1,985 @@
+<!doctype html><html lang=en class="js csstransforms3d">
+<head>
+<meta name=google-site-verification content="yq2Ib3doJVHVlEW2wtHap5WY54JhS2CCvI40y30F0FI">
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=generator content="Hugo 0.87.0">
+<meta name=description content="Hardening OpenShift using the Compliance Operator">
+<meta name=author content="Toni Schmidbauer & Thomas Jungbauer">
+<link rel=icon href=/images/favicon.ico type=image/png>
+<link rel=apple-touch-icon sizes=152x152 href=/images/apple-touch-icon-152x152.png>
+<link rel=apple-touch-icon sizes=180x180 href=/images/apple-touch-icon-180x180.png>
+<link rel=apple-touch-icon sizes=128x128 href=/images/apple-touch-icon-128x128.png>
+<link rel=apple-touch-icon sizes=144x144 href=/images/apple-touch-icon-144x144.png>
+<link rel=apple-touch-icon sizes=114x114 href=/images/apple-touch-icon-114x114.png>
+<link rel=apple-touch-icon sizes=72x72 href=/images/apple-touch-icon-72x72.png>
+<link rel=apple-touch-icon href=/images/apple-touch-icon-57x57.png>
+<link rel="shortcut icon" href=/images/favicon.ico>
+<link rel=apple-touch-icon sizes=57x57 href=/images/apple-icon-57x57.png>
+<link rel=apple-touch-icon sizes=60x60 href=/images/apple-icon-60x60.png>
+<link rel=apple-touch-icon sizes=76x76 href=/images/apple-icon-76x76.png>
+<link rel=apple-touch-icon sizes=120x120 href=/images/apple-icon-120x120.png>
+<link rel=icon type=image/png sizes=192x192 href=/images/android-icon-192x192.png>
+<link rel=icon type=image/png sizes=32x32 href=/images/favicon-32x32.png>
+<link rel=icon type=image/png sizes=96x96 href=/images/favicon-96x96.png>
+<link rel=icon type=image/png sizes=16x16 href=/images/favicon-16x16.png>
+<title>Compliance Operator :: TechBlog about OpenShift/Ansible/Satellite and much more</title>
+<link rel=manifest href=/manifest.json>
+<meta name=theme-color content="#317EFB">
+<link href=/css/nucleus.css?1628510037 rel=stylesheet>
+<link href=/css/fontawesome-all.min.css?1628510037 rel=stylesheet>
+<link href=/css/font-awesome-animation.min.css?1628510037 rel=stylesheet>
+<link href=/css/hybrid.css?1628510037 rel=stylesheet>
+<link href=/css/featherlight.min.css?1628510037 rel=stylesheet>
+<link href=/css/perfect-scrollbar.min.css?1628510037 rel=stylesheet>
+<link href=/css/auto-complete.css?1628510037 rel=stylesheet>
+<link href=/css/atom-one-dark-reasonable.css?1628510037 rel=stylesheet>
+<link href=/css/theme.css?1628510037 rel=stylesheet>
+<link href=/css/tabs.css?1628510037 rel=stylesheet>
+<link href=/css/hugo-theme.css?1628510037 rel=stylesheet>
+<link href=/css/theme-yaub.css?1628510037 rel=stylesheet>
+<script src=/js/jquery-3.6.0.min.js?1628510037></script>
+<style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
+</head>
+<body data-url=/compliance/2021/07/compliance-operator/>
+<button onclick=scrollTopAnimated() id=myBtn class="top-btn button fa fa-arrow-up" title="Go to top"></button>
+<nav id=sidebar>
+<div id=header-wrapper>
+<div id=header>
+<a id=logo href=/>
+<p class="fa fa-cloud-upload-alt faa-float animated"></p>
+<span class=text>YAUB</span>
+<p class=logoarea><span class="text small">Yet another Useless Blog</span></p>
+</a>
+</div>
+<div class=searchbox>
+<label for=search-by><i class="fas fa-search"></i></label>
+<input data-search-input id=search-by type=search placeholder=Search...>
+<span data-search-clear><i class="fas fa-times"></i></span>
+</div>
+<script type=text/javascript src=/js/lunr.min.js?1628510037></script>
+<script type=text/javascript src=/js/auto-complete.js?1628510037></script>
+<script type=text/javascript>var baseurl="https://blog.stderr.at/"</script>
+<script type=text/javascript src=/js/search.js?1628510037></script>
+</div>
+<section id=homelinks>
+<ul>
+<li>
+<a class=padding href=/><i class="fas fa-home"></i> Home</a>
+</li>
+</ul>
+</section>
+<div class=highlightable>
+<ul class=topics>
+<li data-nav-id=/openshift/ title=OpenShift class=dd-item>
+<a href=/openshift/>
+OpenShift
+</a>
+<ul>
+<li data-nav-id=/openshift/2020-04-01-oc-commands/ title="Helpful oc / kubectl commands" class=dd-item>
+<a href=/openshift/2020-04-01-oc-commands/>
+Helpful oc / kubectl commands
+</a>
+</li>
+<li data-nav-id=/openshift/2020-04-16-tekton/ title="OpenShift Pipelines - Tekton Introduction" class=dd-item>
+<a href=/openshift/2020-04-16-tekton/>
+OpenShift Pipelines - Tekton Introduction
+</a>
+</li>
+<li data-nav-id=/openshift/2020-05-13-quay-tutorial1/ title="Red Hat Quay Registry - Overview and Installation" class=dd-item>
+<a href=/openshift/2020-05-13-quay-tutorial1/>
+Red Hat Quay Registry - Overview and Installation
+</a>
+</li>
+<li data-nav-id=/openshift/2020-08-06-argocd/ title="GitOps - Argo CD" class=dd-item>
+<a href=/openshift/2020-08-06-argocd/>
+GitOps - Argo CD
+</a>
+</li>
+<li data-nav-id=/openshift/2020-12-10-thanos-vs-thanos/ title="Thanos Querier vs Thanos Querier" class=dd-item>
+<a href=/openshift/2020-12-10-thanos-vs-thanos/>
+Thanos Querier vs Thanos Querier
+</a>
+</li>
+<li data-nav-id=/openshift/2021-01-27-writingoperatoransible/ title="Writing Operator using Ansible" class=dd-item>
+<a href=/openshift/2021-01-27-writingoperatoransible/>
+Writing Operator using Ansible
+</a>
+</li>
+<li data-nav-id=/openshift/2021-02-27-understanding-block-devices/ title="Understanding RWO block device handling in OpenShift" class=dd-item>
+<a href=/openshift/2021-02-27-understanding-block-devices/>
+Understanding RWO block device handling in OpenShift
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/compliance/ title=Compliance class="dd-item
+parent">
+<a href=/compliance/>
+Compliance
+</a>
+<ul>
+<li data-nav-id=/compliance/2021/07/compliance-operator/ title="Compliance Operator" class="dd-item active">
+<a href=/compliance/2021/07/compliance-operator/>
+Compliance Operator
+</a>
+</li>
+<li data-nav-id=/compliance/2021/07/oc-compliance-command-line-plugin/ title="oc compliance command line plugin" class=dd-item>
+<a href=/compliance/2021/07/oc-compliance-command-line-plugin/>
+oc compliance command line plugin
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/service-mesh/ title="Service Mesh" class=dd-item>
+<a href=/service-mesh/>
+Service Mesh
+</a>
+<ul>
+<li data-nav-id=/service-mesh/2020/03/installation/ title=Installation class=dd-item>
+<a href=/service-mesh/2020/03/installation/>
+Installation
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/deploy-microservices/ title="Deploy Microservices" class=dd-item>
+<a href=/service-mesh/2020/03/deploy-microservices/>
+Deploy Microservices
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/ingress-traffic/ title="Ingress Traffic" class=dd-item>
+<a href=/service-mesh/2020/03/ingress-traffic/>
+Ingress Traffic
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/ingress-with-custom-domain/ title="Ingress with custom domain" class=dd-item>
+<a href=/service-mesh/2020/03/ingress-with-custom-domain/>
+Ingress with custom domain
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/routing-example/ title="Routing Example" class=dd-item>
+<a href=/service-mesh/2020/04/routing-example/>
+Routing Example
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/advanced-routing-example/ title="Advanced Routing Example" class=dd-item>
+<a href=/service-mesh/2020/04/advanced-routing-example/>
+Advanced Routing Example
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/limit-egress/external-traffic/ title="Limit Egress/External Traffic" class=dd-item>
+<a href=/service-mesh/2020/04/limit-egress/external-traffic/>
+Limit Egress/External Traffic
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/fault-injection/ title="Fault Injection" class=dd-item>
+<a href=/service-mesh/2020/04/fault-injection/>
+Fault Injection
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/mutual-tls-authentication/ title="Mutual TLS Authentication" class=dd-item>
+<a href=/service-mesh/2020/04/mutual-tls-authentication/>
+Mutual TLS Authentication
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/authentication-jwt/ title="Authentication JWT" class=dd-item>
+<a href=/service-mesh/2020/04/authentication-jwt/>
+Authentication JWT
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/service-mesh-1.1-released/ title="Service Mesh 1.1 released" class=dd-item>
+<a href=/service-mesh/2020/04/service-mesh-1.1-released/>
+Service Mesh 1.1 released
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/deploy-example-bookinfo-application/ title="Deploy Example Bookinfo Application" class=dd-item>
+<a href=/service-mesh/2020/04/deploy-example-bookinfo-application/>
+Deploy Example Bookinfo Application
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/05/authorization-rbac/ title="Authorization (RBAC)" class=dd-item>
+<a href=/service-mesh/2020/05/authorization-rbac/>
+Authorization (RBAC)
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/05/enable-automatic-route-creation/ title="Enable Automatic Route Creation" class=dd-item>
+<a href=/service-mesh/2020/05/enable-automatic-route-creation/>
+Enable Automatic Route Creation
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/general/ title=General class=dd-item>
+<a href=/general/>
+General
+</a>
+<ul>
+<li data-nav-id=/general/2020/04/red-hat-satellite-cheat-sheet/ title="Red Hat Satellite Cheat Sheet" class=dd-item>
+<a href=/general/2020/04/red-hat-satellite-cheat-sheet/>
+Red Hat Satellite Cheat Sheet
+</a>
+</li>
+<li data-nav-id=/general/2020/05/basic-usage-of-git/ title="Basic usage of git" class=dd-item>
+<a href=/general/2020/05/basic-usage-of-git/>
+Basic usage of git
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/ansible/ title=Ansible class=dd-item>
+<a href=/ansible/>
+Ansible
+</a>
+<ul>
+<li data-nav-id=/ansible/2020/04/ansible-azure-resource-manager-example/ title="Ansible - Azure Resource Manager Example" class=dd-item>
+<a href=/ansible/2020/04/ansible-azure-resource-manager-example/>
+Ansible - Azure Resource Manager Example
+</a>
+</li>
+<li data-nav-id=/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/ title="DO410 Ansible and Ansible Tower training notes" class=dd-item>
+<a href=/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/>
+DO410 Ansible and Ansible Tower training notes
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/archive/ title=Archive class=dd-item>
+<a href=/archive/>
+Archive
+</a>
+</li>
+<li data-nav-id=/legaldisclosure/ title="Legal Disclosure" class=dd-item>
+<a href=/legaldisclosure/>
+Legal Disclosure
+</a>
+</li>
+<li data-nav-id=/rss/ title="RSS Feeds" class=dd-item>
+<a href=/rss/>
+RSS Feeds
+</a>
+</li>
+</ul>
+<section id=shortcuts>
+<h3 class=shortcut-title>More</h3>
+<ul>
+<li>
+<a class=padding href=https://blog.stderr.at/tags><i class="fas fa-tags"></i> Tags</a>
+</li>
+<li>
+<a class=padding href=https://blog.stderr.at/categories><i class="far fa-bookmark"></i> Catagories</a>
+</li>
+<li>
+<a class=padding href=https://www.redhat.com><i class="fab fa-redhat"></i> Red Hat</a>
+</li>
+</ul>
+</section>
+<section id=footer>
+</section>
+</div>
+</nav>
+<section id=body>
+<div id=overlay></div>
+<aside id=toc-field class="hidden lg:block tableOfContentContainer">
+<header id=TableOfContentsHeader>What's on this Page</header>
+<nav id=TableOfContents>
+<ul>
+<li><a href=#_install_the_compliance_operator>Install the Compliance Operator</a></li>
+<li><a href=#_custom_resources_crds>Custom Resources (CRDs)</a></li>
+<li><a href=#_create_a_scanbinding_object>Create a ScanBinding object</a></li>
+<li><a href=#_profiles>Profiles</a>
+<ul>
+<li><a href=#_profile_customization>Profile Customization</a></li>
+</ul>
+</li>
+<li><a href=#_working_with_scan_results>Working with scan results</a>
+<ul>
+<li><a href=#_retrieving_results_via_oc_command>Retrieving results via oc command</a></li>
+<li><a href=#_retrieving_raw_results>Retrieving RAW results</a></li>
+<li><a href=#_work_wth_raw_results>Work wth RAW results</a></li>
+</ul>
+</li>
+<li><a href=#_performing_a_rescan>Performing a rescan</a></li>
+</ul>
+</nav>
+<div id=navigation>
+<a class=nav-prev href=/compliance/ title=Compliance> <i class="fa fa-chevron-left"></i></a>
+<a class=nav-next href=/compliance/2021/07/oc-compliance-command-line-plugin/ title="oc compliance command line plugin" style=margin-right:0><i class="fa fa-chevron-right"></i></a>
+</div>
+</aside>
+<div class="padding highlightable">
+<div>
+<div id=top-bar>
+<div id=top-github-link>
+<a class=github-link title="Edit this page" href=https://github.com/stderrat/stderrat.github.io/compliance/2021-07-19-ComplianceOperator.adoc target=blank>
+<i class="fas fa-code-branch"></i>
+<span id=top-github-link-text>Edit this page</span>
+</a>
+</div>
+<div id=breadcrumbs itemscope itemtype=http://data-vocabulary.org/Breadcrumb>
+<span id=sidebar-toggle-span>
+<a href=# id=sidebar-toggle data-sidebar-toggle>
+<i class="fas fa-bars"></i>
+</a>
+</span>
+<span id=toc-menu><i class="fas fa-list-alt"></i></span>
+<span class=links>
+<a href=/>YAUB Yet Another Useless Blog</a> > <a href=/compliance/>Compliance</a> > Compliance Operator
+</span>
+</div>
+<div class=progress>
+<div class=wrapper>
+<nav id=TableOfContents>
+<ul>
+<li><a href=#_install_the_compliance_operator>Install the Compliance Operator</a></li>
+<li><a href=#_custom_resources_crds>Custom Resources (CRDs)</a></li>
+<li><a href=#_create_a_scanbinding_object>Create a ScanBinding object</a></li>
+<li><a href=#_profiles>Profiles</a>
+<ul>
+<li><a href=#_profile_customization>Profile Customization</a></li>
+</ul>
+</li>
+<li><a href=#_working_with_scan_results>Working with scan results</a>
+<ul>
+<li><a href=#_retrieving_results_via_oc_command>Retrieving results via oc command</a></li>
+<li><a href=#_retrieving_raw_results>Retrieving RAW results</a></li>
+<li><a href=#_work_wth_raw_results>Work wth RAW results</a></li>
+</ul>
+</li>
+<li><a href=#_performing_a_rescan>Performing a rescan</a></li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+</div>
+<div id=head-tags>
+<div class=tags>
+<a class=tag-link href=/tags/hardening>Hardening</a>
+<a class=tag-link href=/tags/openshift>OpenShift</a>
+<a class=tag-link href=/tags/ocp>OCP</a>
+<a class=tag-link href=/tags/security>security</a>
+<a class=tag-link href=/tags/compliance>compliance</a>
+</div>
+</div>
+<div id=body-inner>
+<h1>
+Compliance Operator
+</h1>
+<p class=tracked>
+<time class="f6 mv4 dib tracked" datetime=2021-07-19T00:00:00Z>
+<strong>July 19, 2021</strong>
+</time>
+By:
+Thomas Jungbauer
+</p>
+<div class=paragraph>
+<p>OpenShift comes out of the box with a highly secure operating system, called Red Hat CoreOS. This OS is immutable, which means that no direct changes are done inside the OS, instead any configuration is managed by OpenShift itself using MachineConfig objects. Nevertheless, hardening certain settings must still be considered. Red Hat released a hardening guide (CIS Benchmark) which can be downloaded at <a href=https://www.cisecurity.org/ class=bare>https://www.cisecurity.org/</a>.</p>
+</div>
+<div class=paragraph>
+<p>However, an automated way to perform such checks would be nice too. To achieve this the <strong>Compliance Operator</strong> can be leveraged, which runs an OpenSCAP check to create reports of the clusters is compliant or as the official documentation describes:</p>
+</div>
+<div class=paragraph>
+<p><em>The Compliance Operator lets OpenShift Container Platform administrators describe the desired compliance state of a cluster and provides them with an overview of gaps and ways to remediate them. The Compliance Operator assesses compliance of both the Kubernetes API resources of OpenShift Container Platform, as well as the nodes running the cluster. The Compliance Operator uses OpenSCAP, a NIST-certified tool, to scan and enforce security policies provided by the content.</em></p>
+</div>
+<div class=paragraph>
+<p>This article shall show how to quickly install the operator and retrieve the first result. It is not a full documentation, which is written by other people at: <a href=https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-installation.html>Compliance Operator</a>, especially remediation is not covered here.</p>
+</div>
+<div class=paragraph>
+<p>As prerequisites we have:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p>Installed OpenShift 4.6+ cluster</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class=icon>
+<i class="fa icon-warning" title=Warning></i>
+</td>
+<td class=content>
+The Compliance Operator is available for Red Hat Enterprise Linux CoreOS (RHCOS) deployments only.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class=sect1>
+<h2 id=_install_the_compliance_operator>Install the Compliance Operator</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>The easiest way to deploy the Compliance Operator is by searching the OperatorHub which is available inside OpenShift.</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src="/compliance/images/install_compliance_operator_1.png?width=640" alt=Install>
+</div>
+<div class=title>Figure 1. Install Compliance Operator</div>
+</div>
+<div class=paragraph>
+<p>Keep the default settings and wait until the operator has been installed.</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src="/compliance/images/install_compliance_operator_2.png?width=640" alt=Install>
+</div>
+<div class=title>Figure 2. Install Compliance Operator</div>
+</div>
+<hr>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_custom_resources_crds>Custom Resources (CRDs)</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>The operator brings a ton of new CRDs into the system:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p>ScanSetting …​ defines when and on which roles (worker, master …​) a check shall be executed. It also defines a persistent volume (PV) to store the scan results. Two ScanSettings are created during the installation:</p>
+<div class=ulist>
+<ul>
+<li>
+<p><em>default</em>: just scans without automatically apply changes</p>
+</li>
+<li>
+<p><em>default-auto-apply</em>: can automatically remediate without extra steps</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>ScanSettingBinding …​ binds one or more profiles to a scan</p>
+</li>
+<li>
+<p>Profile …​ Represent different compliance benchmarks with a set of rules. For this blog we will use CIS Benchmark profiles</p>
+</li>
+<li>
+<p>ProfileBundle …​ Bundles a security image, which is later used by Profiles.</p>
+</li>
+<li>
+<p>Rule …​ Rules which are used by profiles to verify the state of the cluster.</p>
+</li>
+<li>
+<p>TailoredProfile …​ Customized profile</p>
+</li>
+<li>
+<p>ComplianceScan …​ scans which have been performed</p>
+</li>
+<li>
+<p>ComplianceCheckResult …​ The results of a scan. Each ComplianceCheckResult represents the result of one compliance rule check</p>
+</li>
+<li>
+<p>ComplianceRemediation …​ If a rule ca be remediated automatically, this object is created.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_create_a_scanbinding_object>Create a ScanBinding object</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>The first step to do is to create a ScanBiding objects. (We reuse the <em>default</em> ScanSetting)</p>
+</div>
+<div class=paragraph>
+<p>Let’s create the following object, which is using the profiles <em>ocp4-cis</em> and <em>ocp4-cis-node</em></p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-yaml data-lang=yaml>apiVersion: compliance.openshift.io/v1alpha1
+kind: ScanSettingBinding
+metadata:
+  name: cis-compliance
+profiles:
+  - name: ocp4-cis-node <i class=conum data-value=1></i><b>(1)</b>
+    kind: Profile
+    apiGroup: compliance.openshift.io/v1alpha1
+  - name: ocp4-cis <i class=conum data-value=2></i><b>(2)</b>
+    kind: Profile
+    apiGroup: compliance.openshift.io/v1alpha1
+settingsRef:
+  name: default <i class=conum data-value=3></i><b>(3)</b>
+  kind: ScanSetting
+  apiGroup: compliance.openshift.io/v1alpha1</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class=conum data-value=1></i><b>1</b></td>
+<td>use the profile ocp4-cis-node</td>
+</tr>
+<tr>
+<td><i class=conum data-value=2></i><b>2</b></td>
+<td>use the profile ocp4-cis</td>
+</tr>
+<tr>
+<td><i class=conum data-value=3></i><b>3</b></td>
+<td>reference to the <em>default</em> scansetting</td>
+</tr>
+</tbody></table>
+</div>
+<div class=paragraph>
+<p>As soon as the object is created the cluster is scan is started. The objects <em>ComplianceSuite</em> and <em>ComplianceScan</em> are created automatically and will eventually reach the phase "DONE" when the scan is completed.</p>
+</div>
+<div class=paragraph>
+<p>The following command will show the results of the scans</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get compliancescan -n openshift-compliance
+
+NAME                   PHASE   RESULT
+ocp4-cis               DONE    NON-COMPLIANT
+ocp4-cis-node-master   DONE    NON-COMPLIANT
+ocp4-cis-node-worker   DONE    INCONSISTENT</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Three different checks have been done. One overall cluster check and 2 separated for master and worker nodes.</p>
+</div>
+<div class=paragraph>
+<p>As we used the <em>default</em> ScanSetting the next check will run a 1 am.</p>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_profiles>Profiles</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>The operator comes with a set of standard profiles which represent different compliance benchmarks.</p>
+</div>
+<div class=paragraph>
+<p>To view available profiles:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get profiles.compliance -n openshift-compliance</code></pre>
+</div>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>NAME              AGE
+ocp4-cis          28m
+ocp4-cis-node     28m
+ocp4-e8           28m
+ocp4-moderate     28m
+rhcos4-e8         28m
+rhcos4-moderate   28m</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Each profile contains a description which explains the intention and a list of rules which used in this profile.</p>
+</div>
+<div class=paragraph>
+<p>For example the profile 'ocp4-cis-node' used above is containing:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get profiles.compliance -n openshift-compliance -oyaml ocp4-cis-node
+
+# Output
+description: This profile defines a baseline that aligns to the Center for Internet Security® Red
+Hat OpenShift Container Platform 4 Benchmark™, V0.3, currently unreleased. This profile includes
+Center for Internet Security® Red Hat OpenShift Container Platform 4 CIS Benchmarks™ content.
+Note that this part of the profile is meant to run on the Operating System that Red Hat
+OpenShift Container Platform 4 runs on top of. This profile is applicable to OpenShift versions
+4.6 and greater.
+[...]
+  name: ocp4-cis-node
+  namespace: openshift-compliance
+[...]
+rules:
+- ocp4-etcd-unique-ca
+- ocp4-file-groupowner-cni-conf
+- ocp4-file-groupowner-controller-manager-kubeconfig
+- ocp4-file-groupowner-etcd-data-dir
+- ocp4-file-groupowner-etcd-data-files
+- ocp4-file-groupowner-etcd-member
+- ocp4-file-groupowner-etcd-pki-cert-files
+- ocp4-file-groupowner-ip-allocations
+[...]</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Like the profiles the different rules can be inspected:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get rules.compliance -n openshift-compliance  ocp4-file-groupowner-etcd-member
+-o jsonpath=&#39;{&#34;Title: &#34;}{.title}{&#34;\nDescription: \n&#34;}{.description}&#39;
+
+# Output
+Title: Verify Group Who Owns The etcd Member Pod Specification File
+Description:
+To properly set the group owner of /etc/kubernetes/static-pod-resources/etcd-pod-*/etcd-pod.yaml ,
+run the command:
+
+$ sudo chgrp root /etc/kubernetes/static-pod-resources/etcd-pod-*/etcd-pod.yaml</code></pre>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_profile_customization>Profile Customization</h3>
+<div class=paragraph>
+<p>Sometimes is it required to modify (tailor) a profile to fit specific needs. With the <em>TailoredProfile</em> object it is possible to enable or disable rules.</p>
+</div>
+<div class=paragraph>
+<p>In this blog, I just want to share a quick example from the official documentaiton: <a href=https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-tailor.html class=bare>https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-tailor.html</a></p>
+</div>
+<div class=paragraph>
+<p>The following TailoredProfile disables 2 rules and sets a value for another rule:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-yaml data-lang=yaml>apiVersion: compliance.openshift.io/v1alpha1
+kind: TailoredProfile
+metadata:
+  name: nist-moderate-modified
+spec:
+  extends: rhcos4-moderate
+  title: My modified NIST moderate profile
+  disableRules:
+  - name: rhcos4-file-permissions-node-config
+    rationale: This breaks X application.
+  - name: rhcos4-account-disable-post-pw-expiration
+    rationale: No need to check this as it comes from the IdP
+  setValues:
+  - name: rhcos4-var-selinux-state
+    rationale: Organizational requirements
+    value: permissive</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_working_with_scan_results>Working with scan results</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Once a scan finished you probably want to see what the status of the scan is.</p>
+</div>
+<div class=paragraph>
+<p>As you sse above the cluster failed to be compliant.</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get compliancescan -n openshift-compliance
+
+NAME                   PHASE   RESULT
+ocp4-cis               DONE    NON-COMPLIANT
+ocp4-cis-node-master   DONE    NON-COMPLIANT
+ocp4-cis-node-worker   DONE    INCONSISTENT</code></pre>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_retrieving_results_via_oc_command>Retrieving results via oc command</h3>
+<div class=paragraph>
+<p>List all results which can be remediated automatically:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get compliancecheckresults -l &#39;compliance.openshift.io/check-status=FAIL,compliance.openshift.io/automated-remediation&#39; -n openshift-compliance
+NAME                                             STATUS   SEVERITY
+ocp4-cis-api-server-encryption-provider-cipher   FAIL     medium
+ocp4-cis-api-server-encryption-provider-config   FAIL     medium</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class=icon>
+<i class="fa icon-note" title=Note></i>
+</td>
+<td class=content>
+Further information about remediation can be found at: <a href=https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-remediation.html>Compliance Operator Remediation</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class=paragraph>
+<p>List all results which cannot be remediated automatically and must be fixed manually instead:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get compliancecheckresults -l &#39;compliance.openshift.io/check-status=FAIL,!compliance.openshift.io/automated-remediation&#39; -n openshift-compliance
+NAME                                                                           STATUS   SEVERITY
+ocp4-cis-audit-log-forwarding-enabled                                          FAIL     medium
+ocp4-cis-file-permissions-proxy-kubeconfig                                     FAIL     medium
+ocp4-cis-node-master-file-groupowner-ip-allocations                            FAIL     medium
+ocp4-cis-node-master-file-groupowner-openshift-sdn-cniserver-config            FAIL     medium
+ocp4-cis-node-master-file-owner-ip-allocations                                 FAIL     medium
+ocp4-cis-node-master-file-owner-openshift-sdn-cniserver-config                 FAIL     medium
+ocp4-cis-node-master-kubelet-configure-event-creation                          FAIL     medium
+ocp4-cis-node-master-kubelet-configure-tls-cipher-suites                       FAIL     medium
+ocp4-cis-node-master-kubelet-enable-protect-kernel-defaults                    FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-imagefs-available    FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-imagefs-inodesfree   FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-memory-available     FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-nodefs-available     FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-nodefs-inodesfree    FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-imagefs-available    FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-imagefs-inodesfree   FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-memory-available     FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-nodefs-available     FAIL     medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-nodefs-inodesfree    FAIL     medium
+ocp4-cis-node-worker-file-groupowner-ip-allocations                            FAIL     medium
+ocp4-cis-node-worker-file-groupowner-openshift-sdn-cniserver-config            FAIL     medium
+ocp4-cis-node-worker-file-owner-ip-allocations                                 FAIL     medium
+ocp4-cis-node-worker-file-owner-openshift-sdn-cniserver-config                 FAIL     medium
+ocp4-cis-node-worker-kubelet-configure-event-creation                          FAIL     medium
+ocp4-cis-node-worker-kubelet-configure-tls-cipher-suites                       FAIL     medium
+ocp4-cis-node-worker-kubelet-enable-protect-kernel-defaults                    FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-imagefs-available    FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-imagefs-inodesfree   FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-memory-available     FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-nodefs-available     FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-nodefs-inodesfree    FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-imagefs-available    FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-imagefs-inodesfree   FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-memory-available     FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-nodefs-available     FAIL     medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-nodefs-inodesfree    FAIL     medium</code></pre>
+</div>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_retrieving_raw_results>Retrieving RAW results</h3>
+<div class=paragraph>
+<p>Let’s first retrieve the raw result of the scan. For each of the ComplianceScans a volume claim (PVC) is created to store he results. We can use a Pod to mount the volume to download the scan results.</p>
+</div>
+<div class=paragraph>
+<p>The following PVC have been created on our example:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc get pvc -n openshift-compliance
+
+NAME                   STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS          AGE
+ocp4-cis               Bound    pvc-cc026ae3-2f42-4e19-bc55-016c6dd31d22   1Gi        RWO            managed-nfs-storage   4h17m
+ocp4-cis-node-master   Bound    pvc-3bd47c5e-2008-4759-9d53-ba41b568688d   1Gi        RWO            managed-nfs-storage   4h17m
+ocp4-cis-node-worker   Bound    pvc-77200e5f-0f15-410c-a4ee-f2fb3e316f84   1Gi        RWO            managed-nfs-storage   4h17m</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>Now we can create a Pod which mounts all PVCs at once:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-yaml data-lang=yaml>apiVersion: &#34;v1&#34;
+kind: Pod
+metadata:
+  name: pv-extract
+  namespace: openshift-compliance
+spec:
+  containers:
+    - name: pv-extract-pod
+      image: registry.access.redhat.com/ubi8/ubi
+      command: [&#34;sleep&#34;, &#34;3000&#34;]
+      volumeMounts: <i class=conum data-value=1></i><b>(1)</b>
+      - mountPath: &#34;/workers-scan-results&#34;
+        name: workers-scan-vol
+      - mountPath: &#34;/masters-scan-results&#34;
+        name: masters-scan-vol
+      - mountPath: &#34;/ocp4-scan-results&#34;
+        name: ocp4-scan-vol
+  volumes: <i class=conum data-value=2></i><b>(2)</b>
+    - name: workers-scan-vol
+      persistentVolumeClaim:
+        claimName: ocp4-cis-node-worker
+    - name: masters-scan-vol
+      persistentVolumeClaim:
+        claimName: ocp4-cis-node-master
+    - name: ocp4-scan-vol
+      persistentVolumeClaim:
+        claimName: ocp4-cis</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class=conum data-value=1></i><b>1</b></td>
+<td>mount paths</td>
+</tr>
+<tr>
+<td><i class=conum data-value=2></i><b>2</b></td>
+<td>volumesclaims to mount</td>
+</tr>
+</tbody></table>
+</div>
+<div class=paragraph>
+<p>This creates a Pod with the PVCs mounted inside:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>sh-4.4# ls -la | grep scan
+drwxrwxrwx.   3 root root 4096 Jul 20 05:20 master-scan-results
+drwxrwxrwx.   3 root root 4096 Jul 20 05:20 ocp4-scan-results
+drwxrwxrwx.   3 root root 4096 Jul 20 05:20 workers-scan-results</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>We can download the result-files to our local machine for further auditing. Therefore, we create the folder <em>scan_results</em> in which we copy everything:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>mkdir scan-results; cd scan-results
+
+oc -n openshift-compliance cp pv-extract:ocp4-scan-results ocp4-scan-results/.
+oc -n openshift-compliance cp pv-extract:workers-scan-results workers-scan-results/.
+oc -n openshift-compliance cp pv-extract:masters-scan-results masters-scan-results/.</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>This will download several bzip2 archives for the appropriate scan result.</p>
+</div>
+<div class=paragraph>
+<p>Once done, you can delete the "download pod" using: <code>oc delete pod pv-extract -n openshift-compliance</code></p>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_work_wth_raw_results>Work wth RAW results</h3>
+<div class=paragraph>
+<p>So above section described the download of the bzip2 files but what to do with it? First, you can import it into a tool which is able to read openScap reports. Or, secondly, you can use the <em>oscap</em> command to create a html output.</p>
+</div>
+<div class=paragraph>
+<p>We have downloaded the following files:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>./ocp4-scan-results/0/ocp4-cis-api-checks-pod.xml.bzip2
+
+./masters-scan-results/0/ocp4-cis-node-master-master-0-pod.xml.bzip2
+./masters-scan-results/0/ocp4-cis-node-master-master-2-pod.xml.bzip2
+./masters-scan-results/0/ocp4-cis-node-master-master-1-pod.xml.bzip2
+
+./workers-scan-results/0/ocp4-cis-node-worker-compute-0-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-1-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-3-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-2-pod.xml.bzip2</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>To create the html output (be sure that open-scap is installed on you host):</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>mkdir html
+oscap xccdf generate report ocp4-scan-results/0/ocp4-cis-api-checks-pod.xml.bzip2 &gt;&gt; html/ocp4-cis-api-checks.html
+
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-0-pod.xml.bzip2 &gt;&gt; html/ocp4-cis-node-master-master-0.html
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-1-pod.xml.bzip2 &gt;&gt; html/ocp4-cis-node-master-master-1.html
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-2-pod.xml.bzip2 &gt;&gt; html/ocp4-cis-node-master-master-2.html
+
+oscap xccdf generate report workers-scan-results/0/ocp4-cis-node-worker-compute-0-pod.xml.bzip2 &gt;&gt; html/ocp4-cis-node-worker-compute-0.html
+...</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>The resulted html files are too big to be show here, but some snippets should give an overview:</p>
+</div>
+<div class=paragraph>
+<p>To view the html output as an example I have linked the html files:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p><a href=/compliance/images/ocp4-cis-api-checks.html>OCP4 - CIS</a></p>
+</li>
+<li>
+<p><a href=/compliance/images/ocp4-cis-node-master-master-0.html>Example Master Node Results</a></p>
+</li>
+<li>
+<p><a href=/compliance/images/ocp4-cis-node-worker-compute-0.html>Example Worker Node Results</a></p>
+</li>
+</ul>
+</div>
+<div class=paragraph>
+<p>Overall Scoring of the result:</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src="/compliance/images/compliance_scoring.png?width=940px" alt=Install>
+</div>
+<div class=title>Figure 3. Scoring</div>
+</div>
+<div class=paragraph>
+<p>A list if passed or failed checks:</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src="/compliance/images/compliance_scan_results.png?width=940px" alt=Scanresults>
+</div>
+<div class=title>Figure 4. Scan Result list</div>
+</div>
+<div class=paragraph>
+<p>Scan details with a link to the CIS Benchmark section and further explainations on how to fix the issue:</p>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src="/compliance/images/compliance_scan_details.png?width=940px" alt=Details>
+</div>
+<div class=title>Figure 5. Scan details</div>
+</div>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_performing_a_rescan>Performing a rescan</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>If it is necessary to run a rescan, the ComplianceScan object is simply annotated with:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc annotate compliancescans/&lt;scan_name&gt; compliance.openshift.io/rescan=</code></pre>
+</div>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class=icon>
+<i class="fa icon-caution" title=Caution></i>
+</td>
+<td class=content>
+If <em>default-auto-apply</em> is enabled, remediation which changes MachineConfigs will trigger a cluster reboot.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<footer class=footline>
+</footer>
+</div>
+</div>
+<div id=navigation-bottom>
+<a class="nav-prev btn btn-default" href=/compliance/ title=Compliance> <i class="fa fa-chevron-left btn-bottom-prev"></i><span class=btn-bottom-text>Previous: </span> Compliance</a>
+<a class="nav-next btn btn-default" href=/compliance/2021/07/oc-compliance-command-line-plugin/ title="oc compliance command line plugin" style=margin-right:0><i class="fa fa-chevron-right btn-bottom-next"></i><span class=btn-bottom-text>Next:</span> oc compliance command line plugin</a>
+</div>
+<div class=copyright>
+<p>Copyright &copy; 2020 - 2021 Toni Schmidbauer & Thomas Jungbauer</p>
+<p>Built with <a href=https://github.com/matcornic/hugo-theme-learn target=_blank rel="noopener noreferrer">Hugo Learn Theme</i></a> and <a href=https://gohugo.io/ target=_blank rel="noopener noreferrer">Hugo</a> using <a href=https://asciidoctor.org/ target=_blank rel="noopener noreferrer">Asciidoctor</a></p>
+</div>
+</section>
+<div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
+<div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
+</div>
+<script src=/js/clipboard.min.js?1628510041></script>
+<script src=/js/perfect-scrollbar.min.js?1628510041></script>
+<script src=/js/perfect-scrollbar.jquery.min.js?1628510041></script>
+<script src=/js/jquery.sticky.js?1628510041></script>
+<script src=/js/featherlight.min.js?1628510041></script>
+<script src=/js/highlight.pack.js?1628510041></script>
+<script>hljs.initHighlightingOnLoad()</script>
+<script src=/js/modernizr.custom-3.6.0.js?1628510041></script>
+<script src=/js/learn.js?1628510041></script>
+<script src=/js/hugo-learn.js?1628510041></script>
+<script src=/js/yaub.js?1628510041></script>
+<script>window.addEventListener('DOMContentLoaded',()=>{const a=new IntersectionObserver(a=>{a.forEach(a=>{const b=a.target.getAttribute('id');a.intersectionRatio>0&&(clearActiveStatesInTableOfContents(),document.querySelector(`aside nav li a[href="#${b}"]`).parentElement.classList.add('active'))})});document.querySelectorAll('h1[id],h2[id],h3[id],h4[id]').forEach(b=>{a.observe(b)})});function clearActiveStatesInTableOfContents(){document.querySelectorAll('aside nav li').forEach(a=>{a.classList.remove('active')})}</script>
+<script type=text/javascript>function scrollTopAnimated(){$("html, body").animate({scrollTop:"0"},500)}</script>
+<script>function topFunction(){document.body.scrollTop=0,document.documentElement.scrollTop=0}$(".summary-box").click(function(){return window.location=$(this).find("a").attr("href"),!1})</script>
+</body>
+</html>
