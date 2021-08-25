@@ -4,7 +4,7 @@
 <meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <meta name=generator content="Hugo 0.87.0">
-<meta name=description content="OpenShift 4.x and Service Mesh/Istio Tutorial 13 - Automatic route creation">
+<meta name=description content="Getting Ansible Tower to download collections can be hard">
 <meta name=author content="Toni Schmidbauer & Thomas Jungbauer">
 <link rel=icon href=/images/favicon.ico type=image/png>
 <link rel=apple-touch-icon sizes=152x152 href=/images/apple-touch-icon-152x152.png>
@@ -23,7 +23,7 @@
 <link rel=icon type=image/png sizes=32x32 href=/images/favicon-32x32.png>
 <link rel=icon type=image/png sizes=96x96 href=/images/favicon-96x96.png>
 <link rel=icon type=image/png sizes=16x16 href=/images/favicon-16x16.png>
-<title>Enable Automatic Route Creation :: TechBlog about OpenShift/Ansible/Satellite and much more</title>
+<title>Ansible Tower and downloading collections :: TechBlog about OpenShift/Ansible/Satellite and much more</title>
 <link rel=manifest href=/manifest.json>
 <meta name=theme-color content="#317EFB">
 <link href=/css/nucleus.min.css?1629920209 rel=stylesheet>
@@ -40,7 +40,7 @@
 <script src=/js/jquery-3.6.0.min.js?1629920209></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
-<body data-url=/service-mesh/2020/05/enable-automatic-route-creation/>
+<body data-url=/ansible/2021/07/ansible-tower-and-downloading-collections/>
 <button onclick=scrollTopAnimated() id=myBtn class="top-btn button fa fa-arrow-up" title="Go to top"></button>
 <nav id=sidebar>
 <div id=header-wrapper>
@@ -129,13 +129,12 @@ Compliance Operator
 </li>
 </ul>
 </li>
-<li data-nav-id=/service-mesh/ title="Service Mesh" class="dd-item
-parent">
+<li data-nav-id=/service-mesh/ title="Service Mesh" class=dd-item>
 <a href=/service-mesh/>
 Service Mesh
 </a>
 <ul>
-<li data-nav-id=/service-mesh/2020/05/enable-automatic-route-creation/ title="Enable Automatic Route Creation" class="dd-item active">
+<li data-nav-id=/service-mesh/2020/05/enable-automatic-route-creation/ title="Enable Automatic Route Creation" class=dd-item>
 <a href=/service-mesh/2020/05/enable-automatic-route-creation/>
 Enable Automatic Route Creation
 </a>
@@ -224,12 +223,13 @@ Red Hat Satellite Cheat Sheet
 </li>
 </ul>
 </li>
-<li data-nav-id=/ansible/ title=Ansible class=dd-item>
+<li data-nav-id=/ansible/ title=Ansible class="dd-item
+parent">
 <a href=/ansible/>
 Ansible
 </a>
 <ul>
-<li data-nav-id=/ansible/2021/07/ansible-tower-and-downloading-collections/ title="Ansible Tower and downloading collections" class=dd-item>
+<li data-nav-id=/ansible/2021/07/ansible-tower-and-downloading-collections/ title="Ansible Tower and downloading collections" class="dd-item active">
 <a href=/ansible/2021/07/ansible-tower-and-downloading-collections/>
 Ansible Tower and downloading collections
 </a>
@@ -286,14 +286,20 @@ RSS Feeds
 <header id=TableOfContentsHeader>What's on this Page</header>
 <nav id=TableOfContents>
 <ul>
-<li><a href=#_enable_automatic_route_creation>Enable Automatic Route Creation</a></li>
-<li><a href=#_verify_current_service>Verify current service</a></li>
-<li><a href=#_create_a_new_gateway>Create a new Gateway</a></li>
+<li><a href=#_wrong_name_for_requirements_yml>Wrong name for requirements.yml</a></li>
+<li><a href=#_collections_download_is_disabled_in_ansible_tower>Collections download is disabled in Ansible Tower</a></li>
+<li><a href=#_no_ansible_galaxy_credential_defined_for_the_organization>No Ansible Galaxy credential defined for the organization</a></li>
+<li><a href=#_how_does_this_actually_work>How does this actually work?</a>
+<ul>
+<li><a href=#_task_py>task.py</a></li>
+<li><a href=#_project_update_yml>project_update.yml</a></li>
+</ul>
+</li>
 </ul>
 </nav>
 <div id=navigation>
-<a class=nav-prev href=/service-mesh/ title="Service Mesh"> <i class="fa fa-chevron-left"></i></a>
-<a class=nav-next href=/service-mesh/2020/05/authorization-rbac/ title="Authorization (RBAC)" style=margin-right:0><i class="fa fa-chevron-right"></i></a>
+<a class=nav-prev href=/ansible/ title=Ansible> <i class="fa fa-chevron-left"></i></a>
+<a class=nav-next href=/ansible/2020/04/ansible-azure-resource-manager-example/ title="Ansible - Azure Resource Manager Example" style=margin-right:0><i class="fa fa-chevron-right"></i></a>
 </div>
 </aside>
 <div class="padding highlightable">
@@ -307,16 +313,22 @@ RSS Feeds
 </span>
 <span id=toc-menu><i class="fas fa-list-alt"></i></span>
 <span class=links>
-<span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/> <span itemprop=name>YAUB Yet Another Useless Blog</span><meta itemprop=position content="1"></a></span> > <span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/service-mesh/> <span itemprop=name>Service Mesh</span><meta itemprop=position content="2"></a></span> > Enable Automatic Route Creation
+<span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/> <span itemprop=name>YAUB Yet Another Useless Blog</span><meta itemprop=position content="1"></a></span> > <span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/ansible/> <span itemprop=name>Ansible</span><meta itemprop=position content="2"></a></span> > Ansible Tower and downloading collections
 </span>
 </div>
 <div class=progress>
 <div class=wrapper>
 <nav id=TableOfContents>
 <ul>
-<li><a href=#_enable_automatic_route_creation>Enable Automatic Route Creation</a></li>
-<li><a href=#_verify_current_service>Verify current service</a></li>
-<li><a href=#_create_a_new_gateway>Create a new Gateway</a></li>
+<li><a href=#_wrong_name_for_requirements_yml>Wrong name for requirements.yml</a></li>
+<li><a href=#_collections_download_is_disabled_in_ansible_tower>Collections download is disabled in Ansible Tower</a></li>
+<li><a href=#_no_ansible_galaxy_credential_defined_for_the_organization>No Ansible Galaxy credential defined for the organization</a></li>
+<li><a href=#_how_does_this_actually_work>How does this actually work?</a>
+<ul>
+<li><a href=#_task_py>task.py</a></li>
+<li><a href=#_project_update_yml>project_update.yml</a></li>
+</ul>
+</li>
 </ul>
 </nav>
 </div>
@@ -325,164 +337,118 @@ RSS Feeds
 </div>
 <div id=head-tags>
 <div class=tags>
-<a class=tag-link href=/tags/istio>Istio</a>
-<a class=tag-link href=/tags/service-mesh>Service Mesh</a>
-<a class=tag-link href=/tags/openshift>OpenShift</a>
-<a class=tag-link href=/tags/ocp>OCP</a>
-<a class=tag-link href=/tags/route>Route</a>
+<a class=tag-link href=/tags/ansible>Ansible</a>
+<a class=tag-link href=/tags/ansible-tower>Ansible Tower</a>
 </div>
 </div>
 <div id=body-inner>
 <h1>
-Enable Automatic Route Creation
+Ansible Tower and downloading collections
 </h1>
 <p class=tracked>
-<time class="f6 mv4 dib tracked" datetime=2020-05-13T00:00:00Z>
-<strong>May 13, 2020</strong>
+<time class="f6 mv4 dib tracked" datetime=2021-07-31T00:00:00Z>
+<strong>July 31, 2021</strong>
 </time>
 By:
-Thomas Jungbauer
+Toni Schmidbauer
 </p>
 <div class=paragraph>
-<p>Red Hat Service Mesh 1.1 allows you to enable a "<strong>Automatic Route Creation</strong>" which will take care about the routes for a specific Gateway. Instead of defining * for hosts, a list of domains can be defined. The Istio OpenShift Routing (ior) synchronizes the routes and creates them inside the Istio namespace. If a Gateway is deleted, the routes will also be removed again.</p>
-</div>
-<div class=paragraph>
-<p>This new features makes the manual creation of the route obsolete, as it was explained here: <a href=/service-mesh/2020/03/ingress-with-custom-domain/>Openshift 4 and Service Mesh 4 - Ingress with custom domain</a></p>
+<p>Every wondered why Ansible Tower does not start downloading required
+collections when you synchronize a project? Here are the stumbling
+blocks we discovered so far:</p>
 </div>
 <div class=sect1>
-<h2 id=_enable_automatic_route_creation>Enable Automatic Route Creation</h2>
+<h2 id=_wrong_name_for_requirements_yml>Wrong name for requirements.yml</h2>
 <div class=sectionbody>
 <div class=paragraph>
-<p>Before this feature can be used, it must be enabled. To do so the <strong>ServiceMeshContolPlace</strong>, typically found in the namespace <em>istio-system</em> must be modified.
-Add the line <strong>ior_enabled: true</strong> to the <em>istio-ingressgate</em> configuration.</p>
+<p>When downloading collections Ansible Tower searches for a file
+<code>requirements.yml</code> in the collections directory.</p>
 </div>
-<div class=listingblock>
-<div class=content>
-<pre class=highlight><code class=language-yaml data-lang=yaml>...
-spec:
-  istio:
-    gateways:
-      istio-egressgateway:
-        autoscaleEnabled: false
-      istio-ingressgateway:
-        autoscaleEnabled: false
-        ior_enabled: true
-...</code></pre>
-</div>
+<div class=paragraph>
+<p>Be careful with the file extension: <code>requirements.yml</code> has to end with
+the extension <code>.yml</code> and <strong>not</strong> <code>.yaml</code>.</p>
 </div>
 </div>
 </div>
 <div class=sect1>
-<h2 id=_verify_current_service>Verify current service</h2>
+<h2 id=_collections_download_is_disabled_in_ansible_tower>Collections download is disabled in Ansible Tower</h2>
 <div class=sectionbody>
 <div class=paragraph>
-<p>Let’s check our <em>tutorial</em> application, if it is still working.</p>
-</div>
-<div class=listingblock>
-<div class=content>
-<pre class=highlight><code class=language-bash data-lang=bash>oc project tutorial
-
-export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath=&#39;{.spec.host}&#39;)
-curl $GATEWAY_URL/customer
-
-customer =&gt; preference =&gt; recommendation v1 from &#39;f11b097f1dd0&#39;: 30</code></pre>
-</div>
-</div>
-<div class=paragraph>
-<p>Let’s review and remove the current used Gateway. As you can see the hosts is set to '*'</p>
-</div>
-<div class=listingblock>
-<div class=content>
-<pre class=highlight><code class=language-yaml data-lang=yaml>oc get istio-io
-
-oc get gateway.networking.istio.io/customer-gateway -o yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {&#34;apiVersion&#34;:&#34;networking.istio.io/v1alpha3&#34;,&#34;kind&#34;:&#34;Gateway&#34;,&#34;metadata&#34;:{&#34;annotations&#34;:{},&#34;name&#34;:&#34;customer-gateway&#34;,&#34;namespace&#34;:&#34;tutorial&#34;},&#34;spec&#34;:{&#34;selector&#34;:{&#34;istio&#34;:&#34;ingressgateway&#34;},&#34;servers&#34;:[{&#34;hosts&#34;:[&#34;*&#34;],&#34;port&#34;:{&#34;name&#34;:&#34;http&#34;,&#34;number&#34;:80,&#34;protocol&#34;:&#34;HTTP&#34;}}]}}
-  creationTimestamp: &#34;2020-05-13T07:52:20Z&#34;
-  generation: 1
-  name: customer-gateway
-  namespace: tutorial
-  resourceVersion: &#34;41370056&#34;
-  selfLink: /apis/networking.istio.io/v1alpha3/namespaces/tutorial/gateways/customer-gateway
-  uid: 96e82ed9-e870-493c-941f-bfa83c892b94
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-  - hosts:
-    - &#39;*&#39;
-    port:
-      name: http
-      number: 80
-      protocol: HTTP</code></pre>
-</div>
+<p>Within Ansible Tower there is a setting called <code>ENABLE COLLECTION(S)
+DOWNLOAD</code> under <code>Settings</code>/<code>Jobs</code>. This has to be set to true, which
+is also the default.</p>
 </div>
 </div>
 </div>
 <div class=sect1>
-<h2 id=_create_a_new_gateway>Create a new Gateway</h2>
+<h2 id=_no_ansible_galaxy_credential_defined_for_the_organization>No Ansible Galaxy credential defined for the organization</h2>
 <div class=sectionbody>
 <div class=paragraph>
-<p>First let’s remove the current Gateway</p>
-</div>
-<div class=listingblock>
-<div class=content>
-<pre class=highlight><code class=language-bach data-lang=bach>oc delete gateway.networking.istio.io/customer-gateway</code></pre>
-</div>
-</div>
-<div class=paragraph>
-<p>Now lets create a new Gateway, but this time we define some names for the hosts section:</p>
-</div>
-<div class=listingblock>
-<div class=content>
-<pre class=highlight><code class=language-yaml data-lang=yaml>cat &lt;&lt;&#39;EOF&#39; &gt; Gateway-ior.yaml
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: customer-gateway
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - www.example.com
-    - svc.example.com
-EOF
-
-oc apply -f Gateway-ior.yaml -n tutorial</code></pre>
-</div>
+<p>Last but not least an Ansible Galaxy credential needs to be defined
+for the organization where the project is defined. With the default
+installation of Ansible Tower, when the sample playbooks are installed
+there is a credential called <code>Ansible Galaxy</code> defined. You need to assign
+this credential to the organization.</p>
 </div>
 <div class=paragraph>
-<p>When you now check the routes, 2 new routes have been added:</p>
+<p>If you skip installing the sample playbooks, <strong>no</strong> <code>Ansible Galaxy</code>
+credential will be defined for you and you have to create it manually.</p>
 </div>
-<div class=listingblock>
-<div class=content>
-<pre class=highlight><code class=language-bash data-lang=bash>oc get routes -n istio-system
-NAME                              HOST/PORT                                                           PATH   SERVICES               PORT    TERMINATION          WILDCARD
-...
-tutorial-customer-gateway-kmqrl   www.example.com                                                            istio-ingressgateway   http2                        None
-tutorial-customer-gateway-ks7q7   svc.example.com                                                            istio-ingressgateway   http2                        None</code></pre>
 </div>
+</div>
+<div class=sect1>
+<h2 id=_how_does_this_actually_work>How does this actually work?</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Ansible Tower uses a Python virtual environment for running
+Ansible. The default environment is installed in
+<code>/var/lib/awx/venv/awx</code>. You can also create custom environments, see
+<a href=https://docs.ansible.com/ansible-tower/latest/html/upgrade-migration-guide/virtualenv.html>Using virtualenv with Ansible Tower</a>.</p>
 </div>
 <div class=paragraph>
-<p>To test the connectivity, you need to be sure that the hosts, used in the Gateway, are resolvable.
-If they are then you can access your service:</p>
+<p>In the default setup the following files define how collections are downloaded:</p>
 </div>
-<div class=listingblock>
-<div class=content>
-<pre class=highlight><code class=language-bash data-lang=bash>curl www.example.com/customer
-customer =&gt; preference =&gt; recommendation v1 from &#39;f11b097f1dd0&#39;: 31
-
-curl svc.example.com/customer
-customer =&gt; preference =&gt; recommendation v1 from &#39;f11b097f1dd0&#39;: 32</code></pre>
+<div class=ulist>
+<ul>
+<li>
+<p><code>lib/python3.6/site-packages/awx/main/tasks.py</code></p>
+</li>
+<li>
+<p><code>lib/python3.6/site-packages/awx/playbooks/project_update.yml</code></p>
+</li>
+</ul>
+</div>
+<div class=sect2>
+<h3 id=_task_py>task.py</h3>
+<div class=paragraph>
+<p><code>task.py</code> defines various internal tasks Tower has to run on various
+occasions. For example in line number 1930 (Ansible Tower 3.8.3) the
+task <code>RunProjectUpdate</code> gets defined. This is the task Tower
+has to run whenever a project update is required.</p>
+</div>
+<div class=paragraph>
+<p>In our case the function <code>build_extra_vars_file</code> (line 2083 with
+Ansible Tower 3.8.3) defines the variable <code>galaxy_creds_are_defined</code>
+only if the organization has a galaxy credential defined (line 2099
+Ansible Tower 3.8.3).</p>
+</div>
+<div class=paragraph>
+<p>Line 2120 (Ansible Tower 3.8.3) finally defines the Ansible extra
+variable <code>collections_enabled</code> depending on
+<code>galaxy_creds_are_defined</code>.</p>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_project_update_yml>project_update.yml</h3>
+<div class=paragraph>
+<p>So <code>task.py</code> defines the extra variable <code>collections_enabled</code> (see
+above). Finally the playbook <code>project_update.yml</code> consumes this extra
+variable and only downloads collections if <code>collections_enabled</code> is
+set to <code>true</code>, see the block string at line 192 (Ansible Tower 3.8.3)
+in `project_update.yml.</p>
+</div>
+<div class=paragraph>
+<p>So long and thanks for all the fish!</p>
 </div>
 </div>
 </div>
@@ -492,8 +458,8 @@ customer =&gt; preference =&gt; recommendation v1 from &#39;f11b097f1dd0&#39;: 3
 </div>
 </div>
 <div id=navigation-bottom>
-<a class="nav-prev btn btn-default" href=/service-mesh/ title="Service Mesh"> <i class="fa fa-chevron-left btn-bottom-prev"></i><span class=btn-bottom-text>Previous: </span> Service Mesh</a>
-<a class="nav-next btn btn-default" href=/service-mesh/2020/05/authorization-rbac/ title="Authorization (RBAC)" style=margin-right:0><i class="fa fa-chevron-right btn-bottom-next"></i><span class=btn-bottom-text>Next:</span> Authorization (RBAC)</a>
+<a class="nav-prev btn btn-default" href=/ansible/ title=Ansible> <i class="fa fa-chevron-left btn-bottom-prev"></i><span class=btn-bottom-text>Previous: </span> Ansible</a>
+<a class="nav-next btn btn-default" href=/ansible/2020/04/ansible-azure-resource-manager-example/ title="Ansible - Azure Resource Manager Example" style=margin-right:0><i class="fa fa-chevron-right btn-bottom-next"></i><span class=btn-bottom-text>Next:</span> Ansible - Azure Resource Manager Example</a>
 </div>
 <div class=copyright>
 <p>Copyright &copy; 2020 - 2021 Toni Schmidbauer & Thomas Jungbauer</p>
