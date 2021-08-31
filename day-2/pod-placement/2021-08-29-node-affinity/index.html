@@ -1,0 +1,601 @@
+<!doctype html><html lang=en class="js csstransforms3d">
+<head>
+<meta name=google-site-verification content="yq2Ib3doJVHVlEW2wtHap5WY54JhS2CCvI40y30F0FI">
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=generator content="Hugo 0.87.0">
+<meta name=description content="Placeing Pods Using the Node Affinity rules">
+<meta name=author content="Toni Schmidbauer & Thomas Jungbauer">
+<link rel=icon href=/images/favicon.ico type=image/png>
+<link rel=apple-touch-icon sizes=152x152 href=/images/apple-touch-icon-152x152.png>
+<link rel=apple-touch-icon sizes=180x180 href=/images/apple-touch-icon-180x180.png>
+<link rel=apple-touch-icon sizes=128x128 href=/images/apple-touch-icon-128x128.png>
+<link rel=apple-touch-icon sizes=144x144 href=/images/apple-touch-icon-144x144.png>
+<link rel=apple-touch-icon sizes=114x114 href=/images/apple-touch-icon-114x114.png>
+<link rel=apple-touch-icon sizes=72x72 href=/images/apple-touch-icon-72x72.png>
+<link rel=apple-touch-icon href=/images/apple-touch-icon-57x57.png>
+<link rel="shortcut icon" href=/images/favicon.ico>
+<link rel=apple-touch-icon sizes=57x57 href=/images/apple-icon-57x57.png>
+<link rel=apple-touch-icon sizes=60x60 href=/images/apple-icon-60x60.png>
+<link rel=apple-touch-icon sizes=76x76 href=/images/apple-icon-76x76.png>
+<link rel=apple-touch-icon sizes=120x120 href=/images/apple-icon-120x120.png>
+<link rel=icon type=image/png sizes=192x192 href=/images/android-icon-192x192.png>
+<link rel=icon type=image/png sizes=32x32 href=/images/favicon-32x32.png>
+<link rel=icon type=image/png sizes=96x96 href=/images/favicon-96x96.png>
+<link rel=icon type=image/png sizes=16x16 href=/images/favicon-16x16.png>
+<title>Pod Placement - Node Affinity :: TechBlog about OpenShift/Ansible/Satellite and much more</title>
+<link rel=manifest href=/manifest.json>
+<meta name=theme-color content="#317EFB">
+<link href=/css/nucleus.min.css?1630433842 rel=stylesheet>
+<link href=/css/fontawesome-all.min.css?1630433842 rel=stylesheet>
+<link href=/css/font-awesome-animation.min.css?1630433842 rel=stylesheet>
+<link href=/css/hybrid.css?1630433842 rel=stylesheet>
+<link href=/css/featherlight.min.css?1630433842 rel=stylesheet>
+<link href=/css/perfect-scrollbar.min.css?1630433842 rel=stylesheet>
+<link href=/css/auto-complete.css?1630433842 rel=stylesheet>
+<link href=/css/atom-one-dark-reasonable.css?1630433842 rel=stylesheet>
+<link href=/css/theme.min.css?1630433842 rel=stylesheet>
+<link href=/css/hugo-theme.css?1630433842 rel=stylesheet>
+<link href=/css/theme-yaub.css?1630433842 rel=stylesheet>
+<script src=/js/jquery-3.6.0.min.js?1630433842></script>
+<style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
+</head>
+<body data-url=/day-2/pod-placement/2021-08-29-node-affinity/>
+<button onclick=scrollTopAnimated() id=myBtn class="top-btn button fa fa-arrow-up" title="Go to top"></button>
+<nav id=sidebar>
+<div id=header-wrapper>
+<div id=header>
+<a id=logo href=/>
+<p class="fa fa-cloud-upload-alt faa-float animated"></p>
+<span class=text>YAUB</span>
+<p class=logoarea><span class="text small">Yet another Useless Blog</span></p>
+</a>
+</div>
+<div class=searchbox>
+<label for=search-by><i class="fas fa-search"></i></label>
+<input data-search-input id=search-by type=search placeholder=Search...>
+<span data-search-clear><i class="fas fa-times"></i></span>
+</div>
+<script type=text/javascript src=/js/lunr.min.js?1630433842></script>
+<script type=text/javascript src=/js/auto-complete.js?1630433842></script>
+<script type=text/javascript>var baseurl="https://blog.stderr.at/"</script>
+<script type=text/javascript src=/js/search.js?1630433842></script>
+</div>
+<section id=homelinks>
+<ul>
+<li>
+<a class=padding href=/><i class="fas fa-home"></i> Home</a>
+</li>
+</ul>
+</section>
+<div class=highlightable>
+<ul class=topics>
+<li data-nav-id=/openshift/ title=OpenShift class=dd-item>
+<a href=/openshift/>
+OpenShift
+</a>
+<ul>
+<li data-nav-id=/openshift/2021-02-27-understanding-block-devices/ title="Understanding RWO block device handling in OpenShift" class=dd-item>
+<a href=/openshift/2021-02-27-understanding-block-devices/>
+Understanding RWO block device handling in OpenShift
+</a>
+</li>
+<li data-nav-id=/openshift/2021-01-27-writingoperatoransible/ title="Writing Operator using Ansible" class=dd-item>
+<a href=/openshift/2021-01-27-writingoperatoransible/>
+Writing Operator using Ansible
+</a>
+</li>
+<li data-nav-id=/openshift/2020-12-10-thanos-vs-thanos/ title="Thanos Querier vs Thanos Querier" class=dd-item>
+<a href=/openshift/2020-12-10-thanos-vs-thanos/>
+Thanos Querier vs Thanos Querier
+</a>
+</li>
+<li data-nav-id=/openshift/2020-08-06-argocd/ title="GitOps - Argo CD" class=dd-item>
+<a href=/openshift/2020-08-06-argocd/>
+GitOps - Argo CD
+</a>
+</li>
+<li data-nav-id=/openshift/2020-05-13-quay-tutorial1/ title="Red Hat Quay Registry - Overview and Installation" class=dd-item>
+<a href=/openshift/2020-05-13-quay-tutorial1/>
+Red Hat Quay Registry - Overview and Installation
+</a>
+</li>
+<li data-nav-id=/openshift/2020-04-16-tekton/ title="OpenShift Pipelines - Tekton Introduction" class=dd-item>
+<a href=/openshift/2020-04-16-tekton/>
+OpenShift Pipelines - Tekton Introduction
+</a>
+</li>
+<li data-nav-id=/openshift/2020-04-01-oc-commands/ title="Helpful oc / kubectl commands" class=dd-item>
+<a href=/openshift/2020-04-01-oc-commands/>
+Helpful oc / kubectl commands
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/day-2/ title="OpenShift Day-2" class="dd-item
+parent">
+<a href=/day-2/>
+OpenShift Day-2
+</a>
+<ul>
+<li data-nav-id=/day-2/pod-placement/ title="Pod Placement" class="dd-item
+parent">
+<a href=/day-2/pod-placement/>
+Pod Placement
+</a>
+<ul>
+<li data-nav-id=/day-2/pod-placement/2021-08-26-podplacement-intro/ title="Pod Placement - Introduction" class=dd-item>
+<a href=/day-2/pod-placement/2021-08-26-podplacement-intro/>
+Pod Placement - Introduction
+</a>
+</li>
+<li data-nav-id=/day-2/pod-placement/2021-08-29-node-affinity/ title="Pod Placement - Node Affinity" class="dd-item active">
+<a href=/day-2/pod-placement/2021-08-29-node-affinity/>
+Pod Placement - Node Affinity
+</a>
+</li>
+<li data-nav-id=/day-2/pod-placement/2021-08-27-podplacement/ title="Pod Placement - NodeSelector" class=dd-item>
+<a href=/day-2/pod-placement/2021-08-27-podplacement/>
+Pod Placement - NodeSelector
+</a>
+</li>
+<li data-nav-id=/day-2/pod-placement/2021-08-28-affinity/ title="Pod Placement - Pod Affinity/Anti-Affinity" class=dd-item>
+<a href=/day-2/pod-placement/2021-08-28-affinity/>
+Pod Placement - Pod Affinity/Anti-Affinity
+</a>
+</li>
+<li data-nav-id=/day-2/pod-placement/2021-08-30-taints/ title="Pod Placement - Taints and Tolerations" class=dd-item>
+<a href=/day-2/pod-placement/2021-08-30-taints/>
+Pod Placement - Taints and Tolerations
+</a>
+</li>
+<li data-nav-id=/day-2/pod-placement/2021-08-31-topologyspreadcontraints/ title="Pod Placement - Topology Spread Constraints" class=dd-item>
+<a href=/day-2/pod-placement/2021-08-31-topologyspreadcontraints/>
+Pod Placement - Topology Spread Constraints
+</a>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li data-nav-id=/compliance/ title=Compliance class=dd-item>
+<a href=/compliance/>
+Compliance
+</a>
+<ul>
+<li data-nav-id=/compliance/2021/07/oc-compliance-command-line-plugin/ title="oc compliance command line plugin" class=dd-item>
+<a href=/compliance/2021/07/oc-compliance-command-line-plugin/>
+oc compliance command line plugin
+</a>
+</li>
+<li data-nav-id=/compliance/2021/07/compliance-operator/ title="Compliance Operator" class=dd-item>
+<a href=/compliance/2021/07/compliance-operator/>
+Compliance Operator
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/service-mesh/ title="Service Mesh" class=dd-item>
+<a href=/service-mesh/>
+Service Mesh
+</a>
+<ul>
+<li data-nav-id=/service-mesh/2020/05/enable-automatic-route-creation/ title="Enable Automatic Route Creation" class=dd-item>
+<a href=/service-mesh/2020/05/enable-automatic-route-creation/>
+Enable Automatic Route Creation
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/05/authorization-rbac/ title="Authorization (RBAC)" class=dd-item>
+<a href=/service-mesh/2020/05/authorization-rbac/>
+Authorization (RBAC)
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/deploy-example-bookinfo-application/ title="Deploy Example Bookinfo Application" class=dd-item>
+<a href=/service-mesh/2020/04/deploy-example-bookinfo-application/>
+Deploy Example Bookinfo Application
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/service-mesh-1.1-released/ title="Service Mesh 1.1 released" class=dd-item>
+<a href=/service-mesh/2020/04/service-mesh-1.1-released/>
+Service Mesh 1.1 released
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/authentication-jwt/ title="Authentication JWT" class=dd-item>
+<a href=/service-mesh/2020/04/authentication-jwt/>
+Authentication JWT
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/mutual-tls-authentication/ title="Mutual TLS Authentication" class=dd-item>
+<a href=/service-mesh/2020/04/mutual-tls-authentication/>
+Mutual TLS Authentication
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/fault-injection/ title="Fault Injection" class=dd-item>
+<a href=/service-mesh/2020/04/fault-injection/>
+Fault Injection
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/limit-egress/external-traffic/ title="Limit Egress/External Traffic" class=dd-item>
+<a href=/service-mesh/2020/04/limit-egress/external-traffic/>
+Limit Egress/External Traffic
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/advanced-routing-example/ title="Advanced Routing Example" class=dd-item>
+<a href=/service-mesh/2020/04/advanced-routing-example/>
+Advanced Routing Example
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/04/routing-example/ title="Routing Example" class=dd-item>
+<a href=/service-mesh/2020/04/routing-example/>
+Routing Example
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/ingress-with-custom-domain/ title="Ingress with custom domain" class=dd-item>
+<a href=/service-mesh/2020/03/ingress-with-custom-domain/>
+Ingress with custom domain
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/ingress-traffic/ title="Ingress Traffic" class=dd-item>
+<a href=/service-mesh/2020/03/ingress-traffic/>
+Ingress Traffic
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/deploy-microservices/ title="Deploy Microservices" class=dd-item>
+<a href=/service-mesh/2020/03/deploy-microservices/>
+Deploy Microservices
+</a>
+</li>
+<li data-nav-id=/service-mesh/2020/03/installation/ title=Installation class=dd-item>
+<a href=/service-mesh/2020/03/installation/>
+Installation
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/general/ title=General class=dd-item>
+<a href=/general/>
+General
+</a>
+<ul>
+<li data-nav-id=/general/2020/05/basic-usage-of-git/ title="Basic usage of git" class=dd-item>
+<a href=/general/2020/05/basic-usage-of-git/>
+Basic usage of git
+</a>
+</li>
+<li data-nav-id=/general/2020/04/red-hat-satellite-cheat-sheet/ title="Red Hat Satellite Cheat Sheet" class=dd-item>
+<a href=/general/2020/04/red-hat-satellite-cheat-sheet/>
+Red Hat Satellite Cheat Sheet
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/ansible/ title=Ansible class=dd-item>
+<a href=/ansible/>
+Ansible
+</a>
+<ul>
+<li data-nav-id=/ansible/2021/07/ansible-tower-and-downloading-collections/ title="Ansible Tower and downloading collections" class=dd-item>
+<a href=/ansible/2021/07/ansible-tower-and-downloading-collections/>
+Ansible Tower and downloading collections
+</a>
+</li>
+<li data-nav-id=/ansible/2020/04/ansible-azure-resource-manager-example/ title="Ansible - Azure Resource Manager Example" class=dd-item>
+<a href=/ansible/2020/04/ansible-azure-resource-manager-example/>
+Ansible - Azure Resource Manager Example
+</a>
+</li>
+<li data-nav-id=/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/ title="DO410 Ansible and Ansible Tower training notes" class=dd-item>
+<a href=/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/>
+DO410 Ansible and Ansible Tower training notes
+</a>
+</li>
+</ul>
+</li>
+<li data-nav-id=/archive/ title=Archive class=dd-item>
+<a href=/archive/>
+Archive
+</a>
+</li>
+<li data-nav-id=/legaldisclosure/ title="Legal Disclosure" class=dd-item>
+<a href=/legaldisclosure/>
+Legal Disclosure
+</a>
+</li>
+<li data-nav-id=/rss/ title="RSS Feeds" class=dd-item>
+<a href=/rss/>
+RSS Feeds
+</a>
+</li>
+</ul>
+<section id=shortcuts>
+<h3 class=shortcut-title>More</h3>
+<ul>
+<li>
+<a class=padding href=https://blog.stderr.at/tags><i class="fas fa-tags"></i> Tags</a>
+</li>
+<li>
+<a class=padding href=https://blog.stderr.at/categories><i class="far fa-bookmark"></i> Catagories</a>
+</li>
+<li>
+<a class=padding href=https://www.redhat.com><i class="fab fa-redhat"></i> Red Hat</a>
+</li>
+</ul>
+</section>
+<section id=footer>
+</section>
+</div>
+</nav>
+<section id=body>
+<div id=overlay></div>
+<aside id=toc-field class="hidden lg:block tableOfContentContainer">
+<header id=TableOfContentsHeader>What's on this Page</header>
+<nav id=TableOfContents>
+<ul>
+<li><a href=#_pod_placement_series>Pod Placement Series</a></li>
+<li><a href=#_using_node_affinity>Using Node Affinity</a>
+<ul>
+<li><a href=#_preparing_node_labels>Preparing node labels</a></li>
+<li><a href=#_configure_node_affinity_rule>Configure node affinity rule</a></li>
+</ul>
+</li>
+<li><a href=#_what_happened_to_node_anti_affinity>What happened to Node Anti-Affinity?</a></li>
+<li><a href=#_cleanup>Cleanup</a></li>
+<li><a href=#_summary>Summary</a></li>
+</ul>
+</nav>
+<div id=navigation>
+<a class=nav-prev href=/day-2/pod-placement/2021-08-26-podplacement-intro/ title="Pod Placement - Introduction"> <i class="fa fa-chevron-left"></i></a>
+<a class=nav-next href=/day-2/pod-placement/2021-08-27-podplacement/ title="Pod Placement - NodeSelector" style=margin-right:0><i class="fa fa-chevron-right"></i></a>
+</div>
+</aside>
+<div class="padding highlightable">
+<div>
+<div id=top-bar>
+<div id=breadcrumbs itemscope itemtype=http://schema.org/BreadcrumbList>
+<span id=sidebar-toggle-span>
+<a href=# id=sidebar-toggle data-sidebar-toggle>
+<i class="fas fa-bars"></i>
+</a>
+</span>
+<span id=toc-menu><i class="fas fa-list-alt"></i></span>
+<span class=links>
+<span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/> <span itemprop=name>YAUB Yet Another Useless Blog</span><meta itemprop=position content="1"></a></span> > <span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/day-2/> <span itemprop=name>OpenShift Day-2</span><meta itemprop=position content="2"></a></span> > <span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/day-2/pod-placement/> <span itemprop=name>Pod Placement</span><meta itemprop=position content="3"></a></span> > Pod Placement - Node Affinity
+</span>
+</div>
+<div class=progress>
+<div class=wrapper>
+<nav id=TableOfContents>
+<ul>
+<li><a href=#_pod_placement_series>Pod Placement Series</a></li>
+<li><a href=#_using_node_affinity>Using Node Affinity</a>
+<ul>
+<li><a href=#_preparing_node_labels>Preparing node labels</a></li>
+<li><a href=#_configure_node_affinity_rule>Configure node affinity rule</a></li>
+</ul>
+</li>
+<li><a href=#_what_happened_to_node_anti_affinity>What happened to Node Anti-Affinity?</a></li>
+<li><a href=#_cleanup>Cleanup</a></li>
+<li><a href=#_summary>Summary</a></li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+</div>
+<div id=head-tags>
+<div class=tags>
+<a class=tag-link href=/tags/ocp>OCP</a>
+<a class=tag-link href=/tags/day-2>Day-2</a>
+<a class=tag-link href=/tags/openshift>OpenShift</a>
+<a class=tag-link href=/tags/pod-placement>Pod Placement</a>
+<a class=tag-link href=/tags/affinity>Affinity</a>
+</div>
+</div>
+<div id=body-inner>
+<h1>
+Pod Placement - Node Affinity
+</h1>
+<p class=tracked>
+<time class="f6 mv4 dib tracked" datetime=2021-08-26T00:00:00Z>
+<strong>August 26, 2021</strong>
+</time>
+By:
+Thomas Jungbauer
+</p>
+<div class=paragraph>
+<p>Node Affinity allows to place a pod to a specific group of nodes. For example, it is possible to run a pod only on nodes with a specific CPU or disktype. The disktype was used as an example for the <code>nodeSelector</code> and yes …​ Node Affinity is conceptually similar to nodeSelector but allows a more granular configuration.</p>
+</div>
+<div class=sect1>
+<h2 id=_pod_placement_series>Pod Placement Series</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Please check out other ways of pod placements:</p>
+</div>
+<div class="olist arabic">
+<ol class=arabic>
+<li>
+<p><a href=/openshift/day-2/pod-placement-nodeselector/>NodeSelector</a></p>
+</li>
+<li>
+<p><a href=/openshift/day-2/pod-placement-pod-affinity/>Pod Affinity and Anti Affinity</a></p>
+</li>
+<li>
+<p><a href=/openshift/day-2/pod-placement-node-affinity/>Node Affinity</a></p>
+</li>
+<li>
+<p><a href=/openshift/day-2/pod-placement-taints-and-tolerations>Taints and Tolerations</a></p>
+</li>
+<li>
+<p><a href=/openshift/day-2/pod-placement-topology-spread-constraints/>Topology Spread Constraints</a></p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_using_node_affinity>Using Node Affinity</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Currently two types of affinity settings are known:</p>
+</div>
+<div class=ulist>
+<ul>
+<li>
+<p>requiredDuringSchedulingIgnoreDuringExecuption (short <em>required</em>) - a hard requirement which must be met before a pod can be scheduled</p>
+</li>
+<li>
+<p>preferredDuringSchedulingIgnoredDuringExecution (short <em>preferred</em>) - a soft requirement the scheduler <strong>tries</strong> to meet, but does not guarantee it</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class=icon>
+<i class="fa icon-note" title=Note></i>
+</td>
+<td class=content>
+Both types can be specified. In such case the node must first meet the required rule and then attempt to meet the preferred rule.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class=sect2>
+<h3 id=_preparing_node_labels>Preparing node labels</h3>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class=icon>
+<i class="fa icon-note" title=Note></i>
+</td>
+<td class=content>
+Remember the prerequisites explained in the . <a href=/openshift/day-2/pod-placement-pod-affinity/>Pod Placement - Introduction</a>. We have 4 compute nodes and an example web application up and running.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class=paragraph>
+<p>Before we start with affinity rules we need to label all nodes. Let’s create 2 zones (east and west) for our compute nodes.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class=icon>
+<i class="fa icon-note" title=Note></i>
+</td>
+<td class=content>
+You can skip this, if these labels are still set.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class=imageblock>
+<div class=content>
+<img src=/Day-2/images/affinity-kubernetes.zones.png alt="Node Zones">
+</div>
+<div class=title>Figure 1. Node Zones</div>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-bash data-lang=bash>oc label nodes compute-0 compute-1 topology.kubernetes.io/zone=east
+
+oc label nodes compute-2 compute-3 topology.kubernetes.io/zone=west</code></pre>
+</div>
+</div>
+</div>
+<div class=sect2>
+<h3 id=_configure_node_affinity_rule>Configure node affinity rule</h3>
+<div class=paragraph>
+<p>Like pod affinity the node affinity is defined on the pod specification:</p>
+</div>
+<div class=listingblock>
+<div class=content>
+<pre class=highlight><code class=language-yaml data-lang=yaml>kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+metadata:
+  name: django-psql-example
+  namespace: podtesting
+[...]
+spec:
+[...]
+  template:
+[...]
+    spec:
+[...]
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - west</code></pre>
+</div>
+</div>
+<div class=paragraph>
+<p>In this example the pods are started only on nodes of the zone "West". Since the value is an array, multiple zones can be defined letting the web application be executed on West and East for example.
+With this setup you can control on which node a specific application shall be executed. For example: you have a group of nodes which provide a GPU and your GPU application must be started only on this group of nodes.</p>
+</div>
+<div class=paragraph>
+<p>Like with pod affinity you can combine required and preferred settings.</p>
+</div>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_what_happened_to_node_anti_affinity>What happened to Node Anti-Affinity?</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>Unlike Pod Anti-Affinity, there is no concept to define a node Anti-Affinity. Instead you can use the <code>NotIn</code> and <code>DoesNotExist</code> operators to achieve this bahaviour.</p>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_cleanup>Cleanup</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>As cleanup simply remove the affinity specification from the DeploymentConf. The node labels can stay as they are since they do not hurt.</p>
+</div>
+</div>
+</div>
+<div class=sect1>
+<h2 id=_summary>Summary</h2>
+<div class=sectionbody>
+<div class=paragraph>
+<p>This concludes the quick overview of the node affinity. Further information can be found at <a href=https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity target=_blank rel=noopener>Node Affinity</a></p>
+</div>
+</div>
+</div>
+<footer class=footline>
+</footer>
+</div>
+</div>
+<div id=navigation-bottom>
+<a class="nav-prev btn btn-default" href=/day-2/pod-placement/2021-08-26-podplacement-intro/ title="Pod Placement - Introduction"> <i class="fa fa-chevron-left btn-bottom-prev"></i><span class=btn-bottom-text>Previous: </span> Pod Placement - Introduction</a>
+<a class="nav-next btn btn-default" href=/day-2/pod-placement/2021-08-27-podplacement/ title="Pod Placement - NodeSelector" style=margin-right:0><i class="fa fa-chevron-right btn-bottom-next"></i><span class=btn-bottom-text>Next:</span> Pod Placement - NodeSelector</a>
+</div>
+<div class=copyright>
+<p>Copyright &copy; 2020 - 2021 Toni Schmidbauer & Thomas Jungbauer</p>
+<p>Built with <a href=https://github.com/matcornic/hugo-theme-learn target=_blank rel="noopener noreferrer">Hugo Learn Theme</i></a> and <a href=https://gohugo.io/ target=_blank rel="noopener noreferrer">Hugo</a></p>
+</div>
+</section>
+<div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
+<div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
+</div>
+<script src=/js/clipboard.min.js?1630433843></script>
+<script src=/js/perfect-scrollbar.min.js?1630433843></script>
+<script src=/js/perfect-scrollbar.jquery.min.js?1630433843></script>
+<script src=/js/jquery.sticky.js?1630433843></script>
+<script src=/js/featherlight.min.js?1630433843></script>
+<script src=/js/highlight.pack.js?1630433843></script>
+<script>hljs.initHighlightingOnLoad()</script>
+<script src=/js/modernizr.custom-3.6.0.js?1630433843></script>
+<script src=/js/learn.js?1630433843></script>
+<script src=/js/hugo-learn.js?1630433843></script>
+<script src=/js/yaub.js?1630433843></script>
+<script>window.addEventListener('DOMContentLoaded',()=>{const a=new IntersectionObserver(a=>{a.forEach(a=>{const b=a.target.getAttribute('id');a.intersectionRatio>0&&(clearActiveStatesInTableOfContents(),document.querySelector(`aside nav li a[href="#${b}"]`).parentElement.classList.add('active'))})});document.querySelectorAll('h1[id],h2[id],h3[id],h4[id]').forEach(b=>{a.observe(b)})});function clearActiveStatesInTableOfContents(){document.querySelectorAll('aside nav li').forEach(a=>{a.classList.remove('active')})}</script>
+<script type=text/javascript>function scrollTopAnimated(){$("html, body").animate({scrollTop:"0"},500)}</script>
+<script>function topFunction(){document.body.scrollTop=0,document.documentElement.scrollTop=0}$(".summary-box").click(function(){return window.location=$(this).find("a").attr("href"),!1})</script>
+</body>
+</html>
