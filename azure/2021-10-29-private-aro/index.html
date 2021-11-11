@@ -27,18 +27,18 @@
 <title>Stumbling into Azure Part II: Setting up a private ARO cluster :: TechBlog about OpenShift/Ansible/Satellite and much more</title>
 <link rel=manifest href=/manifest.json>
 <meta name=theme-color content="#317EFB">
-<link href=/css/nucleus.min.css?1636028276 rel=stylesheet>
-<link href=/css/fontawesome-all.min.css?1636028276 rel=stylesheet>
-<link href=/css/font-awesome-animation.min.css?1636028276 rel=stylesheet>
-<link href=/css/hybrid.css?1636028276 rel=stylesheet>
-<link href=/css/featherlight.min.css?1636028276 rel=stylesheet>
-<link href=/css/perfect-scrollbar.min.css?1636028276 rel=stylesheet>
-<link href=/css/auto-complete.css?1636028276 rel=stylesheet>
-<link href=/css/atom-one-dark-reasonable.css?1636028276 rel=stylesheet>
-<link href=/css/theme.min.css?1636028276 rel=stylesheet>
-<link href=/css/hugo-theme.css?1636028276 rel=stylesheet>
-<link href=/css/theme-yaub.css?1636028276 rel=stylesheet>
-<script src=/js/jquery-3.6.0.min.js?1636028276></script>
+<link href=/css/nucleus.min.css?1636618737 rel=stylesheet>
+<link href=/css/fontawesome-all.min.css?1636618737 rel=stylesheet>
+<link href=/css/font-awesome-animation.min.css?1636618737 rel=stylesheet>
+<link href=/css/hybrid.css?1636618737 rel=stylesheet>
+<link href=/css/featherlight.min.css?1636618737 rel=stylesheet>
+<link href=/css/perfect-scrollbar.min.css?1636618737 rel=stylesheet>
+<link href=/css/auto-complete.css?1636618737 rel=stylesheet>
+<link href=/css/atom-one-dark-reasonable.css?1636618737 rel=stylesheet>
+<link href=/css/theme.min.css?1636618737 rel=stylesheet>
+<link href=/css/hugo-theme.css?1636618737 rel=stylesheet>
+<link href=/css/theme-yaub.css?1636618737 rel=stylesheet>
+<script src=/js/jquery-3.6.0.min.js?1636618737></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/azure/2021-10-29-private-aro/>
@@ -57,10 +57,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/js/lunr.min.js?1636028276></script>
-<script type=text/javascript src=/js/auto-complete.js?1636028276></script>
+<script type=text/javascript src=/js/lunr.min.js?1636618737></script>
+<script type=text/javascript src=/js/auto-complete.js?1636618737></script>
 <script type=text/javascript>var baseurl="https://blog.stderr.at/"</script>
-<script type=text/javascript src=/js/search.js?1636028276></script>
+<script type=text/javascript src=/js/search.js?1636618737></script>
 </div>
 <div class=togglemode>
 <button id=dark-mode-toggle class="btn-toggle btn-default btn">Toggle Dark-Mode</button>
@@ -441,7 +441,7 @@ Stumbling into Azure Part II: Setting up a private ARO cluster
 </time>
 - By:
 Toni Schmidbauer
-( Lastmod: 2021-11-04 )
+( Lastmod: 2021-11-11 )
 </p>
 <p>
 In Part I of our blog post we covered setting up required resources in
@@ -498,6 +498,17 @@ Creating the private Azure Red Hat OpenShift cluster
 <div id=outline-text-headline-2 class=outline-text-3>
 <ol>
 <li>
+<p>Register required resource providers</p>
+<div class="src src-text">
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>az provider register -n Microsoft.RedHatOpenShift --wait
+az provider register -n Microsoft.Compute --wait
+az provider register -n Microsoft.Storage --wait
+az provider register -n Microsoft.Authorization --wait</code></pre></div>
+</div>
+</li>
+</ol>
+<ol>
+<li>
 <p>First we are going to set some environment variable. Those
 variables are used in the upcoming commands:</p>
 <div class="src src-sh">
@@ -520,6 +531,12 @@ export HETZNER_VM_NETWORKS<span style=color:#f92672>=</span><span style=color:#e
 </div>
 </li>
 <li>
+<p>Create a private DNS zone for our cluster</p>
+<div class="src src-sh">
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh>az network private-dns zone create -n private2.tntinfra.net -g aro-rg</code></pre></div>
+</div>
+</li>
+<li>
 <p>Create the cluster</p>
 <div class="src src-sh">
 <div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh>az aro create <span style=color:#ae81ff>\
@@ -529,9 +546,43 @@ export HETZNER_VM_NETWORKS<span style=color:#f92672>=</span><span style=color:#e
 </span><span style=color:#ae81ff></span>--master-subnet master-subnet <span style=color:#ae81ff>\
 </span><span style=color:#ae81ff></span>--worker-subnet worker-subnet <span style=color:#ae81ff>\
 </span><span style=color:#ae81ff></span>--apiserver-visibility Private <span style=color:#ae81ff>\
-</span><span style=color:#ae81ff></span>--ingress-visibility Private
-<span style=color:#75715e># --domain foo.example.com # [OPTIONAL] custom domain</span>
+</span><span style=color:#ae81ff></span>--ingress-visibility Private <span style=color:#ae81ff>\
+</span><span style=color:#ae81ff></span>--domain private.tntinfra.net
 <span style=color:#75715e># --pull-secret @pull-secret.txt # [OPTIONAL]</span></code></pre></div>
+</div>
+</li>
+<li>
+<p>After sucessful cluster creating add DNS entry for the API and Ingress</p>
+<p>
+Query the Azure API for the API server IP and the ingress IP addresses:</p>
+<div class="src src-text">
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>az aro show -n aro1 -g aro-rg --query &#39;{api:apiserverProfile.ip, ingress:ingressProfiles[0].ip}&#39;</code></pre></div>
+</div>
+<p>
+Example output</p>
+<div class="src src-text">
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>Api            Ingress
+-------------  ---------------
+192.168.129.4  192.168.130.254</code></pre></div>
+</div>
+<p>
+Add entries to Azure private DNS</p>
+<div class="src src-sh">
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh>az network private-dns record-set a add-record -g aro-rg -z private.tntinfra.net -a <span style=color:#e6db74>&#34;192.168.129.4&#34;</span> -n api
+az network private-dns record-set a add-record -g aro-rg -z private.tntinfra.net -a <span style=color:#e6db74>&#34;192.168.130.254&#34;</span> -n <span style=color:#e6db74>&#34;*.apps&#34;</span></code></pre></div>
+</div>
+<p>
+List entries to verify configuration</p>
+<div class="src src-sh">
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh>az network private-dns record-set a list -g aro-rg -z private.tntinfra.net</code></pre></div>
+</div>
+<p>
+Output:</p>
+<div class="src src-sh">
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh>Name    ResourceGroup    Ttl    Type    AutoRegistered    Metadata
+------  ---------------  -----  ------  ----------------  ----------
+api     aro-rg           <span style=color:#ae81ff>3600</span>   A       False
+*.apps  aro-rg           <span style=color:#ae81ff>3600</span>   A       False</code></pre></div>
 </div>
 </li>
 <li>
@@ -613,17 +664,17 @@ Additonal Resources
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/js/clipboard.min.js?1636028276></script>
-<script src=/js/perfect-scrollbar.min.js?1636028276></script>
-<script src=/js/perfect-scrollbar.jquery.min.js?1636028276></script>
-<script src=/js/jquery.sticky.js?1636028276></script>
-<script src=/js/featherlight.min.js?1636028276></script>
-<script src=/js/highlight.pack.js?1636028276></script>
+<script src=/js/clipboard.min.js?1636618737></script>
+<script src=/js/perfect-scrollbar.min.js?1636618737></script>
+<script src=/js/perfect-scrollbar.jquery.min.js?1636618737></script>
+<script src=/js/jquery.sticky.js?1636618737></script>
+<script src=/js/featherlight.min.js?1636618737></script>
+<script src=/js/highlight.pack.js?1636618737></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/js/modernizr.custom-3.6.0.js?1636028276></script>
-<script src=/js/learn.js?1636028276></script>
-<script src=/js/hugo-learn.js?1636028276></script>
-<script src=/js/yaub.js?1636028276></script>
+<script src=/js/modernizr.custom-3.6.0.js?1636618737></script>
+<script src=/js/learn.js?1636618737></script>
+<script src=/js/hugo-learn.js?1636618737></script>
+<script src=/js/yaub.js?1636618737></script>
 <script>window.addEventListener('DOMContentLoaded',()=>{const a=new IntersectionObserver(a=>{a.forEach(a=>{const b=a.target.getAttribute('id');a.intersectionRatio>0&&(clearActiveStatesInTableOfContents(),document.querySelector(`aside nav li a[href="#${b}"]`).parentElement.classList.add('active'))})});document.querySelectorAll('h1[id],h2[id],h3[id],h4[id]').forEach(b=>{a.observe(b)})});function clearActiveStatesInTableOfContents(){document.querySelectorAll('aside nav li').forEach(a=>{a.classList.remove('active')})}</script>
 <script type=text/javascript>function scrollTopAnimated(){$("html, body").animate({scrollTop:"0"},500)}</script>
 <script>function topFunction(){document.body.scrollTop=0,document.documentElement.scrollTop=0}$(".summary-box").click(function(){return window.location=$(this).find("a").attr("href"),!1})</script>
