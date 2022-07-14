@@ -237,6 +237,15 @@ jQuery(document).ready(function() {
                 var text, clip = new ClipboardJS('.copy-to-clipboard', {
                     text: function(trigger) {
                         text = $(trigger).prev('code').text();
+
+                        // Removing callouts, like (1) from the code 
+                        text = text.replace(/\([\d]\)/g," ");
+
+                        // Remove leading # if they exist.
+                        if (text.slice(0,2) === "# ") {
+                            text = text.substr(2);
+                        }
+
                         return text.replace(/^\$\s/gm, '');
                     }
                 });
