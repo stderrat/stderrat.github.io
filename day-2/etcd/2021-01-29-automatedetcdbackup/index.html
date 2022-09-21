@@ -1,0 +1,227 @@
+<!doctype html><html lang=en class="js csstransforms3d"><head><meta name=google-site-verification content="yq2Ib3doJVHVlEW2wtHap5WY54JhS2CCvI40y30F0FI"><meta charset=utf-8><meta name=color-scheme content="dark light"><meta name=viewport content="width=device-width,initial-scale=1"><meta name=generator content="Hugo 0.101.0"><meta name=description content="Create ETCD backups using cronjobs"><meta name=author content="Toni Schmidbauer & Thomas Jungbauer"><link rel=icon href=/images/favicon.ico type=image/png><link rel=apple-touch-icon sizes=152x152 href=/images/apple-touch-icon-152x152.png><link rel=apple-touch-icon sizes=180x180 href=/images/apple-touch-icon-180x180.png><link rel=apple-touch-icon sizes=128x128 href=/images/apple-touch-icon-128x128.png><link rel=apple-touch-icon sizes=144x144 href=/images/apple-touch-icon-144x144.png><link rel=apple-touch-icon sizes=114x114 href=/images/apple-touch-icon-114x114.png><link rel=apple-touch-icon sizes=72x72 href=/images/apple-touch-icon-72x72.png><link rel=apple-touch-icon href=/images/apple-touch-icon-57x57.png><link rel="shortcut icon" href=/images/favicon.ico><link rel=apple-touch-icon sizes=57x57 href=/images/apple-icon-57x57.png><link rel=apple-touch-icon sizes=60x60 href=/images/apple-icon-60x60.png><link rel=apple-touch-icon sizes=76x76 href=/images/apple-icon-76x76.png><link rel=apple-touch-icon sizes=120x120 href=/images/apple-icon-120x120.png><link rel=icon type=image/png sizes=192x192 href=/images/android-icon-192x192.png><link rel=icon type=image/png sizes=32x32 href=/images/favicon-32x32.png><link rel=icon type=image/png sizes=96x96 href=/images/favicon-96x96.png><link rel=icon type=image/png sizes=16x16 href=/images/favicon-16x16.png><title>Automated ETCD Backup :: TechBlog about OpenShift/Ansible/Satellite and much more</title><link rel=manifest href=/manifest.json><meta name=theme-color content="#317EFB"><link href=/css/nucleus.min.css?1663771115 rel=stylesheet><link href=/css/fontawesome-all.min.css?1663771115 rel=stylesheet><link href=/css/font-awesome-animation.min.css?1663771115 rel=stylesheet><link href=/css/hybrid.css?1663771115 rel=stylesheet><link href=/css/featherlight.min.css?1663771115 rel=stylesheet><link href=/css/perfect-scrollbar.min.css?1663771115 rel=stylesheet><link href=/css/auto-complete.css?1663771115 rel=stylesheet><link href=/css/atom-one-dark-reasonable.css?1663771115 rel=stylesheet><link href=/css/theme.min.css?1663771115 rel=stylesheet><link href=/css/hugo-theme.css?1663771115 rel=stylesheet><link href=/css/theme-yaub.css?1663771115 rel=stylesheet><script src=/js/jquery-3.6.0.min.js?1663771115></script><style>:root #header+#content>#left>#rlblock_left{display:none!important}</style></head><body data-url=/day-2/etcd/2021-01-29-automatedetcdbackup/><button onclick=scrollTopAnimated() id=myBtn class="top-btn button fa fa-arrow-up" title="Go to top"></button><nav id=sidebar><div id=header-wrapper><div id=header><a id=logo href=/><p class="fa fa-cloud-upload-alt faa-float animated"></p><span class=text>YAUB</span><p class=logoarea><span class="text small">Yet another Useless Blog</span></p></a></div><div class=searchbox><label for=search-by><i class="fas fa-search"></i></label>
+<input data-search-input id=search-by type=search placeholder=Search...>
+<span data-search-clear><i class="fas fa-times"></i></span></div><script type=text/javascript src=/js/lunr.min.js?1663771115></script>
+<script type=text/javascript src=/js/auto-complete.js?1663771115></script>
+<script type=text/javascript>var baseurl="https://blog.stderr.at/"</script><script type=text/javascript src=/js/search.js?1663771115></script></div><div class=togglemode><button id=dark-mode-toggle class="btn-toggle btn-default btn">Toggle Dark-Mode</button></div><section id=homelinks><ul><li><a class=padding href=/><i class='fas fa-home'></i> Home</a></li></ul></section><div class=highlightable><ul class=topics><li data-nav-id=/openshift/ title=OpenShift class=dd-item><a href=/openshift/>OpenShift</a><ul><li data-nav-id=/openshift/2022-08-16-hashicorp-vault/ title="Secrets Management - Vault on OpenShift" class=dd-item><a href=/openshift/2022-08-16-hashicorp-vault/>Secrets Management - Vault on OpenShift</a></li><li data-nav-id=/openshift/2022-04-22-multi-cloud-gateway/ title="Overview of Red Hat's Multi Cloud Gateway (Noobaa)" class=dd-item><a href=/openshift/2022-04-22-multi-cloud-gateway/>Overview of Red Hat's Multi Cloud Gateway (Noobaa)</a></li><li data-nav-id=/openshift/2021-09-25-sealed_secrets/ title="Secure your secrets with Sealed Secrets" class=dd-item><a href=/openshift/2021-09-25-sealed_secrets/>Secure your secrets with Sealed Secrets</a></li><li data-nav-id=/openshift/2021-02-27-understanding-block-devices/ title="Understanding RWO block device handling in OpenShift" class=dd-item><a href=/openshift/2021-02-27-understanding-block-devices/>Understanding RWO block device handling in OpenShift</a></li><li data-nav-id=/openshift/2021-01-27-writingoperatoransible/ title="Writing Operator using Ansible" class=dd-item><a href=/openshift/2021-01-27-writingoperatoransible/>Writing Operator using Ansible</a></li><li data-nav-id=/openshift/2020-12-10-thanos-vs-thanos/ title="Thanos Querier vs Thanos Querier" class=dd-item><a href=/openshift/2020-12-10-thanos-vs-thanos/>Thanos Querier vs Thanos Querier</a></li><li data-nav-id=/openshift/2020-08-06-argocd/ title="GitOps - Argo CD" class=dd-item><a href=/openshift/2020-08-06-argocd/>GitOps - Argo CD</a></li><li data-nav-id=/openshift/2020-04-16-tekton/ title="OpenShift Pipelines - Tekton Introduction" class=dd-item><a href=/openshift/2020-04-16-tekton/>OpenShift Pipelines - Tekton Introduction</a></li><li data-nav-id=/openshift/2020-04-01-oc-commands/ title="Helpful oc / kubectl commands" class=dd-item><a href=/openshift/2020-04-01-oc-commands/>Helpful oc / kubectl commands</a></li></ul></li><li data-nav-id=/day-2/ title="OpenShift Day-2" class="dd-item
+parent"><a href=/day-2/>OpenShift Day-2</a><ul><li data-nav-id=/day-2/etcd/ title=etcd class="dd-item
+parent"><a href=/day-2/etcd/>etcd</a><ul><li data-nav-id=/day-2/etcd/2021-01-29-automatedetcdbackup/ title="Automated ETCD Backup" class="dd-item active"><a href=/day-2/etcd/2021-01-29-automatedetcdbackup/>Automated ETCD Backup</a></li></ul></li><li data-nav-id=/day-2/labels_environmets/ title="Labels & Environments" class=dd-item><a href=/day-2/labels_environmets/>Labels & Environments</a><ul><li data-nav-id=/day-2/labels_environmets/2021-01-12-creatingenvironment/ title="Working with Environments" class=dd-item><a href=/day-2/labels_environmets/2021-01-12-creatingenvironment/>Working with Environments</a></li></ul></li><li data-nav-id=/day-2/pod-placement/ title="Pod Placement" class=dd-item><a href=/day-2/pod-placement/>Pod Placement</a><ul><li data-nav-id=/day-2/pod-placement/2021-08-26-podplacement-intro/ title=Introduction class=dd-item><a href=/day-2/pod-placement/2021-08-26-podplacement-intro/>Introduction</a></li><li data-nav-id=/day-2/pod-placement/2021-08-29-node-affinity/ title="Node Affinity" class=dd-item><a href=/day-2/pod-placement/2021-08-29-node-affinity/>Node Affinity</a></li><li data-nav-id=/day-2/pod-placement/2021-08-27-podplacement/ title=NodeSelector class=dd-item><a href=/day-2/pod-placement/2021-08-27-podplacement/>NodeSelector</a></li><li data-nav-id=/day-2/pod-placement/2021-08-28-affinity/ title="Pod Affinity/Anti-Affinity" class=dd-item><a href=/day-2/pod-placement/2021-08-28-affinity/>Pod Affinity/Anti-Affinity</a></li><li data-nav-id=/day-2/pod-placement/2021-08-30-taints/ title="Taints and Tolerations" class=dd-item><a href=/day-2/pod-placement/2021-08-30-taints/>Taints and Tolerations</a></li><li data-nav-id=/day-2/pod-placement/2021-08-31-topologyspreadcontraints/ title="Topology Spread Constraints" class=dd-item><a href=/day-2/pod-placement/2021-08-31-topologyspreadcontraints/>Topology Spread Constraints</a></li><li data-nav-id=/day-2/pod-placement/2021-09-01-descheduler/ title="Using Descheduler" class=dd-item><a href=/day-2/pod-placement/2021-09-01-descheduler/>Using Descheduler</a></li></ul></li></ul></li><li data-nav-id=/compliance/ title=Compliance class=dd-item><a href=/compliance/>Compliance</a><ul><li data-nav-id=/compliance/2021/07/oc-compliance-command-line-plugin/ title="oc compliance command line plugin" class=dd-item><a href=/compliance/2021/07/oc-compliance-command-line-plugin/>oc compliance command line plugin</a></li><li data-nav-id=/compliance/2021/07/compliance-operator/ title="Compliance Operator" class=dd-item><a href=/compliance/2021/07/compliance-operator/>Compliance Operator</a></li></ul></li><li data-nav-id=/service-mesh/ title="Service Mesh" class=dd-item><a href=/service-mesh/>Service Mesh</a><ul><li data-nav-id=/service-mesh/2020/05/enable-automatic-route-creation/ title="Enable Automatic Route Creation" class=dd-item><a href=/service-mesh/2020/05/enable-automatic-route-creation/>Enable Automatic Route Creation</a></li><li data-nav-id=/service-mesh/2020/05/authorization-rbac/ title="Authorization (RBAC)" class=dd-item><a href=/service-mesh/2020/05/authorization-rbac/>Authorization (RBAC)</a></li><li data-nav-id=/service-mesh/2020/04/deploy-example-bookinfo-application/ title="Deploy Example Bookinfo Application" class=dd-item><a href=/service-mesh/2020/04/deploy-example-bookinfo-application/>Deploy Example Bookinfo Application</a></li><li data-nav-id=/service-mesh/2020/04/service-mesh-1.1-released/ title="Service Mesh 1.1 released" class=dd-item><a href=/service-mesh/2020/04/service-mesh-1.1-released/>Service Mesh 1.1 released</a></li><li data-nav-id=/service-mesh/2020/04/authentication-jwt/ title="Authentication JWT" class=dd-item><a href=/service-mesh/2020/04/authentication-jwt/>Authentication JWT</a></li><li data-nav-id=/service-mesh/2020/04/mutual-tls-authentication/ title="Mutual TLS Authentication" class=dd-item><a href=/service-mesh/2020/04/mutual-tls-authentication/>Mutual TLS Authentication</a></li><li data-nav-id=/service-mesh/2020/04/fault-injection/ title="Fault Injection" class=dd-item><a href=/service-mesh/2020/04/fault-injection/>Fault Injection</a></li><li data-nav-id=/service-mesh/2020/04/limit-egress/external-traffic/ title="Limit Egress/External Traffic" class=dd-item><a href=/service-mesh/2020/04/limit-egress/external-traffic/>Limit Egress/External Traffic</a></li><li data-nav-id=/service-mesh/2020/04/advanced-routing-example/ title="Advanced Routing Example" class=dd-item><a href=/service-mesh/2020/04/advanced-routing-example/>Advanced Routing Example</a></li><li data-nav-id=/service-mesh/2020/04/routing-example/ title="Routing Example" class=dd-item><a href=/service-mesh/2020/04/routing-example/>Routing Example</a></li><li data-nav-id=/service-mesh/2020/03/ingress-with-custom-domain/ title="Ingress with custom domain" class=dd-item><a href=/service-mesh/2020/03/ingress-with-custom-domain/>Ingress with custom domain</a></li><li data-nav-id=/service-mesh/2020/03/ingress-traffic/ title="Ingress Traffic" class=dd-item><a href=/service-mesh/2020/03/ingress-traffic/>Ingress Traffic</a></li><li data-nav-id=/service-mesh/2020/03/deploy-microservices/ title="Deploy Microservices" class=dd-item><a href=/service-mesh/2020/03/deploy-microservices/>Deploy Microservices</a></li><li data-nav-id=/service-mesh/2020/03/installation/ title=Installation class=dd-item><a href=/service-mesh/2020/03/installation/>Installation</a></li></ul></li><li data-nav-id=/general/ title=General class=dd-item><a href=/general/>General</a><ul><li data-nav-id=/general/2020/05/basic-usage-of-git/ title="Basic usage of git" class=dd-item><a href=/general/2020/05/basic-usage-of-git/>Basic usage of git</a></li><li data-nav-id=/general/2020/04/red-hat-satellite-cheat-sheet/ title="Red Hat Satellite Cheat Sheet" class=dd-item><a href=/general/2020/04/red-hat-satellite-cheat-sheet/>Red Hat Satellite Cheat Sheet</a></li></ul></li><li data-nav-id=/ansible/ title=Ansible class=dd-item><a href=/ansible/>Ansible</a><ul><li data-nav-id=/ansible/2021/11/ansible-style-guide/ title="Ansible Style Guide" class=dd-item><a href=/ansible/2021/11/ansible-style-guide/>Ansible Style Guide</a></li><li data-nav-id=/ansible/2021/10/automation-controller-and-ldap-authentication/ title="Automation Controller and LDAP Authentication" class=dd-item><a href=/ansible/2021/10/automation-controller-and-ldap-authentication/>Automation Controller and LDAP Authentication</a></li><li data-nav-id=/ansible/2021/07/ansible-tower-and-downloading-collections/ title="Ansible Tower and downloading collections" class=dd-item><a href=/ansible/2021/07/ansible-tower-and-downloading-collections/>Ansible Tower and downloading collections</a></li><li data-nav-id=/ansible/2020/04/ansible-azure-resource-manager-example/ title="Ansible - Azure Resource Manager Example" class=dd-item><a href=/ansible/2020/04/ansible-azure-resource-manager-example/>Ansible - Azure Resource Manager Example</a></li><li data-nav-id=/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/ title="DO410 Ansible and Ansible Tower training notes" class=dd-item><a href=/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/>DO410 Ansible and Ansible Tower training notes</a></li></ul></li><li data-nav-id=/acs/ title="Advanced Cluster Security" class=dd-item><a href=/acs/>Advanced Cluster Security</a><ul><li data-nav-id=/acs/2021-12-11-acsauth/ title="Advanced Cluster Security - Authentication" class=dd-item><a href=/acs/2021-12-11-acsauth/>Advanced Cluster Security - Authentication</a></li></ul></li><li data-nav-id=/azure/ title=Azure class=dd-item><a href=/azure/>Azure</a><ul><li data-nav-id=/azure/2021-10-29-private-aro/ title="Stumbling into Azure Part II: Setting up a private ARO cluster" class=dd-item><a href=/azure/2021-10-29-private-aro/>Stumbling into Azure Part II: Setting up a private ARO cluster</a></li><li data-nav-id=/azure/2021-10-17-s2s-vpn/ title="Stumbling into Azure Part I: Building a site-to-site VPN tunnel for testing" class=dd-item><a href=/azure/2021-10-17-s2s-vpn/>Stumbling into Azure Part I: Building a site-to-site VPN tunnel for testing</a></li></ul></li><li data-nav-id=/java/ title=Java class=dd-item><a href=/java/>Java</a><ul><li data-nav-id=/java/2022-02-25-jpa-disconnected-entity/ title="Adventures in Java Land: JPA disconnected entities" class=dd-item><a href=/java/2022-02-25-jpa-disconnected-entity/>Adventures in Java Land: JPA disconnected entities</a></li></ul></li><li data-nav-id=/quay/ title=Quay class=dd-item><a href=/quay/>Quay</a><ul><li data-nav-id=/quay/2021-09-07-quay-upgrade-3.4/ title="Stumbling into Quay: Upgrading from 3.3 to 3.4 with the quay-operator" class=dd-item><a href=/quay/2021-09-07-quay-upgrade-3.4/>Stumbling into Quay: Upgrading from 3.3 to 3.4 with the quay-operator</a></li><li data-nav-id=/quay/2020-05-13-quay-tutorial1/ title="Red Hat Quay Registry - Overview and Installation" class=dd-item><a href=/quay/2020-05-13-quay-tutorial1/>Red Hat Quay Registry - Overview and Installation</a></li></ul></li><li data-nav-id=/archive/ title=Archive class=dd-item><a href=/archive/>Archive</a></li><li data-nav-id=/legaldisclosure/ title="Legal Disclosure" class=dd-item><a href=/legaldisclosure/>Legal Disclosure</a></li><li data-nav-id=/rss/ title="RSS Feeds" class=dd-item><a href=/rss/>RSS Feeds</a></li></ul><section id=shortcuts><h3 class=shortcut-title>More</h3><ul><li><a class=padding href=https://blog.stderr.at/tags><i class='fas fa-tags'></i> Tags</a></li><li><a class=padding href=https://blog.stderr.at/categories><i class='far fa-bookmark'></i> Catagories</a></li><li><a class=padding href=https://charts.stderr.at/><i class='fas fa-book'></i> Helm Charts</a></li><li><a class=padding href=https://www.redhat.com><i class='fab fa-redhat'></i> Red Hat</a></li></ul></section><section id=footer></section></div></nav><section id=body><div id=overlay></div><aside id=toc-field class="hidden lg:block tableOfContentContainer"><header id=TableOfContentsHeader>What's on this Page</header><nav id=TableOfContents><ul><li><a href=#_prerequisites>Prerequisites</a></li><li><a href=#_configure_project_cronjob>Configure Project & Cronjob</a></li><li><a href=#_start_a_job>Start a Job</a></li><li><a href=#_verifying_the_backup>Verifying the Backup</a></li></ul></nav><div id=navigation><a class=nav-prev href=/day-2/etcd/ title=etcd><i class="fa fa-chevron-left"></i></a>
+<a class=nav-next href=/day-2/labels_environmets/ title="Labels & Environments" style=margin-right:0><i class="fa fa-chevron-right"></i></a></div></aside><div class="padding highlightable"><div><div id=top-bar><div id=breadcrumbs itemscope itemtype=http://schema.org/BreadcrumbList><span id=sidebar-toggle-span><a href=# id=sidebar-toggle data-sidebar-toggle><i class="fas fa-bars"></i></a></span>
+<span id=toc-menu><i class="fas fa-list-alt"></i></span>
+<span class=links><span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/><span itemprop=name>YAUB Yet Another Useless Blog</span><meta itemprop=position content="1"></a></span>> <span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/day-2/><span itemprop=name>OpenShift Day-2</span><meta itemprop=position content="2"></a></span>> <span itemscope itemprop=itemListElement itemtype=http://schema.org/ListItem><a itemprop=item href=/day-2/etcd/><span itemprop=name>etcd</span><meta itemprop=position content="3"></a></span>> Automated ETCD Backup</span></div><div class=progress><div class=wrapper><nav id=TableOfContents><ul><li><a href=#_prerequisites>Prerequisites</a></li><li><a href=#_configure_project_cronjob>Configure Project & Cronjob</a></li><li><a href=#_start_a_job>Start a Job</a></li><li><a href=#_verifying_the_backup>Verifying the Backup</a></li></ul></nav></div></div></div></div><div id=head-tags><div class=tags><a class=tag-link href=/tags/ocp>OCP</a>
+<a class=tag-link href=/tags/day-2>Day-2</a>
+<a class=tag-link href=/tags/openshift>OpenShift</a>
+<a class=tag-link href=/tags/etcd>etcd</a></div></div><div id=body-inner><h1>Automated ETCD Backup</h1><p class=tracked><time class="f6 mv4 dib tracked" datetime=2021-01-29T00:00:00Z><strong>January 29, 2021</strong></time>
+- By:
+Thomas Jungbauer
+( Lastmod: 2022-09-21 )</p><div class=paragraph><p>Securing ETCD is one of the major Day-2 tasks for a Kubernetes cluster. This article will explain how to create a backup using OpenShift Cronjob.</p></div><div class="admonitionblock caution"><table><tbody><tr><td class=icon><i class="fa icon-caution" title=Caution></i></td><td class=content>There is absolutely no warranty. Verify your backups regularly and perform restore tests.</td></tr></tbody></table></div><div class=sect1><h2 id=_prerequisites>Prerequisites</h2><div class=sectionbody><div class=paragraph><p>The following is required:</p></div><div class=ulist><ul><li><p>OpenShift Cluster 4.x</p></li><li><p>Integrated Storage, might be NFS or anything. Best practice would be a RWX enabled storage.</p></li></ul></div></div></div><div class=sect1><h2 id=_configure_project_cronjob>Configure Project & Cronjob</h2><div class=sectionbody><div class=paragraph><p>Create the following objects in OpenShift. This fill create:</p></div><div class="olist arabic"><ol class=arabic><li><p>A Project called <code>ocp-etcd-backup</code></p></li><li><p>A PersistentVolumeClaim to store the backups. <strong>Change to your appropriate StorageClass and accessMode</strong></p></li><li><p>A ServiceAccount called <code>openshift-backup</code></p></li><li><p>A dedicated ClusterRole which is able to start (debug pods)</p></li><li><p>A ClusterRoleBinding between the created ServiceAccount and the customer ClusterRole</p></li><li><p>A 2nd ClusterRoleBinding, which gives our ServiceAccount the permission to start privileged containers. This is required to start a debug pod on a control plane node.</p></li><li><p>A CronJob which performs the backup …​ see Callouts for inline explanations.</p></li></ol></div><div class="admonitionblock note"><table><tbody><tr><td class=icon><i class="fa icon-note" title=Note></i></td><td class=content>A helm chart, which would create these objects below, can be found at: <a href=https://github.com/tjungbauer/ocp-auto-backup class=bare>https://github.com/tjungbauer/ocp-auto-backup</a>. This is probably a better way to manage the variables via the values.yaml file.</td></tr></tbody></table></div><div class=listingblock><div class=content><pre class=highlight><code class=language-yaml data-lang=yaml>kind: Namespace
+apiVersion: v1
+metadata:
+  name: ocp-etcd-backup
+  annotations:
+    openshift.io/description: Openshift Backup Automation Tool
+    openshift.io/display-name: Backup ETCD Automation
+    openshift.io/node-selector: &#39;&#39;
+spec: {}
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: etcd-backup-pvc
+  namespace: ocp-etcd-backup
+spec:
+  accessModes:
+    - ReadWriteOnce <i class=conum data-value=1></i><b>(1)</b>
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: gp2
+  volumeMode: Filesystem
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: openshift-backup
+  namespace: ocp-etcd-backup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-etcd-backup
+rules:
+- apiGroups: [&#34;&#34;]
+  resources:
+     - &#34;nodes&#34;
+  verbs: [&#34;get&#34;, &#34;list&#34;]
+- apiGroups: [&#34;&#34;]
+  resources:
+     - &#34;pods&#34;
+     - &#34;pods/log&#34;
+  verbs: [&#34;get&#34;, &#34;list&#34;, &#34;create&#34;, &#34;delete&#34;, &#34;watch&#34;]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: openshift-backup
+subjects:
+  - kind: ServiceAccount
+    name: openshift-backup
+    namespace: ocp-etcd-backup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-etcd-backup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: etcd-backup-scc-privileged
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:privileged
+subjects:
+- kind: ServiceAccount
+  name: openshift-backup
+  namespace: ocp-etcd-backup
+---
+kind: CronJob
+apiVersion: batch/v1
+metadata:
+  name: cronjob-etcd-backup
+  namespace: ocp-etcd-backup
+  labels:
+    purpose: etcd-backup
+spec:
+  schedule: &#39;*/5 * * * *&#39; <i class=conum data-value=2></i><b>(2)</b>
+  startingDeadlineSeconds: 200
+  concurrencyPolicy: Forbid
+  suspend: false
+  jobTemplate:
+    metadata:
+      creationTimestamp: null
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          creationTimestamp: null
+        spec:
+          nodeSelector:
+            node-role.kubernetes.io/master: &#39;&#39; <i class=conum data-value=3></i><b>(3)</b>
+          restartPolicy: Never
+          activeDeadlineSeconds: 200
+          serviceAccountName: openshift-backup
+          schedulerName: default-scheduler
+          hostNetwork: true
+          terminationGracePeriodSeconds: 30
+          securityContext: {}
+          containers:
+            - resources:
+                requests:
+                  cpu: 300m
+                  memory: 250Mi
+              terminationMessagePath: /dev/termination-log
+              name: etcd-backup
+              command: <i class=conum data-value=4></i><b>(4)</b>
+                - /bin/bash
+                - &#39;-c&#39;
+                - &gt;-
+                  oc get no -l node-role.kubernetes.io/master --no-headers -o
+                  name | grep `hostname` | head -n 1 | xargs -I {} -- oc debug
+                  {} -- bash -c &#39;chroot /host sudo -E
+                  /usr/local/bin/cluster-backup.sh /home/core/backup&#39; ; echo
+                  &#39;Moving Local Master Backups to target directory (from
+                  /home/core/backup to mounted PVC)&#39;; mv /home/core/backup/*
+                  /etcd-backup/; echo &#39;Deleting files older than 30 days&#39; ; find
+                  /etcd-backup/ -type f  -mtime +30 -exec rm {} \;
+              securityContext:
+                privileged: true
+                runAsUser: 0
+              imagePullPolicy: IfNotPresent
+              volumeMounts:
+                - name: temp-backup
+                  mountPath: /home/core/backup <i class=conum data-value=5></i><b>(5)</b>
+                - name: etcd-backup
+                  mountPath: /etcd-backup <i class=conum data-value=6></i><b>(6)</b>
+              terminationMessagePolicy: FallbackToLogsOnError
+              image: registry.redhat.io/openshift4/ose-cli
+          serviceAccount: openshift-backup
+          volumes:
+            - name: temp-backup
+              hostPath:
+                path: /home/core/backup
+                type: &#39;&#39;
+            - name: etcd-backup
+              persistentVolumeClaim:
+                claimName: etcd-backup-pvc
+          dnsPolicy: ClusterFirst
+          tolerations:
+            - operator: Exists
+              effect: NoSchedule
+            - operator: Exists
+              effect: NoExecute
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5</code></pre></div></div><div class="colist arabic"><table><tbody><tr><td><i class=conum data-value=1></i><b>1</b></td><td>RWO is used here, since I have no other available storage on my test cluster.</td></tr><tr><td><i class=conum data-value=2></i><b>2</b></td><td>How often shall the job be executed. Here, every 5 minutes.</td></tr><tr><td><i class=conum data-value=3></i><b>3</b></td><td>Bind the job to "Master" nodes.</td></tr><tr><td><i class=conum data-value=4></i><b>4</b></td><td>Command to be executed…​ It fetches the actual local master nodename and starts a debugging Pod there. The backup script is called and moves the backup to /home/core/backup which is a folder on the control plane itself. The move command will move the backups from the local folder to the actual backup target volume. Finally, it will remove backups older than 30 days.</td></tr><tr><td><i class=conum data-value=5></i><b>5</b></td><td>Mounted /home/core/backup on the master nodes, here the command will store the backups before they are moved</td></tr><tr><td><i class=conum data-value=6></i><b>6</b></td><td>Target destination for the etcd backup on the mounted PVC</td></tr></tbody></table></div></div></div><div class=sect1><h2 id=_start_a_job>Start a Job</h2><div class=sectionbody><div class=paragraph><p>If you do not want to wait until the CronJob is triggered, you can manually start the Job using the following commands:</p></div><div class=listingblock><div class=content><pre class=highlight><code class=language-bash data-lang=bash>oc create job backup --from=cronjob/cronjob-etcd-backup -n ocp-etcd-backup</code></pre></div></div><div class=paragraph><p>This will start a Pod which will do the backup:</p></div><div class=listingblock><div class=content><pre class=highlight><code>Starting pod/ip-10-0-196-187us-east-2computeinternal-debug ...
+To use host binaries, run `chroot /host`
+found latest kube-apiserver: /etc/kubernetes/static-pod-resources/kube-apiserver-pod-15
+found latest kube-controller-manager: /etc/kubernetes/static-pod-resources/kube-controller-manager-pod-10
+found latest kube-scheduler: /etc/kubernetes/static-pod-resources/kube-scheduler-pod-9
+found latest etcd: /etc/kubernetes/static-pod-resources/etcd-pod-3
+etcdctl is already installed
+{&#34;level&#34;:&#34;info&#34;,&#34;ts&#34;:1638199790.980932,&#34;caller&#34;:&#34;snapshot/v3_snapshot.go:119&#34;,&#34;msg&#34;:&#34;created temporary db file&#34;,&#34;path&#34;:&#34;/home/core/backup/snapshot_2021-11-29_152949.db.part&#34;}
+{&#34;level&#34;:&#34;info&#34;,&#34;ts&#34;:&#34;2021-11-29T15:29:50.991Z&#34;,&#34;caller&#34;:&#34;clientv3/maintenance.go:200&#34;,&#34;msg&#34;:&#34;opened snapshot stream; downloading&#34;}
+{&#34;level&#34;:&#34;info&#34;,&#34;ts&#34;:1638199790.9912837,&#34;caller&#34;:&#34;snapshot/v3_snapshot.go:127&#34;,&#34;msg&#34;:&#34;fetching snapshot&#34;,&#34;endpoint&#34;:&#34;https://10.0.196.187:2379&#34;}
+{&#34;level&#34;:&#34;info&#34;,&#34;ts&#34;:&#34;2021-11-29T15:29:53.306Z&#34;,&#34;caller&#34;:&#34;clientv3/maintenance.go:208&#34;,&#34;msg&#34;:&#34;completed snapshot read; closing&#34;}
+Snapshot saved at /home/core/backup/snapshot_2021-11-29_152949.db
+{&#34;level&#34;:&#34;info&#34;,&#34;ts&#34;:1638199793.3482974,&#34;caller&#34;:&#34;snapshot/v3_snapshot.go:142&#34;,&#34;msg&#34;:&#34;fetched snapshot&#34;,&#34;endpoint&#34;:&#34;https://10.0.196.187:2379&#34;,&#34;size&#34;:&#34;180 MB&#34;,&#34;took&#34;:2.367303503}
+{&#34;level&#34;:&#34;info&#34;,&#34;ts&#34;:1638199793.348459,&#34;caller&#34;:&#34;snapshot/v3_snapshot.go:152&#34;,&#34;msg&#34;:&#34;saved&#34;,&#34;path&#34;:&#34;/home/core/backup/snapshot_2021-11-29_152949.db&#34;}
+{&#34;hash&#34;:1180914745,&#34;revision&#34;:10182252,&#34;totalKey&#34;:19360,&#34;totalSize&#34;:179896320}
+snapshot db and kube resources are successfully saved to /home/core/backup
+
+Removing debug pod ...
+Moving Local Master Backups to target directory (from /home/core/backup to mounted PVC)</code></pre></div></div></div></div><div class=sect1><h2 id=_verifying_the_backup>Verifying the Backup</h2><div class=sectionbody><div class=paragraph><p>Let’s start a dummy Pod which can access the PVC to verify if the backup is really there.</p></div><div class=listingblock><div class=content><pre class=highlight><code class=language-yaml data-lang=yaml>apiVersion: v1
+kind: Pod
+metadata:
+  name: verify-etcd-backup
+spec:
+  containers:
+  - name: verify-etcd-backup
+    image: registry.access.redhat.com/ubi8/ubi
+    command: [&#34;sleep&#34;, &#34;3000&#34;]
+    volumeMounts:
+    - name: etcd-backup
+      mountPath: /etcd-backup
+  volumes:
+  - name: etcd-backup
+    persistentVolumeClaim:
+      claimName: etcd-backup-pvc</code></pre></div></div><div class=paragraph><p>Logging into that Pod will show the available backups stored at /etcd-backup which is the mounted PVC.</p></div><div class=listingblock><div class=content><pre class=highlight><code class=language-bash data-lang=bash>oc rsh -n ocp-etcd-backup verify-etcd-backup ls -la etcd-backup
+total 1406196
+drwxr-xr-x. 3 root root      4096 Nov 29 17:00 .
+dr-xr-xr-x. 1 root root        25 Nov 29 17:06 ..
+drwx------. 2 root root     16384 Nov 29 15:21 lost+found
+-rw-------. 1 root root 179896352 Nov 29 15:21 snapshot_2021-11-29_152150.db
+-rw-------. 1 root root 179896352 Nov 29 15:29 snapshot_2021-11-29_152949.db
+-rw-------. 1 root root 179896352 Nov 29 15:32 snapshot_2021-11-29_153159.db
+-rw-------. 1 root root 179896352 Nov 29 15:36 snapshot_2021-11-29_153618.db
+-rw-------. 1 root root 179896352 Nov 29 15:55 snapshot_2021-11-29_155513.db
+-rw-------. 1 root root 179896352 Nov 29 16:00 snapshot_2021-11-29_160020.db
+-rw-------. 1 root root 179896352 Nov 29 16:55 snapshot_2021-11-29_165521.db
+-rw-------. 1 root root 179896352 Nov 29 17:00 snapshot_2021-11-29_170020.db
+-rw-------. 1 root root     89875 Nov 29 15:21 static_kuberesources_2021-11-29_152150.tar.gz
+-rw-------. 1 root root     89875 Nov 29 15:29 static_kuberesources_2021-11-29_152949.tar.gz
+-rw-------. 1 root root     89875 Nov 29 15:32 static_kuberesources_2021-11-29_153159.tar.gz
+-rw-------. 1 root root     89875 Nov 29 15:36 static_kuberesources_2021-11-29_153618.tar.gz
+-rw-------. 1 root root     89875 Nov 29 15:55 static_kuberesources_2021-11-29_155513.tar.gz
+-rw-------. 1 root root     89875 Nov 29 16:00 static_kuberesources_2021-11-29_160020.tar.gz
+-rw-------. 1 root root     89875 Nov 29 16:55 static_kuberesources_2021-11-29_165521.tar.gz
+-rw-------. 1 root root     89875 Nov 29 17:00 static_kuberesources_2021-11-29_170020.tar.gz</code></pre></div></div></div></div><footer class=footline></footer></div></div><div id=navigation-bottom><a class="nav-prev btn btn-default" href=/day-2/etcd/ title=etcd><i class="fa fa-chevron-left btn-bottom-prev"></i><span class=btn-bottom-text>Previous:</span> etcd</a>
+<a class="nav-next btn btn-default" href=/day-2/labels_environmets/ title="Labels & Environments" style=margin-right:0><i class="fa fa-chevron-right btn-bottom-next"></i><span class=btn-bottom-text>Next:</span> Labels & Environments</a></div><div class=copyright><p>Copyright &copy; 2020 - 2022 Toni Schmidbauer & Thomas Jungbauer</p><p>Built with <a href=https://github.com/matcornic/hugo-theme-learn target=_blank rel="noopener noreferrer">Hugo Learn Theme</i></a> and <a href=https://gohugo.io/ target=_blank rel="noopener noreferrer">Hugo</a></p></div></section><div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px><div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div></div><script src=/js/clipboard.min.js?1663771121></script>
+<script src=/js/perfect-scrollbar.min.js?1663771121></script>
+<script src=/js/perfect-scrollbar.jquery.min.js?1663771121></script>
+<script src=/js/jquery.sticky.js?1663771121></script>
+<script src=/js/featherlight.min.js?1663771121></script>
+<script src=/js/highlight.pack.js?1663771121></script>
+<script>hljs.initHighlightingOnLoad()</script><script src=/js/modernizr.custom-3.6.0.js?1663771121></script>
+<script src=/js/learn.js?1663771121></script>
+<script src=/js/hugo-learn.js?1663771121></script>
+<script src=/js/yaub.js?1663771121></script>
+<script>window.addEventListener("DOMContentLoaded",()=>{const e=new IntersectionObserver(e=>{e.forEach(e=>{const t=e.target.getAttribute("id");e.intersectionRatio>0&&(clearActiveStatesInTableOfContents(),document.querySelector(`aside nav li a[href="#${t}"]`).parentElement.classList.add("active"))})});document.querySelectorAll("h1[id],h2[id],h3[id],h4[id]").forEach(t=>{e.observe(t)})});function clearActiveStatesInTableOfContents(){document.querySelectorAll("aside nav li").forEach(e=>{e.classList.remove("active")})}</script><script type=text/javascript>function scrollTopAnimated(){$("html, body").animate({scrollTop:"0"},500)}</script><script>function topFunction(){document.body.scrollTop=0,document.documentElement.scrollTop=0}$(".summary-box").click(function(){return window.location=$(this).find("a").attr("href"),!1})</script><script>const btn=document.querySelector(".btn-toggle"),prefersDarkScheme=window.matchMedia("(prefers-color-scheme: dark)"),currentTheme=localStorage.getItem("theme");currentTheme=="dark"?document.body.classList.toggle("dark-theme"):currentTheme=="light"&&document.body.classList.toggle("light-theme"),btn.addEventListener("click",function(){if(prefersDarkScheme.matches){document.body.classList.toggle("light-theme");var e=document.body.classList.contains("light-theme")?"light":"dark"}else document.body.classList.toggle("dark-theme"),e=document.body.classList.contains("dark-theme")?"dark":"light";localStorage.setItem("theme",e)})</script></body></html>
