@@ -5,7 +5,7 @@
 }); */
 
 // add animated scrollbar when hovering anchors in the TOC
-$('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next)').addClass('highlight');
+$('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-highlight)').addClass('highlight');
 
 // triggers back to top button
 (function($) {
@@ -13,7 +13,7 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next)').addClas
   document.documentElement.className = "js";
   // Run on page scroll.
   $(window).scroll( function() {
-  
+
   // Toggle header class after threshold point.
     if ( $(this).scrollTop() > 100 ) {
       $(".top-btn").addClass('sticky');
