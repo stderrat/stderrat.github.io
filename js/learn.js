@@ -238,7 +238,7 @@ jQuery(document).ready(function() {
                     text: function(trigger) {
                         text = $(trigger).prev('code').text();
 
-                        // Removing callouts, like (1) from the code 
+                        // Removing callouts, like (1) from the code
                         text = text.replace(/\([\d]\)/g," ");
 
                         // Remove leading # if they exist.
@@ -304,8 +304,8 @@ jQuery(document).ready(function() {
       }
     });
 
-    $('#top-bar a:not(:has(img)):not(.btn)').addClass('highlight');
-    $('#body-inner a:not(:has(img)):not(.btn):not(a[rel="footnote"])').addClass('highlight');
+    $('#top-bar a:not(:has(img)):not(.btn):not(.no-highlight)').addClass('highlight');
+    $('#body-inner a:not(:has(img)):not(.btn):not(a[rel="footnote"]):not(.no-highlight)').addClass('highlight');
 
     var touchsupport = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)
     if (!touchsupport){ // browser doesn't support touch
