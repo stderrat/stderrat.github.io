@@ -159,6 +159,15 @@ jQuery(document).ready(function() {
 
         return false;
     });
+
+    jQuery('[data-topbar-toggle]').on('click', function() {
+        jQuery(document.body).toggleClass('topbar-hidden');
+        sidebarStatus = (jQuery(document.body).hasClass('topbar-hidden') ? 'closed' : 'open');
+
+        return false;
+    });
+
+
     jQuery('[data-clear-history-toggle]').on('click', function() {
         sessionStorage.clear();
         location.reload();
