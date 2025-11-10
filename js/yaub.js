@@ -53,4 +53,28 @@ jQuery(document).ready(function() {
     var content = $(element).html().replace(/&amp;/g, '&');
     $(element).parent().replaceWith('<div class="mermaid" align="center">' + content + '</div>');
   });
+
+  // Sidebar toggle functionality
+  $('#sidebar-toggle').on('click', function() {
+    var sidebar = $('#sidebar');
+    var body = $('#body');
+    
+    if (sidebar.hasClass('collapsed')) {
+      // Expand sidebar
+      sidebar.removeClass('collapsed');
+      body.removeClass('sidebar-collapsed');
+      localStorage.setItem('sidebarCollapsed', 'false');
+    } else {
+      // Collapse sidebar
+      sidebar.addClass('collapsed');
+      body.addClass('sidebar-collapsed');
+      localStorage.setItem('sidebarCollapsed', 'true');
+    }
+  });
+
+  // Restore sidebar state from localStorage
+  if (localStorage.getItem('sidebarCollapsed') === 'true') {
+    $('#sidebar').addClass('collapsed');
+    $('#body').addClass('sidebar-collapsed');
+  }
 });
