@@ -1,4 +1,23 @@
 
+var theme = true;
+var isPrint = document.querySelector('body').classList.contains('print');
+var isPrintPreview = false;
+
+var isRtl = document.querySelector('html').getAttribute('dir') == 'rtl';
+var lang = document.querySelector('html').getAttribute('lang');
+var dir_padding_start = 'padding-left';
+var dir_padding_end = 'padding-right';
+var dir_key_start = 37;
+var dir_key_end = 39;
+var dir_scroll = 1;
+if (isRtl) {
+  dir_padding_start = 'padding-right';
+  dir_padding_end = 'padding-left';
+  dir_key_start = 39;
+  dir_key_end = 37;
+  dir_scroll = -1;
+}
+
 // Stick the TOC to the top of the screen when scrolling
 /* $(document).ready(function(){
   $("#toc-field").sticky({position: sticky, rightSpacing: 0, topSpacing:0, zIndex: 1000});
@@ -49,10 +68,25 @@ jQuery(document).ready(function() {
       e.clearSelection();
       $(e.trigger).attr('aria-label', 'Link copied to clipboard!').addClass('tooltipped tooltipped-s');
   });
+  // Convert code blocks to mermaid pre elements (for initMermaid to process)
   $('code.language-mermaid').each(function(index, element) {
-    var content = $(element).html().replace(/&amp;/g, '&');
-    $(element).parent().replaceWith('<div class="mermaid" align="center">' + content + '</div>');
+    var content = $(element).text(); // Use .text() to get decoded content
+    // Create a pre element with the mermaid content (not div!)
+    var preElement = $('<pre class="mermaid actionbar-wrapper zoomable" align="center"></pre>').text(content);
+    $(element).parent().replaceWith(preElement);
   });
+  
+  // Let initMermaid process all mermaid elements (from shortcodes and code blocks)
+  if (typeof initMermaid === 'function' && window.relearn && window.relearn.themeUseMermaid) {
+    setTimeout(function() {
+      try {
+        // initMermaid will parse YAML, set up structure, and call mermaid.run()
+        initMermaid(false, { theme: 'default' });
+      } catch (e) {
+        console.error('Mermaid initialization error:', e);
+      }
+    }, 100);
+  }
 
   // Sidebar toggle functionality
   $('#sidebar-toggle').on('click', function() {
@@ -78,3 +112,221 @@ jQuery(document).ready(function() {
     $('#body').addClass('sidebar-collapsed');
   }
 });
+
+function initMermaid(update, attrs) {
+  if (!window.relearn.themeUseMermaid) {
+    return;
+  }
+  var doBeside = true;
+  var isImageRtl = isRtl;
+
+  // we are either in update or initialization mode;
+  // during initialization, we want to edit the DOM;
+  // during update we only want to execute if something changed
+  var decodeHTML = function (html) {
+    var txt = document.createElement('textarea');
+    txt.innerHTML = html;
+    return txt.value;
+  };
+  var encodeHTML = function (text) {
+    var html = document.createElement('textarea');
+    html.textContent = text;
+    return html.innerHTML;
+  };
+
+  var parseGraph = function (graph) {
+    // See https://github.com/mermaid-js/mermaid/blob/9a080bb975b03b2b1d4ef6b7927d09e6b6b62760/packages/mermaid/src/diagram-api/frontmatter.ts#L10
+    // for reference on the regex originally taken from jekyll
+    var YAML = 1;
+    var INIT = 2;
+    var GRAPH = 3;
+    var d = /^(?:\s*[\n\r])*(?:-{3}(\s*[\n\r](?:.*?)[\n\r])-{3}(?:\s*[\n\r]+)+)?(?:\s*(?:%%\s*\{\s*\w+\s*:([^%]*?)%%\s*[\n\r]?))?(.*)$/s;
+    var m = d.exec(graph);
+    var yaml = {};
+    var dir = {};
+    var content = graph;
+    if (m && m.length == 4) {
+      yaml = m[YAML] ? jsyaml.load(m[YAML]) : yaml;
+      dir = m[INIT] ? JSON.parse('{ "init": ' + m[INIT]).init : dir;
+      content = m[GRAPH] ? m[GRAPH] : content;
+    }
+    var ret = { yaml: yaml, dir: dir, content: content.trim() };
+    return ret;
+  };
+
+  var serializeGraph = function (graph) {
+    var yamlPart = '';
+    if (Object.keys(graph.yaml).length) {
+      yamlPart = '---\n' + jsyaml.dump(graph.yaml) + '---\n';
+    }
+    var dirPart = '';
+    if (Object.keys(graph.dir).length) {
+      dirPart = '%%{init: ' + JSON.stringify(graph.dir) + '}%%\n';
+    }
+    return yamlPart + dirPart + graph.content;
+  };
+
+  var init_func = function (attrs) {
+    var is_initialized = false;
+    var theme = attrs.theme;
+    document.querySelectorAll('.mermaid').forEach(function (element) {
+      var parse = parseGraph(decodeHTML(element.innerHTML));
+
+      if (parse.yaml.theme) {
+        parse.yaml.relearn_user_theme = true;
+      }
+      if (parse.dir.theme) {
+        parse.dir.relearn_user_theme = true;
+      }
+      if (!parse.yaml.relearn_user_theme && !parse.dir.relearn_user_theme) {
+        parse.yaml.theme = theme;
+      }
+      is_initialized = true;
+
+      var graph = encodeHTML(serializeGraph(parse));
+      var new_element = document.createElement('div');
+      var hasActionbarWrapper = element.classList.contains('actionbar-wrapper');
+      Array.from(element.attributes).forEach(function (attr) {
+        new_element.setAttribute(attr.name, attr.value);
+        element.removeAttribute(attr.name);
+      });
+      new_element.classList.add('mermaid-container');
+      new_element.classList.remove('mermaid');
+      new_element.classList.remove('actionbar-wrapper');
+      element.classList.add('mermaid');
+      if (hasActionbarWrapper) {
+        element.classList.add('actionbar-wrapper');
+      }
+
+      element.innerHTML = graph;
+      if (element.offsetParent !== null) {
+        element.classList.add('mermaid-render');
+      }
+      new_element.innerHTML = '<div class="mermaid-code">' + graph + '</div>' + element.outerHTML;
+      element.parentNode.replaceChild(new_element, element);
+    });
+    return is_initialized;
+  };
+
+  var update_func = function (attrs) {
+    var is_initialized = false;
+    var theme = attrs.theme;
+    document.querySelectorAll('.mermaid-container').forEach(function (e) {
+      var element = e.querySelector('.mermaid');
+      var code = e.querySelector('.mermaid-code');
+      var parse = parseGraph(decodeHTML(code.innerHTML));
+
+      if (element.classList.contains('mermaid-render')) {
+        if (parse.yaml.relearn_user_theme || parse.dir.relearn_user_theme) {
+          return;
+        }
+        if (parse.yaml.theme == theme || parse.dir.theme == theme) {
+          return;
+        }
+      }
+      if (element.offsetParent !== null) {
+        element.classList.add('mermaid-render');
+      } else {
+        element.classList.remove('mermaid-render');
+        return;
+      }
+      is_initialized = true;
+
+      parse.yaml.theme = theme;
+      var graph = encodeHTML(serializeGraph(parse));
+      element.removeAttribute('data-processed');
+      element.innerHTML = graph;
+      code.innerHTML = graph;
+    });
+    return is_initialized;
+  };
+
+  var state = this;
+  if (update && !state.is_initialized) {
+    return;
+  }
+  if (typeof mermaid == 'undefined' || typeof mermaid.mermaidAPI == 'undefined') {
+    return;
+  }
+
+  if (!state.is_initialized) {
+    state.is_initialized = true;
+    window.addEventListener(
+      'beforeprint',
+      function () {
+        isPrintPreview = true;
+        initMermaid(true, {
+          theme: getColorValue('PRINT-MERMAID-theme'),
+        });
+      }.bind(this)
+    );
+    window.addEventListener(
+      'afterprint',
+      function () {
+        isPrintPreview = false;
+        initMermaid(true);
+      }.bind(this)
+    );
+  }
+
+  attrs = attrs || {
+    theme: getColorValue('MERMAID-theme'),
+  };
+
+  if (update) {
+    unmark();
+  }
+
+  var is_initialized = update ? update_func(attrs) : init_func(attrs);
+  if (is_initialized) {
+    mermaid.initialize(Object.assign({ securityLevel: 'antiscript', startOnLoad: false }, window.relearn.mermaidConfig, { theme: attrs.theme }));
+    mermaid.run({
+      postRenderCallback: function (id) {
+        // zoom for Mermaid
+        // https://github.com/mermaid-js/mermaid/issues/1860#issuecomment-1345440607
+        var svgs = d3.selectAll('body:not(.print) .mermaid-container.zoomable > .mermaid > #' + id);
+        svgs.each(function () {
+          var parent = this.parentElement;
+          // we need to copy the maxWidth, otherwise our reset button will not align in the upper right
+          parent.style.maxWidth = this.style.maxWidth || this.getAttribute('width');
+          // if no unit is given for the width
+          parent.style.maxWidth = parent.style.maxWidth || 'calc( ' + this.getAttribute('width') + 'px + 1rem )';
+          var svg = d3.select(this);
+          svg.html('<g>' + svg.html() + '</g>');
+          var inner = svg.select('*:scope > g');
+          parent.insertAdjacentHTML('beforeend', '<div class="actionbar"><span class="btn cstyle svg-reset-button action noborder notitle interactive"><button type="button" title="' + window.T_Reset_view + '"><i class="fa-fw fas fa-undo-alt"></i></button></span></div>');
+          var wrapper = parent.querySelector('.svg-reset-button');
+          var button = wrapper.querySelector('button');
+          var zoom = d3.zoom().on('zoom', function (e) {
+            inner.attr('transform', e.transform);
+            if (e.transform.k == 1 && e.transform.x == 0 && e.transform.y == 0) {
+              wrapper.classList.remove('zoomed');
+            } else {
+              wrapper.classList.add('zoomed');
+            }
+          });
+          button.addEventListener('click', function () {
+            this.blur();
+            svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity);
+            showToast(window.T_View_reset);
+          });
+          svg.call(zoom);
+        });
+        // we need to mark again once the SVGs were drawn
+        // to mark terms inside an SVG;
+        // as we can not determine when all graphs are done,
+        // we debounce the call
+        debounce(mark, 200)();
+      },
+      querySelector: '.mermaid.mermaid-render',
+      suppressErrors: true,
+    });
+  }
+  if (update) {
+    // if the page loads Mermaid but does not contain any
+    // graphs, we will not call the above debounced mark()
+    // and have to do it at least once here to redo our unmark()
+    // call from the beginning of this function
+    debounce(mark, 200)();
+  }
+}
