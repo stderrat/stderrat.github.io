@@ -1,26 +1,21 @@
 const CACHE_VERSION = 1;
 
 const BASE_CACHE_FILES = [
-    '/style.css',
-    '/script.js',
-    '/search.json',
+    '/',
     '/manifest.json',
     '/favicon.png',
+    '/css/theme-yaub-modular.css',
 ];
 
 const OFFLINE_CACHE_FILES = [
-    '/style.css',
-    '/script.js',
-    '/offline/index.html',
+    '/offline/',
 ];
 
 const NOT_FOUND_CACHE_FILES = [
-    '/style.css',
-    '/script.js',
     '/404.html',
 ];
 
-const OFFLINE_PAGE = '/offline/index.html';
+const OFFLINE_PAGE = '/offline/';
 const NOT_FOUND_PAGE = '/404.html';
 
 const CACHE_VERSIONS = {
