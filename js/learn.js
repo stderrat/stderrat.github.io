@@ -142,6 +142,31 @@ jQuery(document).ready(function() {
         return false;
     });
 
+    // Menu toggle functionality for expanding/collapsing submenus
+    // Click on links with children to toggle submenu
+    jQuery('#sidebar ul.topics li.dd-item > a.has-children').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        var $link = $(this);
+        var $li = $link.closest('li.dd-item');
+        var $submenu = $li.children('ul');
+        var $icon = $link.find('.menu-chevron');
+        
+        // Check if submenu is currently visible
+        if ($submenu.is(':visible')) {
+            // Collapse
+            $submenu.slideUp(200);
+            $icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+        } else {
+            // Expand
+            $submenu.slideDown(200);
+            $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+        }
+        
+        return false;
+    });
+
     var sidebarStatus = searchStatus = 'open';
     $('#sidebar .highlightable').perfectScrollbar();
     setMenuHeight();
