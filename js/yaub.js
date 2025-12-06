@@ -111,6 +111,19 @@ jQuery(document).ready(function() {
     $('#sidebar').addClass('collapsed');
     $('#body').addClass('sidebar-collapsed');
   }
+
+  // Menu expand/collapse functionality
+  // Initialize: expand menus that are ancestors of current page (have .parent or .active class)
+  $('#sidebar ul.topics li.dd-item.parent, #sidebar ul.topics li.dd-item.active').addClass('menu-expanded');
+
+  // Handle click on chevron to toggle menu
+  $('#sidebar ul.topics').on('click', '.menu-chevron', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    var $li = $(this).closest('li.dd-item');
+    $li.toggleClass('menu-expanded');
+  });
 });
 
 function initMermaid(update, attrs) {
