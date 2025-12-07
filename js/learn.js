@@ -288,7 +288,17 @@ jQuery(document).ready(function() {
                 clip.on('success', function(e) {
                     e.clearSelection();
                     inPre = $(e.trigger).parent().prop('tagName') == 'PRE';
-                    $(e.trigger).attr('aria-label', 'Copied to clipboard!').addClass('tooltipped tooltipped-' + (inPre ? 'w' : 's'));
+                    var $trigger = $(e.trigger);
+                    
+                    // Add visual feedback
+                    $trigger.addClass('copied');
+                    $trigger.attr('aria-label', 'Copied!').addClass('tooltipped tooltipped-' + (inPre ? 'w' : 's'));
+                    
+                    // Auto-remove success state after 2 seconds
+                    setTimeout(function() {
+                        $trigger.removeClass('copied');
+                        $trigger.attr('aria-label', null).removeClass('tooltipped tooltipped-s tooltipped-w');
+                    }, 2000);
                 });
 
                 clip.on('error', function(e) {
