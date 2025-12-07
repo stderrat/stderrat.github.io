@@ -1,9 +1,9 @@
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
 
 const BASE_CACHE_FILES = [
     '/',
     '/manifest.json',
-    '/favicon.png',
+    '/images/favicon.ico',
     '/css/theme-yaub-modular.css',
 ];
 
@@ -87,35 +87,49 @@ function getTTL(url) {
 }
 
 /**
+ * cacheFiles - Cache files individually, skipping any that fail
+ * @param {Cache} cache
+ * @param {string[]} files
+ * @returns {Promise}
+ */
+async function cacheFiles(cache, files) {
+    for (const file of files) {
+        try {
+            const response = await fetch(file);
+            if (response.ok) {
+                await cache.put(file, response);
+            } else {
+                console.warn(`SW: Failed to cache ${file} - ${response.status}`);
+            }
+        } catch (err) {
+            console.warn(`SW: Could not cache ${file}:`, err.message);
+        }
+    }
+}
+
+/**
  * installServiceWorker
  * @returns {Promise}
  */
-function installServiceWorker() {
-    return Promise.all(
-        [
-            caches.open(CACHE_VERSIONS.assets)
-                .then(
-                    (cache) => {
-                        return cache.addAll(BASE_CACHE_FILES);
-                    }
-                ),
-            caches.open(CACHE_VERSIONS.offline)
-                .then(
-                    (cache) => {
-                        return cache.addAll(OFFLINE_CACHE_FILES);
-                    }
-                ),
+async function installServiceWorker() {
+    try {
+        const [assetsCache, offlineCache, notFoundCache] = await Promise.all([
+            caches.open(CACHE_VERSIONS.assets),
+            caches.open(CACHE_VERSIONS.offline),
             caches.open(CACHE_VERSIONS.notFound)
-                .then(
-                    (cache) => {
-                        return cache.addAll(NOT_FOUND_CACHE_FILES);
-                    }
-                )
-        ]
-    )
-        .then(() => {
-            return self.skipWaiting();
-        });
+        ]);
+
+        await Promise.all([
+            cacheFiles(assetsCache, BASE_CACHE_FILES),
+            cacheFiles(offlineCache, OFFLINE_CACHE_FILES),
+            cacheFiles(notFoundCache, NOT_FOUND_CACHE_FILES)
+        ]);
+
+        return self.skipWaiting();
+    } catch (err) {
+        console.error('SW: Installation failed:', err);
+        return self.skipWaiting();
+    }
 }
 
 /**
