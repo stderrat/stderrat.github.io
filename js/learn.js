@@ -143,29 +143,10 @@ jQuery(document).ready(function() {
     });
 
     // Menu toggle functionality for expanding/collapsing submenus
-    // Click on links with children to toggle submenu
-    jQuery('#sidebar ul.topics li.dd-item > a.has-children').on('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        var $link = $(this);
-        var $li = $link.closest('li.dd-item');
-        var $submenu = $li.children('ul');
-        var $icon = $link.find('.menu-chevron');
-        
-        // Check if submenu is currently visible
-        if ($submenu.is(':visible')) {
-            // Collapse
-            $submenu.slideUp(200);
-            $icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
-        } else {
-            // Expand
-            $submenu.slideDown(200);
-            $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
-        }
-        
-        return false;
-    });
+    // Only the chevron arrow should toggle the submenu, not the entire link
+    // This allows clicking the menu title to navigate to the page
+    // while clicking the chevron toggles expand/collapse
+    // (The chevron click handler is in yaub.js)
 
     var sidebarStatus = searchStatus = 'open';
     $('#sidebar .highlightable').perfectScrollbar();

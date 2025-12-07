@@ -115,6 +115,9 @@ jQuery(document).ready(function() {
   // Menu expand/collapse functionality
   // Initialize: expand menus that are ancestors of current page (have .parent or .active class)
   $('#sidebar ul.topics li.dd-item.parent, #sidebar ul.topics li.dd-item.active').addClass('menu-expanded');
+  
+  // One-time cleanup: Remove any inline styles from old slideUp/slideDown
+  $('#sidebar ul.topics ul').removeAttr('style');
 
   // Handle click on chevron to toggle menu
   $('#sidebar ul.topics').on('click', '.menu-chevron', function(e) {
@@ -122,6 +125,8 @@ jQuery(document).ready(function() {
     e.stopPropagation();
     
     var $li = $(this).closest('li.dd-item');
+    
+    // Simply toggle the expanded class - CSS handles visibility
     $li.toggleClass('menu-expanded');
   });
 });
