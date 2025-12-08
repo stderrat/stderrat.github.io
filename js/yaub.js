@@ -28,8 +28,7 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
 
 // triggers back to top button
 (function($) {
-  // Make sure JS class is added.
-  document.documentElement.className = "js";
+  // Note: .js class is now added inline in header.html for faster rendering
   // Run on page scroll.
   $(window).scroll( function() {
 
