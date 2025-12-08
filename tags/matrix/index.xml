@@ -1,11 +1,723 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matrix on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/matrix/</link><description>Recent content in Matrix on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 02 Dec 2025 17:46:24 +0100</lastBuildDate><atom:link href="https://blog.stderr.at/tags/matrix/index.xml" rel="self" type="application/rss+xml"/><item><title>Reusable Argo CD Application Helm Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Matrix on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/matrix/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 17 Jul 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/matrix/index.xml" rel="self" type="application/rss+xml"/><item><title>Reusable Argo CD Application Helm Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph">
 &lt;p>When working with Argo CD at scale, you often find yourself creating similar Application manifests repeatedly. Each application needs the same basic structure but with different configurations for source repositories, destinations, and sync policies. Additionally, managing namespace metadata becomes tricky when you need to conditionally control whether Argo CD should manage namespace metadata based on sync options.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>In this article, I’ll walk you through a reusable Helm template that solves these challenges by providing a flexible, DRY (Don’t Repeat Yourself) approach to creating Argo CD Applications. This template is available in my public Helm Chart library and can easily be used by anyone.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_the_problem">The Problem&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Traditional Argo CD Application manifests suffer from several issues:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>&lt;strong>Repetitive Code&lt;/strong>: Each application requires similar boilerplate YAML&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Configuration Validation&lt;/strong>: Manual validation of required fields across multiple applications&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Maintenance Overhead&lt;/strong>: Changes to common patterns require updates across multiple files&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_but_i_can_do_this_manually_right">But I can do this manually, right?&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Of course, nobody prevents you from creating an Argo CD Application manifest manually or using the UI to enter the values there, but sometimes you just want to get things done faster or help your team with a consistent way to create Argo CD Applications. Often teams do not want to learn about a new tool like Argo CD and maybe you want to automate the creation by using a CI/CD pipeline.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_the_solution_a_reusable_helm_template">The Solution: A Reusable Helm Template&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>I already work with a common template library for all of my Helm Charts. The idea is to have repeatable snippets in my tpl charts and I can reuse them in all other charts. Recently, I started testing the templating of entire Kubernetes manifests.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To address the above issues, I’ve created a comprehensive Helm template that will render an Argo CD Application. But let’s start with the end result.
+Your team wants to create a new Argo CD Application. They can do this either via the UI, via the CLI, by creating the YAML file manually, or through pull request or CI/CD integration. Ultimately, the minimum required information is:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>The name of the application&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The namespace of the application&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The source repository&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The destination repository&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So something like this:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">argocd_applications:
+my-app: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+namespace: &amp;#34;openshift-gitops&amp;#34;
+source: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+repositoryURL: &amp;#34;https://github.com/argoproj/argocd-example-apps.git&amp;#34;
+targetRevision: &amp;#34;HEAD&amp;#34;
+path: &amp;#34;guestbook&amp;#34;
+destination: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+server: &amp;#34;https://kubernetes.default.svc&amp;#34; &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+namespace: &amp;#34;guestbook&amp;#34;
+my-second-app:
+....&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>This key will become the name of the Application&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The source repository, this is the repository that contains the Helm chart or the Kubernetes manifests&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The destination, that defines the cluster and namespace where the application will be deployed&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Either &lt;strong>server&lt;/strong> or &lt;strong>name&lt;/strong> must be set, but not both.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With the above values multiple applications can be created at once.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_integrating_the_template">Integrating the Template&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The values from the above example can be used to create the Application manifest.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>All the developers (or CI/CD pipelines) need to do is to define the values and create one template to include the source template.
+This will look like this:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">{{- if .Values.argocd_applications }}
+{{- range $name, $config := .Values.argocd_applications }} &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+{{- if $config.enabled | default false }} &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+---
+{{- include &amp;#34;tpl.argocdApplication&amp;#34; (dict &amp;#34;name&amp;#34; $name &amp;#34;spec&amp;#34; $config) -}} &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+{{- end }}
+{{- end }}
+{{- end }}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Iterate over the applications, defining $name and $config&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Only include the application if it is enabled&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Include the template with the name of the application and the specification&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This is everything you need to do to create an Argo CD Application. Let’s take a look at the template.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_key_features_of_the_template">Key Features of the template&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="sect2">
+&lt;h3 id="_1_flexible_destination_configuration">1. Flexible Destination Configuration&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The template supports both server URL and cluster name destinations with &lt;strong>validation&lt;/strong>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">destination:
+{{- if and ($spec.destination.server) ($spec.destination.name) }}
+{{ fail &amp;#34;destination.server and destination.name cannot be set at the same time&amp;#34; }}
+{{- else }}
+{{- if $spec.destination.server }}
+server: {{ $spec.destination.server }}
+{{- else if $spec.destination.name }}
+name: {{ $spec.destination.name }}
+{{- else }}
+server: https://kubernetes.default.svc
+{{- end }}
+{{- end }}
+namespace: {{ $spec.destination.namespace | required &amp;#34;destination.namespace is required&amp;#34; }}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_2_comprehensive_sync_policy_support">2. Comprehensive Sync Policy Support&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The template handles all Argo CD sync policy features:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Automated sync with prune, selfHeal, and allowEmpty options&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Flexible sync options array&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Retry configuration with backoff strategies&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Conditional managed namespace metadata&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_3_conditional_namespace_management">3. Conditional Namespace Management&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The intelligent handling of &lt;code>managedNamespaceMetadata&lt;/code>. The template only includes this section when it &lt;strong>CreateNamespace=&lt;/strong> option is set to true:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">{{- if and $spec.syncPolicy.syncOptions (not (has &amp;#34;CreateNamespace=false&amp;#34; $spec.syncPolicy.syncOptions)) }}
+{{- if $spec.syncPolicy.managedNamespaceMetadata }}
+managedNamespaceMetadata:
+{{- with $spec.syncPolicy.managedNamespaceMetadata.labels }}
+labels:
+{{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with $spec.syncPolicy.managedNamespaceMetadata.annotations }}
+annotations:
+{{- toYaml . | nindent 8 }}
+{{- end }}
+{{- end }}
+{{- end }}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_4_other_features">4. Other Features&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>I created the template to be as flexible as possible. However, I did not include everything in this template, only the most important features (from my point of view). Currently, the following is possible:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Create a template for an Argo CD Application using Git&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Create a template for an Argo CD Application using Helm defining all possible Helm parameters, like additional values files or other options.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Using a &lt;strong>single&lt;/strong> source&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Set required annotations and labels&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_5_not_possible_currently">5. Not possible (currently)&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Along with the supported features, there are some features that are currently not possible:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Defining multiple sources&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Configure Kustomize settings&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>However, if you feel this needs to be added, please let me know and create an issue. I can then try to add it.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_why_this_approach_works">Why This Approach Works&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="sect2">
+&lt;h3 id="_1_dry_principle">1. DRY Principle&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Instead of repeating the same YAML structure across multiple applications, you define it once and reuse it everywhere.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_2_intelligent_defaults">2. Intelligent Defaults&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The template provides sensible defaults (like &lt;code>openshift-gitops&lt;/code> namespace) while allowing customization when needed.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_3_validation">3. Validation&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Built-in validation ensures required fields are present and conflicting configurations are caught early.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_4_conditional_logic">4. Conditional Logic&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The template handles complex scenarios like namespace management automatically, reducing the chance of misconfigurations.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_real_world_benefits">Real-World Benefits&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>In practice, this template has several advantages:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>&lt;strong>Consistency&lt;/strong>: All applications follow the same pattern&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Maintainability&lt;/strong>: Changes to common patterns are made in one place&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Safety&lt;/strong>: Validation prevents common misconfigurations&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Flexibility&lt;/strong>: Supports the full range of Argo CD features&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Development Guidelines&lt;/strong>: Ensure all developers are using the same process&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_real_world_examples">Real-World Examples&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="sect2">
+&lt;h3 id="_1_define_a_ui_branding">1. Define a UI Branding&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>I would like to define a top banner in the OpenShift Console.
+Everything is defined in the &lt;code>clusters/management-cluster/branding&lt;/code> folder in my git repository.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>All I need to do is to define the following values:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">argocd_applications:
+my-branding:
+enabled: true
+namespace: &amp;#34;openshift-gitops&amp;#34;
+source:
+repositoryURL: &amp;#34;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#34;
+targetRevision: &amp;#34;main&amp;#34;
+path: &amp;#34;clusters/management-cluster/branding&amp;#34;
+destination:
+name: in-cluster
+namespace: &amp;#34;default&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_2_define_a_ui_branding_with_custom_helm_value">2. Define a UI Branding with custom Helm value&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Like above I would like to define a top banner in the OpenShift Console. This time I want to use a custom Helm value to define the background color of the banner.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">argocd_applications:
+my-branding-custom-helm:
+enabled: true
+namespace: &amp;#34;openshift-gitops&amp;#34;
+source:
+repositoryURL: &amp;#34;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#34;
+targetRevision: &amp;#34;main&amp;#34;
+path: &amp;#34;clusters/management-cluster/branding&amp;#34;
+helm:
+parameters:
+- name: generic-cluster-config.console.console_banners.topbanner.backgroundcolor
+value: &amp;#39;#FF9843&amp;#39;
+destination:
+name: in-cluster
+namespace: &amp;#34;default&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_3_full_blown_example">3. Full-Blown Example&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>A full example with all features can be found in my Git repository at: &lt;a href="https://github.com/tjungbauer/helm-charts/blob/main/charts/tpl/values_example_ArgoCD-Application.yaml" target="_blank" rel="noopener">values_example_ArgoCD-Application.yaml&lt;/a>&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_what_about_validation">What about Validation?&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Above I mentioned that the template is able to validate the values.
+This is true for the most important parts.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For example, try to define the following values:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">[...]
+destination:
+name: in-cluster
+server: &amp;#34;https://kubernetes.default.svc&amp;#34;
+namespace: &amp;#34;default&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>name&lt;/strong> and &lt;strong>server&lt;/strong> are not allowed to be set at the same time.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Helm (and Argo CD which is using Helm) will validate the values and fail with an error.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">Error: destination.server and destination.name cannot be set at the same time&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_conclusion">Conclusion&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>This Argo CD Application template demonstrates how Helm’s templating capabilities can solve real-world GitOps challenges. By combining conditional logic, validation, and sensible defaults, we create a tool that’s both powerful and easy to use.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The conditional namespace management feature alone saves hours of debugging why Argo CD isn’t behaving as expected with namespace metadata. When you combine this with the DRY benefits and built-in validation, you get a robust foundation for managing Argo CD applications at scale.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Whether you’re managing a few applications or hundreds, this template pattern will help you maintain consistency, reduce errors, and improve your team’s GitOps experience.&lt;/p>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Using ApplicationSet with Matrix Generator and define individual Namespaces</title><link>https://blog.stderr.at/gitopscollection/2025-04-17-applicationset-defining-namespaces/</link><pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-04-17-applicationset-defining-namespaces/</guid><description>&lt;div class="paragraph">
 &lt;p>During my day-to-day business, I am discussing the following setup with many customers: &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/">Configure App-of-Apps&lt;/a>. Here I try to explain how I use an ApplicationSet that watches over a folder in Git and automatically adds a new Argo CD Application whenever a new folder is found. This works great, but there is a catch: The ApplicationSet uses the same Namespace &lt;strong>default&lt;/strong> for all Applications. This is not always desired, especially when you have different teams working on different Applications.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>Recently I was asked by the customer if this can be fixed and if it is possible to define different Namespaces for each Application. The answer is yes, and I would like to show you how to do this.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_the_current_situation">The Current Situation&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Currently, I am (or was) using the following ApplicationSet to watch over a folder in Git. The ApplicationSet uses the Matrix Generator to create a new Argo CD Application for each folder found in the Git repository. It also uses the list operator to define the targetCluster:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> generatormatrix:
+# Git: Walking through the specific folder and take whatever is there.
+- git:
+directories:
+- path: clusters/management-cluster/*
+repoURL: *repourl
+revision: *branch
+# List: simply define the targetCluster. The name of the cluster must be known by Argo CD
+- list:
+elements:
+# targetCluster is important, this will define on which cluster it will be rolled out.
+# The cluster name must be known in Argo CD
+- targetCluster: *mgmtclustername&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will create a new Application for any subfolder found in the &lt;strong>clusters/management-cluster/&lt;/strong> folder any every Application in Argo CD will be configured with the same target namespace: &lt;strong>default&lt;/strong>.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Technically, this is not a problem, as I define the exact namespace in the different Helm Charts, but it is not always desired.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+I personally recommend defining the Namespace in the Helm Charts, since especially for the cluster configuration, sometimes there is no clear target Namespace or multiple Namespaces are modified.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_what_did_not_work">What did not work&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The first idea was to use the &lt;strong>Matrix&lt;/strong> generator and define the &lt;strong>targetNamespace&lt;/strong> in list.elements and if the namespace is not defined, use a default one. So similar like this:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> generatormatrix:
+# Git: Walking through the specific folder and take whatever is there.
+- git:
+directories:
+- path: clusters/management-cluster/*
+repoURL: *repourl
+revision: *branch
+# List: simply define the targetCluster. The name of the cluster must be known by Argo CD
+- list:
+elements:
+# targetCluster is important, this will define on which cluster it will be rolled out.
+# The cluster name must be known in Argo CD
+- targetCluster: *mgmtclustername
+path: clusters/management-cluster/cert-manager
+targetNamespace: cert-manager
+- targetCluster: *mgmtclustername
+path: clusters/management-cluster/*
+targetNamespace: default&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To make is short: &lt;strong>This does not work&lt;/strong>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The matrix operator walks over all folders and creates a cartesian product of the elements. This means, it will create a new Application for each folder and each element in the list. So if you have 10 folders and 2 elements in the list, you will end up with 20 Applications.
+This is not what we want. We want to create a new Application for each folder and define the targetNamespace in the Git repository.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The second test was the use of the &lt;strong>Merge&lt;/strong> generator. This did not work as well, as it was not possible to define a default Namespace.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_the_solution">The Solution&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The solution is to use the &lt;strong>Git FILES&lt;/strong> generator and define the &lt;strong>targetNamespace&lt;/strong> in the Git repository. This is done by creating a file called &lt;strong>config.json&lt;/strong> in each subfolder. The content of the file is simple:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">{
+&amp;#34;namespace&amp;#34;: &amp;#34;default&amp;#34;,
+&amp;#34;environment&amp;#34;: &amp;#34;in-cluster&amp;#34;
+}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The advantage is that it is possible to define multiple parameters in that file. However, the disadvantage is that this file must be created, otherwise the ApplicationSet will ignore the folder and will not create a new Application.
+I think this is a small disadvantage, and the file is easy to maintain.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Bringing everything together now opens two possibilities:&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+This will require &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-argocd">helper-argocd&lt;/a> version 2.0.41 or higher.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_option_1_keep_matrix_generator_and_use_git_file_sub_generator">Option 1: Keep Matrix Generator and use Git File sub-generator&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The first option simply replaces the git directory generator with the git file generator. The rest of the ApplicationSet remains unchanged.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+I like this option somehow better than the second one, because I can keep everything as I had it before, the only thing is to create the &lt;strong>config.json&lt;/strong> file in each subfolder and change two lines in the ApplicationSet.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> # Switch to set the namespace to &amp;#39;.namespace&amp;#39; ... must be defined in config.json
+use_configured_namespace: true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+# Definition of Matrix Generator. Only 2 generators are supported at the moment
+generatormatrix:
+# Git: Walking through the specific folder and take whatever is there.
+- git:
+files: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- path: clusters/management-cluster/**/config.json &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+repoURL: *repourl
+revision: *branch
+# List: simply define the targetCluster. The name of the cluster must be known by Argo CD
+- list:
+elements:
+# targetCluster is important, this will define on which cluster it will be rolled out.
+# The cluster name must be known in Argo CD
+- targetCluster: *mgmtclustername&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Switch to use the configured namespace. This is important, otherwise the namespace is set to &amp;#34;default&amp;#34;. This was added for backward compatibility.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The git file generator is used instead of the git directory generator.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The path is changed to the config.json file. The ** is important, as it defines to look into every subfolder.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The config.json can be shortened to:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">{
+&amp;#34;namespace&amp;#34;: &amp;#34;default&amp;#34;
+}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_option_2_switch_to_plain_git_file_generator">Option 2: Switch to plain Git File Generator&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The second option is to switch to the plain Git generator. This removes the Matrix generator, but also requires defining the targetCluster in the config.json file. This is not a problem, as the config.json file can be used to define multiple parameters.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> generatorgit: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+# Git: Walking through the specific folder and take whatever is there.
+- files:
+- clusters/management-cluster/**/config.json
+repourl: *repourl
+revision: *branch&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>No Matrix but Git generator instead.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Here the full config.json file is required, otherwise the targetCluster is not defined:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">{
+&amp;#34;namespace&amp;#34;: &amp;#34;default&amp;#34;,
+&amp;#34;environment&amp;#34;: &amp;#34;in-cluster&amp;#34;
+}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_full_working_example">Full working example&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Source: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/base/argocd-resources-manager/values.yaml" class="bare">https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/base/argocd-resources-manager/values.yaml&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">applicationsets:
+######################################
+# MATRIX GENERATOR EXAMPLE Git Files #
+######################################
+# The idea behind the GIT Generate (File) is to walk over a folder, for example /clusters/management-cluster and fetch a config.json from each folder.
+# This is more or less similar as the Matrix generator (see below), but reqires a bit more configuration ... the config.json.
+# The advantage is that you can configure individual namespaces for example in this config.json and provide an additional information
+mgmt-cluster-matrix-gitfiles:
+enabled: true
+# Description - always usful
+description: &amp;#34;ApplicationSet that Deploys on Management Cluster Configuration (using Git Generator)&amp;#34;
+# Any labels you would like to add to the Application. Good to filter it in the Argo CD UI.
+labels:
+category: configuration
+env: mgmt-cluster
+# Using go text template. See: https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/GoTemplate/
+goTemplate: true
+argocd_project: *mgmtclustername
+environment: *mgmtclustername
+# preserve all resources when the application get deleted. This is useful to keep that workload even if Argo CD is removed or severely changed.
+preserveResourcesOnDeletion: true
+# Switch to set the namespace to &amp;#39;.namespace&amp;#39; ... must be defined in config.json
+use_configured_namespace: true
+# Definition of Matrix Generator. Only 2 generators are supported at the moment
+generatormatrix:
+# Git: Walking through the specific folder and take whatever is there.
+- git:
+files:
+- path: clusters/management-cluster/**/config.json
+repoURL: *repourl
+revision: *branch
+# List: simply define the targetCluster. The name of the cluster must be known by Argo CD
+- list:
+elements:
+# targetCluster is important, this will define on which cluster it will be rolled out.
+# The cluster name must be known in Argo CD
+- targetCluster: *mgmtclustername
+syncPolicy:
+autosync_enabled: false
+# Retrying in case the sync failed.
+retries:
+# number of failed sync attempt retries; unlimited number of attempts if less than 0
+limit: 5
+backoff:
+# the amount to back off. Default unit is seconds, but could also be a duration (e.g. &amp;#34;2m&amp;#34;, &amp;#34;1h&amp;#34;)
+# Default: 5s
+duration: 5s
+# a factor to multiply the base duration after each failed retry
+# Default: 2
+factor: 2
+# the maximum amount of time allowed for the backoff strategy
+# Default: 3m
+maxDuration: 3m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_conclusion">Conclusion&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In this blog post I have shown you how to use the ApplicationSet with the Matrix generator and define individual Namespaces for each Application. This is done by using the Git File generator and defining a config.json file in each subfolder. The config.json file can be used to define multiple parameters, but it is required to create the file in each subfolder.
+This is a small disadvantage, but I think it is worth the effort. The advantage is that you can define individual Namespaces for each Application, and you can use the same ApplicationSet for all your Applications.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>I hope this blog post was helpful and you learned something new. If you have any questions or comments, please feel free to reach out to me.
+I am happy to help you.&lt;/p>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

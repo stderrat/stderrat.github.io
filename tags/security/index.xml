@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Security on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/security/</link><description>Recent content in Security on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 04 Jun 2025 05:45:30 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/security/index.xml" rel="self" type="application/rss+xml"/><item><title>Compliance</title><link>https://blog.stderr.at/compliance/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/compliance/</guid><description/></item><item><title>Advanced Cluster Security</title><link>https://blog.stderr.at/acs/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/acs/</guid><description/></item><item><title>Cert-Manager Policy Approver in OpenShift</title><link>https://blog.stderr.at/openshift/2025/06/cert-manager-policy-approver-in-openshift/</link><pubDate>Tue, 03 Jun 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/06/cert-manager-policy-approver-in-openshift/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Security on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/security/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 03 Jun 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/security/index.xml" rel="self" type="application/rss+xml"/><item><title>Compliance</title><link>https://blog.stderr.at/compliance/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/compliance/</guid><description/></item><item><title>Advanced Cluster Security</title><link>https://blog.stderr.at/acs/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/acs/</guid><description/></item><item><title>Cert-Manager Policy Approver in OpenShift</title><link>https://blog.stderr.at/openshift/2025/06/cert-manager-policy-approver-in-openshift/</link><pubDate>Tue, 03 Jun 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/06/cert-manager-policy-approver-in-openshift/</guid><description>&lt;div class="paragraph">
 &lt;p>One of the most commonly deployed operators in OpenShift environments is the &lt;strong>Cert-Manager Operator&lt;/strong>. It automates the management of TLS certificates for applications running within the cluster, including their issuance and renewal.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
@@ -10,8 +10,874 @@ This is where the &lt;strong>CertificateRequestPolicy&lt;/strong> resource, a re
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>This article walks through configuring the &lt;strong>Cert-Manager Approver Policy&lt;/strong> in OpenShift to enforce granular policies on certificate requests.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Before you begin, ensure you have the following:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>OpenShift 4.16 or higher with cluster-admin access&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Cert-Manager Operator installed&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The installation of Cert-Manager itself is discussed in the article: &lt;a href="https://blog.stderr.at/gitopscollection/2024-07-04-managing-certificates-with-gitops/">Managing Certificates using GitOps approach&lt;/a>.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The Cert-Manager Operator does not currently support the Approver Policy by default. You need to install the Approver Policy manually using a Helm Chart. There is a feature request to include the Approver Policy in the Cert-Manager Operator in the future.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_adding_approver_policy_chart_as_a_dependency">Adding Approver Policy Chart as a dependency&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Source: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/cert-manager" target="_blank" rel="noopener">Cert-Manager Deployment&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The above Chart contains the necessary resources to deploy the Cert-Manager itself and Cert-Manager Approver Policy in OpenShift.
+To deploy the Approver Policy alongside Cert-Manager, add it as a dependency in your &lt;strong>Chart.yaml&lt;/strong>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">[...]
+- name: cert-manager-approver-policy
+version: v0.19.0
+repository: https://charts.jetstack.io
+[...]&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This is the official Helm Chart for the Cert-Manager Approver Policy tool provided by Jetstack. The version used in this example is v0.19.0, but you can use a newer version if available.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configuration_of_the_helm_chart">Configuration of the Helm Chart&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The initial &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/cert-manager/values.yaml" target="_blank" rel="noopener">values.yaml&lt;/a> file was extended to:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>include the configuration for the Approver Policy Chart&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>the configuration for a &lt;strong>CertificateRequestPolicy&lt;/strong> object&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>with some specific modifications to the CertManager resource itself&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_disabling_cert_managers_auto_approver">Disabling Cert-Manager’s Auto-Approver&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The first step we need to do is to disable the auto-approver of the Cert-Manager. If this is not done, there will be a race condition between the auto-approver and the Approver Policy, which will lead to unexpected results.
+These changes are done by:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cert-manager:
+certManager:
+enable_patch: true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+unsupportedConfigOverrides:
+controller:
+args:
+- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39; &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>This enables the patching of the CertManager resource, which tells the chart to overwrite (patch) the automatically generated CertManager resource with the custom configuration.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>This disables the auto-approver Controller of the Cert-Manager.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+As the name suggests, this is currently an unsupported configuration, but it is necessary to disable the auto-approver for the Cert-Manager. In the future versions of the Cert-Manager, this might change, and the auto-approver might be supported out of the box.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In my case, the full CertManager resource looks like this:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: operator.openshift.io/v1alpha1
+kind: CertManager
+metadata:
+annotations:
+name: cluster
+spec:
+controllerConfig:
+overrideArgs: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- &amp;#39;--dns01-recursive-nameservers-only&amp;#39;
+- &amp;#39;--dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53&amp;#39;
+logLevel: Normal
+managementState: Managed
+operatorLogLevel: Normal
+unsupportedConfigOverrides: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+controller:
+args:
+- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Settings to support AWS Nameservers for DNS01 challenges.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>This disables the auto-approver Controller of the Cert-Manager.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_configuration_of_the_approver_policy">Configuration of the Approver Policy&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The second step is to configure the Approver Policy chart. This chart will deploy the necessary resources, most importantly a Deployment that will start the Pods which will process the CertificateRequestPolicy resources later on.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>My configuration for that chart looks like this (some default values are omitted for brevity):&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cert-manager-approver-policy:
+crds: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+# This option decides if the CRDs should be installed
+# as part of the Helm installation.
+enabled: true
+# This option makes it so that the &amp;#34;helm.sh/resource-policy&amp;#34;: keep
+# annotation is added to the CRD. This will prevent Helm from uninstalling
+# the CRD when the Helm release is uninstalled.
+# WARNING: when the CRDs are removed, all cert-manager-approver-policy custom resources
+# (CertificateRequestPolicy) will be removed too by the garbage collector.
+keep: true
+# Number of replicas of approver-policy to run.
+replicaCount: 1 &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+image: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+# Target image repository.
+repository: quay.io/jetstack/cert-manager-approver-policy
+# Kubernetes imagePullPolicy on Deployment.
+pullPolicy: IfNotPresent
+tag: v0.19.0
+app:
+# List of signer names that approver-policy will be given permission to
+# approve and deny. CertificateRequests referencing these signer names can be
+# processed by approver-policy. Defaults to an empty array, allowing approval
+# for all signers.
+approveSignerNames: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+- &amp;#39;issuers.cert-manager.io/*&amp;#39;
+- &amp;#39;clusterissuers.cert-manager.io/*&amp;#39;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>This enables the installation of the CRDs that are required for the Approver Policy.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The number of replicas of the Approver Policy Deployment. In most cases, one replica is enough.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The image configuration for the Approver Policy. The image is pulled from the Jetstack Quay.io repository.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>The list of signer names that the Approver Policy will be allowed to approve. In this case, it is configured to allow all issuers and clusterissuers.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The approveSignerNames are, if configured, an important setting, especially if you want to add custom (cluster)issuers. In such a case, you need to add the name of the custom issuer to this list. Otherwise the Approver Policy will not be able to approve the CertificateRequests for that issuer.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_creating_a_certificaterequestpolicy_and_rolebinding">Creating a CertificateRequestPolicy and Role(Binding)&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The final step in our configuration is to define a &lt;strong>CertificateRequestPolicy&lt;/strong> resource that will define the policy for the certificate requests. This resource will be processed by the Approver Policy and will determine if a certificate request is approved or denied based on the defined criteria.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following example shows a CertificateRequestPolicy that will:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Allow certificate requests with any common name, DNS names, IP addresses, URIs, and email addresses.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Require DNS names to be set.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Require the subject to contain a specific organization (MyOrganization) and country code (AT).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Allow usages for server auth and client auth.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Set constraints for the certificate duration (1h-24h) and private key algorithm (RSA) and size (2048-4096).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Allow all issuers by using an empty selector.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">role: cert-manager-policy:global-approver &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+serviceAccount: cert-manager &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+cert_manager_Namespace: cert-manager &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+policies:
+- name: my-approver-policy
+enabled: true
+allowed:
+commonName:
+required: false
+value: &amp;#34;*&amp;#34;
+validations: []
+dnsNames: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+required: true
+values:
+- &amp;#34;*&amp;#34;
+validations: []
+ipAddresses:
+required: false
+values: [&amp;#34;*&amp;#34;]
+validations: []
+uris:
+required: false
+values:
+- &amp;#34;*&amp;#34;
+validations: []
+emailAddresses:
+required: false
+values:
+- &amp;#34;*&amp;#34;
+validations: []
+# isCA: false
+subject:
+organizations: &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+required: true
+values:
+- &amp;#34;MyOrganization&amp;#34;
+validations:
+- rule: self.matches(&amp;#34;MyOrganization&amp;#34;)
+message: Organization must be MyOrganization
+countries:
+required: true
+values:
+- AT
+validations:
+- rule: self.matches(&amp;#34;AT&amp;#34;)
+message: Country code must be AT
+usages:
+- &amp;#34;server auth&amp;#34;
+- &amp;#34;client auth&amp;#34;
+constraints: &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+minDuration: 1h
+maxDuration: 24h
+privateKey:
+algorithm: RSA
+minSize: 2048
+maxSize: 4096
+selector:
+issuerRef: {} &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The role that is used to approve the certificate requests. This role must be created in the OpenShift cluster and must have the necessary permissions to approve certificate requests.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The service account that is used by the Approver Policy to process the certificate requests. This service account must have the necessary permissions to access the CertificateRequest resources.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The namespace where the Cert-Manager is deployed. This is usually the &lt;code>cert-manager&lt;/code> namespace, but you can change it if you have a different namespace.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>The DNS names are required to be set for the certificate request.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>The subject must contain the organization MyOrganization and the country code AT.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
+&lt;td>The constraints for the certificate request, such as the minimum and maximum duration, private key algorithm, and size.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
+&lt;td>The selector is empty, which means that the policy applies to all issuers. If you want to limit the policy to specific issuers, you can specify the issuerRef here.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_rendered_certificaterequestpolicy_and_rolebinding">Rendered CertificateRequestPolicy and Role(Binding)&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The above configuration will create a CertificateRequestPolicy resource that looks like this:
+&lt;div class="expand">
+&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+&lt;i style="font-size:x-small;" class="fas fa-chevron-right">&lt;/i>
+&lt;span>
+&lt;a>Expand me...&lt;/a>
+&lt;/span>
+&lt;/div>
+&lt;div class="expand-content" style="display: none;">
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+# Source: cert-manager/templates/ClusterRole-Approver-Policy-approving.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+name: &amp;#34;cert-manager-policy:global-approver&amp;#34;
+labels:
+helm.sh/chart: cert-manager-2.0.0
+app.kubernetes.io/name: cert-manager
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/managed-by: Helm
+rules:
+- verbs:
+- use
+apiGroups:
+- policy.cert-manager.io
+resources:
+- certificaterequestpolicies
+resourceNames:
+- my-approver-policy
+---
+# Source: cert-manager/charts/cert-manager-approver-policy/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+labels:
+app.kubernetes.io/name: cert-manager-approver-policy
+helm.sh/chart: cert-manager-approver-policy-v0.19.0
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/version: &amp;#34;v0.19.0&amp;#34;
+app.kubernetes.io/managed-by: Helm
+name: cert-manager-approver-policy
+roleRef:
+apiGroup: rbac.authorization.k8s.io
+kind: ClusterRole
+name: cert-manager-approver-policy
+subjects:
+- kind: ServiceAccount
+name: cert-manager-approver-policy
+namespace: default
+---
+# Source: cert-manager/templates/CertificateRequestPolicy.yaml
+apiVersion: policy.cert-manager.io/v1alpha1
+kind: CertificateRequestPolicy
+metadata:
+name: my-approver-policy
+annotations:
+argocd.argoproj.io/sync-wave: &amp;#34;10&amp;#34;
+labels:
+helm.sh/chart: cert-manager-2.0.0
+app.kubernetes.io/name: cert-manager
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/managed-by: Helm
+spec:
+allowed:
+commonName:
+required: false
+value: &amp;#34;*&amp;#34;
+validations: []
+dnsNames:
+required: true
+values:
+- &amp;#34;*&amp;#34;
+validations: []
+emailAddresses:
+required: false
+values:
+- &amp;#34;*&amp;#34;
+validations: []
+ipAddresses:
+required: false
+values:
+- &amp;#34;*&amp;#34;
+validations: []
+uris:
+required: false
+values:
+- &amp;#34;*&amp;#34;
+validations: []
+isCA: false
+subject:
+organizations:
+required: true
+values:
+- &amp;#34;MyOrganization&amp;#34;
+validations:
+- rule: &amp;#34;self.matches(\&amp;#34;MyOrganization\&amp;#34;)&amp;#34;
+message: &amp;#34;Organization must be MyOrganization&amp;#34;
+countries:
+required: true
+values:
+- &amp;#34;AT&amp;#34;
+validations:
+- rule: &amp;#34;self.matches(\&amp;#34;AT\&amp;#34;)&amp;#34;
+message: &amp;#34;Country code must be AT&amp;#34;
+organizationalUnits:
+required: false
+values: [&amp;#34;*&amp;#34;]
+validations: []
+localities:
+required: false
+values: [&amp;#34;*&amp;#34;]
+validations: []
+provinces:
+required: false
+values: [&amp;#34;*&amp;#34;]
+validations: []
+streetAddresses:
+required: false
+values: [&amp;#34;*&amp;#34;]
+validations: []
+postalCodes:
+required: false
+values: [&amp;#34;*&amp;#34;]
+validations: []
+serialNumber:
+required: false
+value: &amp;#34;*&amp;#34;
+validations: []
+usages:
+- &amp;#34;server auth&amp;#34;
+- &amp;#34;client auth&amp;#34;
+constraints:
+minDuration: 1h
+maxDuration: 24h
+privateKey:
+algorithm: RSA
+minSize: 2048
+maxSize: 4096
+selector:
+issuerRef: {}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>One important note is about the ClusterRole and ClusterRoleBinding that are created by the Helm Chart. The role looks like the following and is required to allow the Approver Policy to approve certificate requests. This small bit, puzzled me for a while:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">rules:
+- verbs:
+- use
+apiGroups:
+- policy.cert-manager.io
+resources:
+- certificaterequestpolicies
+resourceNames:
+- my-approver-policy&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With the above configuration we are good to go. The Helm Chart can be deployed to the OpenShift cluster (for example, using Argo CD), and the CertificateRequestPolicy will be created automatically.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>A new Pod is running in the &lt;strong>cert-manager&lt;/strong> namespace:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">❯ oc get pods -n cert-manager | grep approver
+NAME READY STATUS RESTARTS AGE
+cert-manager-approver-policy-xxxxx 1/1 Running 0 XXm &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The Pod &lt;code>cert-manager-approver-policy-xxxxx&lt;/code> is the Pod that is responsible for processing the CertificateRequestPolicy resources.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_testing_the_policy">Testing the Policy&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="sect2">
+&lt;h3 id="_test_1_valid_certificate_request">Test 1 - Valid Certificate Request&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Now it is time to test the policy. We need to create a Certificate and monitor the output of our approval pod.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As a reminder, the policy we created requires the following:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>The subject must contain the organization MyOrganization&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The subject must contain the country code AT.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The keysize must be at least 2048 bits. (max 4096 bits)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The duration must be between 1 hour and 24 hours.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The usage must be server auth or client auth.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s create this example Certificate in the &lt;code>myproject&lt;/code> namespace:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+name: test-certificate1
+namespace: myproject
+spec:
+dnsNames:
+- test1.apps.ocp.aws.ispworld.at
+duration: 24h
+issuerRef:
+kind: ClusterIssuer
+name: letsencrypt-prod
+privateKey:
+algorithm: RSA
+encoding: PKCS1
+rotationPolicy: Always
+secretName: test1
+subject:
+organizations:
+- MyOrganization
+countries:
+- AT
+usages:
+- server auth&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In the log of the Approver Policy Pod, we should see the following output:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">time=2025-06-03T16:07:58.656Z level=DEBUG+3 msg=&amp;#34;Approved by CertificateRequestPolicy: \&amp;#34;my-approver-policy\&amp;#34;&amp;#34; logger=controller-manager/events type=Normal object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate1-1 [...]}&amp;#34; reason=Approved&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This indicates that the CertificateRequest was approved by the Approver Policy. The policy was able to validate the subject, keysize, duration, and usage of the certificate request and approved it accordingly.
+The certificate has been created successfully in the &lt;strong>myproject&lt;/strong> namespace, and the secret &lt;strong>test1&lt;/strong> contains the TLS certificate and private key.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">❯ oc get secret test1 -n myproject -o yaml
+apiVersion: v1
+data:
+tls.crt: ...
+tls.key: ...
+kind: Secret
+metadata:
+labels:
+controller.cert-manager.io/fao: &amp;#34;true&amp;#34;
+name: test1
+namespace: myproject
+type: kubernetes.io/tls&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_test_2_invalid_certificate_request">Test 2 - Invalid Certificate Request&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>That was easy, but what happens if we create a CertificateRequest that does not meet the policy requirements? Let’s try to create a Certificate without the required organization or a wrong country code:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+name: test-certificate2
+namespace: myproject
+spec:
+dnsNames:
+- test2.apps.ocp.aws.ispworld.at
+duration: 24h
+issuerRef:
+kind: ClusterIssuer
+name: letsencrypt-prod
+privateKey:
+algorithm: RSA
+encoding: PKCS1
+rotationPolicy: Always
+secretName: test2
+subject: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+countries:
+- XX
+usages:
+- server auth&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The subject does not contain the required organization MyOrganization and the country code is set to XX, which is not allowed by the policy.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will lead to the following error in the log of the Approver Policy Pod:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">time=2025-06-03T16:16:02.233Z level=DEBUG+3 msg=&amp;#34;No policy approved this request: [my-approver-policy: [spec.allowed.subject.organizations.required: Required value: true, spec.allowed.subject.countries.values: Invalid value: []string{\&amp;#34;XX\&amp;#34;}: AT, spec.allowed.subject.countries.validations[0]: Invalid value: \&amp;#34;XX\&amp;#34;: Country code must be AT]]&amp;#34; logger=controller-manager/events type=Warning object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate2-1 ...&amp;#34; reason=Denied&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>It complains that the subject does not meet the policy requirements and therefore the CertificateRequest was denied.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_ok_we_have_a_policy_but_whats_next">Ok we have a policy, but whats next?&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The above example shows how the Cert-Manager Approver Policy can be configured and deployed, even if it is not yet supported by the Cert-Manager Operator. However, we only scratched the surface of what is possible with the Approver Policy.
+You can create more complex policies that include additional validations, such as checking the validity of the DNS names, IP addresses, or URIs. You can also create policies that require specific email addresses or organizational units in the subject.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>You can even create fine-grained policies that apply to specific issuers or namespaces by using the &lt;code>selector&lt;/code> field in the CertificateRequestPolicy resource. This allows you to create policies that are tailored to your specific requirements and use cases.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The best references can be found here:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Official documentation: &lt;a href="https://cert-manager.io/docs/policy/approval/approver-policy/" target="_blank" rel="noopener">Cert-Manager Approver Policy&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Example Policies: &lt;a href="https://github.com/cert-manager/approver-policy/tree/main/docs/examples" target="_blank" rel="noopener">Cert-Manager Approver Policy Examples&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_conclusion">Conclusion&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The Cert-Manager Approver Policy is a powerful tool that allows you to implement custom policies for certificate requests in OpenShift. It provides a way to control the issuance of TLS certificates based on specific criteria, such as the subject, key size, duration, and usage of the certificate.
+While not yet officially supported by the Cert-Manager Operator, it can be easily integrated into your OpenShift environment using a Helm Chart. Future support is currently being discussed, and it is expected that the Approver Policy will be included in the Cert-Manager Operator in the future.&lt;/p>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Single log out from Keycloak and OpenShift</title><link>https://blog.stderr.at/openshift/2025/05/single-log-out-from-keycloak-and-openshift/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/05/single-log-out-from-keycloak-and-openshift/</guid><description>&lt;div class="paragraph">
 &lt;p>The following 1-minute article is a follow-up to my &lt;a href="https://blog.stderr.at/openshift/2025/05/step-by-step-using-keycloak-authentication-in-openshift/">previous article&lt;/a> about how to use Keycloak as an authentication provider for OpenShift. In this article, I will show you how to configure Keycloak and OpenShift for Single Log Out (SLO). This means that when you log out from Keycloak, you will also be logged out from OpenShift automatically. This requires some additional configuration in Keycloak and OpenShift, but it is not too complicated.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The following prerequisites are required to follow this article:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>OpenShift 4.16 or higher with cluster-admin privileges&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Keycloak installed and configured, as described in the &lt;a href="https://blog.stderr.at/openshift/2025/05/step-by-step-using-keycloak-authentication-in-openshift/">Step by Step - Using Keycloak Authentication in OpenShift&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_keycloak_configuration">Keycloak Configuration&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Configure the logout URL in Keycloak. This is done by adding a new &lt;strong>Valid post logout redirect URIs&lt;/strong> to the Keycloak client configuration. In this case, we want to call the OpenShift logout URL.
+Which is: &lt;strong>&lt;a href="https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;/logout" class="bare">https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;/logout&lt;/a>&lt;/strong>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This is done in the client settings:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/set-logout-url.png" alt="Set Logout URL"/>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_openshift_configuration">OpenShift Configuration&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now we need to configure OpenShift to use the logout URL. This is done by adding a new &lt;strong>Post Logout Redirect URI&lt;/strong> to the OpenShift Console configuration.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Modify the existing Console resource named cluster and add the logoutRedirect parameter to the authentication section.
+The important pieces of the logout URL are the &lt;strong>client_id&lt;/strong> and the &lt;strong>post_logout_redirect_uri&lt;/strong>. The client ID must be the same as the Keycloak client ID, and the post logout redirect URI must be the OpenShift logout URL.
+(Also change the &amp;lt;keycloakURL&amp;gt; and &amp;lt;realm&amp;gt; to your Keycloak URL and realm name.)&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Actually, instead of &lt;strong>client_id&lt;/strong>, the &lt;strong>id_token_hint&lt;/strong> should be used. But OpenShift does not store the token, so we are using the client ID instead.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: config.openshift.io/v1
+kind: Console
+metadata:
+name: cluster
+spec:
+authentication:
+logoutRedirect: &amp;#39;https://&amp;lt;keycloakURL&amp;gt;/realms/&amp;lt;realm&amp;gt;/protocol/openid-connect/logout?client_id=&amp;lt;realm&amp;gt;&amp;amp;post_logout_redirect_uri=https://console-openshift-console.apps.ocp.aws.ispworld.at&amp;#39; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The logout URL for OpenShift. This is the URL that will be called when you log out from Keycloak. The URL must contain the client ID and the post logout redirect URI (console of OpenShift).&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Wait a few moments until the OpenShift Console Operator applies the new configuration.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_testing_the_configuration">Testing the configuration&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now that the configuration is done, we can test the Single Log Out functionality.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>We are logged into OpenShift already as user &lt;strong>testuser&lt;/strong>&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/logged-in.png" alt="Logged in to OpenShift"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Now we log out from OpenShift using the &lt;strong>Log out&lt;/strong> button in the upper right corner.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/logging-out.png" alt="Log out from OpenShift"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>This will redirect us to the Keycloak logout page where we need to confirm the logout.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/keycloak-logout.png?width=420" alt="Keycloak Logout"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>This will log us out from Keycloak and redirect us back to the OpenShift logout page.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/logged-out.png?width=420" alt="Logged out from OpenShift"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This is it. You are now logged out from both Keycloak and OpenShift. You can also check the Sessions in Keycloak to see that the session for the user is terminated.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_conclusion">Conclusion&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>As promised, this was a short article about how to configure Keycloak and OpenShift for Single Log Out. This is a beneficial feature if you want to ensure that users are logged out from all applications when they log out from Keycloak. It is also a good security practice to ensure that users are logged out from all applications when they are done using them.&lt;/p>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Step by Step - Using Keycloak Authentication in OpenShift</title><link>https://blog.stderr.at/openshift/2025/05/step-by-step-using-keycloak-authentication-in-openshift/</link><pubDate>Sat, 17 May 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/05/step-by-step-using-keycloak-authentication-in-openshift/</guid><description>&lt;div class="paragraph">
 &lt;p>I was recently asked about how to use Keycloak as an authentication provider for OpenShift. How to install Keycloak using the Operator and how to configure Keycloak and OpenShift so that users can log in to OpenShift using OpenID.
 I have to admit that the exact steps are not easy to find, so I decided to write a blog post about it, describing each step in detail.
@@ -19,6 +885,818 @@ This time I will not use GitOps, but the OpenShift and Keycloak Web Console to s
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>This article tries to explain every step required so that a user can authenticate to OpenShift using Keycloak as an Identity Provider (IDP) and that Groups from Keycloak are imported into OpenShift. This article does not cover a production grade installation of Keycloak, but only a test installation, so you can see how it works. For production, you might want to consider a proper database (maybe external, but at least with a backup), high availability, etc.).&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The following prerequisites are required to follow this article:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>OpenShift 4.16 or higher with cluster-admin privileges&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_installing_keycloak_operator">Installing Keycloak Operator&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The very first step is to install the Keycloak Operator. This can be done using the OpenShift Web Console or the CLI or GitOps. I will show the steps using the OpenShift Web Console.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Installing the Keycloak Operator via GitOps can be seen in this &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/setup-rh-build-of-keycloak" target="_blank" rel="noopener">GitHub repository&lt;/a>. By the time you read this article, this repository will install and configure a Keycloak instance automatically using a local &lt;strong>EXAMPLE&lt;/strong> Postgres database. It does not yet import any Realm or additional configuration, but I will try to add this in the future when time allows. Oh, and it is just a demo and not production ready, so please do not use it in production.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Log in to the OpenShift Web Console as a user with cluster-admin privileges.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>In the OpenShift Web Console, navigate to the Operators → OperatorHub.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>In the OperatorHub, search for &lt;strong>Red Hat build of Keycloak&lt;/strong> and select the Operator from the list.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/search-operator.png?width=320" alt="Search Keycloak Operator"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Install the latest version of the Keycloak Operator.&lt;/p>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+You can keep the default settings for the installation, but I recommend using a specific namespace. In this example, I will use the namespace &lt;code>keycloak&lt;/code> for the installation.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/install-operator.png?width=840" alt="Install Keycloak Operator"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Press the &lt;strong>Install&lt;/strong> button to install the Keycloak Operator. After a few minutes, the Keycloak Operator should be installed and running in the OpenShift cluster. You can check the status of the Operator in the &lt;strong>Installed Operators&lt;/strong> view.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/installed-operator.png" alt="Installed Keycloak Operator"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_a_local_example_postgres_database">Create a local example Postgres Database&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Demo only! This is not production ready and should not be used in production.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As a next step, we need to create a local Postgres database for Keycloak. Secrets are used to store the database credentials, and a simple StatefulSet is used to create the database. The database will be created in the same namespace as the Keycloak Operator.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>First, let’s create a Secret for the database credentials. In OpenShift select the &lt;strong>keycloak&lt;/strong> namespace and navigate to the &lt;strong>Secrets&lt;/strong> view. Create a new Secret with the following test configuration:&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Secret
+apiVersion: v1
+metadata:
+name: keycloak-db-secret
+namespace: keycloak
+stringData:
+password: thisisonly4testingNOT4prod &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+username: testuser
+type: Opaque&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The password for the database. This is just a test password and should not be used in production.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Next, we need to create a StatefulSet for the Postgres database, again in the &lt;strong>keycloak&lt;/strong> namespace.
+Again, as I cannot mention that enough, this is just a test configuration and should not be used in production.&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+name: postgresql-db
+namespace: keycloak
+spec:
+serviceName: postgresql-db-service
+selector:
+matchLabels:
+app: postgresql-db
+replicas: 1 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+template:
+metadata:
+labels:
+app: postgresql-db
+spec:
+containers:
+- name: postgresql-db
+image: postgres:15 &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+volumeMounts:
+- mountPath: /data
+name: psql
+env: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+- name: POSTGRES_USER
+value: testuser
+- name: POSTGRES_PASSWORD
+value: thisisonly4testingNOT4prod
+- name: PGDATA
+value: /data/pgdata
+- name: POSTGRES_DB
+value: keycloak
+volumeClaimTemplates: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+- metadata:
+name: psql
+spec:
+accessModes: [ &amp;#34;ReadWriteOnce&amp;#34; ]
+storageClassName: &amp;#34;gp3-csi&amp;#34;
+resources:
+requests:
+storage: 10Gi&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The number of replicas for the database. In this example, we are using a single replica.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The image for the database, postgres version 15 in this example.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The environment variables for the database. The username and password are the same as in the Secret we created before, and &lt;strong>clear text&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>The volume for the database. In this example, the StatefulSet uses a volume claim template to create a volume with the size of 10 GB for the database. The volume is created using the &lt;code>gp3-csi&lt;/code> storage class. You can use any other storage class that is available in your OpenShift cluster or even remove this line and use the default class instead.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Finally, we need to create a Service for the database so that the Keycloak Operator can access the database. Again, in the &lt;strong>keycloak&lt;/strong> namespace.&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+kind: Service
+metadata:
+name: postgres-db
+namespace: keycloak
+spec:
+selector:
+app: postgresql-db &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+type: LoadBalancer
+ports:
+- port: 5432
+targetPort: 5432&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The selector for the Service. This must match the label of the StatefulSet we created before.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_creating_a_keycloak_instance">Creating a Keycloak Instance&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now that the Keycloak Operator is installed and our example database is running, we can create a Keycloak instance.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>In the OpenShift Web Console, navigate to the &lt;strong>Installed Operators&lt;/strong> view and select the Keycloak Operator. (Maybe you need to select the keycloak namespace first.)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>In the Keycloak Operator view, create a new instance of &lt;strong>Keycloak&lt;/strong> and switch to the &lt;strong>YAML&lt;/strong> view.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/create-keycloak-instance.png?width=550" alt="Create Keycloak Instance"/>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The fun part here is that the YAML example the Operator provides is actually &lt;strong>wrong and does not work&lt;/strong>. Something that kept me busy for a while.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Replace the YAML with the following configuration:&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+name: keycloak &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+namespace: keycloak
+labels:
+app: sso
+spec:
+db: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+host: postgres-db
+passwordSecret:
+key: password
+name: keycloak-db-secret
+usernameSecret:
+key: username
+name: keycloak-db-secret
+vendor: postgres
+hostname: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+hostname: sso.apps.ocp.aws.ispworld.at
+http: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+tlsSecret: keycloak-certificate
+instances: 1 &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The name and the namespace of the Keycloak instance.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The database configuration. In this example, we are using a local Postgres database. You can also use an external database, but you need to configure the connection string accordingly.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Hostname of our Keycloak instance.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>The TLS secret for the Keycloak instance. You need to create a TLS secret with the certificate and key for the hostname. This is where the example YAML is wrong. It tries to put &lt;em>tlsSecret&lt;/em> under &lt;em>spec&lt;/em>, but it should be under &lt;em>http&lt;/em>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>The number of instances of Keycloak. In this example, we are using a single instance.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_what_about_the_ssl_certificate">What about the SSL Certificate?&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The Keycloak Operator does not create a certificate for the Keycloak instance. You need to create a certificate manually and store it in a secret. The Operator will use this secret to create the TLS certificate for the Keycloak instance.
+In the example above we are referencing a secret called &lt;code>keycloak-certificate&lt;/code> in the &lt;code>keycloak&lt;/code> namespace. This secret was created using the &lt;strong>Cert Manager Operator&lt;/strong>. For example, you can use the following configuration to create a certificate for the Keycloak instance.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+name: keycloak-certificate
+namespace: keycloak
+spec:
+dnsNames:
+- sso.apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+duration: 2160h0m0s
+issuerRef:
+kind: ClusterIssuer
+name: letsencrypt-prod &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+privateKey:
+algorithm: RSA
+encoding: PKCS1
+rotationPolicy: Always
+secretName: keycloak-certificate &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The DNS name the Certificate is valid for. This should be the same as the hostname in the Keycloak instance.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The issuer for the certificate. In this example, we are using the &lt;strong>LetsEncrypt&lt;/strong> ClusterIssuer.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The name of the secret where the certificate is stored. This should be the same as the TLS secret in the Keycloak instance.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>I strongly recommend using the &lt;strong>Cert Manager Operator&lt;/strong> to automatically request and approve the certificate. However, if you do not have this automation in place, you can use a self-signed certificate. This certificate must be created manually and stored as a secret.
+For example, you can use the following command to create a self-signed certificate and store it in a secret:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj &amp;#34;/CN=test.keycloak.org/O=Test Keycloak./C=US&amp;#34;
+oc create secret -n keycloak tls keycloak-certificate2 --cert=tls.crt --key=tls.key&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_login_in_to_keycloak">Login in to Keycloak&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Once the Keycloak instance is created and all Pods (1) are running, you can log in to the Keycloak Admin Console using the following URL: &lt;a href="https://sso.apps.ocp.aws.ispworld.at" class="bare">https://sso.apps.ocp.aws.ispworld.at&lt;/a>
+This is the hostname we configured in the keycloak instance.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To authenticate, you need to fetch the initial password for the admin user. This password is stored in a secret called &lt;strong>keycloak-initial-admin&lt;/strong>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>You can use the following command to fetch the password:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc extract secret/keycloak-initial-admin -n keycloak --to=-&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>or you can use the OpenShift Web Console to view the secret.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Once authenticated, you should see the Keycloak Admin Console:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/keycloak-initial-login.png" alt="Keycloak Admin Console"/>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The first thing you should do is to change the password for the admin user. I trust you know how to do this :)
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_keycloak_to_be_used_by_openshift">Configure Keycloak to be used by OpenShift&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The next steps are to configure Keycloak to be used as an Identity Provider (IDP) for OpenShift. This is done by creating a new Realm and a new Client in Keycloak. The following steps will show you the minimum configuration required to use Keycloak as an IDP for OpenShift. It does not cover all the options and features of Keycloak (and there are a lot), but it should be enough to get you started.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The full documentation for Keycloak can be found at &lt;a href="https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/" target="_blank" rel="noopener">Keycloak Documentation&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_create_a_new_realm_and_client">Create a new Realm and Client&lt;/h3>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>In the Realm Dropdown (upper left corner) select &lt;strong>Create new Realm&lt;/strong>&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/create-new-realm.png?width=420" alt="Create new Realm"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a new Realm called &lt;strong>openshift&lt;/strong> (Enabled, of course) and press &lt;strong>Create&lt;/strong>.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/create-new-realm-openshift.png?width=1024" alt="Create new Realm OpenShift"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Now, inside the Realm &lt;strong>openshift&lt;/strong>, select &lt;strong>Clients&lt;/strong> and press the &lt;strong>Create client&lt;/strong> button.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/create-new-client.png?width=1024" alt="Create new Client"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a new Client with the following configuration. Name it, for example, &lt;strong>openshift&lt;/strong>.&lt;/p>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Be sure the &lt;strong>Client type&lt;/strong> is set to &lt;strong>OpenID Connect&lt;/strong>&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/new-client-screen-1.png?width=1024" alt="Create new Client"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Enable &lt;strong>Client authentication&lt;/strong>. The rest can be left as default.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/new-client-screen-2.png?width=1024" alt="Create new Client"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Add the following redirect URL and Web origin and press &lt;strong>Save&lt;/strong>.:&lt;/p>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Redirect URL: &lt;a href="https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;/oauth2callback/*" class="bare">https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;/oauth2callback/*&lt;/a> …​ redirecting everything under oauth2callback&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Web origin: &lt;a href="https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;" class="bare">https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;&lt;/a>;&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/new-client-screen-3.png?width=1024" alt="Create new Client"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_create_a_new_user_and_a_group">Create a new User and a Group&lt;/h3>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>In the &lt;strong>openshift&lt;/strong> Realm, select &lt;strong>Groups&lt;/strong>, press the &lt;strong>Create group&lt;/strong> button and create a group called, for example, &lt;strong>openshift-users&lt;/strong>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>In the &lt;strong>openshift&lt;/strong> Realm, select &lt;strong>Users&lt;/strong> and press the &lt;strong>Add user&lt;/strong> button. Be sure to join the group &lt;strong>openshift-users&lt;/strong>.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/new-user.png?width=1024" alt="Create new User"/>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>No more configuration is needed for the (test) user at this point.&lt;/p>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Set the password for the user. Select the user we have just created, select the &lt;strong>Credentials&lt;/strong> tab and press &lt;strong>Set password&lt;/strong>. Set the password to &lt;strong>Temporary&lt;/strong> to force the user to change the password on the first login.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/new-user-password.png?width=1024" alt="Set password for new User"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_configure_a_group_mapper">Configure a Group Mapper&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The above configuration is enough to log in to OpenShift using Keycloak as an IDP (except that we need to configure OpenShift itself). However, we also want to import the groups from Keycloak into OpenShift. This configuration was not easy to find, and is done by creating a Group Mapper in Keycloak.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>In the &lt;strong>openshift&lt;/strong> Realm, select &lt;strong>Clients scopes&lt;/strong> and select the &lt;strong>profile&lt;/strong> scope:&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/client-scopes.png?width=1024" alt="Client Scopes"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Select the &lt;strong>Mappers&lt;/strong> tab and Add a mapper &lt;strong>By configuration&lt;/strong>:&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/client-scopes-mappers.png?width=1024" alt="Client Scopes Mappers"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Select the &lt;strong>Group Membership&lt;/strong> mapper.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/client-scopes-new-mapper.png?width=1024" alt="Client Scopes Create Group Membership Mapper"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Configure the mapper with the following settings:&lt;/p>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Mapper Type: &lt;strong>Group Membership&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Name: &lt;strong>openshift-groups&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Token Claim Name: &lt;strong>groups&lt;/strong> → This is the name of the claim that will be used to map the groups from Keycloak to OpenShift.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Full group path: &lt;strong>OFF&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Add to ID token: &lt;strong>ON&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Add to access token: &lt;strong>ON&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Add to userinfo: &lt;strong>ON&lt;/strong>&lt;/p>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Disable the &lt;strong>Full groupo path&lt;/strong> option, otherwise the group name will be prefixed with a &lt;strong>/&lt;/strong>. Moreover, be sure that you set the &lt;strong>Token Claim Name&lt;/strong> correctly to the claim we will configure in OpenShift (groups).
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/client-scopes-new-mapper-2.png?width=1024" alt="Client Scopes Create Group Membership Mapper"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_openshift_to_use_keycloak_as_an_idp">Configure OpenShift to use Keycloak as an IDP&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now that Keycloak is configured, we need to configure OpenShift to use Keycloak as an IDP. This is done by creating a new Identity Provider in OpenShift.
+Before we do this, we need to create a new OAuth client secret for OpenShift in the Namespace &lt;strong>openshift-config&lt;/strong> The secret will be used to authenticate OpenShift with Keycloak.
+When we created the keycloak client, we enabled the &lt;strong>Client authentication&lt;/strong> option. This created a client secret we need to use in OpenShift.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>In Keycloak, select the &lt;strong>openshift&lt;/strong> client and select the &lt;strong>Credentials&lt;/strong> tab and copy the &lt;strong>Client secret&lt;/strong>.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/keycloak-client-secret.png?width=1024" alt="Keycloak Client Secret"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Back in OpenShift, navigate to the &lt;strong>openshift-config&lt;/strong> namespace and select the &lt;strong>Secrets&lt;/strong> view. Create a new secret with the following configuration:&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Secret
+apiVersion: v1
+metadata:
+name: openid-client-secret
+namespace: openshift-config
+stringData:
+clientSecret: &amp;lt;you client secret from Keycloak&amp;gt; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+type: Opaque&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The client secret we copied from Keycloak. This is the secret we will use to authenticate OpenShift with Keycloak.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Now we need to create a new Identity Provider in OpenShift. In the OpenShift Web Console, navigate to the &lt;strong>Administration&lt;/strong> → &lt;strong>Cluster Settings&lt;/strong> → &lt;strong>Configuration&lt;/strong> search for &lt;strong>OAuth&lt;/strong> and select the YAML view.
+Here the following must be created or added to an existing OAuth configuration:&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">[...]
+spec:
+identityProviders:
+- mappingMethod: claim
+name: rhsso &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+openID:
+claims: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+email:
+- email
+groups:
+- groups
+name:
+- name
+preferredUsername:
+- preferred_username
+clientID: openshift &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+clientSecret:
+name: openid-client-secret &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+extraScopes: []
+issuer: &amp;#39;https://sso.apps.ocp.aws.ispworld.at/realms/openshift&amp;#39; &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+type: OpenID &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The name of the Identity Provider. This is the name that will be displayed in the OpenShift login screen.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The claims that will be used to map the user to OpenShift. In this example, we are using the email, groups, name and preferred_username claims from Keycloak.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The client ID we created in Keycloak. This is the client ID that will be used to authenticate OpenShift with Keycloak.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>The name of the secret we created in the &lt;strong>openshift-config&lt;/strong> namespace.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>The issuer URL for Keycloak. It is &amp;lt;hostname of keycloak&amp;gt;/realms/&amp;lt;realm name&amp;gt;.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
+&lt;td>The type of the Identity Provider. In this example, we are using OpenID Connect.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The above configuration will trigger a restart of the authentication Pods in OpenShift. Wait until all Pods have been restarted and the Operator is running again.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/restart-oauth.png" alt="OpenShift OAuth Restart"/>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_test_the_configuration">Test the configuration&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now it is time to test the configuration. Open a new browser window (or incognito window), navigate to the OpenShift login page and try to log in using Keycloak as an IDP &lt;strong>rhsso&lt;/strong>.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+If you have multiple IDPs configured, it is important to select the correct IDP. &lt;strong>rhsso&lt;/strong> in this example.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>By selecting the &lt;strong>rhsso&lt;/strong> Identity Provider, you should be redirected to the Keycloak login page.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/openshift-keycloak-login.png?width=1024" alt="OpenShift Login Page"/>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+If you selected &lt;strong>Temporary&lt;/strong> for the password, you will now be asked to change the password on the first login.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>After a successful login, you should see the OpenShift Web Console, and you should be logged in as the user you created in Keycloak.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/openshift-web-console.png?width=1024" alt="OpenShift Web Console"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>In OpenShift you will see the user created. In the Identities column you will see that it starts with &lt;strong>rhsso&lt;/strong>, indicating that the user was authenticated using the &lt;strong>rhsso&lt;/strong> Identity Provider.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/openshift-user.png" alt="OpenShift User"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>And finally, if you navigate to &lt;strong>User Management&lt;/strong> → &lt;strong>Groups&lt;/strong>, you should see the group &lt;strong>openshift-users&lt;/strong> that was created in Keycloak.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/keycloak/openshift-groups.png" alt="OpenShift Group"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_conclusion">Conclusion&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In this article, I have shown how to install and configure Keycloak in OpenShift for authentication. I have also shown how to configure Keycloak to be used as an Identity Provider for OpenShift and how to import groups from Keycloak into OpenShift.
+The biggest two challenges were to find the correct callback URL and to configure the Group Mapper in Keycloak. The rest was pretty straightforward.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>What’s next? With the groups now mapped into OpenShift, you can now create RoleBindings and ClusterRoleBindings to assign the appropriate roles to the users in Keycloak. This is quite nice, as I do not need to create Users manually in OpenShift anymore (previously used HTPasswd) but instead use Keycloak as the single source of truth for users and groups. All I need to configure is the RoleBindings and ClusterRoleBindings in OpenShift.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>I hope this article was helpful and you learned something new. Remember, this is just a test configuration. In production you should use a proper database and keycloak setup (high Availability, backup, etc.).
+If you have any questions or comments, please feel free to reach out to me on LinkedIn, Email or via GitHub issues.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_references">References&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;a href="https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/" target="_blank" rel="noopener">Keycloak Documentation&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://blog.badgerops.net/keycloak-open-shift/" target="_blank" rel="noopener">Keycloak &amp;amp; Open Shift&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/setup-rh-build-of-keycloak" target="_blank" rel="noopener">Set up Keycloak using GitOps (No Realm/Client configuration yet)&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Introducing AdminNetworkPolicies</title><link>https://blog.stderr.at/openshift/2024/11/introducing-adminnetworkpolicies/</link><pubDate>Wed, 06 Nov 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2024/11/introducing-adminnetworkpolicies/</guid><description>&lt;div class="paragraph">
 &lt;p>Classic Kubernetes/OpenShift offer a feature called NetworkPolicy that allows users to control the traffic to and from their assigned Namespace.
 NetworkPolicies are designed to give project owners or tenants the ability to protect their own namespace. Sometimes, however, I worked with customers where the
@@ -30,8 +1708,1216 @@ roles, and remove the ability of creating, modifying or deleting NetworkPolicy o
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>Luckily, this is where &lt;strong>AdminNetworkPolicy&lt;/strong> (ANP) and &lt;strong>BaselineAdminNetworkPolicy&lt;/strong> (BANP) comes into play.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_adminnetworkpolicy_anp_and_baselineadminnetworkpolicy_banp">AdminNetworkPolicy (ANP) and BaselineAdminNetworkPolicy (BANP)&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+This article demonstrates the configuration of the new AdminNetworkPolicy and BaselineAdminNetworkPolicy objects using the Helm Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/admin-networkpolicies" target="_blank" rel="noopener">admin-networkpolicies&lt;/a>. The NetworkPolicy object is not covered in this article.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>ANP and BANP are designed for cluster administrators to protect the entire cluster by creating &lt;strong>cluster-scoped policies&lt;/strong>. They are not replacing NetworkPolicies,
+but instead create a tier model and can be used together. Administrators can use ANPs to enforce non-overridable policies that take precedence over NetworkPolicy objects.
+Administrators can use BANP to set up and enforce optional cluster-scoped network policy rules that are overridable by users using NetworkPolicy objects when necessary.
+When used together, ANP, BANP, and network policy can achieve full multi-tenant isolation that administrators can use to secure their cluster.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The three resources create a 3-Tier Access Control List (ACL) that is evaluated in descending order:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Tier 1 - AdminNetworkPolicy (ANP): If the traffic matches an &lt;strong>allow&lt;/strong> or &lt;strong>deny&lt;/strong> rule, then any existing
+NetworkPolicy and BaselineAdminNetworkPolicy (BANP) objects in the cluster are skipped from evaluation. If a &lt;strong>pass&lt;/strong> rule is matched, then the evaluation is handed over to
+the next tier (NetworkPolicy). This means, that Cluster Administrators can enforce policies that cannot be overwritten by users (allow/deny rules) or pass the evaluation to the Network Policy,
+where the project owners can decide further.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Tier 2 - NetworkPolicy (NP): If the traffic passed the ANP then the NetworkPolicy is evaluating the traffic. The NetworkPolicy resources are controlled by the project owners by default.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Tier 3 - BaselineAdminNetworkPolicy (BANP): If the traffic passed the ANP and the NetworkPolicy, then the BANP is evaluating the traffic.
+These objects are controlled by the cluster administrators again and are cluster scoped. There can only be one BANP (named &amp;#34;default&amp;#34;) configured on the cluster.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_adminnetworkpolicy">AdminNetworkPolicy&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>An AdminNetworkPolicy (ANP) is a cluster-scoped resource, that allow cluster administrators to secure the network traffic &lt;strong>before&lt;/strong> NetworkPolicies in the namespaces are evaluated.
+These rules cannot be overwritten by project owners or developers and allow the administrators to enforce the security. Use cases could be, for example:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>You want to enforce only specific egress endpoints (e.g. only allow traffic to the specific database servers)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>You want to be sure that traffic from OpenShift monitoring is always allowed&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>You want to allow the management of NetworkPolicies to project owners and do not want to take care for them or during the onboarding.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The ANP allows cluster administrators to define:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>A priority value that determines the order of its evaluation. The lower the value the higher the precedence.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A set of pods that consists of a set of namespaces or namespace on which the policy is applied.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A list of ingress rules to be applied for all ingress traffic towards the subject.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A list of egress rules to be applied for all egress traffic from the subject.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_adminnetworkpolicy_actions_for_rules">AdminNetworkPolicy Actions for Rules&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The AdminNetworkPolicy allows three actions for the rules:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Allow&lt;/strong>: The traffic is allowed, and no further rules are evaluated.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Deny&lt;/strong>: The traffic is denied, and no further rules are evaluated.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Pass&lt;/strong>: The traffic is passed to the next tier (NetworkPolicy).&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_subject_of_a_policy">Subject of a Policy&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In any ANP (or BANP) a &lt;strong>subject&lt;/strong> can be defined and they specify the pods to which this AdminNetworkPolicy applies. (Note that host-networked pods are not included in subject.selection.) There are two ways to define the subject:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>&lt;strong>namespaces&lt;/strong>: The namespaces block is used to select pods via namespace selectors. Here, &lt;strong>matchLabels&lt;/strong> or &lt;strong>matchExpressions&lt;/strong> can be used to limit the namespaces.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>pods&lt;/strong>: The Pods-Array is used to select pods via namespace AND pod selectors. Here &lt;strong>namespaceSelector&lt;/strong> and &lt;strong>podSelector&lt;/strong> can be set to limit the Pods.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>If &lt;strong>subject&lt;/strong> is not defined, the policy applies to all pods and namespaces in the cluster.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In my Helm chart the options are supported like the following snippets show:&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_select_namespaces_with_matchexpressions">Select Namespaces with matchExpressions&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Values in the Helm Chart:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">anp:
+- name: sample-anp-rule-1
+enabled: true
+priority: 50
+subject:
+matchNamespaces: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+matchExpressions: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- key: kubernetes.io/metadata.name
+operator: NotIn
+values:
+- kube-system
+- openshift*
+- default
+- kubde-info&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>matchNamespaces is used to select namespaces&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>matchExpressions is used to select namespaces with &lt;strong>matchExpressions&lt;/strong>. In this example all namespaces that do not match (operator == NotIn) the values, so all namespaces except &amp;#34;kube-system, kube-info, default and openshift*&amp;#34; are selected.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will result in the following AdminNetworkPolicy snippet:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> subject:
+namespaces:
+matchExpressions:
+- key: kubernetes.io/metadata.name
+operator: NotIn
+values:
+- &amp;#34;kube-system&amp;#34;
+- &amp;#34;openshift*&amp;#34;
+- &amp;#34;default&amp;#34;
+- &amp;#34;kubde-info&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_select_namespaces_with_matchlabels">Select Namespaces with matchLabels&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Values in the Helm Chart:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">anp:
+- name: sample-anp-rule-1
+enabled: true
+priority: 5
+subject:
+matchNamespaces: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+matchLabels: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+apps: my-apps
+tenant: my-tenant&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>matchNamespaces is used to select namespaces&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>&lt;strong>matchLabels&lt;/strong> is used to select namespaces based on labels. In this example, all namespaces that have the labels &amp;#34;apps: my-apps&amp;#34; and &amp;#34;tenant: my-tenant&amp;#34; are selected.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will result in the following AdminNetworkPolicy snippet:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">spec:
+priority: 5
+subject:
+namespaces:
+matchLabels:
+apps: &amp;#34;my-apps&amp;#34;
+tenant: &amp;#34;my-tenant&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_select_pods_with_podselectors_and_namespaceselectors">Select Pods with podSelectors and namespaceSelectors&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Values in the Helm Chart:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">anp:
+- name: sample-anp-rule-1
+enabled: true
+priority: 5
+subject:
+matchPods:
+- pods: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+namespaceSelector: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+labels:
+kubernetes.io/metadata.name: openshift-dns
+podSelector: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+labels:
+app: dns&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>matchPods is used to select pods. Here a list of pods can be defined.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>&lt;strong>namespaceSelector&lt;/strong> is used to select namespaces based on labels. In this example all namespaces that have the label &amp;#34;kubernetes.io/metadata.name: openshift-dns&amp;#34; are selected.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>&lt;strong>podSelector&lt;/strong> is used to select pods based on labels. In this example all pods that have the label &amp;#34;app: dns&amp;#34; are selected.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will result in the following AdminNetworkPolicy snippet:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> subject:
+- pods:
+namespaceSelector:
+matchLabels:
+kubernetes.io/metadata.name: openshift-dns
+podSelector:
+matchLabels:
+app: dns&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_baselineadminnetworkpolicy">BaselineAdminNetworkPolicy&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>BaselineAdminNetworkPolicy (BANP) is a cluster-scoped resource, that allow cluster administrators to secure the network traffic &lt;strong>after&lt;/strong> NetworkPolicies in the namespaces have been evaluated. These rules can be overwritten by project owners or developers using NetworkPolicies.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+BANP is a singleton resource, meaning it can be defined only one time. Therefore, its name must be &lt;strong>default&lt;/strong>. Moreover, the &lt;strong>priority&lt;/strong> field is not required here.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Use cases could be, for example:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Creating default rules, such as blocking any intra-cluster traffic by default. Users will need to explicitly use NetworkPolicy objects to allow known traffic.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>A BANP allows administrators to specify:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>A subject that consists of a set of namespaces or namespace.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A list of ingress rules to be applied for all ingress traffic towards the subject.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A list of egress rules to be applied for all egress traffic from the subject.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_baselineadminnetworkpolicy_actions_for_rules">BaselineAdminNetworkPolicy Actions for Rules&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The BaselineAdminNetworkPolicy allows two actions for the rules. They are like the AdminNetworkPolicy, except for the &lt;strong>pass&lt;/strong> action, which does not make sense here as BANP is the last tier (nowhere to pass).&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Allow&lt;/strong>: The traffic is allowed, and no further rules are evaluated.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Deny&lt;/strong>: The traffic is denied, and no further rules are evaluated.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_examples_examples_examples">Examples Examples Examples&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The following examples are taken directly from &lt;a href="https://network-policy-api.sigs.k8s.io/blog/2024/01/30/getting-started-with-the-adminnetworkpolicy-api/" target="_blank" rel="noopener">Kubernetes Blog: Getting started with the AdminNetworkPolicy API&lt;/a> and &lt;a href="https://docs.openshift.com/container-platform/4.16/networking/network_security/network-policy-apis.html" target="_blank" rel="noopener">Official OpenShift Documentation&lt;/a>. Verify the values-file of the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/admin-networkpolicies" target="_blank" rel="noopener">Helm Chart&lt;/a> for the further examples.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+I will show, how to configure them using the Helm Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/admin-networkpolicies" target="_blank" rel="noopener">admin-networkpolicies&lt;/a> and the actual result. The chart is already configured with these examples and prepared to be used with GitOps/Argo CD.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_example_1_allow_all_traffic_from_the_openshift_monitoring_namespace">Example 1: Allow all traffic from the OpenShift monitoring namespace&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Typically, it makes sense to allow the traffic from OpenShift Monitoring to all namespaces. After all, monitoring is useful :)
+The following example shows the possible configuration for the Helm Chart, which will render a valid ANP resource for us. It will allow ALL (including OpenShift internal Namespaces) traffic from the OpenShift monitoring namespace (labeled as &lt;code>kubernetes.io/metadata.name: monitoring&lt;/code>).&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+anp:
+- name: sample-anp-rule-1 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+enabled: true &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+syncwave: 10
+priority: 5 &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+subject: {} &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+ingress: &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+- name: allow-ingress-from-monitoring &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+enabled: true &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>
+action: Allow &lt;i class="conum" data-value="8">&lt;/i>&lt;b>(8)&lt;/b>
+peers: &lt;i class="conum" data-value="9">&lt;/i>&lt;b>(9)&lt;/b>
+- type: namespaces
+labels:
+kubernetes.io/metadata.name: monitoring&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Name of the ANP&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Enable or disable the ANP. If disabled, the ANP will not be created. (Default is &lt;code>false&lt;/code>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Priority of the ANP. The lower the value the higher the precedence. (Default is &lt;code>50&lt;/code>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Subject of the ANP. In this case, it is empty, which means all namespaces including OpenShift internal namespaces.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>Ingress rules of the ANP. Here a list of ingress rules for this ANP can be defined&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
+&lt;td>Name of the ingress rule&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
+&lt;td>Enable or disable the ingress rule. If disabled, the particular ingress rule will not be created. (Default is &lt;code>false&lt;/code>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="8">&lt;/i>&lt;b>8&lt;/b>&lt;/td>
+&lt;td>Action of the ingress rule. In this case, it is &lt;code>Allow&lt;/code>, which means all traffic from the OpenShift monitoring namespace will be allowed. Other options are described at &lt;a href="#_adminnetworkpolicy_actions_for_rules">AdminNetworkPolicy Actions for Rules&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="9">&lt;/i>&lt;b>9&lt;/b>&lt;/td>
+&lt;td>Peers of the ingress rule. In this case, all namespaces labeled as &lt;code>kubernetes.io/metadata.name: monitoring&lt;/code> are allowed to access all namespaces.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The ANP that will be created is the following. It is a valid ANP resource and can be applied to the cluster. (Typically applied by Argo CD)
+As described above it will allow incoming access from the OpenShift monitoring namespace to all namespaces.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: policy.networking.k8s.io/v1alpha1
+kind: AdminNetworkPolicy
+metadata:
+name: &amp;#34;sample-anp-rule-1&amp;#34;
+labels:
+helm.sh/chart: admin-networkpolicies-1.0.2
+app.kubernetes.io/name: admin-networkpolicies
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/managed-by: Helm
+annotations:
+argocd.argoproj.io/sync-wave: &amp;#34;10&amp;#34;
+argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+priority: 5
+subject:
+namespaces: {}
+ingress:
+- name: &amp;#34;allow-ingress-from-monitoring&amp;#34;
+action: &amp;#34;Allow&amp;#34;
+from:
+- namespaces:
+matchLabels:
+kubernetes.io/metadata.name: &amp;#34;monitoring&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_example_2_allow_all_traffic_from_labeled_namespaces">Example 2: Allow all traffic from labeled namespaces&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>As a second example, we want to allow all traffic from namespaces that are labeled with &lt;code>tenant: restricted&lt;/code> to all namespaces that are labeled with &lt;code>anp: cluster-control-anp&lt;/code>.
+This is useful, if you want to restrict access to certain namespaces. However, the rule action is configured as &lt;strong>Pass&lt;/strong> which means that the traffic will be allowed but might be further restricted by a NetworkPolicy in the tenant namespace.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+anp:
+- name: sample-anp-rule-2
+enabled: true
+priority: 5
+subject:
+matchNamespaces: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+matchLabels:
+anp: cluster-control-anp &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+ingress:
+- name: pass-from-restricted-tenants
+enabled: true
+action: Pass &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+peers:
+- type: namespaces &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+labels:
+tenant: restricted&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Subject of the ANP. In this case, we select based on labels.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Label selector for the namespaces. In this case, all namespaces that are labeled with &lt;code>anp: cluster-control-anp&lt;/code> are subject of this ANP.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Action of the ingress rule. In this case, it is &lt;code>Pass&lt;/code>, which means the traffic is allowed, but might be restricted by NetworkPolicies in the tenant namespace. Other options are described at &lt;a href="#_adminnetworkpolicy_actions_for_rules">AdminNetworkPolicy Actions for Rules&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Peers of the ingress rule. In this case, all namespaces labeled as &lt;code>tenant: restricted&lt;/code> are allowed to access all namespaces.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: policy.networking.k8s.io/v1alpha1
+kind: AdminNetworkPolicy
+metadata:
+name: &amp;#34;sample-anp-rule-2&amp;#34;
+labels:
+helm.sh/chart: admin-networkpolicies-1.0.2
+app.kubernetes.io/name: admin-networkpolicies
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/managed-by: Helm
+annotations:
+argocd.argoproj.io/sync-wave: &amp;#34;10&amp;#34;
+argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+priority: 5
+subject:
+namespaces:
+matchLabels:
+anp: &amp;#34;cluster-control-anp&amp;#34;
+ingress:
+- name: &amp;#34;pass-from-restricted-tenants&amp;#34;
+action: &amp;#34;Pass&amp;#34;
+from:
+- namespaces:
+matchLabels:
+tenant: &amp;#34;restricted&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_example_3_show_possible_peers_settings">Example 3: Show possible peers settings&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The most important settings for the rules are the &lt;code>peers&lt;/code> settings. The following examples show the snippets of possible peers.
+For further information, please refer to the example in the values file: &lt;a href="https://github.com/tjungbauer/helm-charts/blob/main/charts/admin-networkpolicies/values.yaml" target="_blank" rel="noopener">Helm Chart Values with further examples&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The following rules are examples of &lt;strong>EGRESS&lt;/strong> rules.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Allow egress traffic &lt;strong>to namespaces labeled&lt;/strong> splunk on ports 80 and 443:&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> peers:
+- type: namespaces
+labels:
+tenant: splunk
+ports:
+- protocol: TCP
+portNumber: 80
+- portName: https&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic" start="2">
+&lt;li>
+&lt;p>Allow egress traffic &lt;strong>to nodes&lt;/strong> where the key &amp;#34;node-role.kubernetes.io/control-plane&amp;#34; exists &lt;strong>on the port 6443&lt;/strong>:&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> peers:
+- type: nodes
+expr:
+- key: node-role.kubernetes.io/control-plane
+operator: Exists
+ports:
+- protocol: TCP
+portNumber: 6443&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic" start="3">
+&lt;li>
+&lt;p>Allow egress traffic &lt;strong>to pods&lt;/strong> labeled &amp;#34;app: dns&amp;#34; &lt;strong>in the namespace&lt;/strong> openshift-dns &lt;strong>on the port 53 and 5353&lt;/strong>:&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> peers:
+- type: pods
+namespaceSelector:
+matchLabels:
+kubernetes.io/metadata.name: openshift-dns
+podSelector:
+matchLabels:
+app: dns
+ports:
+- protocol: TCP
+port: 5353
+- protocol: TCP
+port: 53
+- protocol: UDP
+port: 53
+- protocol: UDP
+port: 5353&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic" start="4">
+&lt;li>
+&lt;p>Allow egress traffic &lt;strong>to a list of IPs&lt;/strong>:&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> peers:
+- type: networks
+ips:
+- 172.29.0.0/30
+- 10.0.54.0/19
+- 10.0.56.38/32
+- 10.0.69.0/24&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic" start="5">
+&lt;li>
+&lt;p>Allows egress traffic &lt;strong>to a list of domain names&lt;/strong> (*.kubernetes.io and kubernetes.io)&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> peers:
+- type: domainNames
+domains:
+- &amp;#39;*.kubernetes.io&amp;#39;
+- kubernetes.io&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic" start="6">
+&lt;li>
+&lt;p>&lt;strong>Deny all egress traffic&lt;/strong>. This should be the last rule when full egress traffic shall be disabled. This might also be put into the BANP.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - name: default-deny
+enabled: true
+action: Deny
+peers:
+- type: networks
+ips:
+- 0.0.0.0/0&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_example_4_baselineadminnetworkpolicy">Example 4: BaselineAdminNetworkPolicy&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The BANP is more or less identical to ANP, except that you cannot define a &amp;#34;name&amp;#34; and a &amp;#34;priority&amp;#34;. The following example creates a BANP that allows incoming and outgoing traffic to namespaces labeled &amp;#34;tenant-1&amp;#34;.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">banp: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- enabled: true &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+syncwave: 10
+subject:
+matchNamespaces:
+matchLabels:
+kubernetes.io/metadata.name: example.name
+ingress:
+- name: &amp;#34;deny-all-ingress-from-tenant-1&amp;#34;
+enabled: true
+action: Deny
+peers:
+- type: pods
+namespaceSelector:
+matchLabels:
+custom-banp: tenant-1
+podSelector:
+matchLabels:
+custom-banp: tenant-1
+egress:
+- name: allow-all-egress-to-tenant-1
+enabled: true
+action: Allow
+peers:
+- type: pods
+namespaceSelector:
+matchLabels:
+custom-banp: tenant-1
+podSelector:
+matchLabels:
+custom-banp: tenant-1&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Using the key &lt;strong>banp&lt;/strong> (instead of &lt;strong>anp&lt;/strong>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>No &lt;strong>name&lt;/strong> or &lt;strong>priority&lt;/strong> are defined here.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_further_information">Further Information&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;a href="https://github.com/tjungbauer/helm-charts/blob/main/charts/admin-networkpolicies/values.yaml" target="_blank" rel="noopener">Helm Chart Values with further examples&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://docs.openshift.com/container-platform/4.16/networking/network_security/network-policy-apis.html" target="_blank" rel="noopener">Official OpenShift Documentation&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://network-policy-api.sigs.k8s.io/blog/2024/01/30/getting-started-with-the-adminnetworkpolicy-api/" target="_blank" rel="noopener">Kubernetes Blog: Getting started with the AdminNetworkPolicy API&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://network-policy-api.sigs.k8s.io/reference/spec/#policy.networking.k8s.io/v1alpha1.AdminNetworkPolicyEgressPeer" target="_blank" rel="noopener">Kubernetes API Documentation&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Advanced Cluster Security - Authentication</title><link>https://blog.stderr.at/acs/2021-12-11-acsauth/</link><pubDate>Sat, 11 Dec 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/acs/2021-12-11-acsauth/</guid><description>&lt;div class="paragraph">
 &lt;p>Red Hat Advanced Cluster Security (RHACS) Central is installed with one administrator user by default. Typically, customers request an integration with existing Identity Provider(s) (IDP). RHACS offers different options for such integration. In this article 2 IDPs will be configured as an example. First OpenShift Auth and second Red Hat Single Sign On (RHSSO) based on Keycloak&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>OpenShift 4 Cluster&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Advanced Cluster Security v3.66+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Red Hat SSO Operator installed&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+While RHSSO will be installed during this article, only default and example values are used. These are by no means examples for a production system.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_introduction">Introduction&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Advanced Cluster Security comes with several default roles, which can be assigned to users:&lt;/p>
+&lt;/div>
+&lt;table class="tableblock frame-all grid-all stretch">
+&lt;colgroup>
+&lt;col style="width: 33.3333%;"/>
+&lt;col style="width: 66.6667%;"/>
+&lt;/colgroup>
+&lt;thead>
+&lt;tr>
+&lt;th class="tableblock halign-left valign-top">System role&lt;/th>
+&lt;th class="tableblock halign-left valign-top">Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Admin&lt;/p>&lt;/td>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role is targeted for administrators. Use it to provide read and write access to all resources.&lt;/p>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Analyst&lt;/p>&lt;/td>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role is targeted for a user who cannot make any changes, but can view everything. Use it to provide read-only access for all resources.&lt;/p>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Continuous Integration&lt;/p>&lt;/td>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role is targeted for CI (continuous integration) systems and includes the permission set required to enforce deployment policies.&lt;/p>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">None&lt;/p>&lt;/td>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role has no read and write access to any resource. You can set this role as the minimum access role for all users.&lt;/p>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Sensor Creator&lt;/p>&lt;/td>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Red Hat Advanced Cluster Security for Kubernetes uses this role to automate new cluster setups. It includes the permission set to create Sensors in secured clusters.&lt;/p>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Scope Manager&lt;/p>&lt;/td>
+&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role includes the minimum permissions required to create and modify access scopes.&lt;/p>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+It is possible to create custom roles.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_rhacs_authentication_openshift_auth">Configure RHACS Authentication: OpenShift Auth&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+It is assumed that RHACS is already installed and login to the Central UI is available.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Login to your RHACS and select “Platform Configuration” &amp;gt; “Access Control”&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>From the drop down menu &lt;strong>Add auth provider&lt;/strong> select &lt;strong>OpenShift Auth&lt;/strong>&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/acs/images/ACS-AuthProvider.png?width=940px" alt="ACS AuthProvider"/>
+&lt;/div>
+&lt;div class="title">Figure 1. ACS Auth Provider&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Enter a &lt;strong>Name&lt;/strong> for your provider and select a default role which is assigned to any user who can authenticate.&lt;/p>
+&lt;div class="paragraph">
+&lt;p>It is recommended to select the role &lt;strong>None&lt;/strong>, so new accounts will have no privileges in RHACS.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For example the user with the name &lt;strong>poweruser&lt;/strong> gets the role &lt;strong>Admin&lt;/strong> assigned.&lt;/p>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_verify_authentication_with_openshift_auth">Verify Authentication with OpenShift Auth&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Logout from the Central UI and reload the browser.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Select from the drop down &lt;strong>OpenShift Auth&lt;/strong>&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/acs/images/ACS-LoginOpenShiftAuth.png?width=420px" alt="ACS LoginOpenShiftAuth"/>
+&lt;/div>
+&lt;div class="title">Figure 2. ACS Login&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Try to login with a valid OpenShift user.&lt;br/>
+Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.&lt;br/>
+For example: If you login as user &lt;strong>poweruser&lt;/strong> the role &lt;strong>Admin&lt;/strong> is assigned.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_red_hat_single_sign_on">Configure Red Hat Single Sign On&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The following steps will create some basic example objects to an existing RHSSO or Keycloak to test the authentication at RHACS.
+Skip to step #5 if you have Keycloak already up and running and would like to reuse an existing client.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The RHSSO operator (or Keycloak) is installed at the namespace &lt;strong>single-sign-on&lt;/strong>.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Create an instance of Keycloak&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: keycloak.org/v1alpha1
+kind: Keycloak
+metadata:
+name: example-keycloak
+namespace: single-sign-on
+spec:
+externalAccess:
+enabled: true
+instances: 1&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a Realm&lt;br/>
+This will create a Realm called &lt;strong>Basic&lt;/strong>&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: keycloak.org/v1alpha1
+kind: KeycloakRealm
+metadata:
+name: example-keycloakrealm
+namespace: single-sign-on
+spec:
+instanceSelector:
+matchLabels:
+app: sso
+realm:
+displayName: Basic Realm
+enabled: true
+id: basic
+realm: basic&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Login into Red Hat SSO&lt;br/>
+Get the route to your RHSSO instance:&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get route keycloak -n single-sign-on --template=&amp;#39;{{ .spec.host }}&amp;#39;
+# keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>and log into the Administration Interface.&lt;/p>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Extract the admin password for Keycloak&lt;/p>
+&lt;div class="paragraph">
+&lt;p>The secret name is build from &amp;#34;credential&amp;#34;&amp;lt;keycloak-instance-name&amp;gt;&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc extract secret/credential-example-keycloak -n single-sign-on --to=-
+# ADMIN_PASSWORD
+&amp;lt;you password&amp;gt;
+# ADMIN_USERNAME
+admin&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Be sure to select your Realm (&lt;strong>Basic&lt;/strong> in our case), goto &lt;strong>Clients&lt;/strong> and select a ClientID.&lt;/p>
+&lt;div class="olist loweralpha">
+&lt;ol class="loweralpha" type="a">
+&lt;li>
+&lt;p>In this example we select &lt;strong>account&lt;/strong>&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/acs/images/ACS-SSOClientConfig.png?width=640px" alt="ACS SSOClientConfig"/>
+&lt;/div>
+&lt;div class="title">Figure 3. ACS Login&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Of course you can create or use any other Client.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Enable the option &lt;strong>Implicit Flow&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Get the &lt;strong>Issuer URL&lt;/strong> from your realm. This is typically your:&lt;br/>
+&lt;a href="https://&amp;lt;KEYCLOAK_URL&amp;gt;/auth/realms/&amp;lt;REALM_NAME&amp;gt;" class="bare">https://&amp;lt;KEYCLOAK_URL&amp;gt;/auth/realms/&amp;lt;REALM_NAME&amp;gt;&lt;/a>;&lt;/p>
+&lt;div class="paragraph">
+&lt;p>For Example:
+&lt;a href="https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic" class="bare">https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic&lt;/a>&lt;/p>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_test_users">Create Test Users&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In RHSSO create 2 user accounts to test the authentication later.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Goto &lt;strong>Users&lt;/strong> and create the users:&lt;/p>
+&lt;div class="olist loweralpha">
+&lt;ol class="loweralpha" type="a">
+&lt;li>
+&lt;p>User: acsadmin&lt;/p>
+&lt;div class="paragraph">
+&lt;p>First Name: acsadmin&lt;/p>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>User: user1&lt;/p>
+&lt;div class="paragraph">
+&lt;p>First Name: user 1&lt;/p>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>You can set any other values for these users. However, be sure to set a password for both, after they have been created.&lt;/strong>&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_rhacs_authentication_rhsso">Configure RHACS Authentication: RHSSO&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+It is assumed that RSACS is already installed and login to the Central UI is available.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Login to your RHACS and select “Platform Configuration” &amp;gt; “Access Control”&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>From the drop down menu &lt;strong>Add auth provider&lt;/strong> select &lt;strong>OpenID Connect&lt;/strong>&lt;/p>
+&lt;div class="olist loweralpha">
+&lt;ol class="loweralpha" type="a">
+&lt;li>
+&lt;p>Enter a “Name” for your provider i.e. “Single Sign On”&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Leave the “Callback Mode” to the “Auto-Select” setting&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Enter your Issuer URL&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>As Client ID enter &lt;strong>account&lt;/strong> (or the ClientID you would like to use)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Leave the Client Secret empty and select the checkbox &lt;strong>Do not use Client Secret&lt;/strong> which is good enough for our tests.&lt;/p>
+&lt;div class="paragraph">
+&lt;p>Remember the two callback URL from the blue box. They must be configured in Keycloak.&lt;/p>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Select a default role which is assigned to any user who can authenticate.&lt;/p>
+&lt;div class="paragraph">
+&lt;p>It is recommended to select the role &lt;strong>None&lt;/strong>, so new accounts will have no privileges in RHACS.&lt;/p>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>For example the user with the name &lt;strong>acsadmin&lt;/strong> (which have been created previously in our RHSSO) gets the role &lt;strong>Admin&lt;/strong> assigned.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The final settings are depict in the following image:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/acs/images/ACS-OpenIDConfig.png?width=640px" alt="ACS OpenIDConfig"/>
+&lt;/div>
+&lt;div class="title">Figure 4. ACS Login&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_continue_rhsso_configuration">Continue RHSSO Configuration&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>What is left to do is the configuration of redirect URLs. These URLs are shown in the ACS Authentication Provider configuration (see blue field in the image above)&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Log back into RHSSO and select “Clients” &amp;gt; “account”&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Into &lt;strong>Valid Redirect URLs&lt;/strong> enter the two URLs which you saved from the blue box in the RHACS configuration.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_troubleshoot_test_login">Troubleshoot: Test Login&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In RHACS you can test the login to you SSO.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Goto &amp;#34;Platform Configuration&amp;#34; &amp;gt; &amp;#34;Access Control&amp;#34;&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Click the button &amp;#34;Test login&amp;#34;&lt;/p>
+&lt;div class="paragraph">
+&lt;p>A popup will appear which asks you to enter SSO credentials. The connection to RHSSO will be validated:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/acs/images/ACS-TestSSOAuth.png?width=420px" alt="ACS TestSSOAuth"/>
+&lt;/div>
+&lt;div class="title">Figure 5. ACS Test SSO&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_verify_authentication_with_openshift_auth_2">Verify Authentication with OpenShift Auth&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Logout from the Central UI and reload the browser.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Select from the drop down &lt;strong>Single Sign On&lt;/strong>&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/acs/images/ACS-LoginSSOAuth.png?width=420px" alt="ACS LoginSSOAuth"/>
+&lt;/div>
+&lt;div class="title">Figure 6. ACS Login SSO&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Try to login with a valid SSO user.&lt;br/>
+Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.&lt;br/>
+For example: If you login as user &lt;strong>acsadmin&lt;/strong> the role &lt;strong>Admin&lt;/strong> is assigned.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>oc compliance command line plugin</title><link>https://blog.stderr.at/compliance/2021/07/oc-compliance-command-line-plugin/</link><pubDate>Tue, 20 Jul 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/compliance/2021/07/oc-compliance-command-line-plugin/</guid><description>&lt;div class="paragraph">
 &lt;p>As described at &lt;a href="https://blog.stderr.at/compliance/2021/07/compliance-operator/">Compliance Operator&lt;/a> the Compliance Operator can be used to scan the OpenShift cluster environment against security benchmark, like CIS.
 Fetching the actual results might be a bit tricky tough.&lt;/p>
@@ -39,18 +2925,1182 @@ Fetching the actual results might be a bit tricky tough.&lt;/p>
 &lt;div class="paragraph">
 &lt;p>With OpenShift 4.8 plugins to the &lt;code>oc&lt;/code> command are allowed. One of these plugin os &lt;code>oc compliance&lt;/code>, which allows you to easily fetch scan results, re-run scans and so on.
 Let’s install and try it out.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_installation">Installation&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>An oc plugin must be deployed into the same directory as the oc command itself.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following describes the building and installation of the plugin.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+You need Go installed on your node.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Clone the Git repository:&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">git clone https://github.com/openshift/oc-compliance.git&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Build and install the plugin&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">make; make install
+go build -o ./bin/oc-compliance ./cmd
+which oc | xargs dirname | xargs -n1 cp ./bin/oc-compliance&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>The plugin allows the use of &lt;code>oc compliance&lt;/code>&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance
+You must specify a sub-command.
+Usage:
+oc-compliance [flags]
+oc-compliance [command]
+Available Commands:
+bind Creates a ScanSettingBinding for the given parameters
+controls Get a report of what controls you\&amp;#39;re complying with
+fetch-fixes Download the fixes/remediations
+fetch-raw Download raw compliance results
+help Help about any command
+rerun-now Force a re-scan for one or more ComplianceScans
+view-result View a ComplianceCheckResult
+Flags:
+-h, --help help for oc-compliance
+Use &amp;#34;oc-compliance [command] --help&amp;#34; for more information about a command.&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_fetch_raw_results">Fetch Raw Results&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Without the oc-compliance plugin it was required to manually spin up a Pod and download the results from this Pod, where the PV is mounted.
+Now, with a simple command we can select the ScanSettingBinding and define an output folder. For example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance fetch-raw &amp;lt;object-type&amp;gt; &amp;lt;object-name&amp;gt; -o &amp;lt;output-path&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Assuming the the compliance operator was configured as in the previous article, we have the ScanSettingBinding called &lt;code>cis-compliance&lt;/code>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance fetch-raw scansettingbindings cis-compliance -n openshift-compliance -o /tmp/&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This starts downloading the result archives into /tmp&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Fetching results for cis-compliance scans: ocp4-cis-node-worker, ocp4-cis-node-master, ocp4-cis
+Fetching raw compliance results for pod &amp;#39;raw-result-extractor-fxbw8&amp;#39;.Fetching raw compliance results for scan &amp;#39;ocp4-cis-node-worker&amp;#39;.........
+The raw compliance results are avaliable in the following directory: /tmp/ocp4-cis-node-worker
+Fetching raw compliance results for pod &amp;#39;raw-result-extractor-kqrw5&amp;#39;.Fetching raw compliance results for scan &amp;#39;ocp4-cis-node-master&amp;#39;.....
+The raw compliance results are avaliable in the following directory: /tmp/ocp4-cis-node-master
+Fetching raw compliance results for pod &amp;#39;raw-result-extractor-pfrgk&amp;#39;.Fetching raw compliance results for scan &amp;#39;ocp4-cis&amp;#39;..
+The raw compliance results are avaliable in the following directory: /tmp/ocp4-cis
+ls -la /tmp/ocp4-cis*
+/tmp/ocp4-cis:
+total 172
+drwx------ 2 root root 4096 Jul 30 16:05 .
+drwxrwxrwt. 18 root root 4096 Jul 30 16:05 ..
+-rw-r--r-- 1 root root 166676 Jul 30 16:05 ocp4-cis-api-checks-pod.xml.bzip2
+/tmp/ocp4-cis-node-master:
+total 504
+drwx------ 2 root root 4096 Jul 30 16:05 .
+drwxrwxrwt. 18 root root 4096 Jul 30 16:05 ..
+-rw-r--r-- 1 root root 168256 Jul 30 16:05 ocp4-cis-node-master-master-0-pod.xml.bzip2
+-rw-r--r-- 1 root root 165716 Jul 30 16:05 ocp4-cis-node-master-master-1-pod.xml.bzip2
+-rw-r--r-- 1 root root 166945 Jul 30 16:05 ocp4-cis-node-master-master-2-pod.xml.bzip2
+/tmp/ocp4-cis-node-worker:
+total 1112
+drwx------ 2 root root 4096 Jul 30 16:05 .
+drwxrwxrwt. 18 root root 4096 Jul 30 16:05 ..
+-rw-r--r-- 1 root root 154943 Jul 30 16:05 ocp4-cis-node-worker-compute-0-pod.xml.bzip2
+-rw-r--r-- 1 root root 154903 Jul 30 16:05 ocp4-cis-node-worker-compute-1-pod.xml.bzip2
+-rw-r--r-- 1 root root 154939 Jul 30 16:05 ocp4-cis-node-worker-compute-2-pod.xml.bzip2
+-rw-r--r-- 1 root root 154890 Jul 30 16:05 ocp4-cis-node-worker-compute-3-pod.xml.bzip2
+-rw-r--r-- 1 root root 168175 Jul 30 16:05 ocp4-cis-node-worker-master-0-pod.xml.bzip2
+-rw-r--r-- 1 root root 165603 Jul 30 16:05 ocp4-cis-node-worker-master-1-pod.xml.bzip2
+-rw-r--r-- 1 root root 166914 Jul 30 16:05 ocp4-cis-node-worker-master-2-pod.xml.bzip2&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_re_run_scans">Re-Run Scans&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Sometimes it is necessary to re-run scans. This can be done by annotating the appropriate scan as described at:
+&lt;a href="https://blog.stderr.at/compliance/2021/07/compliance-operator/#_performing_a_rescan">Performing a Rescan&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With the oc plugin you can simply trigger a re-scan with a single command:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance rerun-now scansettingbindings &amp;lt;name of scanbinding&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance rerun-now scansettingbindings cis-compliance&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Example output:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Rerunning scans from &amp;#39;cis-compliance&amp;#39;: ocp4-cis-node-worker, ocp4-cis-node-master, ocp4-cis
+Re-running scan &amp;#39;openshift-compliance/ocp4-cis-node-worker&amp;#39;
+Re-running scan &amp;#39;openshift-compliance/ocp4-cis-node-master&amp;#39;
+Re-running scan &amp;#39;openshift-compliance/ocp4-cis&amp;#39;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With the command &lt;code>oc get compliancescan -n openshift-compliance&lt;/code> you can check when the scan has been done:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME PHASE RESULT
+ocp4-cis RUNNING NOT-AVAILABLE
+ocp4-cis-node-master RUNNING NOT-AVAILABLE
+ocp4-cis-node-worker AGGREGATING NOT-AVAILABLE&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_view_results_on_cli">View Results on CLI&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Once a scan process has finished you can verify the check results quick and easy using the command line:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get ComplianceCheckResult -A&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This prints for example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAMESPACE NAME STATUS SEVERITY
+[...]
+openshift-compliance ocp4-cis-audit-log-forwarding-enabled FAIL medium
+[...]&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The &lt;code>view-result&lt;/code> can print a human readable output, for example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance view-result ocp4-cis-audit-log-forwarding-enabled -n openshift-compliance&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">+----------------------+-----------------------------------------------------------------------------------------+
+| KEY | VALUE |
++----------------------+-----------------------------------------------------------------------------------------+
+| Title | Ensure that Audit Log |
+| | Forwarding Is Enabled |
++----------------------+-----------------------------------------------------------------------------------------+
+| Status | FAIL |
++----------------------+-----------------------------------------------------------------------------------------+
+| Severity | medium |
++----------------------+-----------------------------------------------------------------------------------------+
+| Description | OpenShift audit works at the |
+| | API server level, logging |
+| | all requests coming to the |
+| | server. Audit is on by default |
+| | and the best practice is |
+| | to ship audit logs off the |
+| | cluster for retention. The |
+| | cluster-logging-operator is |
+| | able to do this with the |
+| | |
+| | |
+| | |
+| | ClusterLogForwarders |
+| | |
+| | |
+| | |
+| | resource. The forementioned resource can be configured to logs to different third party |
+| | systems. For more information on this, please reference the official documentation: |
+| | https://docs.openshift.com/container-platform/4.6/logging/cluster-logging-external.html |
++----------------------+-----------------------------------------------------------------------------------------+
+| Rationale | Retaining logs ensures the |
+| | ability to go back in time to |
+| | investigate or correlate any |
+| | events. Offloading audit logs |
+| | from the cluster ensures that |
+| | an attacker that has access |
+| | to the cluster will not be |
+| | able to tamper with the logs |
+| | because of the logs being |
+| | stored off-site. |
++----------------------+-----------------------------------------------------------------------------------------+
+| Instructions | Run the following command: |
+| | |
+| | oc get clusterlogforwarders |
+| | instance -n openshift-logging |
+| | -ojson | jq -r |
+| | &amp;#39;.spec.pipelines[].inputRefs | |
+| | contains([&amp;#34;audit&amp;#34;])&amp;#39; |
+| | |
+| | The output should return true. |
++----------------------+-----------------------------------------------------------------------------------------+
+| CIS-OCP Controls | 1.2.23 |
++----------------------+-----------------------------------------------------------------------------------------+
+| NIST-800-53 Controls | AC-2(12), AU-6, AU-6(1), |
+| | AU-6(3), AU-9(2), SI-4(16), |
+| | AU-4(1), AU-11, AU-7, AU-7(1) |
++----------------------+-----------------------------------------------------------------------------------------+
+| Available Fix | No |
++----------------------+-----------------------------------------------------------------------------------------+
+| Result Object Name | ocp4-cis-audit-log-forwarding-enabled |
++----------------------+-----------------------------------------------------------------------------------------+
+| Rule Object Name | ocp4-audit-log-forwarding-enabled |
++----------------------+-----------------------------------------------------------------------------------------+
+| Remediation Created | No |
++----------------------+-----------------------------------------------------------------------------------------+&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Compliance Operator</title><link>https://blog.stderr.at/compliance/2021/07/compliance-operator/</link><pubDate>Mon, 19 Jul 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/compliance/2021/07/compliance-operator/</guid><description>&lt;div class="paragraph">
 &lt;p>OpenShift comes out of the box with a highly secure operating system, called Red Hat CoreOS. This OS is immutable, which means that no direct changes are done inside the OS, instead any configuration is managed by OpenShift itself using MachineConfig objects. Nevertheless, hardening certain settings must still be considered. Red Hat released a hardening guide (CIS Benchmark) which can be downloaded at &lt;a href="https://www.cisecurity.org/" class="bare">https://www.cisecurity.org/&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>However, an automated way to perform such checks would be nice too. To achieve this the &lt;strong>Compliance Operator&lt;/strong> can be leveraged, which runs an OpenSCAP check to create reports of the clusters is compliant or as the official documentation describes:&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;em>The Compliance Operator lets OpenShift Container Platform administrators describe the desired compliance state of a cluster and provides them with an overview of gaps and ways to remediate them. The Compliance Operator assesses compliance of both the Kubernetes API resources of OpenShift Container Platform, as well as the nodes running the cluster. The Compliance Operator uses OpenSCAP, a NIST-certified tool, to scan and enforce security policies provided by the content.&lt;/em>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This article shall show how to quickly install the operator and retrieve the first result. It is not a full documentation, which is written by other people at: &lt;a href="https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-installation.html">Compliance Operator&lt;/a>, especially remediation is not covered here.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As prerequisites we have:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Installed OpenShift 4.6+ cluster&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The Compliance Operator is available for Red Hat Enterprise Linux CoreOS (RHCOS) deployments only.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_install_the_compliance_operator">Install the Compliance Operator&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The easiest way to deploy the Compliance Operator is by searching the OperatorHub which is available inside OpenShift.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/install_compliance_operator_1.png?width=640" alt="Install"/>
+&lt;/div>
+&lt;div class="title">Figure 1. Install Compliance Operator&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Keep the default settings and wait until the operator has been installed.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/install_compliance_operator_2.png?width=640" alt="Install"/>
+&lt;/div>
+&lt;div class="title">Figure 2. Install Compliance Operator&lt;/div>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_custom_resources_crds">Custom Resources (CRDs)&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The operator brings a ton of new CRDs into the system:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>ScanSetting …​ defines when and on which roles (worker, master …​) a check shall be executed. It also defines a persistent volume (PV) to store the scan results. Two ScanSettings are created during the installation:&lt;/p>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;em>default&lt;/em>: just scans without automatically apply changes&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;em>default-auto-apply&lt;/em>: can automatically remediate without extra steps&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>ScanSettingBinding …​ binds one or more profiles to a scan&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Profile …​ Represent different compliance benchmarks with a set of rules. For this blog we will use CIS Benchmark profiles&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ProfileBundle …​ Bundles a security image, which is later used by Profiles.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Rule …​ Rules which are used by profiles to verify the state of the cluster.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>TailoredProfile …​ Customized profile&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ComplianceScan …​ scans which have been performed&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ComplianceCheckResult …​ The results of a scan. Each ComplianceCheckResult represents the result of one compliance rule check&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ComplianceRemediation …​ If a rule ca be remediated automatically, this object is created.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_a_scanbinding_object">Create a ScanBinding object&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The first step to do is to create a ScanBiding objects. (We reuse the &lt;em>default&lt;/em> ScanSetting)&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s create the following object, which is using the profiles &lt;em>ocp4-cis&lt;/em> and &lt;em>ocp4-cis-node&lt;/em>&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: ScanSettingBinding
+metadata:
+name: cis-compliance
+profiles:
+- name: ocp4-cis-node &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+kind: Profile
+apiGroup: compliance.openshift.io/v1alpha1
+- name: ocp4-cis &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+kind: Profile
+apiGroup: compliance.openshift.io/v1alpha1
+settingsRef:
+name: default &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+kind: ScanSetting
+apiGroup: compliance.openshift.io/v1alpha1&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>use the profile ocp4-cis-node&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>use the profile ocp4-cis&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>reference to the &lt;em>default&lt;/em> scansetting&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As soon as the object is created the cluster is scan is started. The objects &lt;em>ComplianceSuite&lt;/em> and &lt;em>ComplianceScan&lt;/em> are created automatically and will eventually reach the phase &amp;#34;DONE&amp;#34; when the scan is completed.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following command will show the results of the scans&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get compliancescan -n openshift-compliance
+NAME PHASE RESULT
+ocp4-cis DONE NON-COMPLIANT
+ocp4-cis-node-master DONE NON-COMPLIANT
+ocp4-cis-node-worker DONE INCONSISTENT&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Three different checks have been done. One overall cluster check and 2 separated for master and worker nodes.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As we used the &lt;em>default&lt;/em> ScanSetting the next check will run a 1 am.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_profiles">Profiles&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The operator comes with a set of standard profiles which represent different compliance benchmarks.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To view available profiles:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get profiles.compliance -n openshift-compliance&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME AGE
+ocp4-cis 28m
+ocp4-cis-node 28m
+ocp4-e8 28m
+ocp4-moderate 28m
+rhcos4-e8 28m
+rhcos4-moderate 28m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Each profile contains a description which explains the intention and a list of rules which used in this profile.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For example the profile &amp;#39;ocp4-cis-node&amp;#39; used above is containing:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get profiles.compliance -n openshift-compliance -oyaml ocp4-cis-node
+# Output
+description: This profile defines a baseline that aligns to the Center for Internet Security® Red
+Hat OpenShift Container Platform 4 Benchmark™, V0.3, currently unreleased. This profile includes
+Center for Internet Security® Red Hat OpenShift Container Platform 4 CIS Benchmarks™ content.
+Note that this part of the profile is meant to run on the Operating System that Red Hat
+OpenShift Container Platform 4 runs on top of. This profile is applicable to OpenShift versions
+4.6 and greater.
+[...]
+name: ocp4-cis-node
+namespace: openshift-compliance
+[...]
+rules:
+- ocp4-etcd-unique-ca
+- ocp4-file-groupowner-cni-conf
+- ocp4-file-groupowner-controller-manager-kubeconfig
+- ocp4-file-groupowner-etcd-data-dir
+- ocp4-file-groupowner-etcd-data-files
+- ocp4-file-groupowner-etcd-member
+- ocp4-file-groupowner-etcd-pki-cert-files
+- ocp4-file-groupowner-ip-allocations
+[...]&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Like the profiles the different rules can be inspected:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get rules.compliance -n openshift-compliance ocp4-file-groupowner-etcd-member
+-o jsonpath=&amp;#39;{&amp;#34;Title: &amp;#34;}{.title}{&amp;#34;\nDescription: \n&amp;#34;}{.description}&amp;#39;
+# Output
+Title: Verify Group Who Owns The etcd Member Pod Specification File
+Description:
+To properly set the group owner of /etc/kubernetes/static-pod-resources/etcd-pod-*/etcd-pod.yaml ,
+run the command:
+$ sudo chgrp root /etc/kubernetes/static-pod-resources/etcd-pod-*/etcd-pod.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_profile_customization">Profile Customization&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Sometimes is it required to modify (tailor) a profile to fit specific needs. With the &lt;em>TailoredProfile&lt;/em> object it is possible to enable or disable rules.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In this blog, I just want to share a quick example from the official documentaiton: &lt;a href="https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-tailor.html" class="bare">https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-tailor.html&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following TailoredProfile disables 2 rules and sets a value for another rule:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: TailoredProfile
+metadata:
+name: nist-moderate-modified
+spec:
+extends: rhcos4-moderate
+title: My modified NIST moderate profile
+disableRules:
+- name: rhcos4-file-permissions-node-config
+rationale: This breaks X application.
+- name: rhcos4-account-disable-post-pw-expiration
+rationale: No need to check this as it comes from the IdP
+setValues:
+- name: rhcos4-var-selinux-state
+rationale: Organizational requirements
+value: permissive&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_working_with_scan_results">Working with scan results&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Once a scan finished you probably want to see what the status of the scan is.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As you sse above the cluster failed to be compliant.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get compliancescan -n openshift-compliance
+NAME PHASE RESULT
+ocp4-cis DONE NON-COMPLIANT
+ocp4-cis-node-master DONE NON-COMPLIANT
+ocp4-cis-node-worker DONE INCONSISTENT&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_retrieving_results_via_oc_command">Retrieving results via oc command&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>List all results which can be remediated automatically:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get compliancecheckresults -l &amp;#39;compliance.openshift.io/check-status=FAIL,compliance.openshift.io/automated-remediation&amp;#39; -n openshift-compliance
+NAME STATUS SEVERITY
+ocp4-cis-api-server-encryption-provider-cipher FAIL medium
+ocp4-cis-api-server-encryption-provider-config FAIL medium&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Further information about remediation can be found at: &lt;a href="https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-remediation.html">Compliance Operator Remediation&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>List all results which cannot be remediated automatically and must be fixed manually instead:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get compliancecheckresults -l &amp;#39;compliance.openshift.io/check-status=FAIL,!compliance.openshift.io/automated-remediation&amp;#39; -n openshift-compliance
+NAME STATUS SEVERITY
+ocp4-cis-audit-log-forwarding-enabled FAIL medium
+ocp4-cis-file-permissions-proxy-kubeconfig FAIL medium
+ocp4-cis-node-master-file-groupowner-ip-allocations FAIL medium
+ocp4-cis-node-master-file-groupowner-openshift-sdn-cniserver-config FAIL medium
+ocp4-cis-node-master-file-owner-ip-allocations FAIL medium
+ocp4-cis-node-master-file-owner-openshift-sdn-cniserver-config FAIL medium
+ocp4-cis-node-master-kubelet-configure-event-creation FAIL medium
+ocp4-cis-node-master-kubelet-configure-tls-cipher-suites FAIL medium
+ocp4-cis-node-master-kubelet-enable-protect-kernel-defaults FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-imagefs-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-imagefs-inodesfree FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-memory-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-nodefs-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-nodefs-inodesfree FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-imagefs-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-imagefs-inodesfree FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-memory-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-nodefs-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-nodefs-inodesfree FAIL medium
+ocp4-cis-node-worker-file-groupowner-ip-allocations FAIL medium
+ocp4-cis-node-worker-file-groupowner-openshift-sdn-cniserver-config FAIL medium
+ocp4-cis-node-worker-file-owner-ip-allocations FAIL medium
+ocp4-cis-node-worker-file-owner-openshift-sdn-cniserver-config FAIL medium
+ocp4-cis-node-worker-kubelet-configure-event-creation FAIL medium
+ocp4-cis-node-worker-kubelet-configure-tls-cipher-suites FAIL medium
+ocp4-cis-node-worker-kubelet-enable-protect-kernel-defaults FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-imagefs-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-imagefs-inodesfree FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-memory-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-nodefs-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-nodefs-inodesfree FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-imagefs-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-imagefs-inodesfree FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-memory-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-nodefs-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-nodefs-inodesfree FAIL medium&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_retrieving_raw_results">Retrieving RAW results&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Let’s first retrieve the raw result of the scan. For each of the ComplianceScans a volume claim (PVC) is created to store he results. We can use a Pod to mount the volume to download the scan results.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following PVC have been created on our example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pvc -n openshift-compliance
+NAME STATUS VOLUME CAPACITY ACCESS MODES STORAGECLASS AGE
+ocp4-cis Bound pvc-cc026ae3-2f42-4e19-bc55-016c6dd31d22 1Gi RWO managed-nfs-storage 4h17m
+ocp4-cis-node-master Bound pvc-3bd47c5e-2008-4759-9d53-ba41b568688d 1Gi RWO managed-nfs-storage 4h17m
+ocp4-cis-node-worker Bound pvc-77200e5f-0f15-410c-a4ee-f2fb3e316f84 1Gi RWO managed-nfs-storage 4h17m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now we can create a Pod which mounts all PVCs at once:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: &amp;#34;v1&amp;#34;
+kind: Pod
+metadata:
+name: pv-extract
+namespace: openshift-compliance
+spec:
+containers:
+- name: pv-extract-pod
+image: registry.access.redhat.com/ubi8/ubi
+command: [&amp;#34;sleep&amp;#34;, &amp;#34;3000&amp;#34;]
+volumeMounts: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- mountPath: &amp;#34;/workers-scan-results&amp;#34;
+name: workers-scan-vol
+- mountPath: &amp;#34;/masters-scan-results&amp;#34;
+name: masters-scan-vol
+- mountPath: &amp;#34;/ocp4-scan-results&amp;#34;
+name: ocp4-scan-vol
+volumes: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- name: workers-scan-vol
+persistentVolumeClaim:
+claimName: ocp4-cis-node-worker
+- name: masters-scan-vol
+persistentVolumeClaim:
+claimName: ocp4-cis-node-master
+- name: ocp4-scan-vol
+persistentVolumeClaim:
+claimName: ocp4-cis&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>mount paths&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>volumesclaims to mount&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This creates a Pod with the PVCs mounted inside:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">sh-4.4# ls -la | grep scan
+drwxrwxrwx. 3 root root 4096 Jul 20 05:20 master-scan-results
+drwxrwxrwx. 3 root root 4096 Jul 20 05:20 ocp4-scan-results
+drwxrwxrwx. 3 root root 4096 Jul 20 05:20 workers-scan-results&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We can download the result-files to our local machine for further auditing. Therefore, we create the folder &lt;em>scan_results&lt;/em> in which we copy everything:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">mkdir scan-results; cd scan-results
+oc -n openshift-compliance cp pv-extract:ocp4-scan-results ocp4-scan-results/.
+oc -n openshift-compliance cp pv-extract:workers-scan-results workers-scan-results/.
+oc -n openshift-compliance cp pv-extract:masters-scan-results masters-scan-results/.&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will download several bzip2 archives for the appropriate scan result.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Once done, you can delete the &amp;#34;download pod&amp;#34; using: &lt;code>oc delete pod pv-extract -n openshift-compliance&lt;/code>&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_work_wth_raw_results">Work wth RAW results&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>So above section described the download of the bzip2 files but what to do with it? First, you can import it into a tool which is able to read openScap reports. Or, secondly, you can use the &lt;em>oscap&lt;/em> command to create a html output.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We have downloaded the following files:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">./ocp4-scan-results/0/ocp4-cis-api-checks-pod.xml.bzip2
+./masters-scan-results/0/ocp4-cis-node-master-master-0-pod.xml.bzip2
+./masters-scan-results/0/ocp4-cis-node-master-master-2-pod.xml.bzip2
+./masters-scan-results/0/ocp4-cis-node-master-master-1-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-0-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-1-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-3-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-2-pod.xml.bzip2&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To create the html output (be sure that open-scap is installed on you host):&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">mkdir html
+oscap xccdf generate report ocp4-scan-results/0/ocp4-cis-api-checks-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-api-checks.html
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-0-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-node-master-master-0.html
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-1-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-node-master-master-1.html
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-2-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-node-master-master-2.html
+oscap xccdf generate report workers-scan-results/0/ocp4-cis-node-worker-compute-0-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-node-worker-compute-0.html
+...&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The resulted html files are too big to be show here, but some snippets should give an overview:&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To view the html output as an example I have linked the html files:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;a href="https://blog.stderr.at/files/ocp4-cis-api-checks.html">OCP4 - CIS&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://blog.stderr.at/files/ocp4-cis-node-master-master-0.html">Example Master Node Results&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://blog.stderr.at/files/ocp4-cis-node-worker-compute-0.html">Example Worker Node Results&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Overall Scoring of the result:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/compliance_scoring.png?width=940px" alt="Install"/>
+&lt;/div>
+&lt;div class="title">Figure 3. Scoring&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>A list if passed or failed checks:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/compliance_scan_results.png?width=940px" alt="Scanresults"/>
+&lt;/div>
+&lt;div class="title">Figure 4. Scan Result list&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Scan details with a link to the CIS Benchmark section and further explainations on how to fix the issue:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/compliance_scan_details.png?width=940px" alt="Details"/>
+&lt;/div>
+&lt;div class="title">Figure 5. Scan details&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_performing_a_rescan">Performing a rescan&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>If it is necessary to run a rescan, the ComplianceScan object is simply annotated with:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc annotate compliancescans/&amp;lt;scan_name&amp;gt; compliance.openshift.io/rescan=&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+If &lt;em>default-auto-apply&lt;/em> is enabled, remediation which changes MachineConfigs will trigger a cluster reboot.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Authorization (RBAC)</title><link>https://blog.stderr.at/service-mesh/2020/05/authorization-rbac/</link><pubDate>Tue, 12 May 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/service-mesh/2020/05/authorization-rbac/</guid><description>&lt;div class="paragraph">
 &lt;p>Per default all requests inside a Service Mesh are allowed, which can be a problem security-wise.
 To solve this, authorization, which verifies if the user is allowed to perform a certain action, is required.
 Istio’s authorization provides access control on mesh-level, namespace-level and workload-level.&lt;/p>
-&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
-
-
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With the resource &lt;strong>AuthorizationPolicy&lt;/strong> granular policies can be defined.
+These policies are loaded to and verified by the Envoy Proxy which then authorizes a request.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_implicit_enablement">Implicit enablement&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>To enable authorization the only thing you need is to do is to define the &lt;strong>AuthorizationPolicy&lt;/strong>. If the resource is not defined, then no access control will be used, instead any traffic is allowed. If &lt;strong>AuthorizationPolicy&lt;/strong> is applied to a workload, then by default any traffic is denied unless it is explicitly allowed.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+This is applicable to Service Mesh version 1.1+
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_preparing_environment">Preparing Environment&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The following steps will configure an example Role Based Access Control (RBAC). It will start from scratch. If you just want to quickly configure the authorization and have anything else in place, you can start form here: &lt;a href="#_configure_authentication_policy">Configure Authentication Policy&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Create a new project&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc new-project tutorial&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Be sure that a Service Mesh Member Roll exists for this new project&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; memberroll.yaml
+apiVersion: maistra.io/v1
+kind: ServiceMeshMemberRoll
+metadata:
+name: default
+spec:
+members:
+- tutorial
+EOF
+oc apply -f memberroll.yaml -n istio-system&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Clone and install the example application&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">git clone https://github.com/redhat-developer-demos/istio-tutorial/ istio-tutorial
+oc apply -f istio-tutorial/customer/kubernetes/Deployment.yml -n tutorial
+oc apply -f istio-tutorial/customer/kubernetes/Service.yml -n tutorial
+oc expose service customer
+oc apply -f istio-tutorial/preference/kubernetes/Deployment.yml -n tutorial
+oc apply -f istio-tutorial/preference/kubernetes/Service.yml -n tutorial
+oc apply -f istio-tutorial/recommendation/kubernetes/Deployment.yml -n tutorial
+oc apply -f istio-tutorial/recommendation/kubernetes/Service.yml -n tutorial&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Wait until all pods are running. There should be 2 containers for all pods:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -w&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create Gateway and VirtualService&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; Gateway_VirtualService.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+name: customer-gateway
+spec:
+selector:
+istio: ingressgateway # use istio default controller
+servers:
+- port:
+number: 80
+name: http
+protocol: HTTP
+hosts:
+- &amp;#34;*&amp;#34;
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+name: customer-gateway
+spec:
+hosts:
+- &amp;#34;*&amp;#34;
+gateways:
+- customer-gateway
+http:
+- match:
+- uri:
+prefix: /customer
+rewrite:
+uri: /
+route:
+- destination:
+host: customer
+port:
+number: 8080
+EOF
+oc apply -f Gateway_VirtualService.yaml -n tutorial&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Verify if the application is working
+You can either use the run.sh from previous tutorials, or simply try the following curl&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath=&amp;#39;{.spec.host}&amp;#39;); echo $GATEWAY_URL
+curl $GATEWAY_URL/customer&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This should return the following line:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 1&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Optionally check the connection from inside the customer container&lt;/p>
+&lt;div class="paragraph">
+&lt;p>get pods name and enter it:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods
+NAME READY STATUS RESTARTS AGE
+customer-6948b8b959-dhsm9 2/2 Running 0 177m
+preference-v1-7fdb89c86b-dvzs9 2/2 Running 0 177m
+recommendation-v1-69db8d6c48-cjcpn 2/2 Running 0 177m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Connect into the container pod and try to reach the different microservices&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc rsh customer-6948b8b959-dhsm9
+sh-4.4$ curl customer:8080
+customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 2
+sh-4.4$ curl preference:8080
+preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 3
+sh-4.4$ curl recommendation:8080
+recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 4&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_authentication_policy">Configure Authentication Policy&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Enabling User-End authentication&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; authentication-policy.yaml
+apiVersion: &amp;#34;authentication.istio.io/v1alpha1&amp;#34;
+kind: &amp;#34;Policy&amp;#34;
+metadata:
+name: &amp;#34;customerjwt&amp;#34;
+spec:
+targets:
+- name: customer
+- name: preference
+- name: recommendation
+origins:
+- jwt:
+issuer: &amp;#34;testing@secure.istio.io&amp;#34;
+jwksUri: &amp;#34;https://gist.githubusercontent.com/lordofthejars/7dad589384612d7a6e18398ac0f10065/raw/ea0f8e7b729fb1df25d4dc60bf17dee409aad204/jwks.json&amp;#34;
+principalBinding: USE_ORIGIN
+EOF
+oc apply -f authentication-policy.yaml -n tutorial&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Access should be denied after a few seconds&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">curl $GATEWAY_URL/customer
+Origin authentication failed.%&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Use token to authenticate&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">token=$(curl https://gist.githubusercontent.com/lordofthejars/a02485d70c99eba70980e0a92b2c97ed/raw/f16b938464b01a2e721567217f672f11dc4ef565/token.simple.jwt -s)
+curl -H &amp;#34;Authorization: Bearer $token&amp;#34; $GATEWAY_URL/customer&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will result in a correct response&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 5&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_role_based_access_control_rbac">Configure Role Based Access Control (RBAC)&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Create the resource &lt;strong>AuthorizationPolicy&lt;/strong>&lt;/p>
+&lt;div class="paragraph">
+&lt;p>This is a new resources, supported since Service Mesh 1.1. It will allow GET method when the role equals to &amp;#34;&lt;em>customer&lt;/em>&amp;#34;&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; AuthorizationPolicy.yaml
+apiVersion: &amp;#34;security.istio.io/v1beta1&amp;#34;
+kind: &amp;#34;AuthorizationPolicy&amp;#34;
+metadata:
+name: &amp;#34;customer&amp;#34;
+spec:
+rules:
+- to:
+- operation:
+methods: [&amp;#34;GET&amp;#34;]
+when:
+- key: request.auth.claims[role]
+values: [&amp;#34;customer&amp;#34;]
+EOF
+oc apply -f AuthorizationPolicy.yaml -n tutorial&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Get a token for the role and retry to connect to the service,&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">token=$(curl https://gist.githubusercontent.com/lordofthejars/f590c80b8d83ea1244febb2c73954739/raw/21ec0ba0184726444d99018761cf0cd0ece35971/token.role.jwt -s)
+curl -H &amp;#34;Authorization: Bearer $token&amp;#34; $GATEWAY_URL/customer&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This results in:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 8&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Let’s verify the setting and change the AuthorizationPolicy.
+This will break the authorization, since the token provides roles=customer and we set the Policy to &amp;#34;whereistherole&amp;#34;&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; AuthorizationPolicy-Hack.yaml
+apiVersion: &amp;#34;security.istio.io/v1beta1&amp;#34;
+kind: &amp;#34;AuthorizationPolicy&amp;#34;
+metadata:
+name: &amp;#34;customer&amp;#34;
+spec:
+rules:
+- to:
+- operation:
+methods: [&amp;#34;GET&amp;#34;]
+when:
+- key: request.auth.claims[role]
+values: [&amp;#34;whereistherole&amp;#34;]
+EOF
+oc replace -f AuthorizationPolicy-Hack.yaml -n tutorial&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>If you now try to access the service, with the token, which provides &amp;#34;customer&amp;#34; as role, it will lead to an error:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">token=$(curl https://gist.githubusercontent.com/lordofthejars/f590c80b8d83ea1244febb2c73954739/raw/21ec0ba0184726444d99018761cf0cd0ece35971/token.role.jwt -s)
+curl -H &amp;#34;Authorization: Bearer $token&amp;#34; $GATEWAY_URL/customer
+RBAC: access denied&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
+&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
 &lt;p>Well we hope the articles here are not totally useless :)&lt;/p>
-
 &lt;p>Who are we, you might ask.
 We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p>
-
-&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p></description></item></channel></rss>
+&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p>
+&lt;p>If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" >GitHub issue&lt;/a>&lt;/p></description></item></channel></rss>

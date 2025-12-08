@@ -1,10 +1,855 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Compliance on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/compliance/</link><description>Recent content in Compliance on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/compliance/index.xml" rel="self" type="application/rss+xml"/><item><title>oc compliance command line plugin</title><link>https://blog.stderr.at/compliance/2021/07/oc-compliance-command-line-plugin/</link><pubDate>Tue, 20 Jul 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/compliance/2021/07/oc-compliance-command-line-plugin/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Compliance on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/compliance/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/compliance/index.xml" rel="self" type="application/rss+xml"/><item><title>oc compliance command line plugin</title><link>https://blog.stderr.at/compliance/2021/07/oc-compliance-command-line-plugin/</link><pubDate>Tue, 20 Jul 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/compliance/2021/07/oc-compliance-command-line-plugin/</guid><description>&lt;div class="paragraph">
 &lt;p>As described at &lt;a href="https://blog.stderr.at/compliance/2021/07/compliance-operator/">Compliance Operator&lt;/a> the Compliance Operator can be used to scan the OpenShift cluster environment against security benchmark, like CIS.
 Fetching the actual results might be a bit tricky tough.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>With OpenShift 4.8 plugins to the &lt;code>oc&lt;/code> command are allowed. One of these plugin os &lt;code>oc compliance&lt;/code>, which allows you to easily fetch scan results, re-run scans and so on.
 Let’s install and try it out.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_installation">Installation&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>An oc plugin must be deployed into the same directory as the oc command itself.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following describes the building and installation of the plugin.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+You need Go installed on your node.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Clone the Git repository:&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">git clone https://github.com/openshift/oc-compliance.git&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Build and install the plugin&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">make; make install
+go build -o ./bin/oc-compliance ./cmd
+which oc | xargs dirname | xargs -n1 cp ./bin/oc-compliance&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>The plugin allows the use of &lt;code>oc compliance&lt;/code>&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance
+You must specify a sub-command.
+Usage:
+oc-compliance [flags]
+oc-compliance [command]
+Available Commands:
+bind Creates a ScanSettingBinding for the given parameters
+controls Get a report of what controls you\&amp;#39;re complying with
+fetch-fixes Download the fixes/remediations
+fetch-raw Download raw compliance results
+help Help about any command
+rerun-now Force a re-scan for one or more ComplianceScans
+view-result View a ComplianceCheckResult
+Flags:
+-h, --help help for oc-compliance
+Use &amp;#34;oc-compliance [command] --help&amp;#34; for more information about a command.&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_fetch_raw_results">Fetch Raw Results&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Without the oc-compliance plugin it was required to manually spin up a Pod and download the results from this Pod, where the PV is mounted.
+Now, with a simple command we can select the ScanSettingBinding and define an output folder. For example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance fetch-raw &amp;lt;object-type&amp;gt; &amp;lt;object-name&amp;gt; -o &amp;lt;output-path&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Assuming the the compliance operator was configured as in the previous article, we have the ScanSettingBinding called &lt;code>cis-compliance&lt;/code>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance fetch-raw scansettingbindings cis-compliance -n openshift-compliance -o /tmp/&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This starts downloading the result archives into /tmp&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Fetching results for cis-compliance scans: ocp4-cis-node-worker, ocp4-cis-node-master, ocp4-cis
+Fetching raw compliance results for pod &amp;#39;raw-result-extractor-fxbw8&amp;#39;.Fetching raw compliance results for scan &amp;#39;ocp4-cis-node-worker&amp;#39;.........
+The raw compliance results are avaliable in the following directory: /tmp/ocp4-cis-node-worker
+Fetching raw compliance results for pod &amp;#39;raw-result-extractor-kqrw5&amp;#39;.Fetching raw compliance results for scan &amp;#39;ocp4-cis-node-master&amp;#39;.....
+The raw compliance results are avaliable in the following directory: /tmp/ocp4-cis-node-master
+Fetching raw compliance results for pod &amp;#39;raw-result-extractor-pfrgk&amp;#39;.Fetching raw compliance results for scan &amp;#39;ocp4-cis&amp;#39;..
+The raw compliance results are avaliable in the following directory: /tmp/ocp4-cis
+ls -la /tmp/ocp4-cis*
+/tmp/ocp4-cis:
+total 172
+drwx------ 2 root root 4096 Jul 30 16:05 .
+drwxrwxrwt. 18 root root 4096 Jul 30 16:05 ..
+-rw-r--r-- 1 root root 166676 Jul 30 16:05 ocp4-cis-api-checks-pod.xml.bzip2
+/tmp/ocp4-cis-node-master:
+total 504
+drwx------ 2 root root 4096 Jul 30 16:05 .
+drwxrwxrwt. 18 root root 4096 Jul 30 16:05 ..
+-rw-r--r-- 1 root root 168256 Jul 30 16:05 ocp4-cis-node-master-master-0-pod.xml.bzip2
+-rw-r--r-- 1 root root 165716 Jul 30 16:05 ocp4-cis-node-master-master-1-pod.xml.bzip2
+-rw-r--r-- 1 root root 166945 Jul 30 16:05 ocp4-cis-node-master-master-2-pod.xml.bzip2
+/tmp/ocp4-cis-node-worker:
+total 1112
+drwx------ 2 root root 4096 Jul 30 16:05 .
+drwxrwxrwt. 18 root root 4096 Jul 30 16:05 ..
+-rw-r--r-- 1 root root 154943 Jul 30 16:05 ocp4-cis-node-worker-compute-0-pod.xml.bzip2
+-rw-r--r-- 1 root root 154903 Jul 30 16:05 ocp4-cis-node-worker-compute-1-pod.xml.bzip2
+-rw-r--r-- 1 root root 154939 Jul 30 16:05 ocp4-cis-node-worker-compute-2-pod.xml.bzip2
+-rw-r--r-- 1 root root 154890 Jul 30 16:05 ocp4-cis-node-worker-compute-3-pod.xml.bzip2
+-rw-r--r-- 1 root root 168175 Jul 30 16:05 ocp4-cis-node-worker-master-0-pod.xml.bzip2
+-rw-r--r-- 1 root root 165603 Jul 30 16:05 ocp4-cis-node-worker-master-1-pod.xml.bzip2
+-rw-r--r-- 1 root root 166914 Jul 30 16:05 ocp4-cis-node-worker-master-2-pod.xml.bzip2&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_re_run_scans">Re-Run Scans&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Sometimes it is necessary to re-run scans. This can be done by annotating the appropriate scan as described at:
+&lt;a href="https://blog.stderr.at/compliance/2021/07/compliance-operator/#_performing_a_rescan">Performing a Rescan&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With the oc plugin you can simply trigger a re-scan with a single command:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance rerun-now scansettingbindings &amp;lt;name of scanbinding&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance rerun-now scansettingbindings cis-compliance&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Example output:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Rerunning scans from &amp;#39;cis-compliance&amp;#39;: ocp4-cis-node-worker, ocp4-cis-node-master, ocp4-cis
+Re-running scan &amp;#39;openshift-compliance/ocp4-cis-node-worker&amp;#39;
+Re-running scan &amp;#39;openshift-compliance/ocp4-cis-node-master&amp;#39;
+Re-running scan &amp;#39;openshift-compliance/ocp4-cis&amp;#39;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With the command &lt;code>oc get compliancescan -n openshift-compliance&lt;/code> you can check when the scan has been done:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME PHASE RESULT
+ocp4-cis RUNNING NOT-AVAILABLE
+ocp4-cis-node-master RUNNING NOT-AVAILABLE
+ocp4-cis-node-worker AGGREGATING NOT-AVAILABLE&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_view_results_on_cli">View Results on CLI&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Once a scan process has finished you can verify the check results quick and easy using the command line:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get ComplianceCheckResult -A&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This prints for example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAMESPACE NAME STATUS SEVERITY
+[...]
+openshift-compliance ocp4-cis-audit-log-forwarding-enabled FAIL medium
+[...]&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The &lt;code>view-result&lt;/code> can print a human readable output, for example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc compliance view-result ocp4-cis-audit-log-forwarding-enabled -n openshift-compliance&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">+----------------------+-----------------------------------------------------------------------------------------+
+| KEY | VALUE |
++----------------------+-----------------------------------------------------------------------------------------+
+| Title | Ensure that Audit Log |
+| | Forwarding Is Enabled |
++----------------------+-----------------------------------------------------------------------------------------+
+| Status | FAIL |
++----------------------+-----------------------------------------------------------------------------------------+
+| Severity | medium |
++----------------------+-----------------------------------------------------------------------------------------+
+| Description | OpenShift audit works at the |
+| | API server level, logging |
+| | all requests coming to the |
+| | server. Audit is on by default |
+| | and the best practice is |
+| | to ship audit logs off the |
+| | cluster for retention. The |
+| | cluster-logging-operator is |
+| | able to do this with the |
+| | |
+| | |
+| | |
+| | ClusterLogForwarders |
+| | |
+| | |
+| | |
+| | resource. The forementioned resource can be configured to logs to different third party |
+| | systems. For more information on this, please reference the official documentation: |
+| | https://docs.openshift.com/container-platform/4.6/logging/cluster-logging-external.html |
++----------------------+-----------------------------------------------------------------------------------------+
+| Rationale | Retaining logs ensures the |
+| | ability to go back in time to |
+| | investigate or correlate any |
+| | events. Offloading audit logs |
+| | from the cluster ensures that |
+| | an attacker that has access |
+| | to the cluster will not be |
+| | able to tamper with the logs |
+| | because of the logs being |
+| | stored off-site. |
++----------------------+-----------------------------------------------------------------------------------------+
+| Instructions | Run the following command: |
+| | |
+| | oc get clusterlogforwarders |
+| | instance -n openshift-logging |
+| | -ojson | jq -r |
+| | &amp;#39;.spec.pipelines[].inputRefs | |
+| | contains([&amp;#34;audit&amp;#34;])&amp;#39; |
+| | |
+| | The output should return true. |
++----------------------+-----------------------------------------------------------------------------------------+
+| CIS-OCP Controls | 1.2.23 |
++----------------------+-----------------------------------------------------------------------------------------+
+| NIST-800-53 Controls | AC-2(12), AU-6, AU-6(1), |
+| | AU-6(3), AU-9(2), SI-4(16), |
+| | AU-4(1), AU-11, AU-7, AU-7(1) |
++----------------------+-----------------------------------------------------------------------------------------+
+| Available Fix | No |
++----------------------+-----------------------------------------------------------------------------------------+
+| Result Object Name | ocp4-cis-audit-log-forwarding-enabled |
++----------------------+-----------------------------------------------------------------------------------------+
+| Rule Object Name | ocp4-audit-log-forwarding-enabled |
++----------------------+-----------------------------------------------------------------------------------------+
+| Remediation Created | No |
++----------------------+-----------------------------------------------------------------------------------------+&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Compliance Operator</title><link>https://blog.stderr.at/compliance/2021/07/compliance-operator/</link><pubDate>Mon, 19 Jul 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/compliance/2021/07/compliance-operator/</guid><description>&lt;div class="paragraph">
 &lt;p>OpenShift comes out of the box with a highly secure operating system, called Red Hat CoreOS. This OS is immutable, which means that no direct changes are done inside the OS, instead any configuration is managed by OpenShift itself using MachineConfig objects. Nevertheless, hardening certain settings must still be considered. Red Hat released a hardening guide (CIS Benchmark) which can be downloaded at &lt;a href="https://www.cisecurity.org/" class="bare">https://www.cisecurity.org/&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>However, an automated way to perform such checks would be nice too. To achieve this the &lt;strong>Compliance Operator&lt;/strong> can be leveraged, which runs an OpenSCAP check to create reports of the clusters is compliant or as the official documentation describes:&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;em>The Compliance Operator lets OpenShift Container Platform administrators describe the desired compliance state of a cluster and provides them with an overview of gaps and ways to remediate them. The Compliance Operator assesses compliance of both the Kubernetes API resources of OpenShift Container Platform, as well as the nodes running the cluster. The Compliance Operator uses OpenSCAP, a NIST-certified tool, to scan and enforce security policies provided by the content.&lt;/em>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This article shall show how to quickly install the operator and retrieve the first result. It is not a full documentation, which is written by other people at: &lt;a href="https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-installation.html">Compliance Operator&lt;/a>, especially remediation is not covered here.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As prerequisites we have:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Installed OpenShift 4.6+ cluster&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The Compliance Operator is available for Red Hat Enterprise Linux CoreOS (RHCOS) deployments only.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_install_the_compliance_operator">Install the Compliance Operator&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The easiest way to deploy the Compliance Operator is by searching the OperatorHub which is available inside OpenShift.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/install_compliance_operator_1.png?width=640" alt="Install"/>
+&lt;/div>
+&lt;div class="title">Figure 1. Install Compliance Operator&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Keep the default settings and wait until the operator has been installed.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/install_compliance_operator_2.png?width=640" alt="Install"/>
+&lt;/div>
+&lt;div class="title">Figure 2. Install Compliance Operator&lt;/div>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_custom_resources_crds">Custom Resources (CRDs)&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The operator brings a ton of new CRDs into the system:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>ScanSetting …​ defines when and on which roles (worker, master …​) a check shall be executed. It also defines a persistent volume (PV) to store the scan results. Two ScanSettings are created during the installation:&lt;/p>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;em>default&lt;/em>: just scans without automatically apply changes&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;em>default-auto-apply&lt;/em>: can automatically remediate without extra steps&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>ScanSettingBinding …​ binds one or more profiles to a scan&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Profile …​ Represent different compliance benchmarks with a set of rules. For this blog we will use CIS Benchmark profiles&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ProfileBundle …​ Bundles a security image, which is later used by Profiles.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Rule …​ Rules which are used by profiles to verify the state of the cluster.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>TailoredProfile …​ Customized profile&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ComplianceScan …​ scans which have been performed&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ComplianceCheckResult …​ The results of a scan. Each ComplianceCheckResult represents the result of one compliance rule check&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ComplianceRemediation …​ If a rule ca be remediated automatically, this object is created.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_a_scanbinding_object">Create a ScanBinding object&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The first step to do is to create a ScanBiding objects. (We reuse the &lt;em>default&lt;/em> ScanSetting)&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s create the following object, which is using the profiles &lt;em>ocp4-cis&lt;/em> and &lt;em>ocp4-cis-node&lt;/em>&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: ScanSettingBinding
+metadata:
+name: cis-compliance
+profiles:
+- name: ocp4-cis-node &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+kind: Profile
+apiGroup: compliance.openshift.io/v1alpha1
+- name: ocp4-cis &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+kind: Profile
+apiGroup: compliance.openshift.io/v1alpha1
+settingsRef:
+name: default &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+kind: ScanSetting
+apiGroup: compliance.openshift.io/v1alpha1&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>use the profile ocp4-cis-node&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>use the profile ocp4-cis&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>reference to the &lt;em>default&lt;/em> scansetting&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As soon as the object is created the cluster is scan is started. The objects &lt;em>ComplianceSuite&lt;/em> and &lt;em>ComplianceScan&lt;/em> are created automatically and will eventually reach the phase &amp;#34;DONE&amp;#34; when the scan is completed.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following command will show the results of the scans&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get compliancescan -n openshift-compliance
+NAME PHASE RESULT
+ocp4-cis DONE NON-COMPLIANT
+ocp4-cis-node-master DONE NON-COMPLIANT
+ocp4-cis-node-worker DONE INCONSISTENT&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Three different checks have been done. One overall cluster check and 2 separated for master and worker nodes.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As we used the &lt;em>default&lt;/em> ScanSetting the next check will run a 1 am.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_profiles">Profiles&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The operator comes with a set of standard profiles which represent different compliance benchmarks.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To view available profiles:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get profiles.compliance -n openshift-compliance&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME AGE
+ocp4-cis 28m
+ocp4-cis-node 28m
+ocp4-e8 28m
+ocp4-moderate 28m
+rhcos4-e8 28m
+rhcos4-moderate 28m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Each profile contains a description which explains the intention and a list of rules which used in this profile.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For example the profile &amp;#39;ocp4-cis-node&amp;#39; used above is containing:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get profiles.compliance -n openshift-compliance -oyaml ocp4-cis-node
+# Output
+description: This profile defines a baseline that aligns to the Center for Internet Security® Red
+Hat OpenShift Container Platform 4 Benchmark™, V0.3, currently unreleased. This profile includes
+Center for Internet Security® Red Hat OpenShift Container Platform 4 CIS Benchmarks™ content.
+Note that this part of the profile is meant to run on the Operating System that Red Hat
+OpenShift Container Platform 4 runs on top of. This profile is applicable to OpenShift versions
+4.6 and greater.
+[...]
+name: ocp4-cis-node
+namespace: openshift-compliance
+[...]
+rules:
+- ocp4-etcd-unique-ca
+- ocp4-file-groupowner-cni-conf
+- ocp4-file-groupowner-controller-manager-kubeconfig
+- ocp4-file-groupowner-etcd-data-dir
+- ocp4-file-groupowner-etcd-data-files
+- ocp4-file-groupowner-etcd-member
+- ocp4-file-groupowner-etcd-pki-cert-files
+- ocp4-file-groupowner-ip-allocations
+[...]&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Like the profiles the different rules can be inspected:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get rules.compliance -n openshift-compliance ocp4-file-groupowner-etcd-member
+-o jsonpath=&amp;#39;{&amp;#34;Title: &amp;#34;}{.title}{&amp;#34;\nDescription: \n&amp;#34;}{.description}&amp;#39;
+# Output
+Title: Verify Group Who Owns The etcd Member Pod Specification File
+Description:
+To properly set the group owner of /etc/kubernetes/static-pod-resources/etcd-pod-*/etcd-pod.yaml ,
+run the command:
+$ sudo chgrp root /etc/kubernetes/static-pod-resources/etcd-pod-*/etcd-pod.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_profile_customization">Profile Customization&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Sometimes is it required to modify (tailor) a profile to fit specific needs. With the &lt;em>TailoredProfile&lt;/em> object it is possible to enable or disable rules.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In this blog, I just want to share a quick example from the official documentaiton: &lt;a href="https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-tailor.html" class="bare">https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-tailor.html&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following TailoredProfile disables 2 rules and sets a value for another rule:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: TailoredProfile
+metadata:
+name: nist-moderate-modified
+spec:
+extends: rhcos4-moderate
+title: My modified NIST moderate profile
+disableRules:
+- name: rhcos4-file-permissions-node-config
+rationale: This breaks X application.
+- name: rhcos4-account-disable-post-pw-expiration
+rationale: No need to check this as it comes from the IdP
+setValues:
+- name: rhcos4-var-selinux-state
+rationale: Organizational requirements
+value: permissive&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_working_with_scan_results">Working with scan results&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Once a scan finished you probably want to see what the status of the scan is.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As you sse above the cluster failed to be compliant.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get compliancescan -n openshift-compliance
+NAME PHASE RESULT
+ocp4-cis DONE NON-COMPLIANT
+ocp4-cis-node-master DONE NON-COMPLIANT
+ocp4-cis-node-worker DONE INCONSISTENT&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_retrieving_results_via_oc_command">Retrieving results via oc command&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>List all results which can be remediated automatically:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get compliancecheckresults -l &amp;#39;compliance.openshift.io/check-status=FAIL,compliance.openshift.io/automated-remediation&amp;#39; -n openshift-compliance
+NAME STATUS SEVERITY
+ocp4-cis-api-server-encryption-provider-cipher FAIL medium
+ocp4-cis-api-server-encryption-provider-config FAIL medium&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Further information about remediation can be found at: &lt;a href="https://docs.openshift.com/container-platform/4.7/security/compliance_operator/compliance-operator-remediation.html">Compliance Operator Remediation&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>List all results which cannot be remediated automatically and must be fixed manually instead:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get compliancecheckresults -l &amp;#39;compliance.openshift.io/check-status=FAIL,!compliance.openshift.io/automated-remediation&amp;#39; -n openshift-compliance
+NAME STATUS SEVERITY
+ocp4-cis-audit-log-forwarding-enabled FAIL medium
+ocp4-cis-file-permissions-proxy-kubeconfig FAIL medium
+ocp4-cis-node-master-file-groupowner-ip-allocations FAIL medium
+ocp4-cis-node-master-file-groupowner-openshift-sdn-cniserver-config FAIL medium
+ocp4-cis-node-master-file-owner-ip-allocations FAIL medium
+ocp4-cis-node-master-file-owner-openshift-sdn-cniserver-config FAIL medium
+ocp4-cis-node-master-kubelet-configure-event-creation FAIL medium
+ocp4-cis-node-master-kubelet-configure-tls-cipher-suites FAIL medium
+ocp4-cis-node-master-kubelet-enable-protect-kernel-defaults FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-imagefs-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-imagefs-inodesfree FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-memory-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-nodefs-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-hard-nodefs-inodesfree FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-imagefs-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-imagefs-inodesfree FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-memory-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-nodefs-available FAIL medium
+ocp4-cis-node-master-kubelet-eviction-thresholds-set-soft-nodefs-inodesfree FAIL medium
+ocp4-cis-node-worker-file-groupowner-ip-allocations FAIL medium
+ocp4-cis-node-worker-file-groupowner-openshift-sdn-cniserver-config FAIL medium
+ocp4-cis-node-worker-file-owner-ip-allocations FAIL medium
+ocp4-cis-node-worker-file-owner-openshift-sdn-cniserver-config FAIL medium
+ocp4-cis-node-worker-kubelet-configure-event-creation FAIL medium
+ocp4-cis-node-worker-kubelet-configure-tls-cipher-suites FAIL medium
+ocp4-cis-node-worker-kubelet-enable-protect-kernel-defaults FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-imagefs-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-imagefs-inodesfree FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-memory-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-nodefs-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-hard-nodefs-inodesfree FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-imagefs-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-imagefs-inodesfree FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-memory-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-nodefs-available FAIL medium
+ocp4-cis-node-worker-kubelet-eviction-thresholds-set-soft-nodefs-inodesfree FAIL medium&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_retrieving_raw_results">Retrieving RAW results&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Let’s first retrieve the raw result of the scan. For each of the ComplianceScans a volume claim (PVC) is created to store he results. We can use a Pod to mount the volume to download the scan results.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following PVC have been created on our example:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pvc -n openshift-compliance
+NAME STATUS VOLUME CAPACITY ACCESS MODES STORAGECLASS AGE
+ocp4-cis Bound pvc-cc026ae3-2f42-4e19-bc55-016c6dd31d22 1Gi RWO managed-nfs-storage 4h17m
+ocp4-cis-node-master Bound pvc-3bd47c5e-2008-4759-9d53-ba41b568688d 1Gi RWO managed-nfs-storage 4h17m
+ocp4-cis-node-worker Bound pvc-77200e5f-0f15-410c-a4ee-f2fb3e316f84 1Gi RWO managed-nfs-storage 4h17m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now we can create a Pod which mounts all PVCs at once:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: &amp;#34;v1&amp;#34;
+kind: Pod
+metadata:
+name: pv-extract
+namespace: openshift-compliance
+spec:
+containers:
+- name: pv-extract-pod
+image: registry.access.redhat.com/ubi8/ubi
+command: [&amp;#34;sleep&amp;#34;, &amp;#34;3000&amp;#34;]
+volumeMounts: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- mountPath: &amp;#34;/workers-scan-results&amp;#34;
+name: workers-scan-vol
+- mountPath: &amp;#34;/masters-scan-results&amp;#34;
+name: masters-scan-vol
+- mountPath: &amp;#34;/ocp4-scan-results&amp;#34;
+name: ocp4-scan-vol
+volumes: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- name: workers-scan-vol
+persistentVolumeClaim:
+claimName: ocp4-cis-node-worker
+- name: masters-scan-vol
+persistentVolumeClaim:
+claimName: ocp4-cis-node-master
+- name: ocp4-scan-vol
+persistentVolumeClaim:
+claimName: ocp4-cis&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>mount paths&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>volumesclaims to mount&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This creates a Pod with the PVCs mounted inside:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">sh-4.4# ls -la | grep scan
+drwxrwxrwx. 3 root root 4096 Jul 20 05:20 master-scan-results
+drwxrwxrwx. 3 root root 4096 Jul 20 05:20 ocp4-scan-results
+drwxrwxrwx. 3 root root 4096 Jul 20 05:20 workers-scan-results&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We can download the result-files to our local machine for further auditing. Therefore, we create the folder &lt;em>scan_results&lt;/em> in which we copy everything:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">mkdir scan-results; cd scan-results
+oc -n openshift-compliance cp pv-extract:ocp4-scan-results ocp4-scan-results/.
+oc -n openshift-compliance cp pv-extract:workers-scan-results workers-scan-results/.
+oc -n openshift-compliance cp pv-extract:masters-scan-results masters-scan-results/.&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will download several bzip2 archives for the appropriate scan result.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Once done, you can delete the &amp;#34;download pod&amp;#34; using: &lt;code>oc delete pod pv-extract -n openshift-compliance&lt;/code>&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_work_wth_raw_results">Work wth RAW results&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>So above section described the download of the bzip2 files but what to do with it? First, you can import it into a tool which is able to read openScap reports. Or, secondly, you can use the &lt;em>oscap&lt;/em> command to create a html output.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We have downloaded the following files:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">./ocp4-scan-results/0/ocp4-cis-api-checks-pod.xml.bzip2
+./masters-scan-results/0/ocp4-cis-node-master-master-0-pod.xml.bzip2
+./masters-scan-results/0/ocp4-cis-node-master-master-2-pod.xml.bzip2
+./masters-scan-results/0/ocp4-cis-node-master-master-1-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-0-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-1-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-3-pod.xml.bzip2
+./workers-scan-results/0/ocp4-cis-node-worker-compute-2-pod.xml.bzip2&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To create the html output (be sure that open-scap is installed on you host):&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">mkdir html
+oscap xccdf generate report ocp4-scan-results/0/ocp4-cis-api-checks-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-api-checks.html
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-0-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-node-master-master-0.html
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-1-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-node-master-master-1.html
+oscap xccdf generate report masters-scan-results/0/ocp4-cis-node-master-master-2-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-node-master-master-2.html
+oscap xccdf generate report workers-scan-results/0/ocp4-cis-node-worker-compute-0-pod.xml.bzip2 &amp;gt;&amp;gt; html/ocp4-cis-node-worker-compute-0.html
+...&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The resulted html files are too big to be show here, but some snippets should give an overview:&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To view the html output as an example I have linked the html files:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;a href="https://blog.stderr.at/files/ocp4-cis-api-checks.html">OCP4 - CIS&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://blog.stderr.at/files/ocp4-cis-node-master-master-0.html">Example Master Node Results&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://blog.stderr.at/files/ocp4-cis-node-worker-compute-0.html">Example Worker Node Results&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Overall Scoring of the result:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/compliance_scoring.png?width=940px" alt="Install"/>
+&lt;/div>
+&lt;div class="title">Figure 3. Scoring&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>A list if passed or failed checks:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/compliance_scan_results.png?width=940px" alt="Scanresults"/>
+&lt;/div>
+&lt;div class="title">Figure 4. Scan Result list&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Scan details with a link to the CIS Benchmark section and further explainations on how to fix the issue:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/compliance/images/compliance_scan_details.png?width=940px" alt="Details"/>
+&lt;/div>
+&lt;div class="title">Figure 5. Scan details&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_performing_a_rescan">Performing a rescan&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>If it is necessary to run a rescan, the ComplianceScan object is simply annotated with:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc annotate compliancescans/&amp;lt;scan_name&amp;gt; compliance.openshift.io/rescan=&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+If &lt;em>default-auto-apply&lt;/em> is enabled, remediation which changes MachineConfigs will trigger a cluster reboot.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

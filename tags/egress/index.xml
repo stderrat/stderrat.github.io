@@ -1,3 +1,437 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Egress on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/egress/</link><description>Recent content in Egress on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sun, 05 May 2024 18:05:24 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/egress/index.xml" rel="self" type="application/rss+xml"/><item><title>Limit Egress/External Traffic</title><link>https://blog.stderr.at/service-mesh/2020/04/limit-egress/external-traffic/</link><pubDate>Mon, 06 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/service-mesh/2020/04/limit-egress/external-traffic/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Egress on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/egress/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 06 Apr 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/egress/index.xml" rel="self" type="application/rss+xml"/><item><title>Limit Egress/External Traffic</title><link>https://blog.stderr.at/service-mesh/2020/04/limit-egress/external-traffic/</link><pubDate>Mon, 06 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/service-mesh/2020/04/limit-egress/external-traffic/</guid><description>&lt;div class="paragraph">
 &lt;p>Sometimes services are only available from outside the OpenShift cluster (like external API) which must be reached. Part 7 of &lt;strong>OpenShift 4 and Service Mesh&lt;/strong> takes care and explains how to control the egress or external traffic. All operations have been successdully tested on OpenShift 4.3.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_preparation">Preparation&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Before this tutorial can be started, ensure that 3 microservices are deployed (recommendation may have 2 versions) and that the objects Gateway and VirtualService are configured. The status should be like in &lt;a href="https://blog.stderr.at/service-mesh/2020/03/ingress-with-custom-domain/">Issue #4..6&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>You can verify this the following way:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath=&amp;#39;{.spec.host}&amp;#39;)
+curl $GATEWAY_URL&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>which should simply print:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 7123&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_setup_recommendation_v3">Setup &lt;em>recommendation-v3&lt;/em>&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>We need to deploy version 3 of our recommendation microservice. This will perform an external API call to &lt;a href="http://worldclockapi.com" class="bare">http://worldclockapi.com&lt;/a> to retrieve the current time.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To deploy the Deployment v3:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cd ~/istio-tutorial/recommendation
+oc apply -f kubernetes/Deployment-v3.yml -n tutorial&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+If you list the pods at this moment, you will see that only one container (Ready 1/1) is started. This happens because the Deployment yaml file is missing an annotation.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_fixing_missing_proxy_sidecar_container">Fixing missing proxy sidecar container&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>After you applied the Deployment-v3.yml, only 1 container is started. The proxy sidecar is not injected, because an annotation is missing in the configuration for the Deployment.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To fix this use the following command:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc patch deployment recommendation-v3 -n tutorial -p &amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;template&amp;#34;:{&amp;#34;metadata&amp;#34;:{&amp;#34;annotations&amp;#34;:{&amp;#34;sidecar.istio.io/inject&amp;#34;:&amp;#34;true&amp;#34;}}}}}&amp;#39;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will automatically restart the pod with 2 containers.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_destinationrule_and_virtualservice">Create DestinationRule and VirtualService&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Use the following definition to create (overwrite) the DestinationRule for recommendation-v3.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+name: recommendation
+spec:
+host: recommendation
+subsets:
+- labels:
+version: v3
+name: version-v3&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Only version 3 is used for now. The other versions are still there, but ignored for our tests.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Apply the change&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f DestinationRule_v3.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Define the VirtualService and send 100% of the traffic to v3 of the recommendation microservice.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+name: recommendation
+spec:
+hosts:
+- recommendation
+http:
+- route:
+- destination:
+host: recommendation
+subset: version-v3
+weight: 100&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+As an alternative, you can also edit the existing VirtualService and add the section for version-v3 with a weight of 100, while changing the weight of v1 and v2 to 0.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_test_egress_traffic">Test egress traffic&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>As usual we test our application by sending traffic to it. The following command should print successful connection requests:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">sh ~/run.sh 1000 $GATEWAY_URL&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash"># 0: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-06T18:31+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 1
+# 1: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-06T18:31+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 2
+# 2: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-06T18:31+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 3
+# 3: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-06T18:31+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 4
+# 4: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-06T18:31+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 5&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As you can see 100% of the traffic is sent to v3 &lt;strong>AND&lt;/strong> a new field enters the output. The current time is now shown as well. The information for this field is fetched with an external API call to &lt;a href="http://worldclockapi.com" class="bare">http://worldclockapi.com&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The traffic is simply sent to an external destination. There is not limit yet. Readers of the Istio documentation will miss the object &lt;strong>ServiceEntry&lt;/strong> which somebody should think is required. However, Openshift is currently(?) configured in a way to simply allow ANY traffic. This is defined in a ConfigMap which might be changed to modify the default behavior. However, as soon as ServiceEntry and the appropriate VirtualService is configured, the traffic will be limited as well.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_limitcontrol_external_access">Limit/Control external access&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>As you can see above you can simply send egress traffic without any control about what is allowed or not. In order to limit your outgoing traffic a new object called &lt;strong>ServiceEntry&lt;/strong> must be defined as well as a change in your &lt;strong>VirtualService&lt;/strong> will be required.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Define the ServiceEntry and apply it to your cluster:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+name: worldclockapi-egress-rule
+spec:
+hosts:
+- worldclockapi.com
+ports:
+- name: http-80
+number: 81 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+protocol: http&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Wrong port 81 is set on purpose for demonstration&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The port &lt;strong>number: 81&lt;/strong> is set on purpose, to prove that the traffic will not work with a wrong ServiceEntry.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create -f ServiceEntry.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To actually limit the traffic a link between the ServiceEntry and a VirtualService, which defines the external destination, must be created. Moreover, a timeout is set for possible connection errors, to keep the application responding even when the external API is down.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+name: worldclockapi-timeout &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+spec:
+hosts:
+- worldclockapi.com &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+http:
+- timeout: 3s &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+route:
+- destination:
+host: worldclockapi.com
+weight: 100 &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The name of the object&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The external hostname we want to reach&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The timeout setting in seconds&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>The destination route, which is sending 100% of the external traffic to the host above&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f VirtualService-worldclockapi.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>If you now run a connection test you will still get an error.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">sh ~/run.sh 1 $GATEWAY_URL
+# customer =&amp;gt; Error: 503 - preference =&amp;gt; Error: 500 ...&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_fix_serviceentry">Fix ServiceEntry&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>This happens, because we misconfigured the ServiceEntry on purpose to demonstrate that the traffic is sent to worldclockapi.com:80.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Fix the ServiceEntry object and apply to your cluster:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+name: worldclockapi-egress-rule
+spec:
+hosts:
+- worldclockapi.com
+ports:
+- name: http-80
+number: 80 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+protocol: http&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Changed from 81 to 80&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f ServiceEntry.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now the traffic should work and gives you back a connection to microservice and a current time:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">sh ~/run.sh 10 $GATEWAY_URL
+# 0: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-07T07:47+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 138
+# 1: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-07T07:47+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 139
+# 2: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-07T07:47+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 140
+# 3: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-07T07:47+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 141
+# 4: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-07T07:47+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 142
+# 5: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-07T07:47+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 143
+# 6: customer =&amp;gt; preference =&amp;gt; recommendation v3 2020-04-07T07:47+02:00 from &amp;#39;83bbb6d11a7e&amp;#39;: 144&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_verify_kiali">Verify Kiali&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/service-mesh/images/Kiali_with_external_service.png?width=940px&amp;amp;height=250px" alt="Kiali with external service"/>
+&lt;/div>
+&lt;div class="title">Figure 1. Kiali shows traffic to the external service&lt;/div>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_optional_disallow_any_connections">OPTIONAL: Disallow ANY connections&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+This is a change in the default ConfigMap of the ServiceMesh. Do this on your own risk and always consult the latest documentation of OCP.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As explained above, we are able to connect to an external service without any limitation. The ServiceEntry object together with the VirtualService define the actual destination and would disallow traffic if they are wrongly configured, but if you forget these entries, it would still be possible to establish an egress connection.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In OpenShift a ConfigMap in the &lt;em>istio-system&lt;/em> namespace defines the default behavior. There are two possibilities:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>ALLOW_ANY - outbound traffic to unknown destinations will be allowed, in case there are no services or ServiceEntries for the destination port&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>REGISTRY_ONLY - restrict outbound traffic to services defined in the service registry as well&lt;/p>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Let’s Cleanup the ServiceEntry and the VirtualService which have been created above&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc delete serviceentry worldclockapi-egress-rule
+serviceentry.networking.istio.io &amp;#34;worldclockapi-egress-rule&amp;#34; deleted
+oc delete virtualservice worldclockapi-timeout
+virtualservice.networking.istio.io &amp;#34;worldclockapi-timeout&amp;#34; deleted&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Now traffic to the external service will be allowed again
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Modify the ConfigMap &lt;em>istio&lt;/em> in the namespace &lt;em>istio-system&lt;/em>&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get configmap istio -n istio-system -o yaml | sed &amp;#39;s/mode: ALLOW_ANY/mode: REGISTRY_ONLY/g&amp;#39; | oc replace -n istio-system -f -&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Wait a few seconds and try to connect. You will see that the connection is not possible anymore.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+If you now re-create the &lt;strong>ServiceEntry&lt;/strong> the connection will be possible again, since the service is registered to the Service Mesh.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

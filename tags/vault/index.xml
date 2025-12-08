@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Vault on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/vault/</link><description>Recent content in Vault on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 10 Nov 2025 15:10:12 +0100</lastBuildDate><atom:link href="https://blog.stderr.at/tags/vault/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift</title><link>https://blog.stderr.at/openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/</guid><description/></item><item><title>Secrets Management - Vault on OpenShift</title><link>https://blog.stderr.at/openshift/2022/08/secrets-management-vault-on-openshift/</link><pubDate>Tue, 16 Aug 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2022/08/secrets-management-vault-on-openshift/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Vault on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/vault/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 16 Aug 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/vault/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift</title><link>https://blog.stderr.at/openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/</guid><description/></item><item><title>Secrets Management - Vault on OpenShift</title><link>https://blog.stderr.at/openshift/2022/08/secrets-management-vault-on-openshift/</link><pubDate>Tue, 16 Aug 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2022/08/secrets-management-vault-on-openshift/</guid><description>&lt;div class="paragraph">
 &lt;p>Sensitive information in OpenShift or Kubernetes is stored as a so-called Secret. The management of these Secrets is one of the most important questions,
 when it comes to OpenShift. Secrets in Kubernetes are encoded in base64. This is &lt;strong>not&lt;/strong> an encryption format.
 Even if etcd is encrypted at rest, everybody can decode a given base64 string which is stored in the Secret.&lt;/p>
@@ -6,12 +6,767 @@ Even if etcd is encrypted at rest, everybody can decode a given base64 string wh
 &lt;div class="paragraph">
 &lt;p>For example: The string &lt;code>Thomas&lt;/code> encoded as base64 is &lt;code>VGhvbWFzCg==&lt;/code>. This is simply a masked plain text and it is not secure to share these values, especially not on Git.
 To make your CI/CD pipelines or Gitops process secure, you need to think of a secure way to manage your Secrets. Thus, your Secret objects must be encrypted somehow. HashiCorp Vault is one option to achieve this requirement.&lt;/p>
-&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
-
-
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_hashicorp_vault">HashiCorp Vault&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>HashiCorp Vault is a solution to solve our Secret management problem. It stores and encrypts our sensitive information at rest and in transit and enables you to create fine grained access
+controls (ACL). This defines who has access to a specific secret. Application A should only get access to secret A and so on. However, that is just the tip of the iceberg. Vault can do much more.
+If you are interested in further details, check out the introduction video by Armon, the Co-Founder of Hashicorp Vault at: &lt;a href="https://learn.hashicorp.com/tutorials/vault/getting-started-intro?in=vault/getting-started" class="bare">https://learn.hashicorp.com/tutorials/vault/getting-started-intro?in=vault/getting-started&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For this article we will keep it simple and cover:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Installing HashiCorp Vault to OpenShift&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Integrating the plugin &amp;#34;Kubernetes Authentication&amp;#34; to access the Secrets&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Accessing a static secret stored in HashiCorp Vault by an example application&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_installing_vault">Installing Vault&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The easiest way to install Vault is by using the supported Helm chart.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Add the Helm repository to your repo:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">helm repo add hashicorp https://helm.releases.hashicorp.com&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Update the repository to get the latest updates.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">helm repo update&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Before we install Vault, we need to create a values file to set certain variables. Let’s create a file called &amp;#34;overwrite-values.yaml&amp;#34; with the following content&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">global:
+openshift: true
+server:
+ha:
+enabled: true
+replicas: 3
+raft:
+enabled: true&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will tell HashiCorp Vault the environment we are going to install is (OpenShift), enables high availability with 3 replicas and enables RAFT (see below for some introduction).&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Finally, let us deploy HashiCorp Vault into the namespace &lt;strong>vault&lt;/strong> using the values file we have created in the previous step:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">helm upgrade --install vault hashicorp/vault --values bootstrap/vault/overwrite-values.yaml --namespace=vault --create-namespace&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will start the agent-injector and 3 vault-pods:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n vault
+NAME READY STATUS RESTARTS AGE
+vault-0 0/1 Running 0 36s
+vault-1 0/1 Running 0 36s
+vault-2 0/1 Running 0 36s
+vault-agent-injector-74c848f67b-sq4dq 1/1 Running 0 37s&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>vault agent injector: detecting applications with annotations that require vault agent which will get injected&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>vault-0: vault server&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The vault servers remain in &lt;strong>not-ready&lt;/strong> state until Vault has been unsealed by you.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>When you check the logs of one of the pods you will see:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc logs vault-0 -n vault
+...
+2022-08-11T12:31:22.497Z [INFO] core: security barrier not initialized
+2022-08-11T12:31:22.497Z [INFO] core: seal configuration missing, not initialized&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Vault always starts uninitialized and sealed, to protect the secrets. You need to give at least three different unseal-keys in order to be able to use Vault.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Vault’s seal mechanism uses &lt;a href="https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing" target="_blank" rel="noopener">Shamir’s secret sharing&lt;/a>. This is a manual process to secure the cluster if it restarts. You can use auto-unseal for specific cloud providers to bypass the manual requirement.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_raft_storage">Raft Storage&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>During the deployment we have enabled Raft which is the integrated HA storage for Vault. Vault can use several different styles of storage backends, but when it comes to HA and Kubernetes, Raft is
+easiest one since it has no other dependencies, and it is well known inside OpenShift. Etcd is using Raft as well. It is a distributed Consensus Algorithm where multiple members form a cluster and elect one leader. The leader has the responsibility to replicate everything to the followers. Since this leader election requires a majority an odd number of cluster members must be available to ensure there is a minimum number left if a member is failing.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_initialize_and_unseal_vault">Initialize and Unseal Vault&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>As mentioned, the Vault Pods are not fully available yet, since Vault it currently sealed and cannot be used. The first thing to do is to initialize and unseal it.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The following commands will login into one Pod and execute commands from there.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s get the status of our Vault fist:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc -n vault exec -it vault-0 -- vault operator init -status&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will return the message:
+&lt;code>Vault is not initialized&lt;/code>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following command will initialize Vault for further usage:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc exec -ti -n vault vault-0 -- vault operator init -format=json &amp;gt; unseal.json&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will create the file &lt;strong>unseal.json&lt;/strong> locally on your machine. &lt;strong>Keep this file secure&lt;/strong> It contains by default 5 key shards and the root token you will need to unseal Vault and authenticate as root.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Keep this file secure, it contains keys to unseal Vault and the root_token to authenticate against.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Never share this file. It will look like this:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">{
+&amp;#34;unseal_keys_b64&amp;#34;: [
+&amp;#34;key_1&amp;#34;,
+&amp;#34;key_2&amp;#34;,
+&amp;#34;key_3&amp;#34;,
+&amp;#34;key_4&amp;#34;,
+&amp;#34;key_5&amp;#34;
+],
+&amp;#34;unseal_keys_hex&amp;#34;: [
+&amp;#34;key_hex_1&amp;#34;,
+&amp;#34;key_hex_2&amp;#34;,
+&amp;#34;key_hex_3&amp;#34;,
+&amp;#34;key_hex_4&amp;#34;,
+&amp;#34;key_hex_5&amp;#34;
+],
+&amp;#34;unseal_shares&amp;#34;: 5,
+&amp;#34;unseal_threshold&amp;#34;: 3,
+&amp;#34;recovery_keys_b64&amp;#34;: [],
+&amp;#34;recovery_keys_hex&amp;#34;: [],
+&amp;#34;recovery_keys_shares&amp;#34;: 5,
+&amp;#34;recovery_keys_threshold&amp;#34;: 3,
+&amp;#34;root_token&amp;#34;: &amp;#34;root.token&amp;#34;
+}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With the initialization in place Vault is put into a sealed mode. This means Vault cannot decrypt secrets at this moment.
+To unseal Vault you need the unseal key, which is split into multiple shards using &lt;a href="https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing" target="_blank" rel="noopener">Shamir’s secret sharing&lt;/a>. A certain number of individual shards (default 3) must be provided to reconstruct the unseal key.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To unseal Vault lets login to our Pod &amp;#34;vault-0&amp;#34; and unseal it. Use the following command and provide one of the keys:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc exec -ti -n vault vault-0 -- vault operator unseal
+Unseal Key (will be hidden):
+Key Value
+--- -----
+Seal Type shamir
+Initialized true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+Sealed true &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+Total Shares 5
+Threshold 3
+Unseal Progress 1/3 &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+Unseal Nonce 08b01535-be15-e865-251c-f948ed0661c9
+Version 1.11.2
+Build Date 2022-07-29T09:48:47Z
+Storage Type raft
+HA Enabled true&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Vault is initialized&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Vault is still sealed&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The unseal progress: Currently 1 out of 3 keys have been provided&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Use the same command another 2 times using &lt;strong>different&lt;/strong> keys to complete the unseal process:&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>At the end the following output should be shown:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Unseal Key (will be hidden):
+Key Value
+--- -----
+Seal Type shamir
+Initialized true
+Sealed false &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+Total Shares 5
+Threshold 3
+Version 1.11.2
+Build Date 2022-07-29T09:48:47Z
+Storage Type raft
+Cluster Name vault-cluster-f7402e5b &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+Cluster ID aff648f0-b3a2-1fdd-12f6-492842b08b2b
+HA Enabled true
+HA Cluster https://vault-0.vault-internal:8201
+HA Mode active &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+Active Since 2022-08-16T07:20:45.828215961Z
+Raft Committed Index 36
+Raft Applied Index 36&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Vault is now unsealed&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Name of our cluster&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>High availability is enabled&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Vault-0&lt;/strong> is now initialized, but there are 2 other members in our HA cluster which must be added.
+Let &lt;strong>vault-1&lt;/strong> and &lt;strong>vault-2&lt;/strong> join the cluster and perform the same unseal process as previously: use 3 different keys:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc exec -ti vault-1 -n vault -- vault operator raft join http://vault-0.vault-internal:8200
+# 3 times....
+oc exec -ti vault-1 -n vault -- vault operator unseal
+oc exec -ti vault-2 -n vault -- vault operator raft join http://vault-0.vault-internal:8200
+# 3 times...
+oc exec -ti vault-2 -n vault -- vault operator unseal&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_verify_vault_cluster">Verify Vault Cluster&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>To verify if the Raft cluster has successfully been initialized, run the following.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>First, login using the &lt;strong>root_token&lt;/strong>, that was created above, on the vault-0 pod.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc exec -ti vault-0 -n vault -- vault login
+Token (will be hidden): &amp;lt;root_token&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc exec -ti vault-0 -n vault -- vault operator raft list-peers&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This should return:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Node Address State Voter
+---- ------- ----- -----
+16ec7490-f621-42ea-976d-5f054cfaeecc vault-0.vault-internal:8201 leader true
+60ba2885-432a-c7d3-d280-a824f0acce42 vault-1.vault-internal:8201 follower true
+bcc4f551-79bc-47e5-d01b-97fc12d1afa5 vault-2.vault-internal:8201 follower true&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As you can see Vault-0 is the leader while the other two members are followers.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_kubernetes_authentication">Configure Kubernetes Authentication&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>There are multiple ways how an application can interact with Vault. One example is to use Tokens. This is quite easy but has the disadvantage that it does require additional steps of managing the life cycle of such token, moreover they might be shared, which is not what we want.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>HashiCorp Vault supports different authentication methods. One of which is the &lt;strong>Kubernetes Auth Method&lt;/strong> that must be enabled before we can use.
+The Kubernetes Auth Method makes use of Jason Web Tokens (JWT)s that are bound to a Service Account. When we tell Vault that a Service Account is fine to authenticate, then a Deployment using this account is able to authenticate and
+request Secrets.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Vault has a plugin ecosystem, which allows to enable certain plugins. To enable &lt;strong>Kubernetes Auth Method&lt;/strong> use the following process:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Login vault-0 pods
+&lt;code>oc exec -it vault-0 -n vault — /bin/sh&lt;/code>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>execute the command:
+&lt;code>vault auth enable kubernetes&lt;/code> which returns:
+&lt;em>Success! Enabled kubernetes auth method at: kubernetes/&lt;/em>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Set up the Kubernetes configuration to use Vault’s service account JWT.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+the address to the OpenShift API (KUBERNETES_PORT_443_TCP_ADDR) is automatically available via an environment variable.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">vault write auth/kubernetes/config issuer=&amp;#34;&amp;#34; \
+token_reviewer_jwt=&amp;#34;$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)&amp;#34; \
+kubernetes_host=&amp;#34;https://$KUBERNETES_PORT_443_TCP_ADDR:443&amp;#34; \
+kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+Success! Data written to: auth/kubernetes/config&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With this step authentication against OpenShift is enabled.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configure_a_secret">Configure a Secret&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>With the Kubernetes Auth Method in place we can configure a secret to test our setup. We will use an example application called &lt;strong>expenses&lt;/strong> that has a MySQL database.
+The static password to bootstrap this database shall be stored in Vault. A plugin called &lt;strong>key-value secrets&lt;/strong> engine will be used to achieve this.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>There are other plugins that are specifically designed to automatically rotate secrets. For example, it is possible to dynamically create user credentials für MySQL.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+You can list available engines by using the command: &lt;code>oc -n vault exec -it vault-0 — vault secrets list&lt;/code>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>There are currently two versions of this key/value engine:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>KV Version 1: does not versionize the key/values, thus updates will overwrite the old values.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>KV Version 2: does versionize the key/value pairs&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In our example we will use version 2.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Like the authentication method, we need to enable the secrets engine:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc -n vault exec -it vault-0 -- vault secrets enable \
+-path=expense/static \ &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+-version=2 \ &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+kv &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>API path where our secrets are stored&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Version 2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>name of our engine&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>You can list the enabled engines with the following command:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc -n vault exec -it vault-0 -- vault secrets list
+Path Type Accessor Description
+---- ---- -------- -----------
+cubbyhole/ cubbyhole cubbyhole_f1e955f9 per-token private secret storage
+expense/static/ kv kv_6db09e5d n/a
+identity/ identity identity_ca05e6ab identity store &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+sys/ system system_e34a76c3 system endpoints used for control, policy and debugging&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Enabled KV secrets engine using the path &lt;strong>expense/static/&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now lets put a secret into our store. We will store our super-secure MySQL password into &lt;strong>expense/static/mysql&lt;/strong>&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">MYSQL_DB_PASSWORD=mysuperpassword$
+oc -n vault exec -it vault-0 -- vault kv put expense/static/mysql db_login_password=${MYSQL_DB_PASSWORD}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This command will store the key &lt;strong>db_login_password&lt;/strong> with the database as value. We can get the secret by calling:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc -n vault exec -it vault-0 -- vault kv get expense/static/mysql
+====== Secret Path ======
+expense/static/data/mysql &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+======= Metadata =======
+Key Value
+--- -----
+created_time 2022-08-17T06:08:05.839663508Z
+custom_metadata &amp;lt;nil&amp;gt;
+deletion_time n/a
+destroyed false
+version 1
+========== Data ==========
+Key Value
+--- -----
+db_login_password mysuperpassword$ &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The data path of our secret&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>our password&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_configuring_policies">Configuring policies&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The Secret is now stored at &lt;strong>expense/static/mysql&lt;/strong> but there is no policy in place. Everybody who is authenticated and is calling this path will get to see the secrets.
+Luckily, one or more policies can be assigned to the authentication method. A policy defines capabilities that allow you to perform certain actions.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following capabilities are known:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>create&lt;/strong> - to create new data&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>read&lt;/strong> - to read data&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>delete&lt;/strong> - to delete data&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>list&lt;/strong> - to list data&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Policies can be written either in JSON or HCL (HashiCorp Configuration Language). Let’s create a file with the following content:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">path &amp;#34;expense/static/data/mysql&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+KV Version2 stores the secrets in a path with the prefix &lt;code>data/&lt;/code>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will limit my access to &lt;strong>read&lt;/strong> and &lt;strong>list&lt;/strong> only.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Write the policy:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cat my-policy.hcl | oc -n vault exec -it vault-0 -- vault policy write expense-db-mysql -&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Next, we are going to bind the Vault secret to a service account and a namespace. Both objects will be created later, when we deploy the application.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc -n vault exec -it vault-0 -- vault write auth/kubernetes/role/expense-db-mysql \ &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+bound_service_account_names=expense-db-mysql \ &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+bound_service_account_namespaces=expenses \ &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+policies=expense-db-mysql \ &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+ttl=1h &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Path or our new role&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Name of the service account we will create and that will be used by the application&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Name of the namespace we will create&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Name of the policy we created earlier&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>The token is valid for 1 hour, after this period the service account must re-authenticate&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_lets_start_an_application">Let’s start an Application&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now we will create our MySQL application into the namespace &lt;strong>expenses&lt;/strong>. Use the following command to create the namespace and the application containing the objects Deployment, ServiceAccount (expense-db-mysql) and Service.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+See at the &lt;a href="https://raw.githubusercontent.com/joatmon08/vault-argocd/part-1/database/deployment.yaml" target="_blank" rel="noopener">Github Page&lt;/a> for a full yaml specification of the three objects.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc new-project expenses
+oc apply -f https://raw.githubusercontent.com/joatmon08/vault-argocd/part-1/database/deployment.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The deployment will start a Pod with a sidecar container &lt;strong>vault-agent&lt;/strong>. This sidecar is automatically created and must not be defined inside the Deployment specification.
+Instead, some annotations in the Deployment define what the container should be automatically injected and also where to find our secret:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> annotations:
+vault.hashicorp.com/agent-inject: &amp;#34;true&amp;#34; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+vault.hashicorp.com/role: &amp;#34;expense-db-mysql&amp;#34; &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+vault.hashicorp.com/agent-inject-secret-db: &amp;#34;expense/static/data/mysql&amp;#34; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+vault.hashicorp.com/agent-inject-template-db: | &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+{{ with secret &amp;#34;expense/static/data/mysql&amp;#34; -}}
+export MYSQL_ROOT_PASSWORD=&amp;#34;{{ .Data.data.db_login_password }}&amp;#34;
+{{- end }}
+...
+spec:
+serviceAccountName: expense-db-mysql &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Defines that the &lt;strong>vault-agent&lt;/strong> side car container shall be automatically injected. This is the most important annotation.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Name of the role that was created created previously&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The agent will inject the data from &lt;strong>expense/static/data/mysql&lt;/strong> and stores it in a file &lt;strong>db&lt;/strong> The file name is everything that comes after &lt;strong>vault.hashicorp.com/agent-inject-secret-&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Configuration…​ the template that defines how the secret will be rendered&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>The service account name we bound our secret to, using the Consul language. In this case the MySQL password is simply exported&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The vault-agent is requesting the database password from Vault and provides it to the application where it is stored at &lt;code>/vault/secrets/db&lt;/code>&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc -n expenses exec -it $(oc get pods -l=app=expense-db-mysql -o jsonpath=&amp;#39;{.items[0].metadata.name}&amp;#39;) -c expense-db-mysql -- cat /vault/secrets/db
+# output
+export MYSQL_ROOT_PASSWORD=&amp;#34;mysuperpassword$&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The Deployment sources this file when it starts and MySQL will take this information to configure itself.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_tip_using_vault_cli_on_your_local_environment">TIP: Using vault CLI on your local environment&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>All above commands that are dealing with Vault commands, first login to a pod and then execure the commands from there.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>If you have the &lt;a href="https://www.vaultproject.io/docs/install" target="_blank" rel="noopener">Vault CLI&lt;/a> installed on your local machine, you can open a port forwarding to your Vault cluster at OpenShift and execute the commands locally:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc port-forward -n vault svc/vault 8200
+export VAULT_ADDR=http://localhost:8200
+vault login
+...&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_thanks">Thanks&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Thanks to the wonderful Rosemary Wang and her Github repository: &lt;a href="https://github.com/joatmon08/vault-argocd/tree/part-1" class="bare">https://github.com/joatmon08/vault-argocd/tree/part-1&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Also check out the Youtube Video: &lt;a href="https://www.youtube.com/watch?v=Bce_0qa6ias" target="_blank" rel="noopener">GitOps Guide to the Galaxy (Ep 31) | GitOps With Vault Part 1&lt;/a> in which Rosemary and Christian discuss this setup&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
+&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
 &lt;p>Well we hope the articles here are not totally useless :)&lt;/p>
-
 &lt;p>Who are we, you might ask.
 We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p>
-
-&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p></description></item></channel></rss>
+&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p>
+&lt;p>If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" >GitHub issue&lt;/a>&lt;/p></description></item></channel></rss>

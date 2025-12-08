@@ -1,6 +1,495 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Quay on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/quay/</link><description>Recent content in Quay on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 19 Sep 2025 12:49:08 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/categories/quay/index.xml" rel="self" type="application/rss+xml"/><item><title>Red Hat Quay Registry - Integrate Keycloak</title><link>https://blog.stderr.at/quay/2025-09-19-quay-integrate-keycloak/</link><pubDate>Fri, 19 Sep 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/2025-09-19-quay-integrate-keycloak/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Quay on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/quay/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 19 Sep 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/quay/index.xml" rel="self" type="application/rss+xml"/><item><title>Red Hat Quay Registry - Integrate Keycloak</title><link>https://blog.stderr.at/quay/2025-09-19-quay-integrate-keycloak/</link><pubDate>Fri, 19 Sep 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/2025-09-19-quay-integrate-keycloak/</guid><description>&lt;div class="paragraph">
 &lt;p>This guide shows you how to configure Keycloak as an OpenID Connect (OIDC) provider for Red Hat Quay Registry. It covers what to configure in Keycloak, what to put into Quay’s config.yaml (or Operator config), how to verify the login flow, and how to switch your Quay initial/admin account (stored locally in Quay’s DB) to an admin user that authenticates via Keycloak.&lt;/p>
-&lt;/div></description></item><item><title>Stumbling into Quay: Upgrading from 3.3 to 3.4 with the quay-operator</title><link>https://blog.stderr.at/quay/2021-09-07-quay-upgrade-3.4/</link><pubDate>Sat, 16 Oct 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/2021-09-07-quay-upgrade-3.4/</guid><description>&lt;p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Before starting this integration, ensure you have:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>OpenShift cluster with admin access&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Red Hat Quay Registry 3.15+ installed (via Operator)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Red Hat build of Keycloak stable-v22+ installed and configured (via Operator)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Valid SSL certificates for both Quay and Keycloak&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Admin access to both Keycloak Admin Console and Quay configuration&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Basic understanding of OIDC/OAuth2 concepts&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Here we are using the Quay Operator and the Keycloak Operator on OpenShift.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_quick_overview_what_happens">Quick overview (what happens)&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Create a Keycloak client for Quay (OIDC).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Configure Quay’s OIDC provider section in config.yaml to point to Keycloak (client id/secret, endpoints, scopes, claim names).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Restart Quay, test login via Keycloak. The first time an OIDC user logs in, Quay creates a local user record that is linked to the OIDC identity.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Promote that Quay user to superuser by adding their Quay username to SUPER_USERS (or use the UI/API).&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_keycloak_create_a_client_for_quay">Keycloak: create a client for Quay&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Steps in Keycloak Admin console:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Log in to the Keycloak Admin Console and select the realm you will use for Quay or create a new realm.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Select that realm and go to clients&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Press &lt;strong>Create client&lt;/strong> to create and configure a new client for Quay. Not much must be configured here, but at least the following:&lt;/p>
+&lt;div class="olist loweralpha">
+&lt;ol class="loweralpha" type="a">
+&lt;li>
+&lt;p>Client type: OpenID Connect&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Client ID: quay-enterprise (The ID we will use in the Quay configuration as well)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Client authentication: ON&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Valid redirects URIs:&lt;/p>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback" class="bare">https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>(Optional) &lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/attach" class="bare">https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/attach&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>(Optional) &lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/cli" class="bare">https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/cli&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The service-id is the parent key you’ll use in Quay config — e.g. keycloak.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist loweralpha">
+&lt;ol class="loweralpha" type="a">
+&lt;li>
+&lt;p>Save the client.&lt;/p>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Go to Credentials and create or copy the &lt;strong>client secret&lt;/strong> you will use in Quay.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+&lt;strong>(Optional)&lt;/strong> If you intend to use groups/roles from Keycloak for Quay team synchronization, ensure your Keycloak users or groups are populated and that Keycloak includes group membership in tokens or exposes group claims (you may need to add a protocol mapper in the client to include groups or roles in the ID token or userinfo response). Refer to Keycloak docs for adding protocol mappers.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_keycloak_create_users_and_groups">Keycloak: create users and groups&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Go to Users and create a new user or use an existing one.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>If you created a new user, set a password for them in the Credentials tab.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Go to Groups and create a new group or use an existing one.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>You can assign users to that group.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_quay_add_oidc_configuration">Quay: add OIDC configuration&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Quay’s OIDC block is a nested object under &lt;strong>AUTHENTICATION_TYPE: OIDC&lt;/strong>. The parent key can be any name (e.g., KEYCLOAK_LOGIN_CONFIG) — Quay uses the parent key name to form the callback paths.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock important">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-important" title="Important">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The parent key name (before _LOGIN_CONFIG) must match the service-id used in Keycloak redirect URIs.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Example config.yaml snippet for Keycloak:&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Using Quay Operator this configuration is stored as a secret in the namespace where Quay is installed.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">AUTHENTICATION_TYPE: OIDC &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+KEYCLOAK_LOGIN_CONFIG: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+CLIENT_ID: quay-enterprise &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+CLIENT_SECRET: &amp;lt;client-secret&amp;gt; &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+LOGIN_SCOPES:
+- openid
+- email
+- profile
+- groups
+OIDC_SERVER: https://&amp;lt;keycloak hostname&amp;gt;/realms/quay/ &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+SERVICE_NAME: keycloak &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+PREFERRED_USERNAME_CLAIM_NAME: preferred_username
+VERIFIED_EMAIL_CLAIM_NAME: email
+PREFERRED_GROUP_CLAIM_NAME: groups
+OIDC_DISABLE_USER_ENDPOINT: false &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Set this parameter to &lt;strong>OIDC&lt;/strong>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>parent key name can be any string (use KEYCLOAK_LOGIN_CONFIG here). This is important, and the part in front of _LOGIN_CONFIG must match the service-id you used in Keycloak.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The client id you used in Keycloak.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>The client secret you used in Keycloak.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>The realm base URL (no trailing /protocol…​), e.g.:
+&lt;a href="https://&amp;lt;keycloak_hostname&amp;gt;/realms/quay/" class="bare">https://&amp;lt;keycloak_hostname&amp;gt;/realms/quay/&lt;/a> — Quay will discover .well-known/openid-configuration endpoints automatically.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
+&lt;td>The service name you used in Keycloak.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
+&lt;td>Set this parameter to &lt;strong>false&lt;/strong> to allow Quay to fetch user information from Keycloak. If using Azure Entra ID set this to &lt;strong>true&lt;/strong>.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Since we are using Quay Operator, the operator will pick up the changes automatically and restart Quay.
+If you are using a standalone Quay installation, you need to restart Quay for the change to take effect. (Config is not hot-reloaded.)&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_testing_login">Testing Login&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Let’s do some tests to verify the configuration.
+Above we have created some users and groups in Keycloak. Let’s try to log in with one of them.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Open your Quay UI ( &lt;a href="https://&amp;lt;quay_hostname&amp;gt;" class="bare">https://&amp;lt;quay_hostname&amp;gt;&lt;/a>; ) in a browser. On the login page you should see the external login option labelled Keycloak (or the SERVICE_NAME you set).&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay-login-oidc.png?width=320" alt="quay login oidc"/>
+&lt;/div>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic" start="2">
+&lt;li>
+&lt;p>Click the &amp;#34;Sign in with Keycloak&amp;#34; option. and you will be redirected to Keycloak’s login screen. Here you can authenticate with a Keycloak user.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay-keycloak.png?width=320" alt="quay keycloak"/>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>After successful authentication, Keycloak redirects back to Quay and Quay creates a local user mapped to the OIDC claims (username, email). If you set USERNAME_CLAIM to preferred_username, look at the created Quay username in the UI under your user’s profile.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_make_the_keycloak_user_a_quay_admin">Make the Keycloak user a Quay admin&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In Quay only one identity provider can be used at a time. If you previously set up a local admin account, you need to make a Keycloak user a Quay admin by adding their Quay username to SUPER_USERS where all administrators are listed.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In the Quay configuration, you can define administrators using the SUPER_USERS array.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Make sure the Keycloak user has logged in once so Quay has created a local user record
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Edit the Quay configuration once more and add the Quay username (exact username created by Quay).&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For example, let’s say we have created a user called &amp;#34;alice&amp;#34; in Keycloak. We need to add this user to the SUPER_USERS array.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">SETUP_COMPLETE: true
+SUPER_USERS:
+- admin # existing local admin (optional)
+- alice # alice is the Quay username created from Keycloak login&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>After restart, the Quay account alice will have superuser privileges (same as if created in the UI).&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_working_with_podman_on_cli">Working with Podman on CLI&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now, as we changed the authentication method, we need to verify if we can push/pull images from/to the registry.
+The command line tool of the choice is &lt;strong>podman&lt;/strong>.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>However, podman does not redirect to SSO login, so it needs a token to authenticate. We can generate a new token for a user in the Quay UI.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>In the Quay UI, go to the &lt;strong>Account Settings&lt;/strong> (upper right corner)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>In the settings section, under &lt;strong>Docker CLI and other Application Tokens&lt;/strong>, click on &lt;strong>Create Application Token&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Enter a name for the token&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Select the newly created token and copy the podman login command (or any other command you need)&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay-app-pass.png?width=320" alt="quay app pass"/>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>The command for podman will look like this:&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">podman login -u=&amp;#39;$app&amp;#39; -p=&amp;#39;&amp;lt;token&amp;gt;&amp;#39; &amp;lt;quay-url&amp;gt;
+Login Succeeded!&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now you can push/pull images from/to the registry.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_troubleshooting">Troubleshooting&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Common issues and their solutions:&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_redirect_uri_mismatch">Redirect URI Mismatch&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Problem&lt;/strong>: Keycloak returns &amp;#34;Invalid redirect URI&amp;#34; error&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Solution&lt;/strong>: Ensure all three redirect URIs are configured in Keycloak client:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code>https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback
+https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback/attach
+https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback/cli&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_username_mapping_issues">Username Mapping Issues&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Problem&lt;/strong>: Quay creates unexpected usernames&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Solution&lt;/strong>:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Check which claim Keycloak sends: inspect ID token in browser dev tools&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Common claims: preferred_username, email, sub, name&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Update PREFERRED_USERNAME_CLAIM_NAME in Quay config accordingly&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_ssl_certificate_issues">SSL Certificate Issues&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Problem&lt;/strong>: Quay cannot reach Keycloak due to TLS verification errors&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Solutions&lt;/strong>:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Install your internal CA certificate in the Quay container&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Use publicly trusted certificates for both services&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>For testing only: disable SSL verification (not recommended for production)&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_authentication_flow_failures">Authentication Flow Failures&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Problem&lt;/strong>: Login redirects but fails to create user in Quay&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Debugging steps&lt;/strong>:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Check Quay logs: &lt;code>oc logs deployment/quay-app&lt;/code>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Verify OIDC discovery endpoint: &lt;code>&lt;a href="https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration" class="bare">https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration&lt;/a>&lt;/code>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Confirm client secret matches between Keycloak and Quay&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Test with curl: &lt;code>curl -k &lt;a href="https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration" class="bare">https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration&lt;/a>&lt;/code>&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_conclusion">Conclusion&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Integrating Quay 3.15 with Keycloak via OIDC centralizes authentication, simplifies user management, and allows you to leverage enterprise identity features. The key steps are straightforward: create a Keycloak client with the correct redirect URIs, configure the corresponding OIDC block in Quay’s config.yaml.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>By switching the initial database-backed admin to an identity managed in Keycloak, you reduce the risk of “orphaned” local accounts and align Quay administration with your organization’s identity and access management strategy.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div></description></item><item><title>Stumbling into Quay: Upgrading from 3.3 to 3.4 with the quay-operator</title><link>https://blog.stderr.at/quay/2021-09-07-quay-upgrade-3.4/</link><pubDate>Sat, 16 Oct 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/2021-09-07-quay-upgrade-3.4/</guid><description>
+&lt;p>
 We had the task of answering various questions related to upgrading
 Red Hat Quay 3.3 to 3.4 and to 3.5 with the help of the quay-operator.&lt;/p>
 &lt;p>
@@ -14,9 +503,66 @@ Operator changes
 &lt;/h2>
 &lt;div id="outline-text-headline-1" class="outline-text-2">
 &lt;p>
- With Quay 3.4 the operator was completely reworked and it basically
- changed from opinionated to &lt;strong>very&lt;/strong> opinionated. The upgrade works
- quite well but you have to be aware about the following points:&lt;/p></description></item><item><title>Red Hat Quay Registry - Overview and Installation</title><link>https://blog.stderr.at/quay/2020-05-13-quay-tutorial1/</link><pubDate>Wed, 13 May 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/2020-05-13-quay-tutorial1/</guid><description>&lt;div class="paragraph">
+With Quay 3.4 the operator was completely reworked and it basically
+changed from opinionated to &lt;strong>very&lt;/strong> opinionated. The upgrade works
+quite well but you have to be aware about the following points:&lt;/p>
+&lt;ul>
+&lt;li>The name of the custom resource changed from &lt;code>QuayEcosystem&lt;/code> to &lt;code>QuayRegistry&lt;/code>&lt;/li>
+&lt;li>The &lt;code>configHostname&lt;/code>, used for providing the quay configuration UI, is no longer configurable&lt;/li>
+&lt;li>The password for the configuration UI is &lt;strong>always&lt;/strong> regenerated after a configuration re-deployment&lt;/li>
+&lt;li>The volume size of the PostgreSQL PVC will change to 50G&lt;/li>
+&lt;/ul>
+&lt;div class="admonitionblock warning" >&lt;table>&lt;tbody>&lt;tr>&lt;td class="icon">&lt;i class="fa icon-warning" title="warning">&lt;/i>&lt;/td>&lt;td class="content">&lt;p>
+In my test cluster I was using a 10G Ceph block device and the
+StorageClass did not support volume expansion. So my upgrade stopped
+at this point and I had to allow volume expansion in the storage
+class.&lt;/p>
+&lt;/td>&lt;/tr>&lt;/tbody>&lt;/table>&lt;/div>
+&lt;ul>
+&lt;li>A horizontal pod autoscaler is also deploy during the upgrade. The
+default is to scale automatically to 20 pods, you might reconsider this…&lt;/li>
+&lt;li>
+&lt;p>With the Quay operator version 3.5 the operator is monitoring all
+namespaces for custom resources and needs to be installed in the
+openshift-operators namespace, this is how we upgraded Quay to 3.5
+including the operator:&lt;/p>
+&lt;ul>
+&lt;li>change the quay operator channel to 3.5&lt;/li>
+&lt;li>trigger an upgrade&lt;/li>
+&lt;li>now Quay gets upgraded to version 3.5&lt;/li>
+&lt;li>
+&lt;p>after the Quay upgrade you need to reinstall the operator:&lt;/p>
+&lt;ul>
+&lt;li>deinstall the quay operator, Quay is &lt;strong>not&lt;/strong> affected by this&lt;/li>
+&lt;li>reinstall the Quay operator (3.5) in all-namespaces&lt;/li>
+&lt;li>the re-installation of the operator triggers a quay deployment,
+all Quay pods are restarted!&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>You have to manually cleanup old&lt;/p>
+&lt;ul>
+&lt;li>postgres-config-secrets and&lt;/li>
+&lt;li>quay-config-bundle&amp;#39;s&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;div id="outline-container-headline-2" class="outline-2">
+&lt;h2 id="headline-2">
+Backup and restore considerations
+&lt;/h2>
+&lt;div id="outline-text-headline-2" class="outline-text-2">
+&lt;p>
+Red Hat is working on providing documentation on how to backup and
+restore Quay in various scenarios. There&amp;#39;s an open task for this
+that provides more information
+&lt;a href="https://issues.redhat.com/browse/PROJQUAY-2242">https://issues.redhat.com/browse/PROJQUAY-2242&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;/div></description></item><item><title>Red Hat Quay Registry - Overview and Installation</title><link>https://blog.stderr.at/quay/2020-05-13-quay-tutorial1/</link><pubDate>Wed, 13 May 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/2020-05-13-quay-tutorial1/</guid><description>&lt;div class="paragraph">
 &lt;p>Red Hat Quay is an enterprise-quality container registry, which is responsible to build, scan, store and deploy containers.
 The main features of Quay include:&lt;/p>
 &lt;/div>
@@ -41,4 +587,549 @@ The main features of Quay include:&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>and much more.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Quay can be installed as:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Standalone single service&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>High Availibility service&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>On OpenShift with an Operator&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>On OpenShift without an Operator.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For the following Quay Tutorial Quay version 3.3 on OpenShift 4.3/4.4 with an Operator is used. Moreover, a local storage is used, to make the deployment easier and independent to a storage provider. In any case, be sure that for a production environment a &amp;#34;real&amp;#34; storage is used.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Further details can be found at the official Red Hat documentation at: &lt;a href="https://access.redhat.com/documentation/en-us/red_hat_quay/3.3/html-single/deploy_red_hat_quay_on_openshift_with_quay_operator/index#configuration_deployment_after_initial_setup" target="_blank" rel="noopener">Deploy Red Hat Quay on OpenShift with an Operator&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_quay_architecture">Quay Architecture&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Several components are used to build Quay&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Database: used to store metadata (not images)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Redis: stores live builder logs&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Quay container registry: Runs Quay as a service&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Two types of storages are supported:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Public cloud storage, like Amazon S3, Google Cloud Storage&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Private cloud storage, S3 compliant Object Store, Like Ceph RADOS or OpenStack Swift.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Since I perform the example setup in a limited lab environment, I used local storage. This is not supported for production installations.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_installation">Installation&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>This example installation, covers the configuration of all credentials, but it ignores the configuration of a storage engine. Instead it is using local storage.&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_create_a_new_project_and_install_the_quay_operator">Create a new project and install the Quay Operator&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Note: Before you begin create a new project called &amp;#34;&lt;strong>quay&lt;/strong>&amp;#34;.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>From the OpenShift console goto Operators &amp;gt; OperationHub and search for &amp;#34;Red Hat Quay Operator&amp;#34;. Be sure &lt;strong>NOT&lt;/strong> to select the community version.
+Install the Operator using the following settings:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Installation Mode: select the namespace &amp;#34;quay&amp;#34;&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Leave the other settings as default.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay/quay-operator-installation.png?width=940px" alt="quay operator installation"/>
+&lt;/div>
+&lt;div class="title">Figure 1. Operator Installation&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Once you select &amp;#34;Subscribe&amp;#34;, the installation process will take a few minutes. At the end, the operator pods should run inside your namespace and is ready to bse used.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay/quay-operator-running.png?width=940px" alt="quay operator running"/>
+&lt;/div>
+&lt;div class="title">Figure 2. Operator Running&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_configure_quay">Configure Quay&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>To configure Quay the Custom Resource Definition &amp;#34;&lt;strong>QuayEcosystem&lt;/strong>&amp;#34; must be defined. Below example shows a ready to use example to test the deployment. Several secrets are used in this QuayEcosystem which must be created first. If they are not specified in the QuayEcosystem, then default values would be used. However, it always makes sense to specify passwords :)&lt;/p>
+&lt;/div>
+&lt;div class="sect3">
+&lt;h4 id="_create_a_pull_secret_to_pull_from_quay_io">&lt;strong>Create a Pull Secret to pull from Quay.io&lt;/strong>&lt;/h4>
+&lt;div class="paragraph">
+&lt;p>Check the article &lt;a href="https://access.redhat.com/solutions/3533201" target="_blank" rel="noopener">Accessing Red Hat Quay&lt;/a> to find the appropriate credentials you need to fetch images from quay.io. Find the section &amp;#34;Red Hat Quay v3 on OpenShift&amp;#34;, copy the secret into the file &lt;em>redhat_secret.yaml&lt;/em> and create the object in OpenShift:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create -f redhat_secret.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect3">
+&lt;h4 id="_create_quay_superuser_credentials">&lt;strong>Create Quay Superuser Credentials&lt;/strong>&lt;/h4>
+&lt;div class="paragraph">
+&lt;p>The Quay superuser will be able to manage other users or projects. Create the secret by defining username, password and e-mail address:&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The password must have a minimum length of 8 characters.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create secret generic quay-credentials \
+--from-literal=superuser-username=&amp;lt;username&amp;gt; \
+--from-literal=superuser-password=&amp;lt;password&amp;gt; \
+--from-literal=superuser-email=&amp;lt;email&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect3">
+&lt;h4 id="_create_quay_configuration_credentials">&lt;strong>Create Quay Configuration Credentials&lt;/strong>&lt;/h4>
+&lt;div class="paragraph">
+&lt;p>The Quay configuration is done, by a separate pod, with a separate accessible route. To set the password, create the following secret:&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The password must have a minimum length of 8 characters.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create secret generic quay-config-app \
+--from-literal=config-app-password=&amp;lt;password&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect3">
+&lt;h4 id="_specify_database_credentials">&lt;strong>Specify database credentials&lt;/strong>&lt;/h4>
+&lt;div class="paragraph">
+&lt;p>As next let’s create the credentials for the database:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create secret generic &amp;lt;secret_name&amp;gt; \
+--from-literal=database-username=&amp;lt;username&amp;gt; \
+--from-literal=database-password=&amp;lt;password&amp;gt; \
+--from-literal=database-root-password=&amp;lt;root-password&amp;gt; \
+--from-literal=database-name=&amp;lt;database-name&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+It is also possible to use and existing database. To configure this, create the secret as described and add the server parameter, containing the hostname, to the QuayEcosystem definition+
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect3">
+&lt;h4 id="_setting_redis_password">&lt;strong>Setting Redis password&lt;/strong>&lt;/h4>
+&lt;div class="paragraph">
+&lt;p>By default, the operator would install Redis without any password. To specify a password, create the following secret:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create secret generic quay-redis-password \
+--from-literal=password=&amp;lt;password&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_create_quayecosystem_resource">Create QuayEcosystem Resource&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>With all the secrets created above, it is time to create the &lt;strong>QuayEcosystem&lt;/strong>. Once it is defined, the operator will automatically start all required services.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following is an example, using the different secret names (The names should be self explaining)
+In addition, the following has been defined:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>volumeSize = 10GI for the database&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>keepConfigDeployment to false, this will remove the configuration pod after the deployment.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>hostname: to reach the Quay registry under a defined hostname (otherwise a default name would be created)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Clair container scanning is enabled&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: redhatcop.redhat.io/v1alpha1
+kind: QuayEcosystem
+metadata:
+name: quayecosystem
+spec:
+quay:
+imagePullSecretName: redhat-quay-pull-secret
+superuserCredentialsSecretName: quay-credentials
+configSecretName: quay-config-app
+deploymentStrategy: Recreate
+skipSetup: false
+keepConfigDeployment: false
+externalAccess:
+hostname: quay.apps.ocp.ispworld.at
+database:
+volumeSize: 10Gi
+credentialsSecretName: quay-database-credential
+registryBackends:
+- name: local
+local:
+storagePath: /opt/quayregistry
+redis:
+credentialsSecretName: quay-redis-password
+imagePullSecretName: redhat-quay-pull-secret
+clair:
+enabled: true
+imagePullSecretName: redhat-quay-pull-secret&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_quay_webui">Quay WebUI&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Once the Quay Operator has deployed all containers, you should see one route (or 2 if you kept Configuration Deployment Container) and can access your Quay installation.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay/quay-login.png?width=240px" alt="quay login"/>
+&lt;/div>
+&lt;div class="title">Figure 3. Quay WebUI&lt;/div>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_optional_disable_self_account_creation">Optional: Disable self account creation&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Many customers want to disable the &amp;#34;Create Account&amp;#34; link on the login page (see Figure #3), to prevent that anybody could create a new account. To remove this option, the configuration pod must run.&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_verify_if_the_configuration_pod_is_running">Verify if the Configuration pod is running&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>If the following does not return anything, then the container is not running:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get routes -n quay | grep config&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>If this is the case, modify the resource QuayEcosystem to enable the Configuration UI.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Edit:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc edit QuayEcosystem/quayecosystem&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>and set &amp;#34;KeepConfigDeployment&amp;#34; to true:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> quay:
+[...]
+keepConfigDeployment: true&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>After a few minutes another pod, called &amp;#34;quayecosystem-quay-config&amp;#34; will be started and a new route is created:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get routes -n quay | grep config
+quayecosystem-quay-config quayecosystem-quay-config-quay.apps.ocp.ispworld.at quayecosystem-quay-config 8443 passthrough/Redirect None&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_configure_account_creation_and_anonymous_access">Configure Account Creation and Anonymous Access&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Login to the Configuration Web Interface with the credentials you specified during the deployment and scroll down to the section &amp;#34;Access Settings&amp;#34;.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay/quay-config.png" alt="quay config"/>
+&lt;/div>
+&lt;div class="title">Figure 4. Quay Configuration&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>There remove the checkbox from:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Anonymous Access&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>User Creation&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>and save and build the configuration.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will trigger a change on the Quay pod. After it has been recreated (this will take a few minutes), the feature to create a new account is removed from the Login page.&lt;/p>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_working_with_quay">Working with Quay&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The following quick steps through Quay are the steps of the Quay tutorial, which can be seen at the Quay WebUI at the &amp;#34;Tutorial&amp;#34; tab.&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_login_via_docker_cli">Login via Docker CLI&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>To login via docker CLI simply use:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker login &amp;lt;your selected hostname for quay&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Docker expects a valid certificate. Such certificate could be added to the definition of QuayEcosystem. However, I did not create a certificate for this lab. To allow untrusted certificates, on a Mac, simply download the certificates (For Chrome: you can drag and drop the certificate from the browser to your Desktop, for Firefox, you need to open the Options menu and export the certificates.). After that double click both certificates (the root and the site certificate), which will install them on you local Keychain. Open the Keychain on you Mac, find the appropriate certificates and set both to &amp;#34;Always trust&amp;#34;
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_create_an_example_container">Create an example container&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The next step to create a new image is to create a container. For this example the &lt;em>busybox&lt;/em> base image is used.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker run busybox echo &amp;#34;fun&amp;#34; &amp;gt; newfile&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will pull the latest image of busybox and create a container:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Unable to find image &amp;#39;busybox:latest&amp;#39; locally
+latest: Pulling from library/busybox
+d9cbbca60e5f: Pulling fs layer
+d9cbbca60e5f: Verifying Checksum
+d9cbbca60e5f: Download complete
+d9cbbca60e5f: Pull complete
+Digest: sha256:836945da1f3afe2cfff376d379852bbb82e0237cb2925d53a13f53d6e8a8c48c
+Status: Downloaded newer image for busybox:latest&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>With &amp;#34;docker ps&amp;#34; the running container is shown.
+Remember the &lt;strong>Container ID&lt;/strong> for further steps. In this case &lt;em>fc3e9bb1e9da&lt;/em>.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker ps -l
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+fc3e9bb1e9da busybox &amp;#34;echo fun&amp;#34; 3 minutes ago Exited (0) 3 minutes ago relaxed_proskuriakova&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_create_the_image">Create the image&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Once a container has terminated in Docker, the next step is to commit the container to an image.
+To do so we will use &amp;#34;docker commit&amp;#34; command. As name for the repository I took &lt;strong>superapp&lt;/strong>.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker commit fc3e9bb1e9da quay.apps.ocp.ispworld.at/quay/superapp&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_push_the_image_to_red_hat_quay">Push the image to Red Hat Quay&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The final step is to push the image to our repository, where it will be stored for future use.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker push quay.apps.ocp.ispworld.at/quay/superapp&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay/quay-repos.png?width=940px" alt="quay repos"/>
+&lt;/div>
+&lt;div class="title">Figure 5. Quay Repository&lt;/div>
+&lt;/div>
+&lt;hr/>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_test_container_security_scanner">Test Container Security Scanner&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Clair is used to scan containers about possible security risks. It imports vulnerability data permanently from a known source and creates a list of threats for an image.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To test such scanning, we pull the &amp;#34;Universal Base Image RHEL 7&amp;#34; from Red Hat. I am using version 7.6 since this is already quite old and we expect some known vulnerabilities for this image.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>First you need to login to Red Hat Registry:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker login registry.redhat.io
+Username: &amp;lt;Username&amp;gt;
+Password: &amp;lt;Password&amp;gt;
+Login Succeeded&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Then let’s pull the UBI Image 7.6 (instead of the latest)&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker pull registry.redhat.io/ubi7/ubi:7.6&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Before we can push it to our Quay registry, we need to tag it:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker tag registry.redhat.io/ubi7/ubi:7.6 quay.apps.ocp.ispworld.at/quay/ubi7:7.6&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>If we now check the local images, we see that there are two UBI images.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker images
+REPOSITORY TAG IMAGE ID CREATED SIZE
+quay.apps.ocp.ispworld.at/quay/ubi7 7.6 247ee58855fd 10 months ago 204MB
+registry.redhat.io/ubi7/ubi 7.6 247ee58855fd 10 months ago 204MB&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now it is possible to push the image to the Quay repository.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">docker push quay.apps.ocp.ispworld.at/quay/ubi7:7.6&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Finally the image is available inside our Registry and Clair will queue it for a security scan.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Once the scan is finished, possible found issues are shown under the &amp;#34;Repository Tags&amp;#34;.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay/quay-clair.png" alt="quay clair"/>
+&lt;/div>
+&lt;div class="title">Figure 6. Clair Security Scanning&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>When you click on then, you will see a detailed result page, with all vulnerabilities found:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/quay/images/quay/quay-clair-results.png" alt="quay clair results"/>
+&lt;/div>
+&lt;div class="title">Figure 7. Clair Security Scanning Result&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

@@ -1,6 +1,139 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Route on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/route/</link><description>Recent content in Route on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sun, 05 May 2024 18:05:24 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/route/index.xml" rel="self" type="application/rss+xml"/><item><title>Enable Automatic Route Creation</title><link>https://blog.stderr.at/service-mesh/2020/05/enable-automatic-route-creation/</link><pubDate>Wed, 13 May 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/service-mesh/2020/05/enable-automatic-route-creation/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Route on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/route/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 13 May 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/route/index.xml" rel="self" type="application/rss+xml"/><item><title>Enable Automatic Route Creation</title><link>https://blog.stderr.at/service-mesh/2020/05/enable-automatic-route-creation/</link><pubDate>Wed, 13 May 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/service-mesh/2020/05/enable-automatic-route-creation/</guid><description>&lt;div class="paragraph">
 &lt;p>Red Hat Service Mesh 1.1 allows you to enable a &amp;#34;&lt;strong>Automatic Route Creation&lt;/strong>&amp;#34; which will take care about the routes for a specific Gateway. Instead of defining * for hosts, a list of domains can be defined. The Istio OpenShift Routing (ior) synchronizes the routes and creates them inside the Istio namespace. If a Gateway is deleted, the routes will also be removed again.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>This new features makes the manual creation of the route obsolete, as it was explained here: &lt;a href="https://blog.stderr.at/service-mesh/2020/03/ingress-with-custom-domain/">Openshift 4 and Service Mesh 4 - Ingress with custom domain&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_enable_automatic_route_creation">Enable Automatic Route Creation&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Before this feature can be used, it must be enabled. To do so the &lt;strong>ServiceMeshContolPlace&lt;/strong>, typically found in the namespace &lt;em>istio-system&lt;/em> must be modified.
+Add the line &lt;strong>ior_enabled: true&lt;/strong> to the &lt;em>istio-ingressgate&lt;/em> configuration.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">...
+spec:
+istio:
+gateways:
+istio-egressgateway:
+autoscaleEnabled: false
+istio-ingressgateway:
+autoscaleEnabled: false
+ior_enabled: true
+...&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_verify_current_service">Verify current service&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Let’s check our &lt;em>tutorial&lt;/em> application, if it is still working.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc project tutorial
+export GATEWAY_URL=$(oc -n istio-system get route istio-ingressgateway -o jsonpath=&amp;#39;{.spec.host}&amp;#39;)
+curl $GATEWAY_URL/customer
+customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 30&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s review and remove the current used Gateway. As you can see the hosts is set to &amp;#39;*&amp;#39;&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">oc get istio-io
+oc get gateway.networking.istio.io/customer-gateway -o yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+annotations:
+kubectl.kubernetes.io/last-applied-configuration: |
+{&amp;#34;apiVersion&amp;#34;:&amp;#34;networking.istio.io/v1alpha3&amp;#34;,&amp;#34;kind&amp;#34;:&amp;#34;Gateway&amp;#34;,&amp;#34;metadata&amp;#34;:{&amp;#34;annotations&amp;#34;:{},&amp;#34;name&amp;#34;:&amp;#34;customer-gateway&amp;#34;,&amp;#34;namespace&amp;#34;:&amp;#34;tutorial&amp;#34;},&amp;#34;spec&amp;#34;:{&amp;#34;selector&amp;#34;:{&amp;#34;istio&amp;#34;:&amp;#34;ingressgateway&amp;#34;},&amp;#34;servers&amp;#34;:[{&amp;#34;hosts&amp;#34;:[&amp;#34;*&amp;#34;],&amp;#34;port&amp;#34;:{&amp;#34;name&amp;#34;:&amp;#34;http&amp;#34;,&amp;#34;number&amp;#34;:80,&amp;#34;protocol&amp;#34;:&amp;#34;HTTP&amp;#34;}}]}}
+creationTimestamp: &amp;#34;2020-05-13T07:52:20Z&amp;#34;
+generation: 1
+name: customer-gateway
+namespace: tutorial
+resourceVersion: &amp;#34;41370056&amp;#34;
+selfLink: /apis/networking.istio.io/v1alpha3/namespaces/tutorial/gateways/customer-gateway
+uid: 96e82ed9-e870-493c-941f-bfa83c892b94
+spec:
+selector:
+istio: ingressgateway
+servers:
+- hosts:
+- &amp;#39;*&amp;#39;
+port:
+name: http
+number: 80
+protocol: HTTP&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_a_new_gateway">Create a new Gateway&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>First let’s remove the current Gateway&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bach" data-lang="bach">oc delete gateway.networking.istio.io/customer-gateway&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now lets create a new Gateway, but this time we define some names for the hosts section:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; Gateway-ior.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+name: customer-gateway
+spec:
+selector:
+istio: ingressgateway
+servers:
+- port:
+number: 80
+name: http
+protocol: HTTP
+hosts:
+- www.example.com
+- svc.example.com
+EOF
+oc apply -f Gateway-ior.yaml -n tutorial&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>When you now check the routes, 2 new routes have been added:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get routes -n istio-system
+NAME HOST/PORT PATH SERVICES PORT TERMINATION WILDCARD
+...
+tutorial-customer-gateway-kmqrl www.example.com istio-ingressgateway http2 None
+tutorial-customer-gateway-ks7q7 svc.example.com istio-ingressgateway http2 None&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To test the connectivity, you need to be sure that the hosts, used in the Gateway, are resolvable.
+If they are then you can access your service:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">curl www.example.com/customer
+customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 31
+curl svc.example.com/customer
+customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 32&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

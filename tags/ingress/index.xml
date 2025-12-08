@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Ingress on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/ingress/</link><description>Recent content in Ingress on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sun, 31 Aug 2025 15:43:30 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/ingress/index.xml" rel="self" type="application/rss+xml"/><item><title>Labels &amp; Environments</title><link>https://blog.stderr.at/day-2/labels_environmets/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/labels_environmets/</guid><description/></item><item><title>A second look into the Kubernetes Gateway API on OpenShift</title><link>https://blog.stderr.at/openshift/2025/08/a-second-look-into-the-kubernetes-gateway-api-on-openshift/</link><pubDate>Sun, 31 Aug 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/08/a-second-look-into-the-kubernetes-gateway-api-on-openshift/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Ingress on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/ingress/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sun, 31 Aug 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/ingress/index.xml" rel="self" type="application/rss+xml"/><item><title>Labels &amp; Environments</title><link>https://blog.stderr.at/day-2/labels_environmets/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/labels_environmets/</guid><description/></item><item><title>A second look into the Kubernetes Gateway API on OpenShift</title><link>https://blog.stderr.at/openshift/2025/08/a-second-look-into-the-kubernetes-gateway-api-on-openshift/</link><pubDate>Sun, 31 Aug 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/08/a-second-look-into-the-kubernetes-gateway-api-on-openshift/</guid><description>&lt;div class="paragraph">
 &lt;p>This is our second look into the Kubernetes Gateway API an it’s
 integration into OpenShift. This post covers TLS configuration.&lt;/p>
 &lt;/div>
@@ -16,9 +16,2337 @@ implement a shared Gateway and finally how to implement HTTP to HTTPS
 redirection with the Gateway API. Furthermore we cover how &lt;em>HTTPRoute&lt;/em>
 objects attach to Gateways and dive into ordering of &lt;em>HTTPRoute&lt;/em>
 objects.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_references">References&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>&lt;a href="https://blog.stderr.at/openshift/2025/08/gateway-api/">A first look into the Kubernetes Gateway API on OpenShift&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_adding_tls_to_our_nginx_deployment">Adding TLS to our Nginx deployment&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In our fist post we simply exposed a Nginx web server via the
+Gateway API. We only enabled HTTP, so let’s try to do the same with
+HTTPS now.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Remember we use a DNS wildcard domain &lt;code>*.gtw.ocp.lan.stderr.at&lt;/code> which
+points to our Gateway. The gateway is exposed via a &lt;em>Service&lt;/em> of type
+&lt;em>LoadBalancer&lt;/em>. We use
+&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking_operators/metallb-operator">MetalLB&lt;/a>
+for this.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The first step is setting up a wildcard TLS certificate for our custom
+domain &lt;em>*.gtw.ocp.lan.stderr.at&lt;/em>. We are using
+&lt;a href="https://github.com/OpenVPN/easy-rsa">EasyRSA&lt;/a> here, but use whatever tool you like.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Just for reference this is how we created a wildcard cert with EasyRSA:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ EASYRSA_CERT_EXPIRE=3650 EASYRSA_EXTRA_EXTS=&amp;#34;subjectAltName=DNS:*.gtw.ocp.lan.stderr.at&amp;#34; ./easyrsa gen-req gtw.ocp.lan.stderr.at
+$ EASYRSA_CERT_EXPIRE=3650 ./easyrsa sign-req serverClient gtw.ocp.lan.stderr.at&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>EasyRSA stores the public key under &lt;em>pki/issued&lt;/em> and the private key
+under &lt;em>pki/private&lt;/em>. We copied the certificate and the private key to
+a temporary directory.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Next we need to remove the private key passphrase and create a
+Kubernetes secret from the private and pubic key:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ openssl rsa -in gtw.ocp.lan.stderr.at.key -out gtw.ocp.lan.stderr.at-insecure.key
+$ oc create secret -n openshift-ingress tls gateway-api --cert=gtw.ocp.lan.stderr.at.crt --key=gtw.ocp.lan.stderr.at-insecure.key&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now it’s time to add a TLS listener to our &lt;em>Gateway&lt;/em> resource in the
+&lt;em>openshift-ingress&lt;/em> namespace. Remember for the OpenShift Gateway API implementation, &lt;em>Gateways&lt;/em> have
+to be deployed in the &lt;em>openshift-ingress&lt;/em> namespace.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+name: http-gateway
+namespace: openshift-ingress
+spec:
+gatewayClassName: openshift-default
+listeners:
+- name: http
+protocol: HTTP
+port: 80
+hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34;
+- name: https
+protocol: HTTPS &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+port: 443 &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+tls:
+mode: Terminate &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+certificateRefs:
+- name: gateway-api &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+allowedRoutes: &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+namespaces:
+from: All&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>We want to support HTTPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>We use the default HTTPS port 443&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The URLs we support with this listener are the same as for HTTP&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>We use edge termination for now, this means HTTP traffic will only be encrypted up to the gateway. From the gateway to our pod we speak plain HTTP.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>This is the name of the TLS secret we created above&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
+&lt;td>We accept routes from all namespaces&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Also remember from our first post that we created a
+&lt;em>ReferenceGrant&lt;/em> in the namespace where Nginx is running. Otherwise
+HTTP routes will not be accepted.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Finally lets try to access our Nginx pod via HTTPS:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ curl -v https://nginx.gtw.ocp.lan.stderr.at
+* Host nginx.gtw.ocp.lan.stderr.at:443 was resolved.
+* IPv6: (none)
+* IPv4: 10.0.0.150
+* Trying 10.0.0.150:443...
+* ALPN: curl offers h2,http/1.1
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* CAfile: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+* CApath: none
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384 / x25519 / RSASSA-PSS
+* ALPN: server accepted h2
+* Server certificate:
+* subject: CN=gtw.ocp.lan.stderr.at
+* start date: Aug 30 10:01:33 2025 GMT
+* expire date: Aug 28 10:01:33 2035 GMT
+* subjectAltName: host &amp;#34;nginx.gtw.ocp.lan.stderr.at&amp;#34; matched cert&amp;#39;s &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34;
+* issuer: CN=tntinfra CA
+* SSL certificate verify ok.
+* Certificate level 0: Public key type RSA (2048/112 Bits/secBits), signed using sha256WithRSAEncryption
+* Certificate level 1: Public key type RSA (2048/112 Bits/secBits), signed using sha256WithRSAEncryption
+* Connected to nginx.gtw.ocp.lan.stderr.at (10.0.0.150) port 443
+* using HTTP/2
+* [HTTP/2] [1] OPENED stream for https://nginx.gtw.ocp.lan.stderr.at/
+* [HTTP/2] [1] [:method: GET]
+* [HTTP/2] [1] [:scheme: https]
+* [HTTP/2] [1] [:authority: nginx.gtw.ocp.lan.stderr.at]
+* [HTTP/2] [1] [:path: /]
+* [HTTP/2] [1] [user-agent: curl/8.11.1]
+* [HTTP/2] [1] [accept: */*]
+&amp;gt; GET / HTTP/2
+&amp;gt; Host: nginx.gtw.ocp.lan.stderr.at
+&amp;gt; User-Agent: curl/8.11.1
+&amp;gt; Accept: */*
+&amp;gt;
+* Request completely sent off
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+* TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+&amp;lt; HTTP/2 200
+&amp;lt; server: nginx/1.29.1
+&amp;lt; date: Sat, 30 Aug 2025 14:30:20 GMT
+&amp;lt; content-type: text/html
+&amp;lt; content-length: 615
+&amp;lt; last-modified: Wed, 13 Aug 2025 14:33:41 GMT
+&amp;lt; etag: &amp;#34;689ca245-267&amp;#34;
+&amp;lt; accept-ranges: bytes
+(output omitted)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Yes, we can reach our Nginx via HTTPS, and the gateway presents the TLS certificate we created.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Be aware that we are still using the same &lt;em>HTTPRoute&lt;/em> for Nginx from our previous blog post.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Just for completeness here is the &lt;em>HTTPRoute&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+name: nginx-route
+spec:
+parentRefs:
+- name: http-gateway
+namespace: openshift-ingress
+hostnames: [&amp;#34;nginx.gtw.ocp.lan.stderr.at&amp;#34;]
+rules:
+- backendRefs:
+- name: nginx
+namespace: gateway-api-test
+port: 8080&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Also Remember that we are using a dedicated &lt;em>Gateway&lt;/em> and all
+&lt;em>HTTPRoutes&lt;/em> must be in the namespace &lt;em>openshift-ingress&lt;/em>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_moving_to_a_shared_gateway">Moving to a shared gateway&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Up until now we had to create all &lt;em>HTTPRoute&lt;/em> objects in the
+&lt;em>openshift-ingress&lt;/em> namespace. The Gateway API support two modes of
+operations:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Dedicated gateway: all &lt;em>HTTPRoute&lt;/em> object need to be in the same namespace as the gateway&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Shared gateway: The gateway runs in the &lt;em>openshift-ingress&lt;/em>
+namespace and we allow &lt;em>HTTPRoute&lt;/em> objects from all or specific namespaces.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The first step in creating a shared gateway is to modify the gateway resource:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+name: http-gateway
+namespace: openshift-ingress
+spec:
+gatewayClassName: openshift-default
+listeners:
+- name: http
+protocol: HTTP
+port: 80
+hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34;
+allowedRoutes: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+namespaces:
+from: All&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>We now allow &lt;em>HTTPRoute&lt;/em> objects from all namespaces in the cluster&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Next we delete the existing &lt;em>HTTPRoute&lt;/em> for Nginx in the
+&lt;em>openshift-ingress&lt;/em> namespaces, and verify that we can’t reach Nginx:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc delete httproutes.gateway.networking.k8s.io -n openshift-ingress nginx-route
+httproute.gateway.networking.k8s.io &amp;#34;nginx-route&amp;#34; deleted
+$ curl -I http://nginx.gtw.ocp.lan.stderr.at
+HTTP/1.1 404 Not Found &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+date: Sat, 30 Aug 2025 15:02:23 GMT
+transfer-encoding: chunked&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Our Nginx route stopped working&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Next we apply our modified &lt;em>Gateway&lt;/em> resource in the
+&lt;em>openshift-ingress&lt;/em> namespace and the &lt;em>HTTPRoute&lt;/em> object in the
+&lt;em>gateway-api-test&lt;/em> namespace.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc apply -n openshift-ingress -f gateway--selector.yaml
+gateway.gateway.networking.k8s.io/http-gateway configured
+$ oc apply -n gateway-api-test -f httproute.yaml &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+httproute.gateway.networking.k8s.io/nginx-route created
+$ curl -I http://nginx.gtw.ocp.lan.stderr.at
+HTTP/1.1 200 OK &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+server: nginx/1.29.1
+date: Sat, 30 Aug 2025 15:04:34 GMT
+content-type: text/html
+content-length: 615
+last-modified: Wed, 13 Aug 2025 14:33:41 GMT
+etag: &amp;#34;689ca245-267&amp;#34;
+accept-ranges: bytes&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>We create the &lt;em>HTTPRoute&lt;/em> in the gateway-api-test namespace&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>We can reach our Nginx pod again&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So our shared gateway seems to be working. But what if we want to
+restrict which namespaces are allowed to create route objects?&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The Gateway API allows the following settings under &lt;em>spec.listeners[].allowedRoutes.namespaces.from&lt;/em> field&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>All&lt;/strong>: Allow from all namespaces&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Selector&lt;/strong>: Specify a selector&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Same&lt;/strong>: Only allow &lt;em>HTTPRoutes&lt;/em> in the same namespaces&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>None&lt;/strong>: Do not allow any routes to attach&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>See the API specification &lt;a href="https://gateway-api.sigs.k8s.io/reference/spec/#fromnamespaces">FromNamespaces&lt;/a> for details.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s try to use a more specific selector for our gateway:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+name: http-gateway
+namespace: openshift-ingress
+spec:
+gatewayClassName: openshift-default
+listeners:
+- name: http
+protocol: HTTP
+port: 80
+hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34;
+allowedRoutes:
+namespaces:
+from: Selector &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+selector:
+matchLabels:
+kubernetes.io/metadata.name: gateway-api-test &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Now we are using the Selector option&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Because we do not have a specific label on the namespace we would like to use, let’s use the &lt;em>metadata.name&lt;/em> label Kubernetes created for us&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We create a new yaml file &lt;em>gateway-selector.yaml&lt;/em> and appy the new configuration:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc apply -n openshift-ingress -f gateway-selector.yaml
+gateway.gateway.networking.k8s.io/http-gateway configured
+$ curl -I http://nginx.gtw.ocp.lan.stderr.at
+HTTP/1.1 200 OK
+server: nginx/1.29.1
+date: Sat, 30 Aug 2025 15:17:17 GMT
+content-type: text/html
+content-length: 615
+last-modified: Wed, 13 Aug 2025 14:33:41 GMT
+etag: &amp;#34;689ca245-267&amp;#34;
+accept-ranges: bytes&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>All good, still working.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Just for testing we modified the namespace name in the Gateway definition to &lt;strong>NOT&lt;/strong> match the namespace of our Nginx deployment and confirmed that we receive a &lt;em>404&lt;/em> not found response.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_implementing_http_to_https_redirect">Implementing HTTP to HTTPS redirect&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>As a last test for this post let’s try to implement HTTP to HTTPS redirects.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We deployed the following &lt;em>Gateway&lt;/em> configuration:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+name: http-gateway
+namespace: openshift-ingress &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+spec:
+gatewayClassName: openshift-default
+listeners:
+- name: http
+protocol: HTTP
+port: 80
+hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34;
+allowedRoutes:
+namespaces:
+from: Selector
+selector:
+matchLabels:
+kubernetes.io/metadata.name: gateway-api-test2
+- name: https &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+protocol: HTTPS
+port: 443
+hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34;
+tls:
+mode: Terminate
+certificateRefs:
+- name: gateway-api
+allowedRoutes:
+namespaces:
+from: All&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Always deploy the gateway to the &lt;em>openshift-ingress&lt;/em> namespace for the OpenShift Gateway API implementation&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>We added the HTTPS configuration back&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The &lt;a href="https://gateway-api.sigs.k8s.io/guides/http-redirect-rewrite/">upstream&lt;/a> documentation contains an example on how to implements HTTP to HTTPS redirects. We created the following additional &lt;em>HTTPRoute&lt;/em> object in the &lt;em>gateway-api-test&lt;/em> namespace:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+name: http-https-redirect
+spec:
+parentRefs:
+- name: http-gateway &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+namespace: openshift-ingress
+sectionName: http &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+hostnames:
+- nginx.gtw.ocp.lan.stderr.at
+rules:
+- filters:
+- type: RequestRedirect
+requestRedirect:
+scheme: https
+statusCode: 301&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Match our &lt;em>Gateway&lt;/em> &lt;em>http-gateway&lt;/em>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Match the &lt;em>http&lt;/em> section in our gateway&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Just for reference this is the &lt;em>HTTPRoute&lt;/em> object to expose Nginx:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+name: nginx-route
+spec:
+parentRefs:
+- name: http-gateway
+namespace: openshift-ingress
+hostnames: [&amp;#34;nginx.gtw.ocp.lan.stderr.at&amp;#34;]
+rules:
+- backendRefs:
+- name: nginx
+namespace: gateway-api-test
+port: 8080&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>First we re-applied our &lt;em>Gateway&lt;/em> configuration&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc apply -f gateway-https-selector.yaml
+gateway.gateway.networking.k8s.io/http-gateway configured&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s try and verify if our redirect is working, we need to apply both routes:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc apply -f httproute.yaml
+httproute.gateway.networking.k8s.io/nginx-route created
+$ oc apply -f http-https-redirect-route.yaml
+httproute.gateway.networking.k8s.io/http-https-redirect created&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>And test with curl:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ curl -I http://nginx.gtw.ocp.lan.stderr.at
+HTTP/1.1 200 OK &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+server: nginx/1.29.1
+date: Sat, 30 Aug 2025 15:37:20 GMT
+content-type: text/html
+content-length: 615
+last-modified: Wed, 13 Aug 2025 14:33:41 GMT
+etag: &amp;#34;689ca245-267&amp;#34;
+accept-ranges: bytes&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Hm, strange we still get 200 OK and &lt;strong>NOT&lt;/strong> a redirect to HTTPS&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_understanding_httproute_ordering">Understanding HTTPRoute ordering&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>After a longer search through the documentation we found some hints on why this is happening.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s take a more detailed look at our http-to-https route again, as a
+&lt;em>HTTPRoute&lt;/em> &lt;strong>attaches&lt;/strong> to a &lt;em>Gateway&lt;/em>, we focus on the &lt;em>parentRefs&lt;/em> in
+the &lt;em>HTTPRoute&lt;/em> object. In our current understanding &lt;em>parentRefs&lt;/em> select a &lt;em>Gateway&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+name: http-https-redirect
+spec:
+parentRefs: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- name: http-gateway &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+namespace: openshift-ingress &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+sectionName: http &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+hostnames:
+- nginx.gtw.ocp.lan.stderr.at
+rules:
+- filters:
+- type: RequestRedirect
+requestRedirect:
+scheme: https
+statusCode: 301&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Ok, this is the &lt;em>parentRefs&lt;/em> section we are looking for&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>&lt;em>name&lt;/em> selects the name of the &lt;em>Gateway&lt;/em> we want to attach to&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>&lt;em>namespace&lt;/em> specifies the namespace where we can find the &lt;em>Gateway&lt;/em>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>&lt;em>sectionName&lt;/em> selects the section in the &lt;em>Gateway&lt;/em> where we want to attach to.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So this &lt;em>HTTPRoute&lt;/em> explicitly attaches to a &lt;em>Gateway&lt;/em> in a
+&lt;em>Namespace&lt;/em> that has a &lt;em>Section&lt;/em> http defined.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>If you look at the Gateway configuration above you will see that we
+have a section for HTTP traffic and one for HTTPS traffic.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s compare this with our Nginx &lt;em>HTTPRoute&lt;/em> definition:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+name: nginx-route
+spec:
+parentRefs: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- name: http-gateway &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+namespace: openshift-ingress &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+hostnames: [&amp;#34;nginx.gtw.ocp.lan.stderr.at&amp;#34;]
+rules:
+- backendRefs:
+- name: nginx
+namespace: gateway-api-test
+port: 8080&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The &lt;em>parentRefs&lt;/em> section&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The &lt;em>Gateway&lt;/em> we would like to attach to&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The &lt;em>namespace&lt;/em> where the &lt;em>Gateway&lt;/em> is deploy&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Note that &lt;em>Section&lt;/em> is missing in this configuration.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So this &lt;em>HTTPRoute&lt;/em> actually attaches to &lt;strong>both&lt;/strong> sections in our
+&lt;em>Gateway&lt;/em> definition, HTTP and HTTPS. Which is not what we want.&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>When a client hits the HTTP endpoint we want to redirect the traffic to HTTPS&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>When a client hits the HTTPS endpoint we want the traffic to be forward to our Nginx deployment&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We found the following statement
+&lt;a href="https://gateway-api.sigs.k8s.io/reference/spec/#httprouterule">statement&lt;/a>
+how ordering works in the Gateway API:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre>If ties still exist across multiple Routes, matching precedence MUST be
+determined in order of the following criteria, continuing on ties:
+The oldest Route based on creation timestamp.&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>When we look at the timestamps of our &lt;em>HTTPRoutes&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">oc get httproute -o jsonpath=&amp;#39;{range .items[*]}{.metadata.name}{&amp;#34;\t&amp;#34;}{.metadata.creationTimestamp}{&amp;#34;\n&amp;#34;}{end}&amp;#39;
+http-https-redirect 2025-08-31T09:17:46Z &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+nginx-route 2025-08-31T09:17:40Z &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Creation timestamp of the redirect route&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Creation timestamp of the nginx route&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The Nginx &lt;em>HTTPRoute&lt;/em> is &lt;strong>older&lt;/strong> than the HTTP-to-HTTP &lt;em>HTTPRoute&lt;/em>. So
+this matches first and a 200 OK is returned.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So let’s try to revers how we applied our &lt;em>HTTPRoutes&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc delete httproutes.gateway.networking.k8s.io --all
+httproute.gateway.networking.k8s.io &amp;#34;http-https-redirect&amp;#34; deleted
+httproute.gateway.networking.k8s.io &amp;#34;nginx-route&amp;#34; deleted
+$ oc apply -f http-to-https-httproute.yaml
+httproute.gateway.networking.k8s.io/http-https-redirect created
+$ oc apply -f nginx-httproute.yaml
+httproute.gateway.networking.k8s.io/nginx-route created
+$ oc get httproute -o jsonpath=&amp;#39;{range .items[*]}{.metadata.name}{&amp;#34;\t&amp;#34;}{.metadata.creationTimestamp}{&amp;#34;\n&amp;#34;}{end}&amp;#39;
+http-https-redirect 2025-08-31T10:34:55Z &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+nginx-route 2025-08-31T10:35:11Z &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Creation timestamp of the HTTP-to-HTTPS route&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Creation timestamp of the nginx route&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now the HTTP-to-HTTPS route is the oldest route. Let’s try again calling Nginx with curl:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ curl -I http://nginx.gtw.ocp.lan.stderr.at
+HTTP/1.1 301 Moved Permanently &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+location: https://nginx.gtw.ocp.lan.stderr.at/
+date: Sun, 31 Aug 2025 10:37:13 GMT
+transfer-encoding: chunked
+$ curl -I https://nginx.gtw.ocp.lan.stderr.at
+HTTP/2 200 &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+server: nginx/1.29.1
+date: Sun, 31 Aug 2025 10:37:17 GMT
+content-type: text/html
+content-length: 615
+last-modified: Wed, 13 Aug 2025 14:33:41 GMT
+etag: &amp;#34;689ca245-267&amp;#34;
+accept-ranges: bytes&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The HTTP endpoint returns a redirect&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>the HTTPS endpoint returns 200 OK from Nginx&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So now we have the expected behavior: HTTP is redirect to HTTPS!&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As depending on the time when an object is created is definitely &lt;strong>NOT&lt;/strong>
+a good idea, let’s be more specific in our Nginx &lt;em>HTTPRoute&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+name: nginx-route
+spec:
+parentRefs:
+- name: http-gateway
+namespace: openshift-ingress
+sectionName: https &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+hostnames: [&amp;#34;nginx.gtw.ocp.lan.stderr.at&amp;#34;]
+rules:
+- backendRefs:
+- name: nginx
+namespace: gateway-api-test
+port: 8080&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>We explicitly select the &lt;strong>HTTPS&lt;/strong> section in our &lt;em>Gateway&lt;/em> configuration&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Next we delete our &lt;em>HTTPRoutes&lt;/em> again, and re-apply them in the order that didn’t work the first time (Nginx is the oldest route):&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc delete httproutes.gateway.networking.k8s.io --all
+httproute.gateway.networking.k8s.io &amp;#34;http-https-redirect&amp;#34; deleted
+httproute.gateway.networking.k8s.io &amp;#34;nginx-route&amp;#34; deleted
+$ oc apply -f http-to-https-httproute.yaml
+httproute.gateway.networking.k8s.io/http-https-redirect created
+$ oc get httproute -o jsonpath=&amp;#39;{range .items[*]}{.metadata.name}{&amp;#34;\t&amp;#34;}{.metadata.creationTimestamp}{&amp;#34;\n&amp;#34;}{end}&amp;#39;
+http-https-redirect 2025-08-31T10:45:01Z
+nginx-route 2025-08-31T10:44:57Z &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+$ curl -I http://nginx.gtw.ocp.lan.stderr.at
+HTTP/1.1 301 Moved Permanently &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+location: https://nginx.gtw.ocp.lan.stderr.at/
+date: Sun, 31 Aug 2025 10:46:22 GMT
+transfer-encoding: chunked
+$ curl -I https://nginx.gtw.ocp.lan.stderr.at
+HTTP/2 200 &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+server: nginx/1.29.1
+date: Sun, 31 Aug 2025 10:46:30 GMT
+content-type: text/html
+content-length: 615
+last-modified: Wed, 13 Aug 2025 14:33:41 GMT
+etag: &amp;#34;689ca245-267&amp;#34;
+accept-ranges: bytes&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The Nginx route is the oldest route&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The HTTP endpoint returns a redirect to HTTPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The response from our Nginx deployment&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Finally everything works as expected!&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+A &lt;em>HTTPRoute&lt;/em> attaches to a &lt;em>Gateway&lt;/em>. Always be as specific as
+possible which &lt;em>Gateway&lt;/em> to match and which &lt;em>section&lt;/em> in the
+&lt;em>Gateway&lt;/em>.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_conclusion">Conclusion&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In this blog post we demonstrated to implement TLS with the
+Gateway API. We also implemented a shared &lt;em>Gateway&lt;/em> with &lt;em>HTTPRoute&lt;/em>
+objects in different namespaces.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Furthermore we configured HTTP to HTTPS redirects and dove into
+&lt;em>HTTPRoute&lt;/em> ordering if a route matches multiple listeners in a
+&lt;em>Gateway&lt;/em> definition.&lt;/p>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>A first look into the Kubernetes Gateway API on OpenShift</title><link>https://blog.stderr.at/openshift/2025/08/a-first-look-into-the-kubernetes-gateway-api-on-openshift/</link><pubDate>Fri, 29 Aug 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/08/a-first-look-into-the-kubernetes-gateway-api-on-openshift/</guid><description>&lt;div class="paragraph">
 &lt;p>This blog post summarizes our first look into the Kubernetes Gateway
 API and how it is integrated in OpenShift.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The Kubernetes Gateway API is new implementation of the ingress, load
+balancing and service mesh API’s. See
+&lt;a href="https://gateway-api.sigs.k8s.io/" target="_blank" rel="noopener">upstream&lt;/a> for more information.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Also the &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/ingress_and_load_balancing/configuring-ingress-cluster-traffic#nw-ingress-gateway-api-overview_ingress-gateway-api" target="_blank" rel="noopener">OpenShift documentation&lt;/a> provides an overview of the Gateway API and it’s integration.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_things_to_consider_when_using_gateway_api_with_openshift">Things to consider when using Gateway API with OpenShift&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Currently UDN (User Defined Networks) with Gateway API are not supported.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Only TLS termination on the edge is supported (no pass-through or re-encrypt), this needs to be confirmed. We can’t find the original source of this statement&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>The standard OpenShift ingress controller manages Gateway API Resources&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Gateway API provides a standard on how to get client traffic into a
+Kubernetes cluster. Vendors provide an implementation of the API. So
+OpenShift provides &lt;strong>ONE&lt;/strong> possible implementation, but there could
+be more than one in a cluster.&lt;/p>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>We found the following sentence in the OpenShift documentation
+interesting:&lt;/p>
+&lt;div class="literalblock">
+&lt;div class="content">
+&lt;pre>Because OpenShift Container Platform uses a specific
+version of Gateway API CRDs, any use of third-party implementations
+of Gateway API must conform to the OpenShift Container Platform
+implementation to ensure that all fields work as expected&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_setting_up_gateway_api_on_openshift">Setting up Gateway API on OpenShift&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Before you begin, ensure you have the following:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>OpenShift 4.19 or higher with cluster-admin access&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>First you need to create a &lt;code>GatewayClass&lt;/code> object.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Be aware that the &lt;code>GatewayClass&lt;/code> object is &lt;strong>NOT&lt;/strong> namespaced.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+name: openshift-default
+spec:
+controllerName: openshift.io/gateway-controller/v1 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The controller name needs to be exactly as shown. Otherwise the
+ingress controller will &lt;strong>NOT&lt;/strong> manage the gateway and associated
+resources.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This creates a new pod in the openshift-ingress namespace:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc get po -n openshift-ingress
+NAME READY STATUS RESTARTS AGE
+istiod-openshift-gateway-7b567bc8b4-4lrt2 1/1 Running 0 12m &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+router-default-6db958cbd-dlbwz 1/1 Running 12 14d&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>this pod got create after applying the gateway class resource&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;code>router-default&lt;/code> is the default openshift ingress pod. The first
+difference seems to be the SCC (security context constraint) the pods
+are using.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc get po -n openshift-ingress -o jsonpath=&amp;#39;{range .items[*]}{.metadata.name}{&amp;#34;\t&amp;#34;}{.metadata.annotations.openshift\.io/scc}{&amp;#34;\n&amp;#34;}{end}&amp;#39;
+istiod-openshift-gateway-7b567bc8b4-4lrt2 restricted-v2
+router-default-6db958cbd-dlbwz hostnetwork&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The standard router used host networking for listing on port 80 and 443
+on the node where it is running. Our &lt;code>GatewayClass&lt;/code> currently only
+provides a pod running Istiod awaiting further configuration. To
+actually listen for client request additional configuration is
+required.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>A &lt;code>Gateway&lt;/code> is required to listen for client requests. We create the
+following gateway:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+name: http-gateway
+namespace: openshift-ingress &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+spec:
+gatewayClassName: openshift-default
+listeners:
+- name: http
+protocol: HTTP
+port: 80
+hostname: &amp;#34;*.apps.ocp.lan.stderr.at&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>We create this gateway in the same namespace as the istio
+deployment. This is required for OpenShift.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This creates an additional pod in the &lt;code>openshift-ingress&lt;/code> namespace:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc get po
+NAME READY STATUS RESTARTS AGE
+http-gateway-openshift-default-d476664f5-h87mp 1/1 Running 0 36s&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We also got a new service for the our http-gateway&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">➜ oc get svc
+NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
+http-gateway-openshift-default LoadBalancer 172.30.183.48 10.0.0.150 15021:30251/TCP,80:30437/TCP 4m52s&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The interesting thing is the &lt;code>TYPE&lt;/code> of the service. It’s of type
+&lt;code>LoadBalancer&lt;/code>. We have
+&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking_operators/metallb-operator">MetalLB&lt;/a>
+deployed in our cluster, this might be the reason for this. We will
+try to configure a gateway without MetalLB in in upcoming post.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Lets take a look at the gateway resource&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc get gtw
+NAME CLASS ADDRESS PROGRAMMED AGE
+http-gateway openshift-default 10.0.0.150 True 3m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So this seems to be working. But know we have a problem: the &lt;code>*.apps&lt;/code>
+domain that we used for our gateway points already to the default
+OpenShift Ingress. We could either&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>redeploy the gateway with a different wildcard domain (e.g. *.gtw…​)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>create a more specific DNS record that points to our new load balancer&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s try to confirm this with &lt;em>curl&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ curl -I http://bla.apps.ocp.lan.stderr.at
+HTTP/1.0 503 Service Unavailable
+pragma: no-cache
+cache-control: private, max-age=0, no-cache, no-store
+content-type: text/html&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;code>503&lt;/code> is the response of default OpenShift Ingress.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ curl -I http://10.0.0.150
+HTTP/1.1 404 Not Found
+date: Fri, 29 Aug 2025 14:31:31 GMT
+transfer-encoding: chunked&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Our new gateway returns a &lt;code>404&lt;/code> not found response. We choose the
+first option and create another wildcard DNS entry for
+&lt;code>*.gtw.ocp.lan.stderr.at&lt;/code>. We re-deployed our gateway with the new hostname:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+name: http-gateway
+namespace: openshift-ingress
+spec:
+gatewayClassName: openshift-default
+listeners:
+- name: http
+protocol: HTTP
+port: 80
+hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>New hostname for resources exposed via our gateway&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc apply -f gateway.yaml
+gateway.gateway.networking.k8s.io/http-gateway created&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This also creates a DNSRecord resource:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc describe dnsrecords.ingress.operator.openshift.io -n openshift-ingress http-gateway-c8d7bfc67-wildcard
+Name: http-gateway-c8d7bfc67-wildcard
+Namespace: openshift-ingress
+Labels: gateway.istio.io/managed=openshift.io-gateway-controller-v1
+gateway.networking.k8s.io/gateway-name=http-gateway
+istio.io/rev=openshift-gateway
+Annotations: &amp;lt;none&amp;gt;
+API Version: ingress.operator.openshift.io/v1
+Kind: DNSRecord
+Metadata:
+Creation Timestamp: 2025-08-29T14:49:45Z
+Finalizers:
+operator.openshift.io/ingress-dns
+Generation: 1
+Owner References:
+API Version: v1
+Kind: Service
+Name: http-gateway-openshift-default
+UID: a023de5d-c428-4249-a190-de3cbfeb6964
+Resource Version: 141150968
+UID: 7a61a867-216e-40b7-88f3-e3934493c477
+Spec:
+Dns Management Policy: Managed
+Dns Name: *.gtw.ocp.lan.stderr.at.
+Record TTL: 30
+Record Type: A
+Targets:
+10.0.0.150
+Events: &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This resource is only internally used by the OpenShift ingress
+operator (see &lt;code>oc explain dnsrecord&lt;/code> for details).&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_creating_httproutes_for_exposing_our_service">Creating HTTPRoutes for exposing our service.&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>To actually expose a HTTP pod via our new gateway we need:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>A &lt;em>Namespace&lt;/em> to deploy an example pod. We will use a Nginx for this&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A &lt;em>Service&lt;/em> that exposes our Nginx pod&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>and finally a &lt;em>HTTPRoute&lt;/em> resource&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For the nginx deployment we used the following manifest:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: v1
+kind: Namespace
+metadata:
+name: gateway-api-test
+spec:
+finalizers:
+- kubernetes
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: nginx-deployment
+namespace: gateway-api-test
+labels:
+app: nginx
+spec:
+replicas: 1
+selector:
+matchLabels:
+app: nginx
+template:
+metadata:
+labels:
+app: nginx
+spec:
+containers:
+- name: nginx
+image: quay.io/nginx/nginx-unprivileged:1.29.1
+ports:
+- containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+name: nginx
+namespace: gateway-api-test
+spec:
+selector:
+app: nginx
+ports:
+- protocol: TCP
+port: 8080
+targetPort: 8080&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s see if our nginx pod got deployed successfully:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc get po,svc -n gateway-api-test
+NAME READY STATUS RESTARTS AGE
+pod/nginx-deployment-796cdf7474-b7bqz 1/1 Running 0 20s
+NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
+service/nginx ClusterIP 172.30.42.36 &amp;lt;none&amp;gt; 8080/TCP 21s&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>And finally confirm our &lt;code>Service&lt;/code> is working:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc port-forward -n gateway-api-test svc/nginx 8080 &amp;amp;
+Forwarding from 127.0.0.1:8080 -&amp;gt; 8080
+Forwarding from [::1]:8080 -&amp;gt; 8080
+$ curl -I localhost:8080
+Handling connection for 8080
+HTTP/1.1 200 OK
+Server: nginx/1.29.1
+Date: Fri, 29 Aug 2025 15:45:12 GMT
+Content-Type: text/html
+Content-Length: 615
+Last-Modified: Wed, 13 Aug 2025 14:33:41 GMT
+Connection: keep-alive
+ETag: &amp;#34;689ca245-267&amp;#34;
+Accept-Ranges: bytes&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We received a response from our nginx pod, hurray!&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So next let’s try to create a &lt;code>HTTPRoute&lt;/code> to expose our nginx service to external clients:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+name: nginx-route
+spec:
+parentRefs:
+- name: http-gateway
+namespace: openshift-ingress
+hostnames: [&amp;#34;nginx.gtw.ocp.lan.stderr.at&amp;#34;]
+rules:
+- backendRefs:
+- name: nginx
+namespace: gateway-api-test
+port: 8080&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>One important point here, the &lt;code>Gateway&lt;/code> actually come in two flavors&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>dedicated gateways, only accepting HTTP routes in the same namespace (&lt;code>openshift-ingress&lt;/code>) in our case.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>shared gateways, which also accept HTTP route objects from other namespaces&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>see &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/ingress_and_load_balancing/configuring-ingress-cluster-traffic#nw-ingress-gateway-api-deployment_ingress-gateway-api">Gateway API deployment topologies&lt;/a> in the OpenShift documentation for more information.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As this post is already rather long, we focus on the dedicated gateway topology for now.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The HTTP route must be deployed in the same namespace as the
+gateway if the dedicated topology is used.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So let’s deploy our &lt;code>HTTPRoute&lt;/code>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc apply -f httproute.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Verify we can reach our nginx pod:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">curl -I http://nginx.gtw.ocp.lan.stderr.at
+HTTP/1.1 500 Internal Server Error
+date: Fri, 29 Aug 2025 15:57:34 GMT
+transfer-encoding: chunked&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This return a &lt;em>500&lt;/em> error, something seems to be wrong with our route,
+let’s take a look at the status of the &lt;code>HTTPRoute&lt;/code>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ oc describe gtw http-gateway
+.
+. (output omitted)
+.
+Status:
+Parents:
+Conditions:
+Last Transition Time: 2025-08-29T15:54:43Z
+Message: Route was valid
+Observed Generation: 1
+Reason: Accepted
+Status: True
+Type: Accepted
+Last Transition Time: 2025-08-29T15:54:43Z
+Message: backendRef nginx/gateway-api-test not accessible to a HTTPRoute in namespace &amp;#34;openshift-ingress&amp;#34; (missing a ReferenceGrant?) &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+Observed Generation: 1
+Reason: RefNotPermitted
+Status: False &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+Type: ResolvedRefs
+Controller Name: openshift.io/gateway-controller/v1
+Parent Ref:
+Group: gateway.networking.k8s.io
+Kind: Gateway
+Name: http-gateway
+Namespace: openshift-ingress&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Something seems to be wrong as the status is &lt;em>False&lt;/em>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Seems we are missing a ReferenceGrant&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Looking at the
+&lt;a href="https://gateway-api.sigs.k8s.io/api-types/referencegrant/" target="_blank" rel="noopener">upstream&lt;/a>
+documentation reveals a security feature of the Gateway API. Before a
+&lt;code>HTTPRoute&lt;/code> can reach a service in a &lt;em>different&lt;/em> namespace we must
+create a &lt;code>ReferenceGrant&lt;/code> in the namespace providing the service.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So let’s try to deploy following &lt;code>ReferenceGrant&lt;/code> in the &lt;em>gateway-api-test&lt;/em> namespace:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+name: nginx
+namespace: gateway-api-test
+spec:
+from:
+- group: gateway.networking.k8s.io
+kind: HTTPRoute
+namespace: openshift-ingress
+to:
+- group: &amp;#34;&amp;#34;
+kind: Service&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Checking the status field of our &lt;code>HTTPRoute&lt;/code> again:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">(output omitted)
+Status:
+Addresses:
+Type: IPAddress
+Value: 10.0.0.150
+Conditions:
+Last Transition Time: 2025-08-29T15:47:07Z
+Message: Resource accepted
+Observed Generation: 1
+Reason: Accepted
+Status: True
+Type: Accepted
+Last Transition Time: 2025-08-29T15:47:08Z
+Message: Resource programmed, assigned to service(s) http-gateway-openshift-default.openshift-ingress.svc.cluster.local:80
+Observed Generation: 1
+Reason: Programmed
+Status: True &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+Type: Programmed&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>&lt;em>Status&lt;/em> is now &lt;em>True&lt;/em>&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>and finally calling the nginx pod again via our gateway:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">$ curl -I http://nginx.gtw.ocp.lan.stderr.at
+HTTP/1.1 200 OK
+server: nginx/1.29.1
+date: Fri, 29 Aug 2025 16:01:33 GMT
+content-type: text/html
+content-length: 615
+last-modified: Wed, 13 Aug 2025 14:33:41 GMT
+etag: &amp;#34;689ca245-267&amp;#34;
+accept-ranges: bytes&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Finally everything seems to be in place and working.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_conclusion">Conclusion&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In this blog post we took a first look at the Kubernetes Gateway API
+and it’s integration into OpenShift. We enabled the Gateway API via a
+&lt;code>GatewayClass&lt;/code> resource, created a simple HTTP Gateway via a
+&lt;code>Gateway&lt;/code>, deploy a Nginx pod and a Service and exposed the service
+via a &lt;code>HTTPRoute&lt;/code> and a &lt;code>ReferenceGrant&lt;/code>.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Hopefully an upcoming blog post will cover how to&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>How to deploy a Gateway without MetalLB&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Deploy a TLS secured service&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>implement HTTP redirects&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>rewriting URL’s (if possible)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>and other possibilities of the Gateway API&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Working with Environments</title><link>https://blog.stderr.at/day-2/labels_environmets/2022-01-12-creatingenvironment/</link><pubDate>Wed, 12 Jan 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/labels_environmets/2022-01-12-creatingenvironment/</guid><description>&lt;div class="paragraph">
 &lt;p>Imagine you have one OpenShift cluster and you would like to create 2 or more environments inside this cluster, but also separate them and force the environments to specific nodes, or use specific inbound routers. All this can be achieved using labels, IngressControllers and so on. The following article will guide you to set up dedicated compute nodes for infrastructure, development and test environments as well as the creation of IngressController which are bound to the appropriate nodes.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Before we start we need an OpenShift cluster of course. In this example we have a cluster with typical 3 control plane nodes (labelled as master) and 7 compute nodes (labelled as worker)&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get nodes
+NAME STATUS ROLES AGE VERSION
+ip-10-0-138-104.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-149-168.us-east-2.compute.internal Ready worker 13h v1.21.1+6438632 # &amp;lt;-- will become infra
+ip-10-0-154-244.us-east-2.compute.internal Ready worker 16m v1.21.1+6438632 # &amp;lt;-- will become infra
+ip-10-0-158-44.us-east-2.compute.internal Ready worker 15m v1.21.1+6438632 # &amp;lt;-- will become infra
+ip-10-0-160-91.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-188-198.us-east-2.compute.internal Ready worker 13h v1.21.1+6438632 # &amp;lt;-- will become worker-test
+ip-10-0-191-9.us-east-2.compute.internal Ready worker 16m v1.21.1+6438632 # &amp;lt;-- will become worker-test
+ip-10-0-192-174.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-195-201.us-east-2.compute.internal Ready worker 16m v1.21.1+6438632 # &amp;lt;-- will become worker-dev
+ip-10-0-199-235.us-east-2.compute.internal Ready worker 16m v1.21.1+6438632 # &amp;lt;-- will become worker-dev&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We will use the 7 nodes to create the environments for:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Infrastructure Services (3 nodes) - will be labelled as &lt;code>infra&lt;/code>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Development Environment (2 nodes) - will be labelled as &lt;code>worker-dev&lt;/code>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Test Environment (2 nodes) - will be labelled as &lt;code>worker-test&lt;/code>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To do this, we will label the nodes and create dedicated roles for them.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_nodes_labels_and_machineconfigpools">Create Nodes Labels and MachineConfigPools&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Let’s create a maschine config pool for the different environments.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The pool inherits the configuration from &lt;code>worker&lt;/code> nodes by default, which means that any new update on the worker configuration will also update custom labeled nodes.
+Or in other words: it is possible to remove the worker label from the custom pools.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Create the following objects:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># Infrastructure
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+name: infra
+spec:
+machineConfigSelector:
+matchExpressions:
+- {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,infra]} &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+maxUnavailable: 1 &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+nodeSelector:
+matchLabels:
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+paused: false
+---
+# Worker-DEV
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+name: worker-dev
+spec:
+machineConfigSelector:
+matchExpressions:
+- {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,worker-dev]}
+nodeSelector:
+matchLabels:
+node-role.kubernetes.io/worker-dev: &amp;#34;&amp;#34;
+---
+# Worker-TEST
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+name: worker-test
+spec:
+machineConfigSelector:
+matchExpressions:
+- {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,worker-test]}
+nodeSelector:
+matchLabels:
+node-role.kubernetes.io/worker-test: &amp;#34;&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>User worker and infra so that the default worker configuration gets applied during upgrades&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Whenever an update happens, do only 1 at a time&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>This pool is valid for nodes which are labelled as &lt;code>infra&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now let’s label our nodes.
+First add the new, additional label:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash"># Add the label &amp;#34;infra&amp;#34;
+oc label node ip-10-0-149-168.us-east-2.compute.internal ip-10-0-154-244.us-east-2.compute.internal ip-10-0-158-44.us-east-2.compute.internal node-role.kubernetes.io/infra=
+# Add the label &amp;#34;worker-dev&amp;#34;
+oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal node-role.kubernetes.io/worker-dev=
+# Add the label &amp;#34;worker-test&amp;#34;
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal node-role.kubernetes.io/worker-test=&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will result in:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME STATUS ROLES AGE VERSION
+ip-10-0-138-104.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-149-168.us-east-2.compute.internal Ready infra,worker 13h v1.21.1+6438632
+ip-10-0-154-244.us-east-2.compute.internal Ready infra,worker 20m v1.21.1+6438632
+ip-10-0-158-44.us-east-2.compute.internal Ready infra,worker 19m v1.21.1+6438632
+ip-10-0-160-91.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-188-198.us-east-2.compute.internal Ready worker,worker-test 13h v1.21.1+6438632
+ip-10-0-191-9.us-east-2.compute.internal Ready worker,worker-test 20m v1.21.1+6438632
+ip-10-0-192-174.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-195-201.us-east-2.compute.internal Ready worker,worker-dev 20m v1.21.1+6438632
+ip-10-0-199-235.us-east-2.compute.internal Ready worker,worker-dev 20m v1.21.1+6438632&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>We can remove the worker label from the worker-dev and worker-test nodes now.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Keep the label &amp;#34;worker&amp;#34; for the infra nodes as this is the default worker label which is used when no nodeselector is in use. You can use any other node, just keep in mind that per default new applications will be started on nodes with the labels &amp;#34;worker&amp;#34;. As an alternative, you can also define a cluster-wide default node selector.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal node-role.kubernetes.io/worker-
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal node-role.kubernetes.io/worker-&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The final node labels will look like the following:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME STATUS ROLES AGE VERSION
+ip-10-0-138-104.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-149-168.us-east-2.compute.internal Ready infra,worker 13h v1.21.1+6438632
+ip-10-0-154-244.us-east-2.compute.internal Ready infra,worker 22m v1.21.1+6438632
+ip-10-0-158-44.us-east-2.compute.internal Ready infra,worker 21m v1.21.1+6438632
+ip-10-0-160-91.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-188-198.us-east-2.compute.internal Ready worker-test 13h v1.21.1+6438632
+ip-10-0-191-9.us-east-2.compute.internal Ready worker-test 21m v1.21.1+6438632
+ip-10-0-192-174.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-195-201.us-east-2.compute.internal Ready worker-dev 21m v1.21.1+6438632
+ip-10-0-199-235.us-east-2.compute.internal Ready worker-dev 22m v1.21.1+6438632&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Since the custom pools (infra, worker-test and worker-dev) inherit their configuration from the default worker pool, no changes on the files on the nodes themselves are triggered at this point.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_custom_configuration">Create Custom Configuration&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Let’s test our setup by deploying a configuration on specific nodes. The following MaschineConfig objects will create a file at &lt;strong>/etc/myfile&lt;/strong> on the nodes labelled either &lt;em>infra&lt;/em>, &lt;em>worker-dev&lt;/em> or &lt;em>worker_test&lt;/em>.
+Dependent on the node role the content of the file will vary.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+labels:
+machineconfiguration.openshift.io/role: infra &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+name: 55-infra
+spec:
+config:
+ignition:
+version: 2.2.0
+storage:
+files:
+- contents:
+source: data:,infra &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+filesystem: root
+mode: 0644
+path: /etc/myfile &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+labels:
+machineconfiguration.openshift.io/role: worker-dev
+name: 55-worker-dev
+spec:
+config:
+ignition:
+version: 2.2.0
+storage:
+files:
+- contents:
+source: data:,worker-dev
+filesystem: root
+mode: 0644
+path: /etc/myfile
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+labels:
+machineconfiguration.openshift.io/role: worker-test
+name: 55-worker-test
+spec:
+config:
+ignition:
+version: 2.2.0
+storage:
+files:
+- contents:
+source: data:,worker-test
+filesystem: root
+mode: 0644
+path: /etc/myfile&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Valid for node with the role xyz&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Content of the file&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>File to be created&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Since this is a new configuration, all nodes will get reconfigured.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME STATUS ROLES AGE VERSION
+ip-10-0-138-104.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-149-168.us-east-2.compute.internal Ready,SchedulingDisabled infra,worker 13h v1.21.1+6438632
+ip-10-0-154-244.us-east-2.compute.internal Ready infra,worker 28m v1.21.1+6438632
+ip-10-0-158-44.us-east-2.compute.internal Ready infra,worker 27m v1.21.1+6438632
+ip-10-0-160-91.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-188-198.us-east-2.compute.internal Ready worker-test 13h v1.21.1+6438632
+ip-10-0-191-9.us-east-2.compute.internal NotReady,SchedulingDisabled worker-test 27m v1.21.1+6438632
+ip-10-0-192-174.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
+ip-10-0-195-201.us-east-2.compute.internal Ready worker-dev 27m v1.21.1+6438632
+ip-10-0-199-235.us-east-2.compute.internal NotReady,SchedulingDisabled worker-dev 28m v1.21.1+6438632&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Wait until all nodes are ready and test the configuration by verifying the content of &lt;em>/etc/myfile&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">###
+# infra nodes:
+###
+oc get pods -n openshift-machine-config-operator -l k8s-app=machine-config-daemon --field-selector &amp;#34;spec.nodeName=ip-10-0-149-168.us-east-2.compute.internal&amp;#34;
+NAME READY STATUS RESTARTS AGE
+machine-config-daemon-f85kd 2/2 Running 6 16h
+# Get file content
+oc rsh -n openshift-machine-config-operator machine-config-daemon-f85kd chroot /rootfs cat /etc/myfile
+Defaulted container &amp;#34;machine-config-daemon&amp;#34; out of: machine-config-daemon, oauth-proxy
+infra
+###
+#worker-dev:
+###
+oc get pods -n openshift-machine-config-operator -l k8s-app=machine-config-daemon --field-selector &amp;#34;spec.nodeName=ip-10-0-195-201.us-east-2.compute.internal&amp;#34;
+NAME READY STATUS RESTARTS AGE
+machine-config-daemon-s6rr5 2/2 Running 4 3h5m
+# Get file content
+oc rsh -n openshift-machine-config-operator machine-config-daemon-s6rr5 chroot /rootfs cat /etc/myfile
+Defaulted container &amp;#34;machine-config-daemon&amp;#34; out of: machine-config-daemon, oauth-proxy
+worker-dev
+###
+# worker-test:
+###
+oc get pods -n openshift-machine-config-operator -l k8s-app=machine-config-daemon --field-selector &amp;#34;spec.nodeName=ip-10-0-188-198.us-east-2.compute.internal&amp;#34;
+NAME READY STATUS RESTARTS AGE
+machine-config-daemon-m22rf 2/2 Running 6 16h
+# Get file content
+oc rsh -n openshift-machine-config-operator machine-config-daemon-m22rf chroot /rootfs cat /etc/myfile
+Defaulted container &amp;#34;machine-config-daemon&amp;#34; out of: machine-config-daemon, oauth-proxy
+worker-test&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The file /etc/myfile exists on all nodes and depending on their role the files have a different content.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_bind_an_application_to_a_specific_environment">Bind an Application to a Specific Environment&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The following will label the nodes with a specific environment and will deploy an example application, which should only be executed on the appropriate nodes.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Let’s label the nodes with &lt;strong>environment=worker-dev&lt;/strong> and &lt;strong>environment=worker-test&lt;/strong>:&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal environment=worker-dev
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal environment=worker-test&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a namespace for the example application&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc new-project bookinfo&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create an annotation and a label for the namespace. The annotation will make sure that the application will only be started on nodes with the same label. The label will be later used for the IngressController setup.&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc annotate namespace bookinfo environment=worker-dev
+oc annotate namespace bookinfo openshift.io/node-selector: environment=worker-test
+oc label namespace bookinfo environment=worker-dev&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Deploy the example application. In this article the sample application of Istio was used:&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.11/samples/bookinfo/platform/kube/bookinfo.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will start the application on &lt;code>worker-dev`&lt;/code> nodes only, because the annotation in the namespace was created accordingly.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n bookinfo -o wide
+NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
+details-v1-86dfdc4b95-v8zfv 1/1 Running 0 9m19s 10.130.2.17 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+productpage-v1-658849bb5-8gcl7 1/1 Running 0 7m17s 10.128.4.21 ip-10-0-195-201.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+ratings-v1-76b8c9cbf9-cc4js 1/1 Running 0 9m19s 10.130.2.19 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+reviews-v1-58b8568645-mbgth 1/1 Running 0 7m44s 10.128.4.20 ip-10-0-195-201.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+reviews-v2-5d8f8b6775-qkdmz 1/1 Running 0 9m19s 10.130.2.21 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+reviews-v3-666b89cfdf-8zv8w 1/1 Running 0 9m18s 10.130.2.22 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_create_dedicated_ingresscontroller">Create Dedicated IngressController&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>IngressController are responsible to bring the traffic into the cluster. OpenShift comes with one default controller, but it is possible to create more in order to use different domains and separate the incoming traffic to different nodes.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Bind the default ingress controller to the infra labeled nodes, so we can be sure that the default router pods are executed only on these nodes:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch=&amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;nodePlacement&amp;#34;:{&amp;#34;nodeSelector&amp;#34;: {&amp;#34;matchLabels&amp;#34;:{&amp;#34;node-role.kubernetes.io/infra&amp;#34;:&amp;#34;&amp;#34;}}}}}&amp;#39;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The pods will get restarted, to be sure they are running on infra:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre>oc get pods -n openshift-ingress -o wide
+NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
+router-default-78f8dd6f69-dbtbv 0/1 ContainerCreating 0 2s &amp;lt;none&amp;gt; ip-10-0-149-168.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+router-default-78f8dd6f69-wwpgb 0/1 ContainerCreating 0 2s &amp;lt;none&amp;gt; ip-10-0-158-44.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+router-default-7bbbc8f9bd-vfh84 1/1 Running 0 22m 10.129.4.6 ip-10-0-158-44.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+router-default-7bbbc8f9bd-wggrx 1/1 Terminating 0 19m 10.128.2.8 ip-10-0-149-168.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Create the following IngressController objects for &lt;strong>worker-dev&lt;/strong> and &lt;strong>worker-test&lt;/strong>. Replace with the domain of your choice&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+name: ingress-worker-dev
+namespace: openshift-ingress-operator
+spec:
+domain: worker-dev.&amp;lt;yourdomain&amp;gt; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+endpointPublishingStrategy:
+type: HostNetwork
+httpErrorCodePages:
+name: &amp;#39;&amp;#39;
+namespaceSelector:
+matchLabels:
+environment: worker-dev &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+nodePlacement:
+nodeSelector:
+matchLabels:
+node-role.kubernetes.io/worker-dev: &amp;#39;&amp;#39; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+replicas: 3
+tuningOptions: {}
+unsupportedConfigOverrides: null
+---
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+name: ingress-worker-test
+namespace: openshift-ingress-operator
+spec:
+domain: worker-test.&amp;lt;yourdomain&amp;gt;
+endpointPublishingStrategy:
+type: HostNetwork
+httpErrorCodePages:
+name: &amp;#39;&amp;#39;
+namespaceSelector:
+matchLabels:
+environment: worker-test
+nodePlacement:
+nodeSelector:
+matchLabels:
+node-role.kubernetes.io/worker-test: &amp;#39;&amp;#39;
+replicas: 3
+tuningOptions: {}
+unsupportedConfigOverrides: null&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Domainname which is used by this Controller&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Namespace selector …​ namespaces with such label will be handled by this IngressController&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Node Placement …​ This Controller should run on nodes with this label/role&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will spin up additional router pods on the collect labelled nodes:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n openshift-ingress -o wide
+NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
+router-default-78f8dd6f69-dbtbv 1/1 Running 0 8m7s 10.128.2.11 ip-10-0-149-168.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+router-default-78f8dd6f69-wwpgb 1/1 Running 0 8m7s 10.129.4.10 ip-10-0-158-44.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+router-ingress-worker-dev-76b65cf558-mspvb 1/1 Running 0 113s 10.130.2.13 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+router-ingress-worker-dev-76b65cf558-p2jpg 1/1 Running 0 113s 10.128.4.12 ip-10-0-195-201.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+router-ingress-worker-test-6bbf9967f-4whfs 1/1 Running 0 113s 10.131.2.13 ip-10-0-191-9.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 113s 10.131.0.8 ip-10-0-188-198.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_verify_ingress_configuration">Verify Ingress Configuration&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>To test our new ingress router lets create a route object for our example application:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+name: productpage
+namespace: bookinfo
+spec:
+host: productpage-bookinfo.worker-dev.&amp;lt;yourdomain&amp;gt;
+to:
+kind: Service
+name: productpage
+weight: 100
+port:
+targetPort: http
+wildcardPolicy: None
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+name: productpage-worker-test
+namespace: bookinfo
+spec:
+host: productpage-bookinfo.worker-test.&amp;lt;yourdomain&amp;gt;
+to:
+kind: Service
+name: productpage
+weight: 100
+port:
+targetPort: http
+wildcardPolicy: None&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Be sure that the name is resolvable and a load balancer is configured accordingly
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Verify that the router pod has the correct configuration in the file &lt;strong>haproxy.config&lt;/strong> :&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n openshift-ingress
+NAME READY STATUS RESTARTS AGE
+router-default-78f8dd6f69-dbtbv 1/1 Running 0 95m
+router-default-78f8dd6f69-wwpgb 1/1 Running 0 95m
+router-ingress-worker-dev-76b65cf558-mspvb 1/1 Running 0 88m
+router-ingress-worker-dev-76b65cf558-p2jpg 1/1 Running 0 88m
+router-ingress-worker-test-6bbf9967f-4whfs 1/1 Running 0 88m
+router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 88m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Verify the content of the haproxy configuration for one of the &lt;code>worker-dev&lt;/code> router&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc rsh -n openshift-ingress router-ingress-worker-dev-76b65cf558-mspvb cat haproxy.config | grep productpage
+backend be_http:bookinfo:productpage
+server pod:productpage-v1-658849bb5-8gcl7:productpage:http:10.128.4.21:9080 10.128.4.21:9080 cookie 3758caf21badd7e4f729209173eece08 weight 256&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Compare with &lt;code>worker-test&lt;/code> router&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc rsh -n openshift-ingress router-ingress-worker-test-6bbf9967f-jht4w cat haproxy.config | grep productpage
+--&amp;gt; Empty result, this router is not configured with that route.&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Compare with &lt;code>default&lt;/code> router:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">backend be_http:bookinfo:productpage
+server pod:productpage-v1-658849bb5-8gcl7:productpage:http:10.128.4.21:9080 10.128.4.21:9080 cookie 3758caf21badd7e4f729209173eece08 weight 256&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Why does this happen? Why are the default router and the router for worker-dev configured?
+This happens because it is the default router and we must explicitly tell it to ignore certain labels.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Modify the default IngressController&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc edit ingresscontroller.operator default -n openshift-ingress-operator&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Add the following&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> namespaceSelector:
+matchExpressions:
+- key: environment
+operator: NotIn
+values:
+- worker-dev
+- worker-test&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will tell the default IngressController to ignore selectors on &lt;code>worker-dev&lt;/code> and &lt;code>worker-test&lt;/code>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Wait a few seconds until the route pods have been restarted:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n openshift-ingress
+NAME READY STATUS RESTARTS AGE
+router-default-744998df46-8lh4t 1/1 Running 0 2m32s
+router-default-744998df46-hztgf 1/1 Running 0 2m31s
+router-ingress-worker-dev-76b65cf558-mspvb 1/1 Running 0 96m
+router-ingress-worker-dev-76b65cf558-p2jpg 1/1 Running 0 96m
+router-ingress-worker-test-6bbf9967f-4whfs 1/1 Running 0 96m
+router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 96m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>And test again&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc rsh -n openshift-ingress router-default-744998df46-8lh4t cat haproxy.config | grep productpage
+--&amp;gt; empty result&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+At this point the new router feels responsible. Be sure to have a load balancer configured correctly.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_appendix">Appendix&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Bind other infra-workload to infrastructure nodes:&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_internal_registry">Internal Registry&lt;/h3>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc patch configs.imageregistry.operator.openshift.io/cluster -n openshift-image-registry --type=merge --patch &amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;nodeSelector&amp;#34;:{&amp;#34;node-role.kubernetes.io/infra&amp;#34;:&amp;#34;&amp;#34;}}}&amp;#39;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_openshift_monitoring_workload">OpenShift Monitoring Workload&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Create the following file and apply it.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; cluster-monitoring-config-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+name: cluster-monitoring-config
+namespace: openshift-monitoring
+data:
+config.yaml: |+
+alertmanagerMain:
+nodeSelector:
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
+prometheusK8s:
+nodeSelector:
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
+prometheusOperator:
+nodeSelector:
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
+grafana:
+nodeSelector:
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
+k8sPrometheusAdapter:
+nodeSelector:
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
+kubeStateMetrics:
+nodeSelector:
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
+telemeterClient:
+nodeSelector:
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
+EOF&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create -f cluster-monitoring-config-cm.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

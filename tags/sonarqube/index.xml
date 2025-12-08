@@ -1,3 +1,567 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SonarQube on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/sonarqube/</link><description>Recent content in SonarQube on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 02 Jul 2024 16:01:05 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/sonarqube/index.xml" rel="self" type="application/rss+xml"/><item><title>Step 3 - SonarQube</title><link>https://blog.stderr.at/securesupplychain/2023-06-18-securesupplychain-step3/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-18-securesupplychain-step3/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>SonarQube on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/sonarqube/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/sonarqube/index.xml" rel="self" type="application/rss+xml"/><item><title>Step 3 - SonarQube</title><link>https://blog.stderr.at/securesupplychain/2023-06-18-securesupplychain-step3/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-18-securesupplychain-step3/</guid><description>&lt;div class="paragraph">
 &lt;p>After the Pipeline has been created and tested we will add another Task to verify the source code and check for possible security issues, leveraging the tool &lt;a href="https://www.sonarsource.com/products/sonarqube/" target="_blank" rel="noopener">SonarQube&lt;/a> by Sonar.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_goals">Goals&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The goals of this step are:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Install and configure SonarQube&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Add a Task to scan our source code for vulnerabilities&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Verify the results.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_sonarqube">SonarQube&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>&lt;a href="https://www.sonarsource.com/products/sonarqube/" target="_blank" rel="noopener">SonarQube&lt;/a> by Sonar helps developers to deliver clean code. With the integration into our CICD pipeline it will detect issues and reports them back to the developers. The results will be shown in a dashboard. We will install the Community version of SonarQube, which is enough for our showcase.&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_sonarqube_installation">SonarQube Installation&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>To install SonarQube I have prepared a &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/sonarqube" target="_blank" rel="noopener">Helm Chart&lt;/a> that I use with GitOps when I deploy a new lab environment. Feel free to use it. It simply calls the Chart that is provided by Sonar. In addition, it creates a Job that changes the default administrator password to a different one.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The values file is good to go, the only item you must change is the route in the very first line.
+Also, if you prefer not to deploy any plugins (for example, the German language pack), you can remove the appropriate line.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Before you run the Helm, you need to provide a Sealed Secret (or manually create a Secret) like the following:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Secret
+apiVersion: v1
+metadata:
+name: credentials
+namespace: sonarqube
+data:
+adminpass: &amp;lt;your base64 password string&amp;gt;
+type: Opaque&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This password will be used by the Job &amp;#34;change-admin-password&amp;#34; and will configure a new password for the user &amp;#34;admin&amp;#34;&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Once everything is installed (this will take several minutes), you can access SonarQube using the URL you defined in the values file.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step3-SonarQube-entrypage.png" alt="SonarQube"/>
+&lt;/div>
+&lt;div class="title">Figure 1. SonarQube&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_sonarqube_create_token">SonarQube Create Token&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Our Pipeline will talk to SonarQube and request a scan of the source code. To be able to do this, we need to create a Token in SonarQube and store it as a Secret in our &lt;strong>ci&lt;/strong> namespace.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Click on &lt;strong>&amp;#34;My Account&amp;#34; (Upper right corner) &amp;gt; Security&lt;/strong> and create a new token:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step3-sonarqube-token.png" alt="SonarQube Token"/>
+&lt;/div>
+&lt;div class="title">Figure 2. SonarQube Token&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Copy the token and create the following Secret:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Secret
+apiVersion: v1
+metadata:
+name: globex-ui-sonarqube-secret
+namespace: ci
+stringData:
+token: &amp;lt;your SonarQube Token&amp;gt; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+type: Opaque&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The generated Token NOT base64 encrypted (I am using &lt;strong>stringData&lt;/strong> in this case)&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_modify_the_pipeline">Modify the Pipeline&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now it is time to bring the SonarQube scan task into our Pipeline. This requires some modifications to existing objects and the creation of some new ones.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Modify the TriggerBinding.&lt;/p>
+&lt;div class="paragraph">
+&lt;p>Add the following lines to &lt;strong>globex-ui&lt;/strong> TriggerBinding&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - name: sonarqubeHostUrl
+value: http://sonarqube.apps.ocp.aws.ispworld.at/ &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The URL of SonarQube&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So, it will look like this:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+name: globex-ui
+namespace: ci
+spec:
+params:
+- name: tlsVerify
+value: &amp;#39;false&amp;#39;
+- name: gitRepoHost
+value: github.com
+- name: sonarqubeHostUrl
+value: https://sonarqube.apps.ocp.aws.ispworld.at/ &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The URL of SonarQube&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Modify the TriggerTemplate&lt;/p>
+&lt;div class="paragraph">
+&lt;p>Add the following lines:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">spec:
+params: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- description: Sonarqube host url
+name: sonarqubeHostUrl
+...
+resourcetemplates:
+- apiVersion: tekton.dev/v1beta1
+spec:
+params: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- name: SONARQUBE_HOST_URL
+value: $(tt.params.sonarqubeHostUrl)
+- name: SONARQUBE_PROJECT_KEY
+value: globex-ui &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+- name: SONARQUBE_PROJECT_SECRET
+value: globex-ui-sonarqube-secret &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+...&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Parameters provided by the TriggerBinding.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Parameters provided to the Pipeline.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Project that will be created in SonarQube.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Secret of the SonarQube token.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The result should look like the following:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+name: app-globex-ui-template
+namespace: ci
+spec:
+params:
+- description: The git repository URL.
+name: gitrepositoryurl
+- description: The repository name for this PullRequest.
+name: fullname
+- description: The git branch for this PR.
+name: io.openshift.build.commit.ref
+- description: the specific commit SHA.
+name: io.openshift.build.commit.id
+- description: The date at which the commit was made
+name: io.openshift.build.commit.date
+- description: The commit message
+name: io.openshift.build.commit.message
+- description: The name of the github user handle that made the commit
+name: io.openshift.build.commit.author
+- description: The host name of the git repo
+name: gitRepoHost
+- description: Enable image repository TLS certification verification.
+name: tlsVerify
+- description: Extra parameters passed for the push command when pushing images.
+name: build_extra_args
+- description: Target image repository name
+name: imageRepo
+- description: Sonarqube host url
+name: sonarqubeHostUrl
+resourcetemplates:
+- apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+generateName: secure-supply-chain-
+spec:
+params:
+- name: REPO_HOST
+value: $(tt.params.gitRepoHost)
+- name: GIT_REPO
+value: $(tt.params.gitrepositoryurl)
+- name: TLSVERIFY
+value: $(tt.params.tlsVerify)
+- name: BUILD_EXTRA_ARGS
+value: $(tt.params.build_extra_args)
+- name: IMAGE_REPO
+value: $(tt.params.imageRepo)
+- name: IMAGE_TAG
+value: &amp;gt;-
+$(tt.params.io.openshift.build.commit.ref)-$(tt.params.io.openshift.build.commit.id)
+- name: COMMIT_SHA
+value: $(tt.params.io.openshift.build.commit.id)
+- name: GIT_REF
+value: $(tt.params.io.openshift.build.commit.ref)
+- name: COMMIT_DATE
+value: $(tt.params.io.openshift.build.commit.date)
+- name: COMMIT_AUTHOR
+value: $(tt.params.io.openshift.build.commit.author)
+- name: COMMIT_MESSAGE
+value: $(tt.params.io.openshift.build.commit.message)
+- name: SONARQUBE_HOST_URL
+value: $(tt.params.sonarqubeHostUrl)
+- name: SONARQUBE_PROJECT_KEY
+value: globex-ui
+- name: SONARQUBE_PROJECT_SECRET
+value: globex-ui-sonarqube-secret
+pipelineRef:
+name: secure-supply-chain
+serviceAccountName: pipeline
+workspaces:
+- name: shared-data
+volumeClaimTemplate:
+metadata:
+creationTimestamp: null
+spec:
+accessModes:
+- ReadWriteOnce
+resources:
+requests:
+storage: 3Gi
+status: {}&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create the Task &lt;strong>scan-source&lt;/strong>. This task will use the pulled source code and uses SonarQube to let it scan our code.&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+name: scan-code
+namespace: ci
+spec:
+description: &amp;gt;-
+Source code scan using sonar-scanner and SonarQube.
+params:
+- default: &amp;#39;docker.io/sonarsource/sonar-scanner-cli:latest&amp;#39; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+name: scanImage
+type: string
+- default: &amp;#39;https://sonarqube-sonarqube.myplaceholder.com/&amp;#39; &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+name: sonarqubeHostUrl
+type: string
+- default: object-detection-rest
+name: sonarqubeProjectKey
+type: string
+- default: object-detection-rest-sonarqube-secret
+name: sonarqubeProjectSecret
+type: string
+- default: &amp;#39;true&amp;#39;
+name: verbose
+type: string
+steps:
+- env:
+- name: SONAR_TOKEN_WEB_UI &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+valueFrom:
+secretKeyRef:
+key: token
+name: $(params.sonarqubeProjectSecret) &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+image: $(params.scanImage)
+name: scan-code
+resources: {}
+script: &amp;gt; &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+set -x
+echo $(ls -a)
+sonar-scanner -X -Dsonar.projectKey=$(params.sonarqubeProjectKey)
+-Dsonar.sources=./ -Dsonar.host.url=$(params.sonarqubeHostUrl)
+-Dsonar.login=$SONAR_TOKEN_WEB_UI
+workingDir: /workspace/repository
+workspaces: &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+- name: repository&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Image containing SonarQube command line tool. The cluster must be able to connect to docker.io.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Default parameters for this Task that might be overwritten.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The Secret with the token.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Parameter as set by the PipelineRun which gets the value from the TriggerTemplate.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
+&lt;td>Script that is executed to scan the source code.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
+&lt;td>The workspace where we can find the source code.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Update your Pipeline and add the following task:&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">spec:
+params:
+...
+- name: SONARQUBE_HOST_URL
+type: string
+- name: SONARQUBE_PROJECT_KEY
+type: string
+- name: SONARQUBE_PROJECT_SECRET
+type: string
+tasks:
+...
+- name: scan-source
+params: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- name: sonarqubeHostUrl
+value: $(params.SONARQUBE_HOST_URL)
+- name: sonarqubeProjectKey
+value: $(params.SONARQUBE_PROJECT_KEY)
+- name: sonarqubeProjectSecret
+value: $(params.SONARQUBE_PROJECT_SECRET)
+runAfter: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- pull-source-code
+taskRef: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+kind: Task
+name: scan-code
+workspaces: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+- name: repository
+workspace: shared-data&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Parameters that shall be provided for the Task.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The task should run AFTER the source has been pulled …​ which makes sense.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Reference to the Task we created above.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Workspace &lt;strong>shared-data&lt;/strong> where the source code was pulled from the previous Task.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The full pipeline objects now look like the following:&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;div class="expand">
+&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+&lt;i style="font-size:x-small;" class="fas fa-chevron-right">&lt;/i>
+&lt;span>
+&lt;a>Expand me...&lt;/a>
+&lt;/span>
+&lt;/div>
+&lt;div class="expand-content" style="display: none;">
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+name: secure-supply-chain
+namespace: ci
+spec:
+params:
+- name: REPO_HOST
+type: string
+- name: COMMIT_SHA
+type: string
+- name: TLSVERIFY
+type: string
+- name: BUILD_EXTRA_ARGS
+type: string
+- name: IMAGE_REPO
+type: string
+- name: IMAGE_TAG
+type: string
+- name: GIT_REF
+type: string
+- name: COMMIT_DATE
+type: string
+- name: COMMIT_AUTHOR
+type: string
+- name: COMMIT_MESSAGE
+type: string
+- name: GIT_REPO
+type: string
+- name: SONARQUBE_HOST_URL
+type: string
+- name: SONARQUBE_PROJECT_KEY
+type: string
+- name: SONARQUBE_PROJECT_SECRET
+type: string
+tasks:
+- name: pull-source-code
+params:
+- name: url
+value: $(params.GIT_REPO)
+- name: revision
+value: $(params.GIT_REF)
+- name: deleteExisting
+value: &amp;#39;true&amp;#39;
+taskRef:
+kind: ClusterTask
+name: git-clone
+workspaces:
+- name: output
+workspace: shared-data
+- name: scan-source
+params:
+- name: sonarqubeHostUrl
+value: $(params.SONARQUBE_HOST_URL)
+- name: sonarqubeProjectKey
+value: $(params.SONARQUBE_PROJECT_KEY)
+- name: sonarqubeProjectSecret
+value: $(params.SONARQUBE_PROJECT_SECRET)
+runAfter:
+- pull-source-code
+taskRef:
+kind: Task
+name: scan-code
+workspaces:
+- name: repository
+workspace: shared-data
+workspaces:
+- name: shared-data&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The Pipeline now has a second task:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step3-pipeline.png?width=420px" alt="Pipeline"/>
+&lt;/div>
+&lt;div class="title">Figure 3. Pipeline&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_execute_the_pipeline">Execute the Pipeline&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Let’s update the &lt;strong>README.md&lt;/strong> of our source code again to trigger another PipelineRun. After the code has been pulled it should now perform the second task and scan the quality of the source code.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>You can monitor the progress of the PipelineRun again:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step3-PipelineRun_exec.png?width=600px" alt="PipelineRun Details"/>
+&lt;/div>
+&lt;div class="title">Figure 4. PipelineRun Details&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Once the PipelineRun executed both tasks successfully, we can check SonarQube.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The project &lt;strong>globex-ui&lt;/strong> has been created which shows the results of our scan:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step3-sonarqube_result.png" alt="SonarQube Results"/>
+&lt;/div>
+&lt;div class="title">Figure 5. SonarQube Results&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_summary">Summary&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>We have now added a Task to our Pipeline that performs a code analysis of our source code. The results are shown in SonarQube and the developers can react accordingly.&lt;/p>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

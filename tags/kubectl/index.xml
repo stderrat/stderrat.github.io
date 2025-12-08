@@ -1,22 +1,678 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Kubectl on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/kubectl/</link><description>Recent content in Kubectl on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 02 Dec 2025 17:46:24 +0100</lastBuildDate><atom:link href="https://blog.stderr.at/tags/kubectl/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift</title><link>https://blog.stderr.at/openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/</guid><description/></item><item><title>Setup OpenShift GitOps/Argo CD</title><link>https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/</link><pubDate>Fri, 02 Feb 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Kubectl on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/kubectl/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 02 Feb 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/kubectl/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift</title><link>https://blog.stderr.at/openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/</guid><description/></item><item><title>Setup OpenShift GitOps/Argo CD</title><link>https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/</link><pubDate>Fri, 02 Feb 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/</guid><description>&lt;div class="paragraph">
 &lt;p>„&lt;em>If it is not in GitOps, it does not exist&lt;/em>“ - is a mantra I hear quite often and also try to practice at customer engagements. The idea is to have Git as the only source of truth on what happens inside the environment. That said, &lt;a href="https://openpracticelibrary.com/practice/everything-as-code/">Everything as Code&lt;/a> is a practice that treats every aspect of the system as a code. Storing this code in Git provides a shared understanding, traceability and repeatability of changes.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>While there are many articles about how to get GitOps into the deployment process of applications, this one rather sets the focus on the &lt;strong>cluster configuration&lt;/strong> and tasks system administrators usually have to do.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Also check out the article &lt;a href="https://blog.stderr.at/openshift/2020-08-06-argocd/">GitOps Argo CD&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>It all begins with an OpenShift cluster. Such a cluster must be installed and while we will not discuss a bootstrap of the whole cluster … yes, it is possible to even automate the cluster deployment using Advanced Cluster Management as an example, we will simply assume that one cluster is up and running.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>For our setup, an OpenShift cluster 4.14 is deployed and we will use the repository &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops">OpenShift Cluster Configuration using GitOps&lt;/a> to deploy our configuration onto this cluster. This repository shall act as the source of truth for any configuration. In the article &lt;a href="http://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/">Choosing the right Git repository structure&lt;/a> I have explained the folder structure I am usually using. As tool I am usually using Helm Charts.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The &lt;strong>openshift-clusterconfig-gitops&lt;/strong> repository heavily uses the Helm Repository found at &lt;a href="https://charts.stderr.at/" class="bare">https://charts.stderr.at/&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_deploy_openshift_gitops">Deploy OpenShift-GitOps&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The first thing we need to do is to deploy &lt;a href="https://docs.openshift.com/gitops/1.11/understanding_openshift_gitops/what-is-gitops.html" target="_blank" rel="noopener">OpenShift-GitOps&lt;/a>, which is based on the &lt;a href="https://argo-cd.readthedocs.io/en/stable/" target="_blank" rel="noopener">Argo CD&lt;/a> project. OpenShift-GitOps comes as an Operator and is available to all OpenShift customers. The Operator will deploy and configure Argo CD and provide several custom resources to configure Argo CD &lt;strong>Applications&lt;/strong> or &lt;strong>ApplicationSets&lt;/strong> for example.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To automate the operator deployment the following shell script can be used: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/init_GitOps.sh" target="_blank" rel="noopener">init_GitOps.sh&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+This Shell script is the only script that is executed manually. It installs and configures Argo CD. Any other operation on the cluster must then be done using GitOps processes. I am using this to quickly install a new Demo-cluster. There are alternatives and maybe better way, but for my purpose it works pretty well.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Clone the repository to your local machine&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">git clone https://github.com/tjungbauer/openshift-clusterconfig-gitops.git&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Be sure that you are logged in the the required cluster&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc whoami --show-server&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Execute the init_GitOps.sh&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">./init_GitOps.sh&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The script will deploy the operator and configure/patch the Argo CD instance. In addition, it will create the so-called &lt;strong>Application of Applications&lt;/strong>, which acts as an umbrella Application, that automatically creates all other Argo CD Application(Sets).
+For now, the App of Apps is the only Argo CD Application that automatically synchronizes all changes found in Git. This is for security, purposes so you can test the cluster configuration one after another.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Of course, it is up to you if you want to use the shell script. The Operator can also be installed manually, using Advanced Cluster Manager, or using Platform Operators and installing the Operating during the cluster installation (However, this feature is currently (v4.15) TechPreview)
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_what_will_this_script_do">What will this script do?&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>I will not de-assemble the script line by line, but in general, the following will happen:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Adding repository &lt;a href="https://charts.stderr.at/" class="bare">https://charts.stderr.at/&lt;/a> and install the Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/openshift-gitops">openshift-gitops&lt;/a>&lt;/p>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+This FIRST OpenShift-GitOps will be deployed with &lt;strong>cluster-admin&lt;/strong> privileges since we want to manage the whole cluster configuration. This Argo CD instance should not be used for application deployment. For that, deploy additional instances of GitOps.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Waiting for Deployments to become ready&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Deploy the &lt;strong>Application of Applications&lt;/strong> that is responsible for automatically deploying a set of Applications or ApplicationSets (see &lt;a href="#The Argo CD Object Manager Application">[The Argo CD Object Manager Application]&lt;/a>)&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The following shows the output of the command:&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;div class="expand">
+&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+&lt;i style="font-size:x-small;" class="fas fa-chevron-right">&lt;/i>
+&lt;span>
+&lt;a>Expand me...&lt;/a>
+&lt;/span>
+&lt;/div>
+&lt;div class="expand-content" style="display: none;">
+&lt;div class="literalblock">
+&lt;div class="content">
+&lt;pre>❯ ./init_GitOps.sh
+Starting Deployment
+Deploying OpenShift GitOps Operator
+Adding Helm Repo https://charts.stderr.at/
+WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /Users/tjungbau/openshift-aws/aws/auth/kubeconfig
+&amp;#34;tjungbauer&amp;#34; has been added to your repositories
+WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /Users/tjungbau/openshift-aws/aws/auth/kubeconfig
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the &amp;#34;sealed-secrets&amp;#34; chart repository
+...Successfully got an update from the &amp;#34;tjungbauer&amp;#34; chart repository
+...Successfully got an update from the &amp;#34;apache-airflow&amp;#34; chart repository
+...Successfully got an update from the &amp;#34;hashicorp&amp;#34; chart repository
+...Successfully got an update from the &amp;#34;bitnami&amp;#34; chart repository
+Update Complete. ⎈Happy Helming!⎈
+WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /Users/tjungbau/openshift-aws/aws/auth/kubeconfig
+Release &amp;#34;openshift-gitops-operator&amp;#34; has been upgraded. Happy Helming!
+NAME: openshift-gitops-operator
+LAST DEPLOYED: Mon Sep 26 13:22:33 2022
+NAMESPACE: openshift-operators
+STATUS: deployed
+REVISION: 2
+TEST SUITE: None
+Give the gitops-operator some time to be installed. Waiting for 45 seconds...
+Waiting for operator to start. Chcking every 10 seconds.
+NAME READY UP-TO-DATE AVAILABLE AGE
+gitops-operator-controller-manager 1/1 1 1 4d4h
+Waiting for openshift-gitops namespace to be created. Checking every 10 seconds.
+NAME STATUS AGE
+openshift-gitops Active 4d4h
+Waiting for deployments to start. Checking every 10 seconds.
+NAME READY UP-TO-DATE AVAILABLE AGE
+cluster 1/1 1 1 4d4h
+Waiting for all pods to be created
+Waiting for deployment cluster
+deployment &amp;#34;cluster&amp;#34; successfully rolled out
+Waiting for deployment kam
+deployment &amp;#34;kam&amp;#34; successfully rolled out
+Waiting for deployment openshift-gitops-applicationset-controller
+deployment &amp;#34;openshift-gitops-applicationset-controller&amp;#34; successfully rolled out
+Waiting for deployment openshift-gitops-redis
+deployment &amp;#34;openshift-gitops-redis&amp;#34; successfully rolled out
+Waiting for deployment openshift-gitops-repo-server
+deployment &amp;#34;openshift-gitops-repo-server&amp;#34; successfully rolled out
+Waiting for deployment openshift-gitops-server
+deployment &amp;#34;openshift-gitops-server&amp;#34; successfully rolled out
+GitOps Operator ready
+Lets use our patched Argo CD CRD
+argocd.argoproj.io/openshift-gitops unchanged
+clusterrolebinding.rbac.authorization.k8s.io/cluster-admin-0 unchanged
+Waiting for deployment cluster
+deployment &amp;#34;cluster&amp;#34; successfully rolled out
+Waiting for deployment kam
+deployment &amp;#34;kam&amp;#34; successfully rolled out
+Waiting for deployment openshift-gitops-applicationset-controller
+deployment &amp;#34;openshift-gitops-applicationset-controller&amp;#34; successfully rolled out
+Waiting for deployment openshift-gitops-redis
+deployment &amp;#34;openshift-gitops-redis&amp;#34; successfully rolled out
+Waiting for deployment openshift-gitops-repo-server
+deployment &amp;#34;openshift-gitops-repo-server&amp;#34; successfully rolled out
+Waiting for deployment openshift-gitops-server
+deployment &amp;#34;openshift-gitops-server&amp;#34; successfully rolled out
+GitOps Operator ready... again
+WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /Users/tjungbau/openshift-aws/aws/auth/kubeconfig
+Release &amp;#34;app-of-apps&amp;#34; has been upgraded. Happy Helming!
+NAME: app-of-apps
+LAST DEPLOYED: Mon Sep 26 13:23:59 2022
+NAMESPACE: openshift-gitops
+STATUS: deployed
+REVISION: 2
+TEST SUITE: None&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_logging_into_argo_cd">Logging into Argo CD&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>At this point, we have GitOps and the &amp;#34;&lt;strong>App of Apps&lt;/strong>&amp;#34; deployed.
+Argo CD comes with a WebUI and a command line tool. The latter must installed to your local environment. In this article, we will use the WebUI.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To access the WebUI use the applications menu of the top right corner in Openshift.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-link.png?width=340px" alt="WebUI Link"/>
+&lt;/div>
+&lt;div class="title">Figure 1. Argo CD: WebUI Link&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Use the button &amp;#34;Login via OpenShift&amp;#34;.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-login.png?width=340px" alt="Authentication"/>
+&lt;/div>
+&lt;div class="title">Figure 2. Argo CD: Authentication&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_the_argo_cd_resources_manager_application">The Argo CD Resources Manager Application&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The &lt;strong>Application of Applications&lt;/strong> (short App of Apps) is called &lt;strong>Argo CD Resources Manager&lt;/strong> and it is the only Argo CD application that is deployed using the init script. This single Argo CD Application has the sole purpose of deploying other Argo CD objects, such as Applications, ApplicationSets and AppProjects.&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-app-of-apps.png?width=340px" alt="App of Apps"/>
+&lt;/div>
+&lt;div class="title">Figure 3. Argo CD: App of Apps&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>It synchronizes everything that is found in the repository in the path:
+&lt;em>base/argocd-resources-manager&lt;/em> (main branch)&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Whenever you would like to create a new Argo CD application(set) it is supposed to be done using this App-of-Apps or to be more exact: in the path mentioned above.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The App-of-Apps is the only Argo CD Application (at this moment) that has automatic synchronization enabled. Thus any changes in the App-of-Apps will be propagated automatically as soon as GitOps syncs with Git.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The current Applications or ApplicationSets that come with the bootstrap repository are for example:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Deployment of Advanced Cluster Security (RHACS)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Deployment of Advanced Cluster Management (RHACM)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Deployment of basic cluster configuration (i.e. etcd encryption, some UI tweaks …​)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Deployment of Compliance Operator&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>and many more.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Check out the deployed Argo CD objects or the openshift-clusterconfig-gitops repository.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>A deep dive into the argocd-resources-manager will be topic of a different episode of this serie.&lt;/p>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Using ServerSideApply with ArgoCD</title><link>https://blog.stderr.at/openshift/2022/11/using-serversideapply-with-argocd/</link><pubDate>Fri, 04 Nov 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2022/11/using-serversideapply-with-argocd/</guid><description>&lt;div class="paragraph">
 &lt;p>„&lt;em>If it is not in GitOps, it does not exist&lt;/em>“ - However, managing objects partially only by Gitops was always an issue, since ArgoCD would like to manage the whole object. For example, when you tried to work with node labels and would like to manage them via Gitops, you would need to put the whole node object into ArgoCD. This is impractical since the node object is very complex and typically managed by the cluster.
 There were 3rd party solutions (like the patch operator), that helped with this issue.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>However, with the Kubernetes feature &lt;strong>Server-Side Apply&lt;/strong> this problem is solved. Read further to see a working example of this feature.&lt;/p>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_what_is_server_side_apply_ssa">What is Server-Side Apply (SSA)&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Quoting from &lt;a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/">Kuberneted Documentation&lt;/a>:&lt;/p>
+&lt;/div>
+&lt;hr/>
+&lt;div class="paragraph">
+&lt;p>&lt;em>Server-Side Apply helps users and controllers manage their resources through declarative configurations. Clients can create and modify their objects declaratively by sending their fully specified intent.&lt;/em>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;em>A fully specified intent is a partial object that only includes the fields and values for which the user has an opinion. That intent either creates a new object or is combined, by the server, with the existing object.&lt;/em>&lt;/p>
+&lt;/div>
+&lt;hr/>
+&lt;div class="paragraph">
+&lt;p>In other words: you can send a snippet of an object to the cluster and the cluster will eventually combine everything on the server and not validate on the client side first. All you need is a way to identify the object. Usually, the name and maybe the namespace too.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_ssa_and_argocd">SSA and ArgoCD&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>When it comes to GitOps the implementation of SSA is quite new. However, it is important to note, that (managed field) conflicts are currently not handled by ArgoCD. Instead, ArgoCD forces a change and overrides everything, even if the field is managed by somebody else. This might be improved in the future. Nevertheless …​ let’s test the feature.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The support of the Server-Side Apply feature is currently available in the &lt;strong>latest&lt;/strong> version of ArgoCD. This means, that the channel of the openshift-gitops operator must be changed to &amp;#34;latest&amp;#34;, which will deploy openshift-gitops version &lt;strong>1.6&lt;/strong>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>A new stable version will arrive soon. :)&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_node_labelling_chart">Node Labelling Chart&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>In this example, I would like to use a Helm chart that will try to set two different labels on 2 nodes. This is a very easy example to demonstrate the feature.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As a Helm chart, I have prepared the following: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration" class="bare">https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration&lt;/a>&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The values for this chart are straightforward: per node, a list of custom labels is defined.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">helper-server-side-apply:
+nodes: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- name: ip-10-0-233-237.us-west-1.compute.internal &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+enabled: true
+custom_labels: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+environment: &amp;#39;Production&amp;#39;
+gpu: false
+- name: ip-10-0-193-67.us-west-1.compute.internal
+enabled: true
+custom_labels:
+environment: &amp;#39;Test&amp;#39;
+gpu: true&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>List of nodes&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Node name as OpenShift knows the node (&lt;em>oc get nodes&lt;/em>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>List of labels that should be added to the node: here environment and gpu&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The Chart is using a sub-chart called &lt;strong>helper-server-side-apply&lt;/strong>. The source can be found at the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-server-side-apply">Helm Repository&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The output of this Helm Chart will be the following:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
+kind: Node
+apiVersion: v1
+metadata:
+name: &amp;#34;ip-10-0-233-237.us-west-1.compute.internal&amp;#34; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+labels:
+gitops.ownedBy: openshift-gitops
+helm.sh/chart: helper-server-side-apply-1.0.3
+app.kubernetes.io/name: helper-server-side-apply
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/managed-by: Helm
+environment: &amp;#34;Production&amp;#34; &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+gpu: &amp;#34;false&amp;#34; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+---
+# Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
+kind: Node
+apiVersion: v1
+metadata:
+name: &amp;#34;ip-10-0-193-67.us-west-1.compute.internal&amp;#34;
+labels:
+gitops.ownedBy: openshift-gitops
+helm.sh/chart: helper-server-side-apply-1.0.3
+app.kubernetes.io/name: helper-server-side-apply
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/managed-by: Helm
+environment: &amp;#34;Test&amp;#34;
+gpu: &amp;#34;true&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The name of the node and our identifier&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The first label we set&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The second label we set&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+This is not a full definition of a Node object. The only things defined are the node name and the labels. (Besides the customer labels we would like to add, some default labels are added automatically.)
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_argocd_application">ArgoCD Application&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>So we have a Helm chart in Git. Perfect, but to automate everything with Gitops we need to create the object &lt;strong>Application&lt;/strong>. For example the following:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: node-labelling
+namespace: openshift-gitops
+spec:
+destination:
+namespace: default
+server: &amp;#39;https://kubernetes.default.svc&amp;#39;
+info:
+- name: Description
+value: Deploy Node Labels
+project: default
+source:
+helm:
+valueFiles:
+- values.yaml
+path: clusters/management-cluster/node-configuration &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
+targetRevision: main
+syncPolicy:
+syncOptions:
+- ServerSideApply=true &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- Validate=false &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Path and URL of the node labelling Helm chart&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Must be set to &lt;strong>true&lt;/strong> to enable SSA&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Must be set to &lt;strong>false&lt;/strong> to skip schema validation&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The two &lt;strong>syncOptions&lt;/strong> are important to set. Since the yaml output might not pass the validation, the schema validation should be disabled.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will create the following application in ArgoCD:&lt;/p>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-app-nodelabelling.png?width=840px" alt="ApplicationSet"/>
+&lt;/div>
+&lt;div class="title">Figure 1. Argo CD: Application&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_syncing_the_application">Syncing the Application&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>When you now synchronize the ArgoCD application, ArgoCD will take the yaml and will tell Kubernetes (or OpenShift) to perform a Server-Side Apply. This will result in the following yaml for the node:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Node
+apiVersion: v1
+metadata:
+name: ip-10-0-193-67.us-west-1.compute.internal
+labels:
+beta.kubernetes.io/os: linux
+app.kubernetes.io/instance: node-labelling
+[...]
+node-role.kubernetes.io/worker: &amp;#39;&amp;#39;
+gitops.ownedBy: openshift-gitops
+[...]
+environment: Test
+[...]&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>That’s it …​ all the magic is done.&lt;/p>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Helpful oc / kubectl commands</title><link>https://blog.stderr.at/openshift/2020/04/helpful-oc-/-kubectl-commands/</link><pubDate>Wed, 01 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2020/04/helpful-oc-/-kubectl-commands/</guid><description>&lt;div class="paragraph">
 &lt;p>This is a list of useful oc and/or kubectl commands so they won’t be forgotton. No this is not a joke…​&lt;/p>
-&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
-
-
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_list_all_pods_in_state_running">List all pods in state &lt;em>Running&lt;/em>&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods --field-selector=status.phase=Running&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_list_all_pods_in_state_running_and_show_there_resource_usage">List all pods in state &lt;em>Running&lt;/em> and show there resource usage&lt;/h3>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods --field-selector=status.phase=Running -o json|jq &amp;#34;.items[] | {name: .metada
+ta.name, res: .spec.containers[].resources}&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_list_events_sort_by_time_created">List events sort by time created&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash"> oc get events --sort-by=&amp;#39;.lastTimestamp&amp;#39;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_explain_objects_while_specifing_the_api_version">Explain objects while specifing the api version&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Sometimes when you run &lt;code>oc explain&lt;/code> you get a message in DESCRIPTION that this particular version is deprecated, e.g. you are running &lt;code>oc explain deployment&lt;/code> and get&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">DESCRIPTION:
+DEPRECATED - This group version of Deployment is deprecated by
+apps/v1/Deployment. See the release notes for more information. Deployment
+enables declarative updates for Pods and ReplicaSets.&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Note the DEPRECTATED message above
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>if you want to see the documentation for the object that has not been deprecated you can use&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc explain deployment --api-version=apps/v1&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_magic_with_oc_set">Magic with oc set&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>&lt;code>oc set&lt;/code> is actually a very versatile command. Studying &lt;code>oc set -h&lt;/code> is a good idea, here are some examples&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_set_route_weights_when_alternatebackends_in_a_route_are_defined">Set route weights when alternateBackends in a route are defined&lt;/h3>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc set route-backends bluegreen blue=1 green=9&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_set_resources_on_the_command_line">Set resources on the command line&lt;/h3>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc set resources dc cakephp-mysql-example --limits=memory=1Gi,cpu=200m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
+&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
 &lt;p>Well we hope the articles here are not totally useless :)&lt;/p>
-
 &lt;p>Who are we, you might ask.
 We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p>
-
-&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p></description></item></channel></rss>
+&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p>
+&lt;p>If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" >GitHub issue&lt;/a>&lt;/p></description></item></channel></rss>

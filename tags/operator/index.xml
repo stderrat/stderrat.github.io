@@ -1,21 +1,1249 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Operator on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/operator/</link><description>Recent content in Operator on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 10 Nov 2025 15:10:12 +0100</lastBuildDate><atom:link href="https://blog.stderr.at/tags/operator/index.xml" rel="self" type="application/rss+xml"/><item><title>What's New</title><link>https://blog.stderr.at/whatss-new/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whatss-new/</guid><description/></item><item><title>OpenShift</title><link>https://blog.stderr.at/openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/</guid><description/></item><item><title>Quay</title><link>https://blog.stderr.at/quay/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/</guid><description/></item><item><title>Operator installation with Argo CD</title><link>https://blog.stderr.at/openshift/2023/03/operator-installation-with-argo-cd/</link><pubDate>Mon, 20 Mar 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2023/03/operator-installation-with-argo-cd/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Operator on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/operator/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 20 Mar 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/operator/index.xml" rel="self" type="application/rss+xml"/><item><title>What's New</title><link>https://blog.stderr.at/whatss-new/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whatss-new/</guid><description/></item><item><title>OpenShift</title><link>https://blog.stderr.at/openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/</guid><description/></item><item><title>Quay</title><link>https://blog.stderr.at/quay/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/</guid><description/></item><item><title>Operator installation with Argo CD</title><link>https://blog.stderr.at/openshift/2023/03/operator-installation-with-argo-cd/</link><pubDate>Mon, 20 Mar 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2023/03/operator-installation-with-argo-cd/</guid><description>&lt;div class="paragraph">
 &lt;p>GitOps for application deployment and cluster configuration is a must-have I am trying to convince every customer to follow from the very beginning when starting the Kubernetes journey. For me, as more on the infrastructure side of things, I am more focused on the configuration of an environment.
 Meaning, configuring a cluster, installing an operator etc.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>In this article, I would like to share how I deal with cluster configuration when certain Kubernetes objects are dependent on each other and how to use Kubernetes but also Argo CD features to resolve these dependencies.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+This article assumes that you have the &lt;strong>openshift-gitops&lt;/strong> Operator, which provides Argo CD, already installed, and configured. If you are new to GitOps check out this article: &lt;a href="https://blog.stderr.at/openshift/2020-08-06-argocd/">Argo CD&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_tldr">TL;DR&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>If you want to jump directly to the technical fun part, go here: &lt;a href="#source_1">Let’s start&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_the_idea">The Idea&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Everything should be seen as a code. Everything should be possible to be deployed in a repeatable way. With a GitOps approach, everything is stored naturally in Git and from there, a GitOps agent validates and synchronizes changes to one or more clusters.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>When it comes to OpenShift, Red Hat supports Argo CD using the Operator &lt;strong>openshift-gitops&lt;/strong>. This gives you everything you need to deploy an Argo CD instance. The only thing you need to take care of is a Git repository, no matter if it is GitHub, Gitlab, Bitbucket etc.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_the_problem">The Problem&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Sometimes Kubernetes objects depend on each other. This is especially true when you would like to install and configure Operators, where the configuration, based on a Customer Resource Definition (CRD), can only happen after the Operator has been installed and is ready.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Why is that? Well, when you want to deploy an Operator, you will store a “Subscription object” in Git. Argo CD will take this object and applies it to the cluster. However, for an Operator, the creation of the Subscription object is just the first step. A lot of other steps are required until the Operator gets ready. Unfortunately, Argo CD cannot verify if the installation is successful. All it sees is that the Subscription object has been created and then it immediately tries to deploy the CRD. The CRD which is not yet available on the system because the Operator is still installing it.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Even if you use Argo CD features like Sync waves it would not wait until the Operator is successfully installed because for Argo CD the “success” is the creation of the Subscription object.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Subsequently, the Argo CD synchronisation process will fail.
+You could now try to automatically “Retry” the sync or use multiple Argo CD applications that you execute one after each other, but I was not fully happy with that and tried a different approach.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_my_solution">My Solution&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Let’s say I would like to deploy and configure the &lt;strong>Compliance Operator&lt;/strong>. The steps would be:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Install the Operator.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Wait until the Operator is ready.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Configure Operator specific CRDs.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This “Wait until the Operator is ready” is the tricky party for Argo CD. What I have done is the following:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Install the Operator, this is the first step and is done during Sync Wave 0.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Create a Kubernetes Job that verifies the status of the Operator. This Job additionally requires a ServiceAccount and a role with a binding. They are configured during Sync Wave is 1. Moreover, I use a &lt;strong>Hook&lt;/strong> (another Argo CD feature) with the deletion policy “HookSucceeded”. This makes sure that the Job, ServiceAccount, Role and RoleBinding are removed after the status has been verified.
+The verification is successful as soon as the Operator status says “Succeeded”. In fact, all the Job does is to execute some oc commands. For example,&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get clusterserviceversion openshift-gitops-operator.v1.8.0 -n openshift-gitops -o jsonpath={.status.phase}
+Succeeded&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Finally, during the next Sync Wave (2+) the CRD can be deployed. In this case, I deploy the object &lt;strong>ScanSettingBinding&lt;/strong>.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In Argo CD everything is correctly synchronized, and the Operator and its configuration is in place.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+If you are new to the compliance operator, I recommend the following article: &lt;a href="https://blog.stderr.at/compliance/2021/07/compliance-operator/">Compliance Operator&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>I use this approach for every Operator that I would like to install and configure at the same time. For example, I do the same for Advanced Cluster Security or Advanced Cluster Management where I use the Job to verify if everything is ready before I let Argo CD continue.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+More information about Sync Waves and Hooks can be found in the official Argo CD documentation: &lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/">Sync Phases and Waves&lt;/a>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="source_1">Let’s see this in Action&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Prerequisites&lt;/strong>&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>OpenShift cluster 4.x&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>openshift-gitops is installed and ready to be used.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Access to GitHub (or to your own Repository)&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>I will be using my Helm Chart repository at &lt;a href="https://charts.stderr.at/" class="bare">https://charts.stderr.at/&lt;/a> and from there the charts:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>compliance-operator-full-stack&lt;/p>
+&lt;div class="olist loweralpha">
+&lt;ol class="loweralpha" type="a">
+&lt;li>
+&lt;p>helper-operator (sub chart): Responsible to install the Operators.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>helper-status-checker (sub chart): Responsible to check the status of the Operator.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>Why do I use Helm charts?&lt;/strong>
+There is no specific reason for that. I started with Helm for the cluster configuration and now it has evolved with a separate Chart repository and sub-charts and so on.&lt;/p>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_argo_cd_application">Argo CD Application&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>In Argo CD I have the following Application:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: in-cluster-install-compliance-scans
+namespace: openshift-gitops
+spec:
+destination:
+namespace: default
+server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+info:
+- name: Description
+value: Deploy and configure the Compliance Scan Operator
+project: in-cluster
+source:
+path: charts/compliance-operator-full-stack &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+repoURL: &amp;#39;https://github.com/tjungbauer/helm-charts&amp;#39;
+targetRevision: main&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Installing on the local cluster where Argo CD is installed.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Git configuration, including path and revision.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Actually, this Application is created out of an ApplicationSet, but I did not want to make it too complex :)
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The Application would like to synchronize the objects:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Subscription&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>OperatorGroup&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Namespace (openshift-compliance)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>ScanSettingBinding&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-operator-installation.png" alt="Installing Compliance Operator"/>
+&lt;/div>
+&lt;div class="title">Figure 1. Argo CD: Installing Compliance Operator&lt;/div>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+&lt;strong>Where are the objects we need for the Job?&lt;/strong> Since they are only available during the Sync-Hook they will not show up here. In fact, they will only show up during the time they are alive and will disappear again after the status of the operator has been verified.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_helm_chart_configuration">Helm Chart Configuration&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>The &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/compliance-operator-full-stack">Helm Chart&lt;/a> gets its configuration from a values file. You can verify the whole file on GitHub.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The important pieces here are that some variables are handed over to the appropriate Sub Charts.&lt;/p>
+&lt;/div>
+&lt;div class="sect3">
+&lt;h4 id="_operator_configuration">Operator Configuration&lt;/h4>
+&lt;div class="paragraph">
+&lt;p>This part is handed over to the Chart “&lt;strong>helper-operator&lt;/strong>”.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">helper-operator:
+operators:
+compliance-operator:
+enabled: true
+syncwave: &amp;#39;0&amp;#39;
+namespace:
+name: openshift-compliance
+create: true
+subscription:
+channel: release-0.1
+approval: Automatic
+operatorName: compliance-operator
+source: redhat-operators
+sourceNamespace: openshift-marketplace
+operatorgroup:
+create: true
+notownnamespace: true&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>It is executed during Sync Wave 0 and defines if a Namespace (openshift-compliance) shall be created (true) and the specification of the Operator which you need to know upfront:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>&lt;strong>channel&lt;/strong>: Defines which channel shall be used. Some operators offer different channels.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>approval&lt;/strong>: Either Automatic or Manual … defines if the Operator shall be updated automatically or requires an approval.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>operatorName&lt;/strong>: the actual name of the Operator (compliance-operator)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>source&lt;/strong>: Where does this Operator come from (redhat-operator)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>sourceNamespace&lt;/strong>: In this case openshift-marketplace&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>You can fetch these values by looking at the Packagemanifest:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get packagemanifest compliance-operator -o yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect3">
+&lt;h4 id="_status_checker_configuration">Status Checker Configuration&lt;/h4>
+&lt;div class="paragraph">
+&lt;p>This part is handed over to the Sub-Chart &amp;#34;&lt;strong>helper-status-checker&lt;/strong>&amp;#34;&amp;#34;. The main values here are the operatorName and the namespace where the Operator is installed.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>What is not visible here is the Sync Wave, which is per default set to 1 inside the Helm Chart. If you need to overwrite it, it can be configured in this section as well.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">helper-status-checker:
+enabled: true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+# use the value of the currentCSV (packagemanifest) but WITHOUT the version !!
+operatorName: compliance-operator &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+# where operator is installed
+namespace:
+name: openshift-compliance &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+serviceAccount:
+create: true
+name: &amp;#34;sa-compliance&amp;#34; &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Is the status checker enabled or is it not.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>The name of the operator as it is reported by the value currentCSV inside the packageManifest&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>The namespace where the Operator has been installed.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>The name of the ServiceAccount that is created temporarily.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="admonitionblock warning">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-warning" title="Warning">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The operatorName is sometimes different than the Operator name required for helper-operator chart. Here it seems the value of the currentCSV must be used but without the version number. (The Job will look up the version itself)
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect3">
+&lt;h4 id="_operator_crd_configuration">Operator CRD configuration&lt;/h4>
+&lt;div class="paragraph">
+&lt;p>The final section of the values file manages the configuration for the Operator itself. This section does not use a Sub Chart. Instead, the variables are used in the Main-Chart. In this example, the &lt;strong>ScanSettingBinding&lt;/strong> will be configured during Sync Wave 3, which is all we need to basic functionality.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">compliance:
+scansettingbinding:
+enabled: true
+syncwave: &amp;#39;3&amp;#39; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+profiles: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- name: ocp4-cis-node
+- name: ocp4-cis
+scansetting: default&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Define the Sync Wave. This value must be higher than the Sync Wave of the &lt;strong>helper-status-checker&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>ScanSettingBinding configuration. Two profiles are used in this example.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_synchronizing_argo_cd">Synchronizing Argo CD&lt;/h3>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Basic Application in Argo CD before it is synced:&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-operator-installation.png?width=480" alt="argocd operator installation"/>
+&lt;/div>
+&lt;div class="title">Figure 2. Argo CD: Application&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Sync Wave 0: Synchronization has started. Namespace and Subscription are deployed.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-starting-operator-installation.png?width=480" alt="argocd starting operator installation"/>
+&lt;/div>
+&lt;div class="title">Figure 3. Argo CD: Synchronization is started (Sync Wave 0)&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Sync Wave 1: Status Checker Job has started and tries to verify the Operator.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-starting-job.png?width=480" alt="argocd starting job"/>
+&lt;/div>
+&lt;div class="title">Figure 4. Argo CD: Status Checker Job started (Sync Wave 1)&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>The Log output of the Operator. You can see that the status switches from Pending to Installing to Succeeded.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-status-checker-log.png?width=480" alt="argocd status checker log"/>
+&lt;/div>
+&lt;div class="title">Figure 5. Argo CD: Log of the Status Checker Pod&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>After Sync Wave 3, the whole Application has been synchronized and the Checker Job has been removed.&lt;/p>
+&lt;div class="imageblock">
+&lt;div class="content">
+&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-operator-installed.png?width=480" alt="argocd operator installed"/>
+&lt;/div>
+&lt;div class="title">Figure 6. Argo CD: Compliance Operator is fully deployed&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item><item><title>Writing Operator using Ansible</title><link>https://blog.stderr.at/openshift/2021/01/writing-operator-using-ansible/</link><pubDate>Wed, 27 Jan 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2021/01/writing-operator-using-ansible/</guid><description>&lt;div class="paragraph">
 &lt;p>This quick post shall explain, without any fancy details, how to write an Operator based on Ansible. It is assumed that you know what purpose an Operator has.&lt;/p>
 &lt;/div>
 &lt;div class="paragraph">
 &lt;p>As a short summary: Operators are a way to create custom controllers in OpenShift or Kubernetes. It watches for custom resource objects and creates the application based on the parameters in such custom resource object.
 Often written in &lt;strong>Go&lt;/strong>, the SDK supports &lt;strong>Ansible&lt;/strong>, &lt;strong>Helm&lt;/strong> and (new) &lt;strong>Java&lt;/strong> as well.&lt;/p>
-&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
-
-
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In this example we will install Gogs, a painless self-hosted Git services.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>As general prerequisites we have:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Installed OpenShift 4.6+ cluster (could be Minicube)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Possibility to execute Ansible scripts and oc/kubectl commands&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Commands: make, docker (or podman)&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;hr/>
+&lt;div class="sect1">
+&lt;h2 id="_install_operator_sdk">Install Operator SDK&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>As explained at &lt;a href="https://sdk.operatorframework.io/docs/installation/" class="bare">https://sdk.operatorframework.io/docs/installation/&lt;/a> the following prerequisites must be met prior installing the SDK at least:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>Docker v17.03+ or podman v1.9.3+ or buildah v1.7+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>OpenShift CLU v4.6+&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Kubernetes/OpenShift cluster&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Access to container registry, for example quay.io&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Optional: Go v1.13+ (for Operators based on Golang)&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Ansible v2.9.0+&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Following the instructions of the SDK documentation, the &lt;strong>operator-sdk&lt;/strong> command will be installed.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_creating_the_operator">Creating the Operator&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>To begin we create a new folder for the Operator and initialize the Operator project.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">mkdir gogs-operator
+cd gogs-operator
+operator-sdk init --plugins=ansible --domain=example.com.at
+operator-sdk create api --group gogs --version=v1alpha1 --kind Gogs --generate-playbook&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will create a new project structure with the following parameters:&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>--plugin&lt;/strong>: Type of Operator (Ansible or Helm)&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>--domain&lt;/strong>: Defines the api endpoint together with group and version.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>--group&lt;/strong>: Usually short product name&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>&lt;strong>--version&lt;/strong>: Defines version of API endpoint&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The folder structure which will be created automatically looks as follows:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">.
+|-- Dockerfile
+|-- Makefile
+|-- PROJECT
+|-- config
+| |-- crd
+| | |-- bases
+| | | |-- gogs.example.com.at_gogs.yaml
+| | |-- kustomization.yaml
+| |-- default
+| | |-- kustomization.yaml
+| | |-- manager_auth_proxy_patch.yaml
+| |-- manager
+| | |-- kustomization.yaml
+| | |-- manager.yaml
+| |-- prometheus
+| | |-- kustomization.yaml
+| | |-- monitor.yaml
+| |-- rbac
+| | |-- auth_proxy_client_clusterrole.yaml
+| | |-- auth_proxy_role.yaml
+| | |-- auth_proxy_role_binding.yaml
+| | |-- auth_proxy_service.yaml
+| | |-- gogs_editor_role.yaml
+| | |-- gogs_viewer_role.yaml
+| | |-- kustomization.yaml
+| | |-- leader_election_role.yaml
+| | |-- leader_election_role_binding.yaml
+| | |-- role.yaml
+| | |-- role_binding.yaml
+| |-- samples
+| | |-- gogs_v1alpha1_gogs.yaml
+| | |-- kustomization.yaml
+| |-- scorecard
+| | |-- bases
+| | | |-- config.yaml
+| | |-- kustomization.yaml
+| | |-- patches
+| | |-- basic.config.yaml
+| | |-- olm.config.yaml
+| |-- testing
+| |-- debug_logs_patch.yaml
+| |-- kustomization.yaml
+| |-- manager_image.yaml
+| |-- pull_policy
+| |-- Always.yaml
+| |-- IfNotPresent.yaml
+| |-- Never.yaml
+|-- molecule
+| |-- default
+| | |-- converge.yml
+| | |-- create.yml
+| | |-- destroy.yml
+| | |-- kustomize.yml
+| | |-- molecule.yml
+| | |-- prepare.yml
+| | |-- tasks
+| | | |-- gogs_test.yml
+| | |-- verify.yml
+| |-- kind
+| |-- converge.yml
+| |-- create.yml
+| |-- destroy.yml
+| |-- molecule.yml
+|-- playbooks
+| |-- gogs.yml
+|-- requirements.yml
+|-- roles
+|-- watches.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The &lt;strong>watches.yaml&lt;/strong> file maps Custom Resources (identified by Group, Version, and Kind [GVK]) to Ansible Roles and Playbooks. It tells the Operator where to find the actual Ansible playbook.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+# Use the &amp;#39;create api&amp;#39; subcommand to add watches to this file.
+- version: v1alpha1
+group: gogs.example.com.at
+kind: Gogs
+playbook: playbooks/gogs.yml
+# +kubebuilder:scaffold:watch&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Other files, especially inside &lt;strong>playbooks&lt;/strong> and &lt;strong>roles&lt;/strong> are created as placeholders. These files (or folders) are waiting for you to add the Ansible logic.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_defining_roles_and_playbook">Defining Roles and Playbook&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>With the folder structure above, a playbook and different roles can be created in order to tell the Operator what it needs to do.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Since the Operator will constantly watch for changes, all tasks must be &lt;strong>idempotent&lt;/strong>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In our example we will try to install Gogs, a Git service. It contains a Postgres database system and a webservice.
+To use some example roles and not fully start from scratch let’s clone the following repository and copy the folders to our Operator.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cd ..
+https://github.com/tjungbauer/ansible-operator-roles
+cd gogs-operator
+# Remove placeholder
+rm -Rf roles/
+# Copy Postgres deployment role
+cp -R ../ansible-operator-roles/roles/postgresql-ocp ./roles
+# Copy Gogs Deplyoment role
+cp -R ../ansible-operator-roles/roles/gogs-ocp ./roles&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>When we examine the folder, we see 2 typical Ansible roles. The simple purpose is, to create all required OpenShift objects, like Deployment, Route, Service and so on, fully automated by the Operator.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">|-- playbooks
+| |-- gogs.yaml
+|-- roles
+|-- gogs-ocp
+| |-- README.adoc
+| |-- defaults
+| | |-- main.yml
+| |-- meta
+| | |-- main.yml
+| |-- tasks
+| | |-- main.yml
+| |-- templates
+| |-- config_map.j2
+| |-- deployment.j2
+| |-- persistent_volume_claim.j2
+| |-- route.j2
+| |-- service.j2
+| |-- service_account.j2
+|-- postgresql-ocp
+|-- README.adoc
+|-- defaults
+| |-- main.yml
+|-- meta
+| |-- main.yml
+|-- tasks
+| |-- main.yml
+|-- templates
+|-- deployment.j2
+|-- persistent_volume_claim.j2
+|-- secret.j2
+|-- service.j2&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Copy (or create) the following playbook under &lt;strong>playbooks/gogs.yaml&lt;/strong>. As you can see there are 2 tasks: the first one will create the postgres application, the seconds one the Gogs service.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+# Persistent Gogs deployment playbook.
+#
+# The Playbook expects the following variables to be set in the CR:
+# (Note that Camel case gets converted by the ansible-operator to Snake case)
+# - PostgresqlVolumeSize
+# - GogsVolumeSize
+# - GogsSSL
+# The following variables come from the ansible-operator
+# - ansible_operator_meta.namespace
+# - ansible_operator_meta.name (from the name of the CR)
+- hosts: localhost
+gather_facts: no
+tasks:
+- name: Set up PostgreSQL
+include_role:
+name: ../roles/postgresql-ocp &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+vars: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+_postgresql_namespace: &amp;#34;{{ ansible_operator_meta.namespace }}&amp;#34;
+_postgresql_name: &amp;#34;postgresql-gogs-{{ ansible_operator_meta.name }}&amp;#34;
+_postgresql_database_name: &amp;#34;gogsdb&amp;#34;
+_postgresql_user: &amp;#34;gogsuser&amp;#34;
+_postgresql_password: &amp;#34;gogspassword&amp;#34;
+_postgresql_volume_size: &amp;#34;{{ postgresql_volume_size|d(&amp;#39;4Gi&amp;#39;) }}&amp;#34;
+_postgresql_image: &amp;#34;{{ postgresql_image|d(&amp;#39;registry.redhat.io/rhscl/postgresql-10-rhel7&amp;#39;) }}&amp;#34;
+_postgresql_image_tag: &amp;#34;{{ postgresql_image_tag|d(&amp;#39;latest&amp;#39;) }}&amp;#34;
+_postgresql_size: 1
+- name: Set Gogs Service name to default value
+set_fact:
+gogs_service_name: &amp;#34;gogs-{{ ansible_operator_meta.name }}&amp;#34;
+when:
+gogs_service_name is not defined
+- name: Set up Gogs
+include_role:
+name: ../roles/gogs-ocp &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+vars: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+_gogs_namespace: &amp;#34;{{ ansible_operator_meta.namespace }}&amp;#34;
+_gogs_name: &amp;#34;{{ gogs_service_name }}&amp;#34;
+_gogs_ssl: &amp;#34;{{ gogs_ssl|d(False)|bool }}&amp;#34;
+_gogs_route: &amp;#34;{{ gogs_route | d(&amp;#39;&amp;#39;) }}&amp;#34;
+_gogs_image_tag: &amp;#34;{{ gogs_image_tag | d(&amp;#39;latest&amp;#39;) }}&amp;#34;
+_gogs_volume_size: &amp;#34;{{ gogs_volume_size|d(&amp;#39;4Gi&amp;#39;) }}&amp;#34;
+_gogs_postgresql_service_name: &amp;#34;postgresql-gogs-{{ ansible_operator_meta.name }}&amp;#34;
+_gogs_postgresql_database_name: gogsdb
+_gogs_postgresql_user: gogsuser
+_gogs_postgresql_password: gogspassword
+_gogs_size: 1&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>Path to Postgres Role&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
+&lt;td>Parameters for Postgres service&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
+&lt;td>Path to Gogs Role&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
+&lt;td>Parameters for Gogs service&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_operator_permissions">Operator Permissions&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>The Operator will require correct permissions in order to create objects like Routes or Services in OpenShift. The SDK automatically created a default role.yaml which can be modified.
+Open the file &lt;strong>config/rbac/role.yaml&lt;/strong> and add permissions for:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>for apiGroups &amp;#34;&amp;#34;&lt;/p>
+&lt;div class="olist loweralpha">
+&lt;ol class="loweralpha" type="a">
+&lt;li>
+&lt;p>services&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>routes&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>peristentvlumeclaims&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>serviceaccounts&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>configmaps&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>for apiGroups: route.operanshift.io the resource &lt;strong>routes&lt;/strong>&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>At the end, the role.yaml should look like this:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+name: manager-role
+rules:
+##
+## Base operator rules
+##
+- apiGroups:
+- &amp;#34;&amp;#34;
+resources:
+- secrets
+- pods
+- pods/exec
+- pods/log
+- services
+- routes
+- configmaps
+- persistentvolumeclaims
+- serviceaccounts
+verbs:
+- create
+- delete
+- get
+- list
+- patch
+- update
+- watch
+- apiGroups:
+- apps
+resources:
+- deployments
+- daemonsets
+- replicasets
+- statefulsets
+verbs:
+- create
+- delete
+- get
+- list
+- patch
+- update
+- watch
+##
+## Rules for gogs.example.com.at/v1alpha1, Kind: Gogs
+##
+- apiGroups:
+- gogs.example.com.at
+resources:
+- gogs
+- gogs/status
+- gogs/finalizers
+verbs:
+- create
+- delete
+- get
+- list
+- patch
+- update
+- watch
+- apiGroups:
+- route.openshift.io
+resources:
+- routes
+verbs:
+- create
+- update
+- delete
+- get
+- list
+- watch
+- patch
+- apiGroups:
+- route.openshift.io
+resources:
+- routes
+verbs:
+- create
+- update
+- delete
+- get
+- list
+- watch
+- patch&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_building_and_deploy_the_operator">Building and Deploy the Operator&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now it is time to build the Operator and push it to a repository. In this example a repository was created at quay.io and is called &lt;strong>gogs-operator&lt;/strong>.
+The SDK will automatically create a Makefile during the initialization, which we will use now.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock caution">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-caution" title="Caution">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+The Makefile is prepared for &lt;em>docker&lt;/em>. If you use &lt;strong>podman&lt;/strong> some modifications must be done first. Run the command &lt;strong>sed -i &amp;#39;s/docker/podman/g&amp;#39; Makefile&lt;/strong> to replace all docker commands inside the Makefile.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The next commands will &lt;em>build, push, install and deploy&lt;/em> the Operator. Before we start we must be logged in to you Registry of choice (i.e. docker login …​) as well as into our OpenShift cluster.
+Moreover, it is required that the &lt;strong>IMG&lt;/strong> environment variable is exported with the correct value.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Build the Operator and push into the registry&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash"># export IMG, be sure that the correct tag is used
+export IMG=quay.io/tjungbau/gogs-operator:v1.0.0
+# Build and push into registry
+make podman-build podman-push
+podman build . -t quay.io/tjungbau/gogs-operator:v1.0.0
+STEP 1: FROM quay.io/operator-framework/ansible-operator:v1.3.0
+STEP 2: COPY requirements.yml ${HOME}/requirements.yml
+--&amp;gt; Using cache 4f84e7064b066c2cac5179b56490a0ef85591170c501ec8a480b617d6e91cff3
+STEP 3: RUN ansible-galaxy collection install -r ${HOME}/requirements.yml &amp;amp;&amp;amp; chmod -R ug+rwx ${HOME}/.ansible
+--&amp;gt; Using cache 2a3a5d44451a45a4c38e1c314e8887c6c45f2551cbef87ef0d1ce518c1969c0d
+STEP 4: COPY watches.yaml ${HOME}/watches.yaml
+--&amp;gt; Using cache 642f8361a7b358b89d2e4e5211c1c7a1e22488c53bba0bf1ba2ba275fd56ee69
+STEP 5: COPY roles/ ${HOME}/roles/
+--&amp;gt; Using cache 93c1af8782bad84d8b81d2d2294c405caab70e2d01c232440f7eb8e5001746c1
+STEP 6: COPY playbooks/ ${HOME}/playbooks/
+--&amp;gt; Using cache 1cdeee1456ac67d70d4233b0f9ed8052465aaa2cded6bd8ae962dfcc848e5b92
+STEP 7: COMMIT quay.io/tjungbau/gogs-operator:v1.0.0
+--&amp;gt; 1cdeee1456a
+1cdeee1456ac67d70d4233b0f9ed8052465aaa2cded6bd8ae962dfcc848e5b92
+podman push quay.io/tjungbau/gogs-operator:v1.0.0
+Getting image source signatures
+Copying blob d5ca8c3b3d34 skipped: already exists
+Copying blob 4b036ae478b7 skipped: already exists
+Copying blob 5cfcd0621ffc skipped: already exists
+Copying blob c6f3d1432bd0 skipped: already exists
+Copying blob 92538e92de29 skipped: already exists
+Copying blob eb7bf34352ca skipped: already exists
+Copying blob 80c43a11288f done
+Copying blob 803eb2035c9a done
+Copying blob 40d943ae1834 done
+Copying blob f4d9024614ee done
+Copying blob 5143a36c6002 done
+Copying blob 5050e1080446 skipped: already exists
+Copying config 1cdeee1456 done
+Writing manifest to image destination
+Copying config 1cdeee1456 [--------------------------------------] 0.0b / 6.2KiB
+Writing manifest to image destination
+Writing manifest to image destination
+Storing signatures&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Install the CRD into OpenShift&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash"># Install the custom resource definition
+make install
+/root/projects/gogs-operator/bin/kustomize build config/crd | kubectl apply -f -
+customresourcedefinition.apiextensions.k8s.io/gogs.gogs.example.com.at created&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Deploy the Operator and all required objects into OpenShift&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash"># Deploy the Operator into OpenShift
+make deploy
+cd config/manager &amp;amp;&amp;amp; /root/projects/gogs-operator/bin/kustomize edit set image controller=quay.io/tjungbau/gogs-operator:v1.0.0
+/root/projects/gogs-operator/bin/kustomize build config/default | kubectl apply -f -
+namespace/gogs-operator-system created
+customresourcedefinition.apiextensions.k8s.io/gogs.gogs.example.com.at unchanged
+role.rbac.authorization.k8s.io/gogs-operator-leader-election-role created
+clusterrole.rbac.authorization.k8s.io/gogs-operator-manager-role created
+clusterrole.rbac.authorization.k8s.io/gogs-operator-metrics-reader created
+clusterrole.rbac.authorization.k8s.io/gogs-operator-proxy-role created
+rolebinding.rbac.authorization.k8s.io/gogs-operator-leader-election-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/gogs-operator-manager-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/gogs-operator-proxy-rolebinding created
+service/gogs-operator-controller-manager-metrics-service created
+deployment.apps/gogs-operator-controller-manager created&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will create a new project in OpenShift called &lt;strong>gogs-operator-system&lt;/strong>. Here, the Operator is running and waiting that somebody creates a CRD of the kind &lt;strong>Gogs&lt;/strong>. Once this happens the Operator will execute the playbooks and therefore create a Postgres and a Gogs pod.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash"># Operator Namespace
+oc get pods -n gogs-operator-system
+NAME READY STATUS RESTARTS AGE
+gogs-operator-controller-manager-6747bb6c6-s8794 2/2 Running 0 6m8s&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_using_the_operator">Using the Operator&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Now we need to create a CRD of the kind &lt;em>Gogs&lt;/em>. This will happen in a new project, where the Gogs service shall be hosted.&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Create a new OpenShift project&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc new-project gogs&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Verify the sample resource&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cat config/samples/gogs_v1alpha1_gogs.yaml
+apiVersion: gogs.example.com.at/v1alpha1
+kind: Gogs
+metadata:
+name: gogs-sample
+spec:
+foo: bar&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Apply the sample resource&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f config/samples/gogs_v1alpha1_gogs.yaml -n gogs&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>This will create two services:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>postgresql&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Gogs&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The Operator will be responsible to roll out all required objects. This includes the Deployments for the container, the Openshift service and the route.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get all -n gogs
+NAME READY STATUS RESTARTS AGE
+pod/gogs-gogs-sample-57778fd76-ghg8j 1/1 Running 0 74s
+pod/postgresql-gogs-gogs-sample-bbc49b794-mnltb 1/1 Running 0 115s
+NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
+service/gogs-gogs-sample ClusterIP 172.30.47.31 &amp;lt;none&amp;gt; 3000/TCP 80s
+service/postgresql-gogs-gogs-sample ClusterIP 172.30.47.158 &amp;lt;none&amp;gt; 5432/TCP 117s
+NAME READY UP-TO-DATE AVAILABLE AGE
+deployment.apps/gogs-gogs-sample 1/1 1 1 74s
+deployment.apps/postgresql-gogs-gogs-sample 1/1 1 1 115s
+NAME DESIRED CURRENT READY AGE
+replicaset.apps/gogs-gogs-sample-57778fd76 1 1 1 74s
+replicaset.apps/postgresql-gogs-gogs-sample-bbc49b794 1 1 1 115s
+NAME HOST/PORT PATH SERVICES PORT TERMINATION WILDCARD
+route.route.openshift.io/gogs-gogs-sample gogs-gogs-sample-gogs.apps.ocp.ispworld.at gogs-gogs-sample &amp;lt;all&amp;gt; None&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>At the end, all Pods are alive, ready and are fully controlled by the Operator. We can access the Gogs web interface via the route and start using our own Git service.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_updating_operator">Updating Operator&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>While the Operator is running fine now, at some point you might want to do some changes. For example, let’s run the Gog service with a replica of 3.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Perform the following actions:&lt;/p>
+&lt;/div>
+&lt;div class="olist arabic">
+&lt;ol class="arabic">
+&lt;li>
+&lt;p>Set the variable &lt;strong>_gogs_size&lt;/strong> to 3 in playbooks/gogs.yml&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Build and push the new version&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">export IMG=quay.io/tjungbau/gogs-operator:v1.0.8
+make podman-build podman-push
+podman build . -t quay.io/tjungbau/gogs-operator:v1.0.8
+STEP 1: FROM quay.io/operator-framework/ansible-operator:v1.3.0
+STEP 2: COPY requirements.yml ${HOME}/requirements.yml
+--&amp;gt; Using cache 4f84e7064b066c2cac5179b56490a0ef85591170c501ec8a480b617d6e91cff3
+STEP 3: RUN ansible-galaxy collection install -r ${HOME}/requirements.yml &amp;amp;&amp;amp; chmod -R ug+rwx ${HOME}/.ansible
+--&amp;gt; Using cache 2a3a5d44451a45a4c38e1c314e8887c6c45f2551cbef87ef0d1ce518c1969c0d
+STEP 4: COPY watches.yaml ${HOME}/watches.yaml
+--&amp;gt; Using cache 642f8361a7b358b89d2e4e5211c1c7a1e22488c53bba0bf1ba2ba275fd56ee69
+STEP 5: COPY roles/ ${HOME}/roles/
+--&amp;gt; Using cache 55785493e215d933ef7a93fe000afa6fbb088d87eeffcdddeea4e7fd1896f5b5
+STEP 6: COPY playbooks/ ${HOME}/playbooks/
+STEP 7: COMMIT quay.io/tjungbau/gogs-operator:v1.0.8
+--&amp;gt; bb9d6a995d0
+bb9d6a995d059eab7758f9ac17d3ce12f8759518e231f77d32a4b820e4b14396
+podman push quay.io/tjungbau/gogs-operator:v1.0.8
+Getting image source signatures
+Copying blob 5cfcd0621ffc skipped: already exists
+Copying blob d5ca8c3b3d34 skipped: already exists
+Copying blob eb7bf34352ca skipped: already exists
+Copying blob 4b036ae478b7 skipped: already exists
+Copying blob c6f3d1432bd0 skipped: already exists
+Copying blob 92538e92de29 skipped: already exists
+Copying blob 41e53e538a36 done
+Copying blob 5050e1080446 skipped: already exists
+Copying blob 40d943ae1834 skipped: already exists
+Copying blob 803eb2035c9a skipped: already exists
+Copying blob 80c43a11288f skipped: already exists
+Copying blob ee0361a14e3b skipped: already exists
+Copying config bb9d6a995d done
+Writing manifest to image destination
+Copying config bb9d6a995d [--------------------------------------] 0.0b / 6.2KiB
+Writing manifest to image destination
+Writing manifest to image destination
+Storing signatures&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Deploy the new version&lt;/p>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">make deploy
+cd config/manager &amp;amp;&amp;amp; /root/projects/gogs-operator/bin/kustomize edit set image controller=quay.io/tjungbau/gogs-operator:v1.0.8
+/root/projects/gogs-operator/bin/kustomize build config/default | kubectl apply -f -
+namespace/gogs-operator-system unchanged
+customresourcedefinition.apiextensions.k8s.io/gogs.gogs.example.com.at unchanged
+role.rbac.authorization.k8s.io/gogs-operator-leader-election-role unchanged
+clusterrole.rbac.authorization.k8s.io/gogs-operator-manager-role unchanged
+clusterrole.rbac.authorization.k8s.io/gogs-operator-metrics-reader unchanged
+clusterrole.rbac.authorization.k8s.io/gogs-operator-proxy-role unchanged
+rolebinding.rbac.authorization.k8s.io/gogs-operator-leader-election-rolebinding unchanged
+clusterrolebinding.rbac.authorization.k8s.io/gogs-operator-manager-rolebinding unchanged
+clusterrolebinding.rbac.authorization.k8s.io/gogs-operator-proxy-rolebinding unchanged
+service/gogs-operator-controller-manager-metrics-service unchanged
+deployment.apps/gogs-operator-controller-manager configured&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The Operator will restart with a new version. After a while the changes will take affect and 3 Gogs pods will run.&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n gogs
+NAME READY STATUS RESTARTS AGE
+gogs-gogs-sample-57778fd76-4m98m 1/1 Running 0 12m
+gogs-gogs-sample-57778fd76-5hrdn 1/1 Running 0 6m23s
+gogs-gogs-sample-57778fd76-xgh2f 1/1 Running 0 6m24s
+postgresql-gogs-gogs-sample-bbc49b794-z84wt 1/1 Running 0 13m&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_what_else_references">What Else? - References&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>Above example is a very quick overview about what can be done. There are many other options. You can create Operators using Go or Helm.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>The best starting points are the following websites:&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>&lt;a href="https://redhat-connect.gitbook.io/certified-operator-guide/">Certified Operator Build Guide&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://sdk.operatorframework.io/docs/">Operator SDK Documentation&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
+&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
 &lt;p>Well we hope the articles here are not totally useless :)&lt;/p>
-
 &lt;p>Who are we, you might ask.
 We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p>
-
-&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p></description></item></channel></rss>
+&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p>
+&lt;p>If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" >GitHub issue&lt;/a>&lt;/p></description></item></channel></rss>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Block Devices on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/block-devices/</link><description>Recent content in Block Devices on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 08 May 2024 06:59:13 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/block-devices/index.xml" rel="self" type="application/rss+xml"/><item><title>Understanding RWO block device handling in OpenShift</title><link>https://blog.stderr.at/openshift/2021/02/understanding-rwo-block-device-handling-in-openshift/</link><pubDate>Sat, 27 Feb 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2021/02/understanding-rwo-block-device-handling-in-openshift/</guid><description>&lt;div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Block Devices on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/block-devices/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sat, 27 Feb 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/block-devices/index.xml" rel="self" type="application/rss+xml"/><item><title>Understanding RWO block device handling in OpenShift</title><link>https://blog.stderr.at/openshift/2021/02/understanding-rwo-block-device-handling-in-openshift/</link><pubDate>Sat, 27 Feb 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2021/02/understanding-rwo-block-device-handling-in-openshift/</guid><description>&lt;div class="paragraph">
 &lt;p>In this blog post we would like to explore OpenShift / Kubernetes
 block device handling. We try to answer the following questions:&lt;/p>
 &lt;/div>
@@ -11,4 +11,373 @@ block device handling. We try to answer the following questions:&lt;/p>
 &lt;p>What happens if we scale a deployment using block devices to more than one replica?&lt;/p>
 &lt;/li>
 &lt;/ul>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>And finally we want to give a short, high level overview about how the
+container storage interface (CSI) actually works.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+A block device provides Read-Write-Once (RWO) storage. This
+basically means a local file system mounted by a single node. Do not
+confuse this with a cluster (CephFS, GlusterFS) or network file system
+(NFS). These file systems provide Read-Write-Many (RWX) storage
+mountable on more than one node.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="sect1">
+&lt;h2 id="_test_setup">Test setup&lt;/h2>
+&lt;div class="sectionbody">
+&lt;div class="paragraph">
+&lt;p>For running our tests we need the following resources&lt;/p>
+&lt;/div>
+&lt;div class="ulist">
+&lt;ul>
+&lt;li>
+&lt;p>A new namespace/project for running our tests&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A persistent volume claim (PVC) to be mounted in our test pods&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Two pods definitions for mounting the PVC&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_step_1_creating_a_new_namespaceproject">Step 1: Creating a new namespace/project&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>To run our test cases we created a new project with OpenShift&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc new-project blockdevices&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class="sect2">
+&lt;h3 id="_step_2_defining_a_block_pvc">Step 2: Defining a block PVC&lt;/h3>
+&lt;div class="paragraph">
+&lt;p>Our cluster is running the rook operator (&lt;a href="https://rook.io" class="bare">https://rook.io&lt;/a>) and provides a ceph-block
+storage class for creating block devices:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ oc get sc
+NAME PROVISIONER RECLAIMPOLICY VOLUMEBINDINGMODE ALLOWVOLUMEEXPANSION AGE
+ceph-block rook-ceph.rbd.csi.ceph.com Delete Immediate false 4d14h&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Let’s take a look a the details of the storage class:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">$ oc get sc -o yaml ceph-block
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+name: ceph-block
+parameters:
+clusterID: rook-ceph
+csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+csi.storage.k8s.io/fstype: ext4 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+imageFeatures: layering
+imageFormat: &amp;#34;2&amp;#34;
+pool: blockpool
+provisioner: rook-ceph.rbd.csi.ceph.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>So whenever we create a PVC using this storage class the Ceph
+provisioner will also create an EXT4 file system on the block device.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To test block device handling we create the following persistent volume claim (PVC):&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+name: block-claim
+spec:
+accessModes:
+- ReadWriteOnce &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+resources:
+requests:
+storage: 1Gi
+storageClassName: ceph-block&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>The access mode is set to ReadWriteOnce (RWO), as block devices&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create -f pvc.yaml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ oc get pvc
+NAME STATUS VOLUME CAPACITY ACCESS MODES STORAGECLASS AGE
+block-claim Bound pvc-bd68be5d-c312-4c31-86a8-63a0c22de844 1Gi RWO ceph-block 91s&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>To test our shiny new block device we are going to use the following three pod definitions:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="title">block-pod-a&lt;/div>
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+kind: Pod
+metadata:
+labels:
+run: block-pod-a
+name: block-pod-a
+spec:
+containers:
+- image: registry.redhat.io/ubi8/ubi:8.3
+name: block-pod-a
+command:
+- sh
+- -c
+- &amp;#39;df -h /block &amp;amp;&amp;amp; findmnt /block &amp;amp;&amp;amp; sleep infinity&amp;#39;
+volumeMounts:
+- name: blockdevice
+mountPath: /block
+volumes:
+- name: blockdevice
+persistentVolumeClaim:
+claimName: block-claim&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="title">block-pod-b&lt;/div>
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+kind: Pod
+metadata:
+labels:
+run: block-pod-b
+name: block-pod-b
+spec:
+affinity:
+podAntiAffinity: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+requiredDuringSchedulingIgnoredDuringExecution:
+- labelSelector:
+matchExpressions:
+- key: run
+operator: In
+values:
+- block-pod-a
+topologyKey: kubernetes.io/hostname
+containers:
+- image: registry.redhat.io/ubi8/ubi:8.3
+name: block-pod-b
+command:
+- sh
+- -c
+- &amp;#39;df -h /block &amp;amp;&amp;amp; findmnt /block &amp;amp;&amp;amp; sleep infinity&amp;#39;
+volumeMounts:
+- name: blockdevice
+mountPath: /block
+volumes:
+- name: blockdevice
+persistentVolumeClaim:
+claimName: block-claim&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>We use an &lt;em>AntiAffinity&lt;/em> rule for making sure that &lt;em>block-pod-b&lt;/em> runs
+on a &lt;strong>different&lt;/strong> node than &lt;em>block-pod-a&lt;/em>.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="title">block-pod-c&lt;/div>
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+kind: Pod
+metadata:
+labels:
+run: block-pod-c
+name: block-pod-c
+spec:
+affinity:
+podAffinity: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+preferredDuringSchedulingIgnoredDuringExecution:
+- weight: 100
+podAffinityTerm:
+labelSelector:
+matchExpressions:
+- key: run
+operator: In
+values:
+- block-pod-a
+topologyKey: kubernetes.io/hostname
+containers:
+- image: registry.redhat.io/ubi8/ubi:8.3
+name: block-pod-c
+command:
+- sh
+- -c
+- &amp;#39;df -h /block &amp;amp;&amp;amp; findmnt /block &amp;amp;&amp;amp; sleep infinity&amp;#39;
+volumeMounts:
+- name: blockdevice
+mountPath: /block
+volumes:
+- name: blockdevice
+persistentVolumeClaim:
+claimName: block-claim&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="colist arabic">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
+&lt;td>We use an &lt;em>Affinity&lt;/em> rule for making sure that &lt;em>block-pod-c&lt;/em> runs
+on the &lt;strong>same&lt;/strong> node as &lt;em>block-pod-a&lt;/em>.&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>In our first test we want to make sure that both pods are running on
+separate cluster nodes. So we create &lt;em>block-pod-a&lt;/em> and &lt;em>block-pod-b&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ oc create -f block-pod-a.yml
+$ oc create -f block-pod-b.yml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>After a few seconds we can check the state of our pods:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ oc get pods -o wide
+NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
+block-pod-a 1/1 Running 0 46s 10.130.6.4 infra02.lan.stderr.at &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+block-pod-b 0/1 ContainerCreating 0 16s &amp;lt;none&amp;gt; infra01 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Hm, block-pod-b is in the state &lt;em>ContainerCreating&lt;/em>, let’s check the
+events. Also note that it is running on another node (infra01) then
+&lt;em>block-pod-a&lt;/em> (infra02).&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">10s Warning FailedAttachVolume pod/block-pod-b Multi-Attach error for volume &amp;#34;pvc-bd68be5d-c312-4c31-86a8-63a0c22de844&amp;#34; Volume is already used by pod(s) block-pod-a&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Ah, so because of our block device with RWO access mode and
+&lt;em>block-pod-b&lt;/em> running on separate cluster node, OpenShift or K8s can’t
+attach the volume to our &lt;em>block-pod-b&lt;/em>.&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>But let’s try another test and let’s create a third pod &lt;em>block-pod-c&lt;/em>
+that should run on the same node as &lt;em>block-pod-a&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ oc create -f block-pod-c.yml&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Now let’s check the status of &lt;em>block-pod-c&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ oc get pods -o wide
+NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
+block-pod-a 1/1 Running 0 6m49s 10.130.6.4 infra02.lan.stderr.at &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+block-pod-b 0/1 ContainerCreating 0 6m19s &amp;lt;none&amp;gt; infra01 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+block-pod-c 1/1 Running 0 14s 10.130.6.5 infra02.lan.stderr.at &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Oh, &lt;em>block-pod-c&lt;/em> is running on node &lt;em>infra02&lt;/em> and mounted the RWO volume. Let’s check the events for &lt;em>block-pod-c&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">3m6s Normal Scheduled pod/block-pod-c Successfully assigned blockdevices/block-pod-c to infra02.lan.stderr.at
+2m54s Normal AddedInterface pod/block-pod-c Add eth0 [10.130.6.5/23]
+2m54s Normal Pulled pod/block-pod-c Container image &amp;#34;registry.redhat.io/ubi8/ubi:8.3&amp;#34; already present on machine
+2m54s Normal Created pod/block-pod-c Created container block-pod-c
+2m54s Normal Started pod/block-pod-c Started container block-pod-c&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>When we compare this with the events for &lt;em>block-pod-a&lt;/em>:&lt;/p>
+&lt;/div>
+&lt;div class="listingblock">
+&lt;div class="content">
+&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">9m41s Normal Scheduled pod/block-pod-a Successfully assigned blockdevices/block-pod-a to infra02.lan.stderr.at
+9m41s Normal SuccessfulAttachVolume pod/block-pod-a AttachVolume.Attach succeeded for volume &amp;#34;pvc-bd68be5d-c312-4c31-86a8-63a0c22de844&amp;#34;
+9m34s Normal AddedInterface pod/block-pod-a Add eth0 [10.130.6.4/23]
+9m34s Normal Pulled pod/block-pod-a Container image &amp;#34;registry.access.redhat.com/ubi8/ubi:8.3&amp;#34; already present on machine
+9m34s Normal Created pod/block-pod-a Created container block-pod-a
+9m34s Normal Started pod/block-pod-a Started container block-pod-a&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>So the &lt;em>AttachVolume.Attach&lt;/em> message is missing in the events for
+&lt;em>block-pod-c&lt;/em>. Because the volume is already attached to the node,
+interesting.&lt;/p>
+&lt;/div>
+&lt;div class="admonitionblock note">
+&lt;table>
+&lt;tbody>&lt;tr>
+&lt;td class="icon">
+&lt;i class="fa icon-note" title="Note">&lt;/i>
+&lt;/td>
+&lt;td class="content">
+Even with RWO block device volumes it is possible to use the
+same volume in multiple pods &lt;strong>if&lt;/strong> the pods a running on the &lt;strong>same&lt;/strong> node.
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>&lt;/table>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>I was not aware of this possibility and always had the believe with an
+RWO block device only one pod can access the volume. That’s the
+problem with believing :-)&lt;/p>
+&lt;/div>
+&lt;div class="paragraph">
+&lt;p>Thanks or reading this far.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

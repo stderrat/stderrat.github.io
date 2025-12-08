@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Azure on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/azure/</link><description>Recent content in Azure on TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/azure/index.xml" rel="self" type="application/rss+xml"/><item><title>Stumbling into Azure Part II: Setting up a private ARO cluster</title><link>https://blog.stderr.at/azure/2021-10-29-private-aro/</link><pubDate>Fri, 29 Oct 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/azure/2021-10-29-private-aro/</guid><description>&lt;p>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Azure on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/azure/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/azure/index.xml" rel="self" type="application/rss+xml"/><item><title>Stumbling into Azure Part II: Setting up a private ARO cluster</title><link>https://blog.stderr.at/azure/2021-10-29-private-aro/</link><pubDate>Fri, 29 Oct 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/azure/2021-10-29-private-aro/</guid><description>
+&lt;p>
 In Part I of our blog post we covered setting up required resources in
 Azure. Now we are finally going to set up a private cluster. Private&lt;/p>
 &lt;p>
@@ -10,10 +11,10 @@ Azure Setup
 &lt;/h2>
 &lt;div id="outline-text-headline-1" class="outline-text-2">
 &lt;p>
- The diagram below depicts our planned setup:&lt;/p>
+The diagram below depicts our planned setup:&lt;/p>
 &lt;p>&lt;img src="https://blog.stderr.at/azure/images/azure_network_setup_with_aro.png" alt="/azure/images/azure_network_setup_with_aro.png" title="/azure/images/azure_network_setup_with_aro.png" />&lt;/p>
 &lt;p>
- On the right hand side can see the resources required for our lab:&lt;/p>
+On the right hand side can see the resources required for our lab:&lt;/p>
 &lt;ul>
 &lt;li>a virtual network (vnet 192.168.128.0/19). This vnet will be split
 into 3 separate subnets&lt;/li>
@@ -21,12 +22,166 @@ into 3 separate subnets&lt;/li>
 &lt;li>a node subnet (192.168.130.0/24) holding ARO worker nodes&lt;/li>
 &lt;li>and finally a subnet call &lt;code>GatewaySubnet&lt;/code> where we are going to
 deploy our Azure VPN gateway (called a &lt;code>vnet-gateway&lt;/code>)
-
-
 &lt;div class="admonitionblock warning" >&lt;table>&lt;tbody>&lt;tr>&lt;td class="icon">&lt;i class="fa icon-warning" title="warning">&lt;/i>&lt;/td>&lt;td class="content">&lt;p>
- The subnet where the Azure VPN gateway is located needs to have
- the name &lt;code>GatewaySubnet&lt;/code>. Otherwise creating the Azure VPN gateway
- will fail.&lt;/p></description></item><item><title>Stumbling into Azure Part I: Building a site-to-site VPN tunnel for testing</title><link>https://blog.stderr.at/azure/2021-10-17-s2s-vpn/</link><pubDate>Sat, 16 Oct 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/azure/2021-10-17-s2s-vpn/</guid><description>&lt;p>
+The subnet where the Azure VPN gateway is located needs to have
+the name &lt;code>GatewaySubnet&lt;/code>. Otherwise creating the Azure VPN gateway
+will fail.&lt;/p>
+&lt;/td>&lt;/tr>&lt;/tbody>&lt;/table>&lt;/div>
+&lt;/li>
+&lt;li>we also need a &lt;code>publicIP&lt;/code> resource that we are going to connect to
+our &lt;code>vnet-gateway&lt;/code> (the VPN gateway)&lt;/li>
+&lt;li>and finally a &lt;code>local-gateway&lt;/code> resource that tells the
+&lt;code>vnet-gateway&lt;/code> which networks are reachable on the left, in our
+case the Hetzner server.&lt;/li>
+&lt;/ul>
+&lt;div id="outline-container-headline-2" class="outline-3">
+&lt;h3 id="headline-2">
+Creating the private Azure Red Hat OpenShift cluster
+&lt;/h3>
+&lt;div id="outline-text-headline-2" class="outline-text-3">
+&lt;ol>
+&lt;li>
+&lt;p>Register required resource providers&lt;/p>
+&lt;div class="src src-text">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>az provider register -n Microsoft.RedHatOpenShift --wait
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>az provider register -n Microsoft.Compute --wait
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>az provider register -n Microsoft.Storage --wait
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>az provider register -n Microsoft.Authorization --wait&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;ol>
+&lt;li>
+&lt;p>First we are going to set some environment variable. Those
+variables are used in the upcoming commands:&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>export RESOURCEGROUP&lt;span style="color:#f92672">=&lt;/span>aro-rg
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export CLUSTER&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;aro1&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export GATWAY_SUBNET&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;192.168.128.0/24&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export MASTER_SUBNET&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;192.168.129.0/24&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export WORKER_SUBNET&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;192.168.130.0/24&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export HETZNER_VM_NETWORKS&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;10.0.0.0/24 192.168.122.0/24 172.16.100.0/24&amp;#34;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Disable subnet private endpoint policies&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network vnet subnet update &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name master-subnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--vnet-name aro-vnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--disable-private-link-service-network-policies true&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a private DNS zone for our cluster&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network private-dns zone create -n private2.tntinfra.net -g aro-rg&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create the cluster&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az aro create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name $CLUSTER &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--vnet aro-vnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--master-subnet master-subnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--worker-subnet worker-subnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--apiserver-visibility Private &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--ingress-visibility Private &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--domain private.tntinfra.net
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># --pull-secret @pull-secret.txt # [OPTIONAL]&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>After successful cluster creating add DNS entry for the API and Ingress&lt;/p>
+&lt;p>
+Query the Azure API for the API server IP and the ingress IP addresses:&lt;/p>
+&lt;div class="src src-text">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>az aro show -n aro1 -g aro-rg --query &amp;#39;{api:apiserverProfile.ip, ingress:ingressProfiles[0].ip}&amp;#39;&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+Example output&lt;/p>
+&lt;div class="src src-text">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>Api Ingress
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>------------- ---------------
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>192.168.129.4 192.168.130.254&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+Add entries to Azure private DNS&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network private-dns record-set a add-record -g aro-rg -z private.tntinfra.net -a &lt;span style="color:#e6db74">&amp;#34;192.168.129.4&amp;#34;&lt;/span> -n api
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>az network private-dns record-set a add-record -g aro-rg -z private.tntinfra.net -a &lt;span style="color:#e6db74">&amp;#34;192.168.130.254&amp;#34;&lt;/span> -n &lt;span style="color:#e6db74">&amp;#34;*.apps&amp;#34;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+List entries to verify configuration&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network private-dns record-set a list -g aro-rg -z private.tntinfra.net&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+Output:&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>Name ResourceGroup Ttl Type AutoRegistered Metadata
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>------ --------------- ----- ------ ---------------- ----------
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>api aro-rg &lt;span style="color:#ae81ff">3600&lt;/span> A False
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>*.apps aro-rg &lt;span style="color:#ae81ff">3600&lt;/span> A False&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>List cluster credentials after successful setup&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az aro list-credentials &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name $CLUSTER &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Get the console URL&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az aro show &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name $CLUSTER &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--query &lt;span style="color:#e6db74">&amp;#34;consoleProfile.url&amp;#34;&lt;/span> -o tsv&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div id="outline-container-headline-3" class="outline-2">
+&lt;h2 id="headline-3">
+DNS, curl
+&lt;/h2>
+&lt;div id="outline-text-headline-3" class="outline-text-2">
+&lt;p>
+this works, dunno why?&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>dig @192.168.129.7 console-openshift-console.apps.xm7rdz4r.westeurope.aroapp.io&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+use &lt;span style="text-decoration: underline;">curl&lt;/span> to access the internal API and see if it works:&lt;/p>
+&lt;div class="src src-text">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>curl -kv https://192.168.129.4:6443&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div id="outline-container-headline-4" class="outline-2">
+&lt;h2 id="headline-4">
+Additional Resources
+&lt;/h2>
+&lt;div id="outline-text-headline-4" class="outline-text-2">
+&lt;ul>
+&lt;li>&lt;a href="https://blog.notnot.ninja/2020/09/19/azure-site-to-site-vpn/">Build an Azure site-to-site VPN for DevTest&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://docs.microsoft.com/en-us/azure/vpn-gateway/vpn-gateway-howto-site-to-site-resource-manager-cli">Create a virtual network with a Site-to-Site VPN connection using CLI&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://libreswan.org/wiki/FAQ#Why_is_it_recommended_to_disable_rp_filter_in_.2Fproc.2Fsys.2Fnet_.3F">Libreswan: Disable rp_filter for IPsec&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://libreswan.org/wiki/FAQ#NAT_.2B_IPsec_is_not_working">Libreswan: NAT and IPsec not working&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://libreswan.org/wiki/Subnet_to_subnet_VPN">Libreswan: Subnet to subnet VPN&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div></description></item><item><title>Stumbling into Azure Part I: Building a site-to-site VPN tunnel for testing</title><link>https://blog.stderr.at/azure/2021-10-17-s2s-vpn/</link><pubDate>Sat, 16 Oct 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/azure/2021-10-17-s2s-vpn/</guid><description>
+&lt;p>
 So we want to play with ARO (Azure Red Hat OpenShift) private
 clusters. A private cluster is &lt;strong>not&lt;/strong> reachable from the internet
 (surprise) and is only reachable via a VPN tunnel from other networks.&lt;/p>
@@ -35,4 +190,315 @@ This blog post describes how we created a site-to-site VPN between a
 Hetzner dedicated server running multiple VM&amp;#39;s via libvirt and Azure.&lt;/p>
 &lt;p>
 An upcoming blog post is going to cover the setup of the private ARO
-cluster.&lt;/p></description></item></channel></rss>
+cluster.&lt;/p>
+&lt;div id="outline-container-headline-1" class="outline-2">
+&lt;h2 id="headline-1">
+Azure Setup
+&lt;/h2>
+&lt;div id="outline-text-headline-1" class="outline-text-2">
+&lt;p>
+The diagram below depicts our planned setup:&lt;/p>
+&lt;p>&lt;img src="https://blog.stderr.at/azure/images/azure_network_setup.png" alt="/azure/images/azure_network_setup.png" title="/azure/images/azure_network_setup.png" />&lt;/p>
+&lt;p>
+On the right hand side can see the resources required for our lab:&lt;/p>
+&lt;ul>
+&lt;li>a virtual network (vnet 192.168.128.0/19). This vnet will be split
+into 3 separate subnets&lt;/li>
+&lt;li>a master subnet (192.168.129.0/24) holding the ARO control plane nodes&lt;/li>
+&lt;li>a node subnet (192.168.130.0/24) holding ARO worker nodes&lt;/li>
+&lt;li>and finally a subnet call &lt;code>GatewaySubnet&lt;/code> where we are going to
+deploy our Azure VPN gateway (called a &lt;code>vnet-gateway&lt;/code>)
+&lt;div class="admonitionblock warning" >&lt;table>&lt;tbody>&lt;tr>&lt;td class="icon">&lt;i class="fa icon-warning" title="warning">&lt;/i>&lt;/td>&lt;td class="content">&lt;p>
+The subnet where the Azure VPN gateway is located needs to have
+the name &lt;code>GatewaySubnet&lt;/code>. Otherwise creating the Azure VPN gateway
+will fail.&lt;/p>
+&lt;/td>&lt;/tr>&lt;/tbody>&lt;/table>&lt;/div>
+&lt;/li>
+&lt;li>we also need a &lt;code>publicIP&lt;/code> resource that we are going to connect to
+our &lt;code>vnet-gateway&lt;/code> (the VPN gateway)&lt;/li>
+&lt;li>and finally a &lt;code>local-gateway&lt;/code> resource that tells the
+&lt;code>vnet-gateway&lt;/code> which networks are reachable on the left, in our
+case the Hetzner server.&lt;/li>
+&lt;/ul>
+&lt;div id="outline-container-headline-2" class="outline-3">
+&lt;h3 id="headline-2">
+Creating the required Azure resources
+&lt;/h3>
+&lt;div id="outline-text-headline-2" class="outline-text-3">
+&lt;ol>
+&lt;li>
+&lt;p>First we are going to set some environment variable. Those
+variables are used in the upcoming commands:&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>export RESOURCEGROUP&lt;span style="color:#f92672">=&lt;/span>aro-rg
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export GATWAY_SUBNET&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;192.168.128.0/24&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export MASTER_SUBNET&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;192.168.129.0/24&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export WORKER_SUBNET&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;192.168.130.0/24&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>export HETZNER_VM_NETWORKS&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;10.0.0.0/24 192.168.122.0/24 172.16.100.0/24&amp;#34;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Next create a VNET resource holding our sub networks:&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network vnet create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name aro-vnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--address-prefixes 192.168.128.0/18&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create the &lt;code>GatewaySubnet&lt;/code> subnet&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network vnet subnet create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--vnet-name aro-vnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name GatewaySubnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--address-prefixes $GATEWAY_SUBNET&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create the master subnet&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network vnet subnet create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--vnet-name aro-vnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name master-subnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--address-prefixes $MASTER_SUBNET &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--service-endpoints Microsoft.ContainerRegistry&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create the worker subnet&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network vnet subnet create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--vnet-name aro-vnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name worker-subnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--address-prefixes $WORKER_SUBNET &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--service-endpoints Microsoft.ContainerRegistry&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a &lt;code>public IP&lt;/code> resource&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network public-ip create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name GatewayIP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--allocation-method Dynamic&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a &lt;code>local-gateway&lt;/code> resource&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network local-gateway create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name playground &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--local-address-prefixes $HETZNER_VM_NETWORKS &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--gateway-ip-address 95.217.42.98&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a &lt;code>vnet-gateway&lt;/code> resource (takes around 30 minutes)&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network vnet-gateway create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name vpn-gateway &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--public-ip-address GatewayIP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--vnet aro-vnet &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--gateway-type Vpn &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--vpn-type RouteBased &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--sku Basic &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--no-wait&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Define a &lt;code>vpn-connection&lt;/code>&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>az network vpn-connection create &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--name VNet1toSite2 &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--resource-group $RESOURCEGROUP &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--vnet-gateway1 vpn-gateway &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--local-gateway2 playground &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--location westeurope &lt;span style="color:#ae81ff">\
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">&lt;/span>--shared-key thepassword&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div id="outline-container-headline-3" class="outline-2">
+&lt;h2 id="headline-3">
+Required iptables (nf tables) hacks for libvirt
+&lt;/h2>
+&lt;div id="outline-text-headline-3" class="outline-text-2">
+&lt;div id="outline-container-headline-4" class="outline-3">
+&lt;h3 id="headline-4">
+Skip NAT rules if the destination network is in Azure and the client network deploy via libvirt
+&lt;/h3>
+&lt;div id="outline-text-headline-4" class="outline-text-3">
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>iptables -I LIBVIRT_PRT &lt;span style="color:#ae81ff">2&lt;/span> -t nat -d 192.168.129.0/24 -j RETURN
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>iptables -I LIBVIRT_PRT &lt;span style="color:#ae81ff">2&lt;/span> -t nat -d 192.168.130.0/24 -j RETURN&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div id="outline-container-headline-5" class="outline-3">
+&lt;h3 id="headline-5">
+Skip NAT rules if the destination network is in Azure and the client is connected via tailscale
+&lt;/h3>
+&lt;div id="outline-text-headline-5" class="outline-text-3">
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>iptables -I ts-postrouting &lt;span style="color:#ae81ff">1&lt;/span> -t nat -d 192.168.129.0/24 -j RETURN
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>iptables -I ts-postrouting &lt;span style="color:#ae81ff">1&lt;/span> -t nat -d 192.168.130.0/24 -j RETURN&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div id="outline-container-headline-6" class="outline-2">
+&lt;h2 id="headline-6">
+Libreswan setup on CentOS Stream
+&lt;/h2>
+&lt;div id="outline-text-headline-6" class="outline-text-2">
+&lt;ol>
+&lt;li>
+&lt;p>Install the Libreswan packages&lt;/p>
+&lt;div class="src src-h">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-h" data-lang="h">&lt;span style="display:flex;">&lt;span>dnf install libreswan&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a Azure configuration for Libreswan in ~/etc/ipsec.d/azure.conf&lt;/p>
+&lt;div class="src src-text">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>conn masterSubnet
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>also=azureTunnel
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>leftsubnet=192.168.129.0/24
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rightsubnet=172.16.100.0/24
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>auto=start
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>conn workerSubnet
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>also=azureTunnel
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>leftsubnet=192.168.130.0/24
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rightsubnet=172.16.100.0/24
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>auto=start
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>conn azureTunnel
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>authby=secret
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>auto=start
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>dpdaction=restart
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>dpddelay=30
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>dpdtimeout=120
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>ike=aes256-sha1;modp1024
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>ikelifetime=3600s
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>ikev2=insist
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>keyingtries=3
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>pfs=yes
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>phase2alg=aes128-sha1
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>left=51.137.113.44
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>leftsubnets=192.168.128.0/24
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>right=%defaultroute
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rightsubnets=172.16.100.0/24
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>salifetime=3600s
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>type=tunnel
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>ipsec-interface=yes&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Create a Libreswan secrets file for Azure in &lt;code>/etc/ipsec.d/azure.secrets&lt;/code>:&lt;/p>
+&lt;div class="src src-text">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>%any %any : PSK &amp;#34;abc123&amp;#34;&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Enable and start the IPsec service&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>systemctl enable --now ipsec&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>We had to explicitly load the IPsec configuration via&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ipsec addconn --config /etc/ipsec.d/azure.conf azureTunnel&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ol>
+&lt;/div>
+&lt;/div>
+&lt;div id="outline-container-headline-7" class="outline-2">
+&lt;h2 id="headline-7">
+Libreswan IPSEC debugging tips
+&lt;/h2>
+&lt;div id="outline-text-headline-7" class="outline-text-2">
+&lt;ul>
+&lt;li>
+&lt;p>Check the state of the IPsec systemd service&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>systemctl status ipsec&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Check the full log of the IPsec systemd service&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>journalctl -e -u ipsec&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;li>
+&lt;p>Check the state of the tunnels with the &lt;code>ipsec&lt;/code> command line tool&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ipsec status&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+Check for the following lines&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> Total IPsec connections: loaded 5, active &lt;span style="color:#ae81ff">2&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> State Information: DDoS cookies not required, Accepting new IKE connections
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> IKE SAs: total&lt;span style="color:#f92672">(&lt;/span>1&lt;span style="color:#f92672">)&lt;/span>, half-open&lt;span style="color:#f92672">(&lt;/span>0&lt;span style="color:#f92672">)&lt;/span>, open&lt;span style="color:#f92672">(&lt;/span>0&lt;span style="color:#f92672">)&lt;/span>, authenticated&lt;span style="color:#f92672">(&lt;/span>1&lt;span style="color:#f92672">)&lt;/span>, anonymous&lt;span style="color:#f92672">(&lt;/span>0&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> IPsec SAs: total&lt;span style="color:#f92672">(&lt;/span>2&lt;span style="color:#f92672">)&lt;/span>, authenticated&lt;span style="color:#f92672">(&lt;/span>2&lt;span style="color:#f92672">)&lt;/span>, anonymous&lt;span style="color:#f92672">(&lt;/span>0&lt;span style="color:#f92672">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> &lt;span style="color:#75715e">#130: &amp;#34;azureTunnel/1x1&amp;#34;:500 STATE_V2_ESTABLISHED_CHILD_SA (IPsec SA established); EVENT_SA_REKEY in 2003s; newest IPSEC; eroute owner; isakmp#131; idle;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> &lt;span style="color:#75715e">#130: &amp;#34;azureTunnel/1x1&amp;#34; esp.56cf4304@51.137.113.44 esp.6f49e8d3@95.217.42.98 tun.0@51.137.113.44 tun.0@95.217.42.98 Traffic: ESPin=0B ESPout=0B! ESPmax=0B&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> &lt;span style="color:#75715e">#129: &amp;#34;masterSubnet/0x0&amp;#34;:500 STATE_V2_ESTABLISHED_CHILD_SA (IPsec SA established); EVENT_SA_REKEY in 1544s; newest IPSEC; eroute owner; isakmp#131; idle;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> &lt;span style="color:#75715e">#129: &amp;#34;masterSubnet/0x0&amp;#34; esp.6e81e8da@51.137.113.44 esp.6f72bbc8@95.217.42.98 tun.0@51.137.113.44 tun.0@95.217.42.98 Traffic: ESPin=0B ESPout=0B! ESPmax=0B&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#ae81ff">000&lt;/span> &lt;span style="color:#75715e">#131: &amp;#34;masterSubnet/0x0&amp;#34;:500 STATE_V2_ESTABLISHED_IKE_SA (established IKE SA); EVENT_SA_REKEY in 2121s; newest ISAKMP; idle;&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+IPsec specifies properties of connections via &lt;a href="https://en.wikipedia.org/wiki/IPsec#Security_association">security
+associations (SA)&lt;/a>. The parent SA is describes the IKEv2
+connections, the child SA is the ESP (encapsulated security
+payload) connection.&lt;/p>
+&lt;p>
+Check IPsec transformation policies&lt;/p>
+&lt;div class="src src-sh">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>ip xfrm policy&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+Check the state of IPsec transformation policies&lt;/p>
+&lt;div class="src src-text">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>ip xfrm state&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>
+Check for dropped packages on the IPsec interface (ipsec1 in our case)&lt;/p>
+&lt;div class="src src-text">
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>ip -s link show dev ipsec1&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div>
+&lt;div id="outline-container-headline-8" class="outline-2">
+&lt;h2 id="headline-8">
+Additonal Resources
+&lt;/h2>
+&lt;div id="outline-text-headline-8" class="outline-text-2">
+&lt;ul>
+&lt;li>&lt;a href="https://blog.notnot.ninja/2020/09/19/azure-site-to-site-vpn/">Build an Azure site-to-site VPN for DevTest&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://docs.microsoft.com/en-us/azure/vpn-gateway/vpn-gateway-howto-site-to-site-resource-manager-cli">Create a virtual network with a Site-to-Site VPN connection using CLI&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://libreswan.org/wiki/FAQ#Why_is_it_recommended_to_disable_rp_filter_in_.2Fproc.2Fsys.2Fnet_.3F">Libreswan: Disable rp_filter for IPsec&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://libreswan.org/wiki/FAQ#NAT_.2B_IPsec_is_not_working">Libreswan: NAT and IPsec not working&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://libreswan.org/wiki/Subnet_to_subnet_VPN">Libreswan: Subnet to subnet VPN&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;/div>
+&lt;/div></description></item></channel></rss>
