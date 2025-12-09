@@ -1,24 +1,24 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Loadbalancer on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/loadbalancer/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 03 Apr 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/loadbalancer/index.xml" rel="self" type="application/rss+xml"/><item><title>Advanced Routing Example</title><link>https://blog.stderr.at/service-mesh/2020/04/advanced-routing-example/</link><pubDate>Fri, 03 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/service-mesh/2020/04/advanced-routing-example/</guid><description>&lt;div class="paragraph">
-&lt;p>Welcome to part 6 of &lt;strong>OpenShift 4 and Service Mesh&lt;/strong> Advanced routing, like Canary Deployments, traffic mirroring and loadbalancing are discussed and tested. All operations have been successdully tested on OpenShift 4.3.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_advanced_routing">Advanced Routing&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>During &lt;a href="https://blog.stderr.at/service-mesh/2020/04/routing-example">Issue #5&lt;/a> some simple routing was implemented. The traffic was split by 100% to a new version (v2) of the &lt;em>recommendation&lt;/em> microservice.
-This section shall give a brief overview of advanced routing possibilities.&lt;/p>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_canary_deployments">Canary Deployments&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>A canary deployment is a strategy to roll out a new version of your service by using traffic splitting. A small amount of traffic (10%) will be sent to the new version, while most of the traffic will be sent to the old version still. The traffic to the new version can be analysed and if everything works as expected more and more traffic can be sent to the new version.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To enable split traffic, the VirtualService must be update:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Loadbalancer on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/loadbalancer/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 03 Apr 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/loadbalancer/index.xml" rel="self" type="application/rss+xml"/><item><title>Advanced Routing Example</title><link>https://blog.stderr.at/service-mesh/2020/04/advanced-routing-example/</link><pubDate>Fri, 03 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/service-mesh/2020/04/advanced-routing-example/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Welcome to part 6 of &lt;strong&gt;OpenShift 4 and Service Mesh&lt;/strong&gt; Advanced routing, like Canary Deployments, traffic mirroring and loadbalancing are discussed and tested. All operations have been successdully tested on OpenShift 4.3.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_advanced_routing"&gt;Advanced Routing&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;During &lt;a href="https://blog.stderr.at/service-mesh/2020/04/routing-example"&gt;Issue #5&lt;/a&gt; some simple routing was implemented. The traffic was split by 100% to a new version (v2) of the &lt;em&gt;recommendation&lt;/em&gt; microservice.
+This section shall give a brief overview of advanced routing possibilities.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_canary_deployments"&gt;Canary Deployments&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A canary deployment is a strategy to roll out a new version of your service by using traffic splitting. A small amount of traffic (10%) will be sent to the new version, while most of the traffic will be sent to the old version still. The traffic to the new version can be analysed and if everything works as expected more and more traffic can be sent to the new version.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To enable split traffic, the VirtualService must be update:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
 name: recommendation
@@ -34,75 +34,75 @@ weight: 90
 - destination:
 host: recommendation
 subset: version-v2
-weight: 10&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Apply the change&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f VitualService_split_v1_and_v1.yaml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Test the traffic and verify that 10% will be sent to v2&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">sh ~/run.sh 100 $GATEWAY_URL
+weight: 10&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the change&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc apply -f VitualService_split_v1_and_v1.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Test the traffic and verify that 10% will be sent to v2&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;sh ~/run.sh 100 $GATEWAY_URL
 # 0: customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 1060
 # 1: customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 1061
 # 2: customer =&amp;gt; preference =&amp;gt; recommendation v2 from &amp;#39;3cbba7a9cde5&amp;#39;: 2060
 # 3: customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 1062
 # 4: customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 1063
-...&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-If an error is shown, then you most probably forget to configure the DestinationRule as described &lt;a href="https://blog.stderr.at/service-mesh/2020/04/routing-example">here&lt;/a>.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/service-mesh/images/Kiali_Canary_90_10.png?width=940px&amp;amp;height=224px" alt="Kiali Canary 90 10"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Kiali split traffic 90/10&lt;/div>
-&lt;/div>
-&lt;div style="page-break-after: always;">&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_routing_based_on_user_agent_header">Routing based on user-agent header&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>It is possible to send traffic to different versions based on the browser type which is calling the application.
-In our test application the service &lt;em>customer&lt;/em> is setting the header &lt;strong>baggage-user-agent&lt;/strong> and propagates it to the other services.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+...&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If an error is shown, then you most probably forget to configure the DestinationRule as described &lt;a href="https://blog.stderr.at/service-mesh/2020/04/routing-example"&gt;here&lt;/a&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/service-mesh/images/Kiali_Canary_90_10.png?width=940px&amp;amp;height=224px" alt="Kiali Canary 90 10"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Kiali split traffic 90/10&lt;/div&gt;
+&lt;/div&gt;
+&lt;div style="page-break-after: always;"&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_routing_based_on_user_agent_header"&gt;Routing based on user-agent header&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is possible to send traffic to different versions based on the browser type which is calling the application.
+In our test application the service &lt;em&gt;customer&lt;/em&gt; is setting the header &lt;strong&gt;baggage-user-agent&lt;/strong&gt; and propagates it to the other services.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 &amp;gt;&amp;gt; headers.putSingle(&amp;#34;baggage-user-agent&amp;#34;, userAgent);
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Create the following file&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create the following file&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
 name: recommendation
@@ -121,67 +121,67 @@ subset: version-v2
 - route:
 - destination:
 host: recommendation
-subset: version-v1&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>and apply the change&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f VitualService_safari.yaml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In order to test the result, either use the appropriate browser or use &lt;em>curl&lt;/em> to set the user-agent. As expected, request from &lt;em>Safari&lt;/em> are sent to v2, other are sent to v1.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Safari&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">curl -v -A Safari $GATEWAY_URL
+subset: version-v1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;and apply the change&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc apply -f VitualService_safari.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In order to test the result, either use the appropriate browser or use &lt;em&gt;curl&lt;/em&gt; to set the user-agent. As expected, request from &lt;em&gt;Safari&lt;/em&gt; are sent to v2, other are sent to v1.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Safari&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;curl -v -A Safari $GATEWAY_URL
 [...]
 &amp;gt; User-Agent: Safari
 [...]
-customer =&amp;gt; preference =&amp;gt; recommendation v2 from &amp;#39;3cbba7a9cde5&amp;#39;: 2365&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Firefox&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">curl -v -A Firefox $GATEWAY_URL
+customer =&amp;gt; preference =&amp;gt; recommendation v2 from &amp;#39;3cbba7a9cde5&amp;#39;: 2365&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Firefox&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;curl -v -A Firefox $GATEWAY_URL
 [...]
 &amp;gt; User-Agent: Firefox
 [...]
-customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 3762&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div style="page-break-after: always;">&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_mirroring_traffic">Mirroring Traffic&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Mirroring Traffic, aka Dark Launch, will duplicate the traffic to another service, allowing you to analyse it before sending production data to it. Responses of the mirrored requests are ignored.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Run the following command and be sure that recommendation-v1 and recommendation-v2 are both running:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pod -n tutorial| grep recommendation
+customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 3762&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div style="page-break-after: always;"&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_mirroring_traffic"&gt;Mirroring Traffic&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Mirroring Traffic, aka Dark Launch, will duplicate the traffic to another service, allowing you to analyse it before sending production data to it. Responses of the mirrored requests are ignored.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Run the following command and be sure that recommendation-v1 and recommendation-v2 are both running:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pod -n tutorial| grep recommendation
 recommendation-v1-69db8d6c48-h8brv 2/2 Running 0 24h
-recommendation-v2-6c5b86bbd8-jnk8b 2/2 Running 0 23h&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Update the VirtualService, so that version v2 will receive mirrored traffic, while the actual request will be sent to v1:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+recommendation-v2-6c5b86bbd8-jnk8b 2/2 Running 0 23h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Update the VirtualService, so that version v2 will receive mirrored traffic, while the actual request will be sent to v1:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
 name: recommendation
@@ -193,110 +193,110 @@ http:
 - destination:
 host: recommendation
 subset: version-v1
-mirror: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+mirror: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 host: recommendation
-subset: version-v2&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>This must be set to &amp;#39;mirror&amp;#39;&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Apply the change&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f VitualService_mirrored-traffic.yaml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Now lets open and follow the logs of recommandation-v2 in order to see that traffic will reach this service, but responses are ignored:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc logs -f $(oc get pods|grep recommendation-v2|awk &amp;#39;{ print $1 }&amp;#39;) -c recommendation&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In a second terminal window send some traffic to our service.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">sh ~/run.sh 100 $GATEWAY_URL&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>You will see that only v1 answers, while in the 2nd window, v2 gets the same traffic.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_load_balancing">Load Balancing&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>In the default OpenShift environment the kube-proxy forwards all requests to pods randomly. With Red Hat ServiceMesh it is possible to add more complexity and let the Envoy proxy handle load balancing for your services.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Three methods are supported:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>random&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>round-robin&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>least connection&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The round robin function is used by default, when there is no DestinationRule configured. We can use the DestinationRule to use the least connection option to see how the traffic is sent.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Before we start we need to delete the VirtualService for the recommendation microservice&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc delete virtualservice recommendation&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The we scale version v2 to 3:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc scale deployment recommendation-v2 --replicas=3&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>After a few seconds the folling pods should run now:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME READY STATUS RESTARTS AGE
+subset: version-v2&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This must be set to &amp;#39;mirror&amp;#39;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the change&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc apply -f VitualService_mirrored-traffic.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now lets open and follow the logs of recommandation-v2 in order to see that traffic will reach this service, but responses are ignored:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc logs -f $(oc get pods|grep recommendation-v2|awk &amp;#39;{ print $1 }&amp;#39;) -c recommendation&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In a second terminal window send some traffic to our service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;sh ~/run.sh 100 $GATEWAY_URL&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You will see that only v1 answers, while in the 2nd window, v2 gets the same traffic.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_load_balancing"&gt;Load Balancing&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the default OpenShift environment the kube-proxy forwards all requests to pods randomly. With Red Hat ServiceMesh it is possible to add more complexity and let the Envoy proxy handle load balancing for your services.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Three methods are supported:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;random&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;round-robin&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;least connection&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The round robin function is used by default, when there is no DestinationRule configured. We can use the DestinationRule to use the least connection option to see how the traffic is sent.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start we need to delete the VirtualService for the recommendation microservice&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc delete virtualservice recommendation&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The we scale version v2 to 3:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc scale deployment recommendation-v2 --replicas=3&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After a few seconds the folling pods should run now:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;NAME READY STATUS RESTARTS AGE
 customer-6948b8b959-jdjlg 2/2 Running 1 25h
 preference-v1-7fdb89c86b-nktqn 2/2 Running 0 25h
 recommendation-v1-69db8d6c48-h8brv 2/2 Running 0 25h
 recommendation-v2-6c5b86bbd8-6lgz6 2/2 Running 0 91s
 recommendation-v2-6c5b86bbd8-dnc8b 2/2 Running 0 91s
-recommendation-v2-6c5b86bbd8-jnk8b 2/2 Running 0 24h&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>If you send traffic to the application, you would see that 3 quarter are sent to v1 and one is sent to v1.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>With the following DestinationRule the traffic will be sent randomly to the application&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: networking.istio.io/v1alpha3
+recommendation-v2-6c5b86bbd8-jnk8b 2/2 Running 0 24h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you send traffic to the application, you would see that 3 quarter are sent to v1 and one is sent to v1.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With the following DestinationRule the traffic will be sent randomly to the application&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
 name: recommendation
@@ -304,15 +304,15 @@ spec:
 host: recommendation
 trafficPolicy:
 loadBalancer:
-simple: RANDOM&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>If you now sent traffic to the service, you will see that the traffic is sent randomly to the versions. (verify the serial number)&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">sh ~/run.sh 100 $GATEWAY_URL
+simple: RANDOM&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you now sent traffic to the service, you will see that the traffic is sent randomly to the versions. (verify the serial number)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;sh ~/run.sh 100 $GATEWAY_URL
 # 140: customer =&amp;gt; preference =&amp;gt; recommendation v2 from &amp;#39;3cbba7a9cde5&amp;#39;: 5729
 # 141: customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 7119
 # 142: customer =&amp;gt; preference =&amp;gt; recommendation v2 from &amp;#39;3cbba7a9cde5&amp;#39;: 361
@@ -322,9 +322,9 @@ simple: RANDOM&lt;/code>&lt;/pre>
 # 146: customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 7120
 # 147: customer =&amp;gt; preference =&amp;gt; recommendation v1 from &amp;#39;f11b097f1dd0&amp;#39;: 7121
 # 148: customer =&amp;gt; preference =&amp;gt; recommendation v2 from &amp;#39;3cbba7a9cde5&amp;#39;: 363
-...&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+...&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

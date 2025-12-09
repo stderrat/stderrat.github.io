@@ -1,341 +1,341 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Anti-Affinity on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/anti-affinity/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 26 Aug 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/anti-affinity/index.xml" rel="self" type="application/rss+xml"/><item><title>Introduction</title><link>https://blog.stderr.at/day-2/pod-placement/2021-08-26-podplacement-intro/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/pod-placement/2021-08-26-podplacement-intro/</guid><description>&lt;div class="paragraph">
-&lt;p>Pod scheduling is an internal process that determines placement of new pods onto nodes within the cluster. It is probably one of the most important tasks for a Day-2 scenario and should be considered at a very early stage for a new cluster. OpenShift/Kubernetes is already shipped with a &lt;strong>default scheduler&lt;/strong> which schedules pods as they get created accross the cluster, without any manual steps.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>However, there are scenarios where a more advanced approach is required, like for example using a specifc group of nodes for dedicated workload or make sure that certain applications do not run on the same nodes. Kubernetes provides different options:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Controlling placement with node selectors&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Controlling placement with pod/node affinity/anti-affinity rules&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Controlling placement with taints and tolerations&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Controlling placement with topology spread constraints&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This series will try to go into the detail of the different options and explains in simple examples how to work with pod placement rules.
-It is not a replacement for any official documentation, so always check out Kubernetes and or OpenShift documentations.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_pod_placement_series">Pod Placement Series&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-nodeselector/">NodeSelector&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-node-affinity/">Node Affinity&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/descheduler/">Descheduler&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Anti-Affinity on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/anti-affinity/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 26 Aug 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/anti-affinity/index.xml" rel="self" type="application/rss+xml"/><item><title>Introduction</title><link>https://blog.stderr.at/day-2/pod-placement/2021-08-26-podplacement-intro/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/pod-placement/2021-08-26-podplacement-intro/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Pod scheduling is an internal process that determines placement of new pods onto nodes within the cluster. It is probably one of the most important tasks for a Day-2 scenario and should be considered at a very early stage for a new cluster. OpenShift/Kubernetes is already shipped with a &lt;strong&gt;default scheduler&lt;/strong&gt; which schedules pods as they get created accross the cluster, without any manual steps.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, there are scenarios where a more advanced approach is required, like for example using a specifc group of nodes for dedicated workload or make sure that certain applications do not run on the same nodes. Kubernetes provides different options:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Controlling placement with node selectors&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Controlling placement with pod/node affinity/anti-affinity rules&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Controlling placement with taints and tolerations&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Controlling placement with topology spread constraints&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This series will try to go into the detail of the different options and explains in simple examples how to work with pod placement rules.
+It is not a replacement for any official documentation, so always check out Kubernetes and or OpenShift documentations.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_pod_placement_series"&gt;Pod Placement Series&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-nodeselector/"&gt;NodeSelector&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-pod-affinity/"&gt;Pod Affinity and Anti Affinity&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-node-affinity/"&gt;Node Affinity&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-taints-and-tolerations"&gt;Taints and Tolerations&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-topology-spread-constraints/"&gt;Topology Spread Constraints&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/descheduler/"&gt;Descheduler&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The following prerequisites are used for all examples.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Let’s image that our cluster (OpenShift 4) has 4 compute nodes&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get node --selector=&amp;#39;node-role.kubernetes.io/worker&amp;#39;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s image that our cluster (OpenShift 4) has 4 compute nodes&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get node --selector=&amp;#39;node-role.kubernetes.io/worker&amp;#39;
 NAME STATUS ROLES AGE VERSION
 compute-0 Ready worker 7h1m v1.19.0+d59ce34
 compute-1 Ready worker 7h1m v1.19.0+d59ce34
 compute-2 Ready worker 7h1m v1.19.0+d59ce34
-compute-3 Ready worker 7h1m v1.19.0+d59ce34&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>An example application (from the catalog Django + Postgres) has been deployed in the namespace &lt;code>podtesting&lt;/code>. It contains by default 1 pod for a PostGresql database and one pod for a frontend web application.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+compute-3 Ready worker 7h1m v1.19.0+d59ce34&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;An example application (from the catalog Django + Postgres) has been deployed in the namespace &lt;code&gt;podtesting&lt;/code&gt;. It contains by default 1 pod for a PostGresql database and one pod for a frontend web application.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods -n podtesting -o wide | grep Running
 django-psql-example-1-h6kst 1/1 Running 0 20m 10.130.2.97 compute-2 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-postgresql-1-4pcm4 1/1 Running 0 21m 10.131.0.51 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Without any configuration the OpenShift scheduler will try to spread the pods evenly accross the cluster.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Let’s increase the replica of the web frontend:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc scale --replicas=4 dc/django-psql-example -n podtesting&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Eventually 4 additional pods will be started accross the compute nodes of the cluster:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+postgresql-1-4pcm4 1/1 Running 0 21m 10.131.0.51 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Without any configuration the OpenShift scheduler will try to spread the pods evenly accross the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s increase the replica of the web frontend:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc scale --replicas=4 dc/django-psql-example -n podtesting&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Eventually 4 additional pods will be started accross the compute nodes of the cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods -n podtesting -o wide | grep Running
 django-psql-example-1-842fl 1/1 Running 0 2m7s 10.131.0.65 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-1-h6kst 1/1 Running 0 24m 10.130.2.97 compute-2 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-1-pxhlv 1/1 Running 0 2m7s 10.128.2.13 compute-0 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-1-xms7x 1/1 Running 0 2m7s 10.129.2.10 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-postgresql-1-4pcm4 1/1 Running 0 26m 10.131.0.51 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>As you can see, the scheduler already tries to spread the pods evenly, so that every worker node will host one frontend pod.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>However, let’s try to apply a more advanced configuration for the pod placement, starting with the
-&lt;a href="https://blog.stderr.at/openshift/day-2/2021-08-27-podplacement/">Pod Placement - NodeSelector&lt;/a>&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Pod Affinity/Anti-Affinity</title><link>https://blog.stderr.at/day-2/pod-placement/2021-08-28-affinity/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/pod-placement/2021-08-28-affinity/</guid><description>&lt;div class="paragraph">
-&lt;p>While noteSelector provides a very easy way to control where a pod shall be scheduled, the affinity/anti-affinity feature, expands this configuration with more expressive rules like logical AND operators, constraints against labels on other pods or soft rules instead of hard requirements.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The feature comes with two types:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>pod affinity/anti-affinity - allows constrains against other pod labels rather than node labels.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>node affinity - allows pods to specify a group of nodes they can be placed on&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_pod_placement_series">Pod Placement Series&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Please check out other ways of pod placements:&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;div class="expand">
-&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
-&lt;i style="font-size:x-small;" class="fas fa-chevron-right">&lt;/i>
-&lt;span>
-&lt;a>Expand me...&lt;/a>
-&lt;/span>
-&lt;/div>
-&lt;div class="expand-content" style="display: none;">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-nodeselector/">NodeSelector&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-node-affinity/">Node Affinity&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/descheduler/">Descheduler&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_pod_affinity_and_anti_affinity">Pod Affinity and Anti-Affinity&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Affinity&lt;/strong> and &lt;strong>Anti-Affinity&lt;/strong> controls the nodes on which a pod should (or should not) be scheduled &lt;em>based on labels on Pods that are already scheduled on the node&lt;/em>. This is a different approach than nodeSelector, since it does not directly take the node labels into account. That said, one example for such setup would be: You have dedicated nodes for developement and production workload and you have to be sure that pods of dev or prod applications do not run on the same node.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Affinity and Anti-Affinity are shortly defined as:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Pod affinity - tells scheduler to put a new pod onto the same node as other pods (selection is done using label selectors)&lt;/p>
-&lt;div class="paragraph">
-&lt;p>For example:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>I want to run where this other labelled pod is already running (Pods from same service shall be running on same node.)&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Pod Anti-Affinity - prevents the scheduler to place a new pod onto the same nodes with pods with the same labels&lt;/p>
-&lt;div class="paragraph">
-&lt;p>For example:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>I definitely do not want to start a pod where this other pod with the defined label is running (to prevent that all Pods of same service are running in the same availability zone.)&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-&lt;div class="paragraph">
-&lt;p>As described in the official &lt;a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity" target="_blank" rel="noopener">Kubernetes documention&lt;/a> two things should be considered:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>The affinity feature requires processing which can slow down the cluster. Therefore, it is not recommended for cluster with more than 100 nodes.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>The feature requires that all nodes are consistently labelled (&lt;code>topologyKey&lt;/code>). Unintended behaviour might happen if labels are missing.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_using_affinityanti_affinity">Using Affinity/Anti-Affinity&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Currently two types of pod affinity/anti-affinity are known:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;strong>requiredDuringSchedulingIgnoreDuringExecuption&lt;/strong> (short &lt;em>required&lt;/em>) - a hard requirement which must be met before a pod can be scheduled&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>preferredDuringSchedulingIgnoredDuringExecution&lt;/strong> (short &lt;em>preferred&lt;/em>) - a soft requirement the scheduler &lt;strong>tries&lt;/strong> to meet, but does not guarantee it&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+postgresql-1-4pcm4 1/1 Running 0 26m 10.131.0.51 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As you can see, the scheduler already tries to spread the pods evenly, so that every worker node will host one frontend pod.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, let’s try to apply a more advanced configuration for the pod placement, starting with the
+&lt;a href="https://blog.stderr.at/openshift/day-2/2021-08-27-podplacement/"&gt;Pod Placement - NodeSelector&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Pod Affinity/Anti-Affinity</title><link>https://blog.stderr.at/day-2/pod-placement/2021-08-28-affinity/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/pod-placement/2021-08-28-affinity/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;While noteSelector provides a very easy way to control where a pod shall be scheduled, the affinity/anti-affinity feature, expands this configuration with more expressive rules like logical AND operators, constraints against labels on other pods or soft rules instead of hard requirements.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The feature comes with two types:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;pod affinity/anti-affinity - allows constrains against other pod labels rather than node labels.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;node affinity - allows pods to specify a group of nodes they can be placed on&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_pod_placement_series"&gt;Pod Placement Series&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Please check out other ways of pod placements:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;div class="expand"&gt;
+&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});"&gt;
+&lt;i style="font-size:x-small;" class="fas fa-chevron-right"&gt;&lt;/i&gt;
+&lt;span&gt;
+&lt;a&gt;Expand me...&lt;/a&gt;
+&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class="expand-content" style="display: none;"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-nodeselector/"&gt;NodeSelector&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-pod-affinity/"&gt;Pod Affinity and Anti Affinity&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-node-affinity/"&gt;Node Affinity&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-taints-and-tolerations"&gt;Taints and Tolerations&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-topology-spread-constraints/"&gt;Topology Spread Constraints&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/descheduler/"&gt;Descheduler&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_pod_affinity_and_anti_affinity"&gt;Pod Affinity and Anti-Affinity&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Affinity&lt;/strong&gt; and &lt;strong&gt;Anti-Affinity&lt;/strong&gt; controls the nodes on which a pod should (or should not) be scheduled &lt;em&gt;based on labels on Pods that are already scheduled on the node&lt;/em&gt;. This is a different approach than nodeSelector, since it does not directly take the node labels into account. That said, one example for such setup would be: You have dedicated nodes for developement and production workload and you have to be sure that pods of dev or prod applications do not run on the same node.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Affinity and Anti-Affinity are shortly defined as:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Pod affinity - tells scheduler to put a new pod onto the same node as other pods (selection is done using label selectors)&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;I want to run where this other labelled pod is already running (Pods from same service shall be running on same node.)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Pod Anti-Affinity - prevents the scheduler to place a new pod onto the same nodes with pods with the same labels&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;I definitely do not want to start a pod where this other pod with the defined label is running (to prevent that all Pods of same service are running in the same availability zone.)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As described in the official &lt;a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity" target="_blank" rel="noopener"&gt;Kubernetes documention&lt;/a&gt; two things should be considered:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;The affinity feature requires processing which can slow down the cluster. Therefore, it is not recommended for cluster with more than 100 nodes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The feature requires that all nodes are consistently labelled (&lt;code&gt;topologyKey&lt;/code&gt;). Unintended behaviour might happen if labels are missing.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_using_affinityanti_affinity"&gt;Using Affinity/Anti-Affinity&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Currently two types of pod affinity/anti-affinity are known:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;requiredDuringSchedulingIgnoreDuringExecuption&lt;/strong&gt; (short &lt;em&gt;required&lt;/em&gt;) - a hard requirement which must be met before a pod can be scheduled&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;preferredDuringSchedulingIgnoredDuringExecution&lt;/strong&gt; (short &lt;em&gt;preferred&lt;/em&gt;) - a soft requirement the scheduler &lt;strong&gt;tries&lt;/strong&gt; to meet, but does not guarantee it&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Both types can be defined in the same specification. In such case the node must first meet the required rule and then attempt based on best effort to meet the preferred rule.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_preparing_node_labels">Preparing node labels&lt;/h3>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Remember the prerequisites explained in the . &lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-pod-affinity/">Pod Placement - Introduction&lt;/a>. We have 4 compute nodes and an example web application up and running.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Before we start with affinity rules we need to label all nodes. Let’s create 2 zones (east and west) for our compute nodes using the well-known label &lt;code>topology.kubernetes.io/zone&lt;/code>&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/day-2/images/affinity-kubernetes.zones.png" alt="Node Zones"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Node Zones&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc label nodes compute-0 compute-1 topology.kubernetes.io/zone=east
-oc label nodes compute-2 compute-3 topology.kubernetes.io/zone=west&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_configure_pod_affinity_rule">Configure pod affinity rule&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>In our example we have one database pod and multiple web application pods. Let’s image we would like to always run these pods in the same zone.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>The pod affinity defines that a pod can be scheduled onto a node ONLY if that node is in the same zone as at least one already-running pod with a certain label.&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This means we must first label the postgres pod accordingly. Let’s labels the pod with &lt;code>security=zone1&lt;/code>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc patch dc postgresql -n podtesting --type=&amp;#39;json&amp;#39; -p=&amp;#39;[{&amp;#34;op&amp;#34;: &amp;#34;add&amp;#34;, &amp;#34;path&amp;#34;: &amp;#34;/spec/template/metadata/labels/security&amp;#34;, &amp;#34;value&amp;#34;: &amp;#34;zone1&amp;#34; }]&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>After a while the postgres pod is restarted on one of the 4 compute nodes (since we did not specify in which zone this single pod shall be started) - here compute-1 (zone == east):&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
-postgresql-5-6v5h6 1/1 Running 0 119s 10.129.2.24 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>As a second step, the deployment configuration of the web application must be modified. Remember, we want to run web application pods only on nodes located in the same zone as the postgres pods. In our example this would be either compute-0 or compute-1.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Modify the config accordingly:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: DeploymentConfig
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_preparing_node_labels"&gt;Preparing node labels&lt;/h3&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Remember the prerequisites explained in the . &lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-pod-affinity/"&gt;Pod Placement - Introduction&lt;/a&gt;. We have 4 compute nodes and an example web application up and running.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start with affinity rules we need to label all nodes. Let’s create 2 zones (east and west) for our compute nodes using the well-known label &lt;code&gt;topology.kubernetes.io/zone&lt;/code&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/day-2/images/affinity-kubernetes.zones.png" alt="Node Zones"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Node Zones&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc label nodes compute-0 compute-1 topology.kubernetes.io/zone=east
+oc label nodes compute-2 compute-3 topology.kubernetes.io/zone=west&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_pod_affinity_rule"&gt;Configure pod affinity rule&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In our example we have one database pod and multiple web application pods. Let’s image we would like to always run these pods in the same zone.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;The pod affinity defines that a pod can be scheduled onto a node ONLY if that node is in the same zone as at least one already-running pod with a certain label.&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This means we must first label the postgres pod accordingly. Let’s labels the pod with &lt;code&gt;security=zone1&lt;/code&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc patch dc postgresql -n podtesting --type=&amp;#39;json&amp;#39; -p=&amp;#39;[{&amp;#34;op&amp;#34;: &amp;#34;add&amp;#34;, &amp;#34;path&amp;#34;: &amp;#34;/spec/template/metadata/labels/security&amp;#34;, &amp;#34;value&amp;#34;: &amp;#34;zone1&amp;#34; }]&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After a while the postgres pod is restarted on one of the 4 compute nodes (since we did not specify in which zone this single pod shall be started) - here compute-1 (zone == east):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods -n podtesting -o wide | grep Running
+postgresql-5-6v5h6 1/1 Running 0 119s 10.129.2.24 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As a second step, the deployment configuration of the web application must be modified. Remember, we want to run web application pods only on nodes located in the same zone as the postgres pods. In our example this would be either compute-0 or compute-1.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Modify the config accordingly:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: DeploymentConfig
 apiVersion: apps.openshift.io/v1
 [...]
 namespace: podtesting
@@ -350,42 +350,42 @@ podAffinity:
 requiredDuringSchedulingIgnoredDuringExecution:
 - labelSelector:
 matchExpressions:
-- key: security &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-operator: In &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- key: security &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+operator: In &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 values:
-- zone1 &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-topologyKey: topology.kubernetes.io/zone &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The key of the label of a pod which is already running on that node is &amp;#34;security&amp;#34;&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>As operator &amp;#34;In&amp;#34; is used the postgres pod must have a matching key (security) containing the value (zone1). Other options like &amp;#34;NotIn&amp;#34;, &amp;#34;DoesNotExist&amp;#34; or &amp;#34;Exact&amp;#34; are available as well&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The value must be &amp;#34;zone1&amp;#34;&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>As topology the topology.kubernetes.io/zone is used. The application can be deployed on nodes with the same label&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Setting this (and maybe scaling the replicas up a little bit) will start all frontend pods either on compute-0 or on compute-1.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>In other words: On nodes of the same zone, where the postgres pod with the label security=zone1 is running.&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+- zone1 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+topologyKey: topology.kubernetes.io/zone &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The key of the label of a pod which is already running on that node is &amp;#34;security&amp;#34;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;As operator &amp;#34;In&amp;#34; is used the postgres pod must have a matching key (security) containing the value (zone1). Other options like &amp;#34;NotIn&amp;#34;, &amp;#34;DoesNotExist&amp;#34; or &amp;#34;Exact&amp;#34; are available as well&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The value must be &amp;#34;zone1&amp;#34;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;As topology the topology.kubernetes.io/zone is used. The application can be deployed on nodes with the same label&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Setting this (and maybe scaling the replicas up a little bit) will start all frontend pods either on compute-0 or on compute-1.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;In other words: On nodes of the same zone, where the postgres pod with the label security=zone1 is running.&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods -n podtesting -o wide | grep Running
 django-psql-example-13-4w6qd 1/1 Running 0 67s 10.128.2.58 compute-0 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-13-655dj 1/1 Running 0 67s 10.129.2.28 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-13-9d4pj 1/1 Running 0 67s 10.129.2.27 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
@@ -398,33 +398,33 @@ django-psql-example-13-mh2f5 1/1 Running 0 67s 10.129.2.29 compute-1 &amp;lt;non
 django-psql-example-13-qfkhq 1/1 Running 0 67s 10.129.2.26 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-13-v88qv 1/1 Running 0 67s 10.128.2.56 compute-0 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-13-vfgf4 1/1 Running 0 67s 10.128.2.59 compute-0 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-postgresql-5-6v5h6 1/1 Running 0 3m18s 10.129.2.24 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_configure_pod_anti_affinity_rule">Configure pod anti-affinity rule&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>For now the database pod and the web application pod are running on nodes of the same zone. However, somebody is asking us to configure it vice versa: the web application should not run in the same zone as postgresql.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Here we can use the Anti-Affinity feature.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+postgresql-5-6v5h6 1/1 Running 0 3m18s 10.129.2.24 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_pod_anti_affinity_rule"&gt;Configure pod anti-affinity rule&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For now the database pod and the web application pod are running on nodes of the same zone. However, somebody is asking us to configure it vice versa: the web application should not run in the same zone as postgresql.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here we can use the Anti-Affinity feature.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 As an alternative, it would also be possible to change the operator in the affinity rule from &amp;#34;In&amp;#34; to &amp;#34;NotIn&amp;#34;
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: DeploymentConfig
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: DeploymentConfig
 apiVersion: apps.openshift.io/v1
 [...]
 namespace: podtesting
@@ -439,43 +439,43 @@ podAntiAffinity:
 requiredDuringSchedulingIgnoredDuringExecution:
 - labelSelector:
 matchExpressions:
-- key: security &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-operator: In &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- key: security &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+operator: In &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 values:
-- zone1 &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-topologyKey: topology.kubernetes.io/zone &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will force the web application pods to run only on &amp;#34;west&amp;#34; zone nodes.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">django-psql-example-16-4n9h5 1/1 Running 0 40s 10.131.1.53 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
+- zone1 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+topologyKey: topology.kubernetes.io/zone &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will force the web application pods to run only on &amp;#34;west&amp;#34; zone nodes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;django-psql-example-16-4n9h5 1/1 Running 0 40s 10.131.1.53 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-16-blf8b 1/1 Running 0 29s 10.130.2.63 compute-2 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-16-f9plb 1/1 Running 0 29s 10.130.2.64 compute-2 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-16-tm5rm 1/1 Running 0 28s 10.131.1.55 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-16-x8lbh 1/1 Running 0 29s 10.131.1.54 compute-3 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 django-psql-example-16-zb5fg 1/1 Running 0 28s 10.130.2.65 compute-2 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-postgresql-5-6v5h6 1/1 Running 0 18m 10.129.2.24 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_combining_required_and_preferred_affinities">Combining required and preferred affinities&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>It is possible to combine requiredDuringSchedulingIgnoredDuringExecution and preferredDuringSchedulingIgnoredDuringExecution. In such case the required affinity MUST be met, while the preferred affinity is tried to be met. The following examples combines these two types in an affinity and anti-affinity specification.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The &lt;code>podAffinity&lt;/code> block defines the same as above: schedule the pod on a node of the same zone, where a pod with the label &lt;code>security=zone1&lt;/code> is running.
-The &lt;code>podAntiAffinity&lt;/code> defines that the pod should not be started on a node if that node has a pod running with the label &lt;code>security=zone2&lt;/code>. However, the scheduler might decide to do so as long the &lt;code>podAffinity&lt;/code> rule is met.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">spec:
+postgresql-5-6v5h6 1/1 Running 0 18m 10.129.2.24 compute-1 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_combining_required_and_preferred_affinities"&gt;Combining required and preferred affinities&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is possible to combine requiredDuringSchedulingIgnoredDuringExecution and preferredDuringSchedulingIgnoredDuringExecution. In such case the required affinity MUST be met, while the preferred affinity is tried to be met. The following examples combines these two types in an affinity and anti-affinity specification.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;code&gt;podAffinity&lt;/code&gt; block defines the same as above: schedule the pod on a node of the same zone, where a pod with the label &lt;code&gt;security=zone1&lt;/code&gt; is running.
+The &lt;code&gt;podAntiAffinity&lt;/code&gt; defines that the pod should not be started on a node if that node has a pod running with the label &lt;code&gt;security=zone2&lt;/code&gt;. However, the scheduler might decide to do so as long the &lt;code&gt;podAffinity&lt;/code&gt; rule is met.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;spec:
 affinity:
 podAffinity:
 requiredDuringSchedulingIgnoredDuringExecution:
@@ -488,7 +488,7 @@ values:
 topologyKey: topology.kubernetes.io/zone
 podAntiAffinity:
 preferredDuringSchedulingIgnoredDuringExecution:
-- weight: 100 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- weight: 100 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 podAffinityTerm:
 labelSelector:
 matchExpressions:
@@ -496,63 +496,63 @@ matchExpressions:
 operator: In
 values:
 - zone2
-topologyKey: topology.kubernetes.io/zone&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The &lt;code>weight&lt;/code> field is used by the scheduler to create a scoring. The higher the scoring the more preferred is that node.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_topologykey">topologyKey&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>It is important to understand the &lt;code>topologyKey&lt;/code> setting. This is the key for the node label. If an affinity rule is met, Kubernetes will try to find suitable nodes which are labelled with the topologyKey. All nodes must be labelled consistently, otherwise unintended behaviour might occur.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>As described in the Kubernetes documentation at &lt;a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity" target="_blank" rel="noopener">Pod Affinity and Anit-Affinity&lt;/a>, the topologyKey has some constraints:&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;em>Quote Kubernetes:&lt;/em>&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>&lt;em>For pod affinity, empty &lt;code>topologyKey&lt;/code> is not allowed in both &lt;code>requiredDuringSchedulingIgnoredDuringExecution&lt;/code> and &lt;code>preferredDuringSchedulingIgnoredDuringExecution&lt;/code>.&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>For pod anti-affinity, empty &lt;code>topologyKey&lt;/code> is also not allowed in both &lt;code>requiredDuringSchedulingIgnoredDuringExecution&lt;/code> and &lt;code>preferredDuringSchedulingIgnoredDuringExecution&lt;/code>.&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>For &lt;code>requiredDuringSchedulingIgnoredDuringExecution&lt;/code> pod anti-affinity, the admission controller &lt;code>LimitPodHardAntiAffinityTopology&lt;/code> was introduced to limit &lt;code>topologyKey&lt;/code> to &lt;code>kubernetes.io/hostname&lt;/code>. If you want to make it available for custom topologies, you may modify the admission controller, or disable it.&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>Except for the above cases, the &lt;code>topologyKey&lt;/code> can be any legally label-key.&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;em>End of quote&lt;/em>&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_cleanup">Cleanup&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>As cleanup simply remove the affinity specification from the DeploymentConf. The node labels can stay as they are since they do not hurt.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_summary">Summary&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>This concludes the quick overview of the pod affinity. The next chapter will discuss &lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-node-affinity/">Node Affinity&lt;/a> rules, which allows affinity based on node specifications.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+topologyKey: topology.kubernetes.io/zone&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The &lt;code&gt;weight&lt;/code&gt; field is used by the scheduler to create a scoring. The higher the scoring the more preferred is that node.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_topologykey"&gt;topologyKey&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is important to understand the &lt;code&gt;topologyKey&lt;/code&gt; setting. This is the key for the node label. If an affinity rule is met, Kubernetes will try to find suitable nodes which are labelled with the topologyKey. All nodes must be labelled consistently, otherwise unintended behaviour might occur.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As described in the Kubernetes documentation at &lt;a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity" target="_blank" rel="noopener"&gt;Pod Affinity and Anit-Affinity&lt;/a&gt;, the topologyKey has some constraints:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;Quote Kubernetes:&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;For pod affinity, empty &lt;code&gt;topologyKey&lt;/code&gt; is not allowed in both &lt;code&gt;requiredDuringSchedulingIgnoredDuringExecution&lt;/code&gt; and &lt;code&gt;preferredDuringSchedulingIgnoredDuringExecution&lt;/code&gt;.&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;For pod anti-affinity, empty &lt;code&gt;topologyKey&lt;/code&gt; is also not allowed in both &lt;code&gt;requiredDuringSchedulingIgnoredDuringExecution&lt;/code&gt; and &lt;code&gt;preferredDuringSchedulingIgnoredDuringExecution&lt;/code&gt;.&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;For &lt;code&gt;requiredDuringSchedulingIgnoredDuringExecution&lt;/code&gt; pod anti-affinity, the admission controller &lt;code&gt;LimitPodHardAntiAffinityTopology&lt;/code&gt; was introduced to limit &lt;code&gt;topologyKey&lt;/code&gt; to &lt;code&gt;kubernetes.io/hostname&lt;/code&gt;. If you want to make it available for custom topologies, you may modify the admission controller, or disable it.&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;Except for the above cases, the &lt;code&gt;topologyKey&lt;/code&gt; can be any legally label-key.&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;End of quote&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_cleanup"&gt;Cleanup&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As cleanup simply remove the affinity specification from the DeploymentConf. The node labels can stay as they are since they do not hurt.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This concludes the quick overview of the pod affinity. The next chapter will discuss &lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-node-affinity/"&gt;Node Affinity&lt;/a&gt; rules, which allows affinity based on node specifications.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

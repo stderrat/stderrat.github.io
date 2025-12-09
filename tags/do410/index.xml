@@ -1,595 +1,595 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>DO410 on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/do410/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 06 Apr 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/do410/index.xml" rel="self" type="application/rss+xml"/><item><title>DO410 Ansible and Ansible Tower training notes</title><link>https://blog.stderr.at/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/</link><pubDate>Mon, 06 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/</guid><description>&lt;div class="paragraph">
-&lt;p>Notes taken during Red Hat course D410 Ansible and Ansible Tower.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_ansible_installation">Ansible installation&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>make sure that &lt;em>libselinux-python&lt;/em> is installed&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Ansible 2.7 requires python 2.6 or 3.5&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">yum list installed python&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>windows modules implemented in powershell&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>ansible requires at least .net 4.0&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_configuration_files">Configuration files&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Ansible searches for ansible.cfg in the following order:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>$ANSIBLE_CFG&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>ansible.cfg in the current directory&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>$HOME/ansible.cfg&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>/etc/ansible/ansible.cfg&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>whichever it finds first will be used.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>use&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible --version&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>to see which config file is currently used. you can view/dump/see what changed with&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-config [list|dump|view]&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_default_modules">Default modules&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>List all available modules via&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-doc -l&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For getting help on a specific module use&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-doc ping&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_ad_hoc_commmands">Ad-hoc commmands&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>To display ansible output on a single line per host for easier readablility use the &lt;em>-o&lt;/em> option&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible all -m command -a /bin/hostname -o&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Use the raw module for directly executing commands on remote systems that do not have python installed.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible -m raw&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_custom_facts">Custom Facts&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Ansible uses custom facts from &lt;em>/etc/ansible/facts.d/&lt;/em>. Facts can be
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>DO410 on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/do410/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 06 Apr 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/do410/index.xml" rel="self" type="application/rss+xml"/><item><title>DO410 Ansible and Ansible Tower training notes</title><link>https://blog.stderr.at/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/</link><pubDate>Mon, 06 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Notes taken during Red Hat course D410 Ansible and Ansible Tower.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ansible_installation"&gt;Ansible installation&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;make sure that &lt;em&gt;libselinux-python&lt;/em&gt; is installed&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Ansible 2.7 requires python 2.6 or 3.5&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;yum list installed python&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;windows modules implemented in powershell&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ansible requires at least .net 4.0&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configuration_files"&gt;Configuration files&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible searches for ansible.cfg in the following order:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;$ANSIBLE_CFG&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ansible.cfg in the current directory&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;$HOME/ansible.cfg&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;/etc/ansible/ansible.cfg&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;whichever it finds first will be used.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;use&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible --version&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;to see which config file is currently used. you can view/dump/see what changed with&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-config [list|dump|view]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_default_modules"&gt;Default modules&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;List all available modules via&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-doc -l&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For getting help on a specific module use&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-doc ping&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ad_hoc_commmands"&gt;Ad-hoc commmands&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To display ansible output on a single line per host for easier readablility use the &lt;em&gt;-o&lt;/em&gt; option&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible all -m command -a /bin/hostname -o&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use the raw module for directly executing commands on remote systems that do not have python installed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible -m raw&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_custom_facts"&gt;Custom Facts&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible uses custom facts from &lt;em&gt;/etc/ansible/facts.d/&lt;/em&gt;. Facts can be
 stored in .ini style or you can place executable scripts in this
-directory. The script needs to output JSON. Custom facts are available via &lt;em>ansible_facts.ansible_local&lt;/em>.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_magic_variables_available">Magic variables available&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>hostvars: variables defined for this host&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>group_names: list of groups this host is a member of&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>groups: list of all groups and hosts in the inventory&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>inventory_hostname: host name of the current host as configured in the inventory&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_matching_hosts_in_the_inventory">Matching hosts in the inventory&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Some examples on how to match hosts defined in the inventory&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&amp;#39;*.lab.com&amp;#39;: match all hosts starting with lab.com&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&amp;#39;lab,datacenter&amp;#39;: match all hosts either in lab or datacenter&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&amp;#39;datacenter*&amp;#39;: match all host &lt;strong>and host groups&lt;/strong> starting with datacenter&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&amp;#39;lab,&amp;amp;datacenter&amp;#39;: match hosts in the lab and datacenter group&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&amp;#39;datacenter,!test.lab.com&amp;#39;: match all hosts in datacenter, except &lt;em>test.lab.com&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_dynamic_inventory">Dynamic inventory&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Example scripts for dynamic inventories can be found at
-&lt;a href="https://github.com/ansible/ansible/tree/devel/contrib/inventory" class="bare">https://github.com/ansible/ansible/tree/devel/contrib/inventory&lt;/a>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>You can use &lt;code>ansible-inventory&lt;/code> to take a look a the current inventory
-as json. This also works for static inventories.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Inventories can be combined. Just create a directory containing a
+directory. The script needs to output JSON. Custom facts are available via &lt;em&gt;ansible_facts.ansible_local&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_magic_variables_available"&gt;Magic variables available&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;hostvars: variables defined for this host&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;group_names: list of groups this host is a member of&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;groups: list of all groups and hosts in the inventory&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;inventory_hostname: host name of the current host as configured in the inventory&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_matching_hosts_in_the_inventory"&gt;Matching hosts in the inventory&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Some examples on how to match hosts defined in the inventory&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;*.lab.com&amp;#39;: match all hosts starting with lab.com&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;lab,datacenter&amp;#39;: match all hosts either in lab or datacenter&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;datacenter*&amp;#39;: match all host &lt;strong&gt;and host groups&lt;/strong&gt; starting with datacenter&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;lab,&amp;amp;datacenter&amp;#39;: match hosts in the lab and datacenter group&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;datacenter,!test.lab.com&amp;#39;: match all hosts in datacenter, except &lt;em&gt;test.lab.com&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_dynamic_inventory"&gt;Dynamic inventory&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Example scripts for dynamic inventories can be found at
+&lt;a href="https://github.com/ansible/ansible/tree/devel/contrib/inventory" class="bare"&gt;https://github.com/ansible/ansible/tree/devel/contrib/inventory&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can use &lt;code&gt;ansible-inventory&lt;/code&gt; to take a look a the current inventory
+as json. This also works for static inventories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Inventories can be combined. Just create a directory containing a
 static inventory and script to create a dynamic inventory, ansible
-will happily execute the scripts and merge everything together.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_debugging">Debugging&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following might be useful when debugging ansible roles and playbooks&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-playbook play.yml --syntax-check
+will happily execute the scripts and merge everything together.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_debugging"&gt;Debugging&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following might be useful when debugging ansible roles and playbooks&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-playbook play.yml --syntax-check
 ansible-playbook play.yml --step
 ansible-playbook play.yml --start-at-task=&amp;#34;start httpd service&amp;#34;
 ansible-playbook --check play.yml
-ansible-playbook --check --diff play.yml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_ansible_tower">Ansible Tower&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Notes on deploying and working with ansible tower.&lt;/p>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_installation">Installation&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>System requirements:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>at least 4GB of RAM&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>actual requirement depends on &lt;em>forks&lt;/em> variable&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>recommendation is 100MB memory for each for + 2GB of memory for tower services&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>20GB of disk storage, at least 10GB in /var&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Steps for installing:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>download setup tar.gz from &lt;a href="http://releases.ansible.com/ansible-tower/setup/" class="bare">http://releases.ansible.com/ansible-tower/setup/&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>set passwords in &lt;em>inventory&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>run &lt;em>./setup.sh&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_authentication">Authentication&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Authentication settings can be changed under Settings /
+ansible-playbook --check --diff play.yml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ansible_tower"&gt;Ansible Tower&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Notes on deploying and working with ansible tower.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_installation"&gt;Installation&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;System requirements:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;at least 4GB of RAM&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;actual requirement depends on &lt;em&gt;forks&lt;/em&gt; variable&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;recommendation is 100MB memory for each for + 2GB of memory for tower services&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;20GB of disk storage, at least 10GB in /var&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Steps for installing:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;download setup tar.gz from &lt;a href="http://releases.ansible.com/ansible-tower/setup/" class="bare"&gt;http://releases.ansible.com/ansible-tower/setup/&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;set passwords in &lt;em&gt;inventory&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;run &lt;em&gt;./setup.sh&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_authentication"&gt;Authentication&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Authentication settings can be changed under Settings /
 Authentication. E.g for configuring Azure AD authentication we are
-going to need&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>an Azure AD oauth2 key and&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>a Azure AD oauth2 secret&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_rbac">RBAC&lt;/h3>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>separate roles for organizations and inventories&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>you need to assign roles to organizations and inventories&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_the_tower_flow">The Tower Flow&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>These are the steps to run playbooks against managed nodes in Tower:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Create an organization if required&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create users&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create teams and assign users&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create credentials for accessing managed nodes&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Assign credential to organization&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create credentials for accessing SCM repositories (e.g. git)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Assign credentials to users or teams&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create a project&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Assign Teams to project&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create a job template for executing playbooks&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_ansible_roles_support">Ansible Roles support&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>If the project includes a &lt;code>requirements.txt&lt;/code> file in the &lt;em>roles/&lt;/em> folder, tower will automatically run&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-galaxy install -r roles/requirements.yml -p ./roles/ --force&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>at the end of an update. So this could be used to include external
-dependencies (like SAP ansible roles).&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_job_templates">Job Templates&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Ansible playbooks are stored in GIT repositories. A job template defines&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>the inventory used for this job template&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>the project for executing this job&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>this connects the GIT repository used in this project with the template&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>the playbook to execute&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>the credentials for executing jobs&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>permissions for users / teams (e.g. admin, execute)&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Tower creates jobs from those templates, which are ansible runs
-executed against managed nodes.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_fact_caching">Fact Caching&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>It might be a good idea to use the tower facts cache. To speed up
-playbook runs set &lt;code>gather_facts: no&lt;/code> in the play. Then enable the
-facts cache in tower.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>In tower settings set a timeout for the cache&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>In job templates enable &lt;code>Use facts cache&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create a playbook that runs on a regular basis to gather facts, e.g.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-ansible" data-lang="ansible">- name: Refresh fact cache
+going to need&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;an Azure AD oauth2 key and&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;a Azure AD oauth2 secret&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_rbac"&gt;RBAC&lt;/h3&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;separate roles for organizations and inventories&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;you need to assign roles to organizations and inventories&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_the_tower_flow"&gt;The Tower Flow&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;These are the steps to run playbooks against managed nodes in Tower:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Create an organization if required&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create users&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create teams and assign users&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create credentials for accessing managed nodes&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign credential to organization&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create credentials for accessing SCM repositories (e.g. git)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign credentials to users or teams&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a project&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign Teams to project&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a job template for executing playbooks&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_ansible_roles_support"&gt;Ansible Roles support&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the project includes a &lt;code&gt;requirements.txt&lt;/code&gt; file in the &lt;em&gt;roles/&lt;/em&gt; folder, tower will automatically run&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-galaxy install -r roles/requirements.yml -p ./roles/ --force&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;at the end of an update. So this could be used to include external
+dependencies (like SAP ansible roles).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_job_templates"&gt;Job Templates&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible playbooks are stored in GIT repositories. A job template defines&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;the inventory used for this job template&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the project for executing this job&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;this connects the GIT repository used in this project with the template&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the playbook to execute&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the credentials for executing jobs&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;permissions for users / teams (e.g. admin, execute)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tower creates jobs from those templates, which are ansible runs
+executed against managed nodes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_fact_caching"&gt;Fact Caching&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It might be a good idea to use the tower facts cache. To speed up
+playbook runs set &lt;code&gt;gather_facts: no&lt;/code&gt; in the play. Then enable the
+facts cache in tower.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;In tower settings set a timeout for the cache&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;In job templates enable &lt;code&gt;Use facts cache&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a playbook that runs on a regular basis to gather facts, e.g.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-ansible" data-lang="ansible"&gt;- name: Refresh fact cache
 hosts: all
-gather_facts: yes&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_inventory_options">Inventory options&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>These are the options for creating inventories in Ansible Tower&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>static inventory defined in tower&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>importing static inventories via &lt;em>awx-manage&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>static inventory defined in git repository&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>dynamic inventory via a custom script&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>dynamic inventory provides by tower (e.g. satellite)&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>A special feature in Tower are so called &lt;strong>smart inventories&lt;/strong>. A smart
+gather_facts: yes&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_inventory_options"&gt;Inventory options&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;These are the options for creating inventories in Ansible Tower&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;static inventory defined in tower&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;importing static inventories via &lt;em&gt;awx-manage&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;static inventory defined in git repository&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;dynamic inventory via a custom script&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;dynamic inventory provides by tower (e.g. satellite)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A special feature in Tower are so called &lt;strong&gt;smart inventories&lt;/strong&gt;. A smart
 inventory combines all static and dynamic inventories and allows
-filtering based on facts. Filtering requires a valid fact cache.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_troubleshooting">Troubleshooting&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Tower uses the following components:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>postgresql&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>nginx&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>memcached&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>rabbitmq&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>supervisord&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Useful tools&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;em>ansible-tower-service&lt;/em> (e.g. status / restart)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>supervisorctl&lt;/em> (e.g. status)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>awx-manage&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Tower stores log files in&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;em>/var/log/tower/&lt;/em> (e.g. tower.log).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/var/log/supervisor/&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/var/log/nginx/&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Other important directories&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;em>/var/lib/awx/public/static&lt;/em> static files served by django&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/var/lib/awx/projects&lt;/em> stores all project related files e.g. git checkouts)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/var/lib/awx/jobs_status&lt;/em> job status output&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-by default playbook runs are confined to &lt;em>/tmp&lt;/em> this might lead
+filtering based on facts. Filtering requires a valid fact cache.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_troubleshooting"&gt;Troubleshooting&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tower uses the following components:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;postgresql&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;nginx&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;memcached&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;rabbitmq&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;supervisord&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Useful tools&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;ansible-tower-service&lt;/em&gt; (e.g. status / restart)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;supervisorctl&lt;/em&gt; (e.g. status)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;awx-manage&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tower stores log files in&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/log/tower/&lt;/em&gt; (e.g. tower.log).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/log/supervisor/&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/log/nginx/&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Other important directories&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/lib/awx/public/static&lt;/em&gt; static files served by django&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/lib/awx/projects&lt;/em&gt; stores all project related files e.g. git checkouts)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/lib/awx/jobs_status&lt;/em&gt; job status output&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+by default playbook runs are confined to &lt;em&gt;/tmp&lt;/em&gt; this might lead
 to problems with tasks running on the local system.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In case of a lost &lt;em>admin&lt;/em> password you can use &lt;em>awx-manage&lt;/em> to reset the password or create a new superuser:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">awx-manage changepassword admin
-awx-manage createsuperuser&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_replacing_the_default_tls_certificates">Replacing the default TLS certificates&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Ansible tower uses nginx to service it’s web interface over TLS. Nginx
-uses the configuration file &lt;em>/etc/nginx/nginx.conf&lt;/em>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To deploy custom TLS certificates used by tower replace the
-certificate and private key in &lt;em>/etc/tower&lt;/em>. You have to replace&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;em>/etc/tower/tower.crt&lt;/em> and&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/etc/tower/tower.key&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>It might be a good idea to create a backup copy before overwriting
-those files.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_backup_and_restore">Backup and restore&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Of course backup and restore are done via ansible. The ansible tower
-setup script &lt;code>setup.sh&lt;/code> provides a wrapper around these playbooks. Execute&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">setup.sh -b&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>to perform a backup. This creates a backup .tar.gz file in the current directory.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To restore a backup use&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">setup.sh -r&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>this restores the latest backup per default.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_things_to_remember">Things to remember&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Workflow job templates&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>add &lt;code>autocmd FileType yaml setlocal ai ts=2 sw=2 et&lt;/code> to .vimrc&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>use &lt;code>sudo yum install python-cryptography&lt;/code> if there are many vault files to speed up ansible&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In case of a lost &lt;em&gt;admin&lt;/em&gt; password you can use &lt;em&gt;awx-manage&lt;/em&gt; to reset the password or create a new superuser:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;awx-manage changepassword admin
+awx-manage createsuperuser&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_replacing_the_default_tls_certificates"&gt;Replacing the default TLS certificates&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible tower uses nginx to service it’s web interface over TLS. Nginx
+uses the configuration file &lt;em&gt;/etc/nginx/nginx.conf&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To deploy custom TLS certificates used by tower replace the
+certificate and private key in &lt;em&gt;/etc/tower&lt;/em&gt;. You have to replace&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/etc/tower/tower.crt&lt;/em&gt; and&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/etc/tower/tower.key&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It might be a good idea to create a backup copy before overwriting
+those files.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_backup_and_restore"&gt;Backup and restore&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Of course backup and restore are done via ansible. The ansible tower
+setup script &lt;code&gt;setup.sh&lt;/code&gt; provides a wrapper around these playbooks. Execute&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;setup.sh -b&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;to perform a backup. This creates a backup .tar.gz file in the current directory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To restore a backup use&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;setup.sh -r&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;this restores the latest backup per default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_things_to_remember"&gt;Things to remember&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Workflow job templates&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;add &lt;code&gt;autocmd FileType yaml setlocal ai ts=2 sw=2 et&lt;/code&gt; to .vimrc&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;use &lt;code&gt;sudo yum install python-cryptography&lt;/code&gt; if there are many vault files to speed up ansible&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

@@ -1,219 +1,219 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Matrix Generator on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/matrix-generator/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 02 Apr 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/matrix-generator/index.xml" rel="self" type="application/rss+xml"/><item><title>Configure App-of-Apps</title><link>https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/</link><pubDate>Tue, 02 Apr 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/</guid><description>&lt;div class="paragraph">
-&lt;p>In the article &lt;a href="https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/">Install GitOps to the cluster&lt;/a> OpenShift GitOps is deployed using a shell script. This should be the very first installation and the only deployment that is done manually on a cluster. This procedure automatically installs the so-called &lt;strong>App-of-Apps&lt;/strong> named &lt;strong>Argo CD Resources Manager&lt;/strong> which is responsible for all further Argo CD Applications and ApplicationSets. No other configuration should be done manually if possible.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This article will demonstrate how to configure the App-of-Apps in an easy and declarative way, using ApplicationSet mainly.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>At this stage, the OpenShift cluster with the openshift-gitops operator and the App-of-Apps must be deployed. Your Argo CD should look somehow like this:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/gitopscollection/images/initial-applications.png?width=1024px" alt="Initial Applications"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Argo CD: Initial Applications&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>But how do all these Applications end up in Argo CD and how can you add additional ones?&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_understanding_the_argo_cd_resources_manager">Understanding the Argo CD Resources Manager&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-For any further references, I am using the GitHub repository &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/" target="_blank" rel="noopener">OpenShift Clusterconfig GitOps&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The &lt;strong>Argo CD Resources Manager&lt;/strong> is, in fact, the App-of-Apps. Its configuration file can be found in the directory &lt;strong>base/argocd-resources-manager&lt;/strong>. It is simply a values file and uses the Helm Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-argocd" target="_blank" rel="noopener">helper-argocd&lt;/a> to create additional Applications or ApplicationSets for Argo CD.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_analyzing_the_example_values_file">Analyzing the example values file&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The example values file seems to be huge and confusing at first look. But it is quite easy to understand …​ trust me :)&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Let’s walk through the file bit by bit:&lt;/p>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_defining_header_variables">Defining Header Variables&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>At the top of the file, some variables are defined as so-called anchors. These definitions might be used multiple times and are defined at the top to allow us to find and change them easily.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>I define here the clusters and the information about the GitHub repository for example:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">mgmt-cluster: &amp;amp;mgmtcluster https://kubernetes.default.svc &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-mgmt-cluster-name: &amp;amp;mgmtclustername in-cluster &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Matrix Generator on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/matrix-generator/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 02 Apr 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/matrix-generator/index.xml" rel="self" type="application/rss+xml"/><item><title>Configure App-of-Apps</title><link>https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/</link><pubDate>Tue, 02 Apr 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;In the article &lt;a href="https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/"&gt;Install GitOps to the cluster&lt;/a&gt; OpenShift GitOps is deployed using a shell script. This should be the very first installation and the only deployment that is done manually on a cluster. This procedure automatically installs the so-called &lt;strong&gt;App-of-Apps&lt;/strong&gt; named &lt;strong&gt;Argo CD Resources Manager&lt;/strong&gt; which is responsible for all further Argo CD Applications and ApplicationSets. No other configuration should be done manually if possible.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article will demonstrate how to configure the App-of-Apps in an easy and declarative way, using ApplicationSet mainly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At this stage, the OpenShift cluster with the openshift-gitops operator and the App-of-Apps must be deployed. Your Argo CD should look somehow like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/initial-applications.png?width=1024px" alt="Initial Applications"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Argo CD: Initial Applications&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But how do all these Applications end up in Argo CD and how can you add additional ones?&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_understanding_the_argo_cd_resources_manager"&gt;Understanding the Argo CD Resources Manager&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For any further references, I am using the GitHub repository &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/" target="_blank" rel="noopener"&gt;OpenShift Clusterconfig GitOps&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;Argo CD Resources Manager&lt;/strong&gt; is, in fact, the App-of-Apps. Its configuration file can be found in the directory &lt;strong&gt;base/argocd-resources-manager&lt;/strong&gt;. It is simply a values file and uses the Helm Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-argocd" target="_blank" rel="noopener"&gt;helper-argocd&lt;/a&gt; to create additional Applications or ApplicationSets for Argo CD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_analyzing_the_example_values_file"&gt;Analyzing the example values file&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The example values file seems to be huge and confusing at first look. But it is quite easy to understand …​ trust me :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s walk through the file bit by bit:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_defining_header_variables"&gt;Defining Header Variables&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At the top of the file, some variables are defined as so-called anchors. These definitions might be used multiple times and are defined at the top to allow us to find and change them easily.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I define here the clusters and the information about the GitHub repository for example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;mgmt-cluster: &amp;amp;mgmtcluster https://kubernetes.default.svc &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+mgmt-cluster-name: &amp;amp;mgmtclustername in-cluster &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 production-cluster: &amp;amp;prodcluster https://api.ocp.aws.ispworld.at:6443
 production-cluster-name: &amp;amp;prodclustername prod
-repourl: &amp;amp;repourl &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-repobranch: &amp;amp;branch main &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Define the API URL for the cluster as configured in Argo CD. (The local cluster where Argo CD is running might be called kubernetes.default.svc)&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Define the short name of the cluster as configured in Argo CD. (The local cluster where Argo CD is running might be called in-cluster)&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Define the URL to the GitHub repository that is used in this file.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Define the git branch that will be used.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Any additional anchor can be used to define values, that should show up at the very top and/or are used multiple times and you do not want to write them each time.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Whenever you see a value defined as &lt;strong>*repourl&lt;/strong> for example, such an anchor is used.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_understanding_naming_conventions">Understanding Naming Conventions&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Each Application or ApplicationSet must have a unique name inside Argo CD. Whenever Applications are generated by ApplicationSet a prefix with the name of the cluster is usually added.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In the values file multiple Applications or ApplicationSets can be defined. They are all bypassed to the Helm Chart which takes care of everything. The name that will be used for an ApplicationSet for example will be the (yaml) &lt;strong>key&lt;/strong> of the definition.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For example, ApplicationSets are defined as:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">applicationsets:
+repourl: &amp;amp;repourl &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+repobranch: &amp;amp;branch main &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the API URL for the cluster as configured in Argo CD. (The local cluster where Argo CD is running might be called kubernetes.default.svc)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the short name of the cluster as configured in Argo CD. (The local cluster where Argo CD is running might be called in-cluster)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the URL to the GitHub repository that is used in this file.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the git branch that will be used.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Any additional anchor can be used to define values, that should show up at the very top and/or are used multiple times and you do not want to write them each time.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Whenever you see a value defined as &lt;strong&gt;*repourl&lt;/strong&gt; for example, such an anchor is used.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_understanding_naming_conventions"&gt;Understanding Naming Conventions&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Each Application or ApplicationSet must have a unique name inside Argo CD. Whenever Applications are generated by ApplicationSet a prefix with the name of the cluster is usually added.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the values file multiple Applications or ApplicationSets can be defined. They are all bypassed to the Helm Chart which takes care of everything. The name that will be used for an ApplicationSet for example will be the (yaml) &lt;strong&gt;key&lt;/strong&gt; of the definition.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, ApplicationSets are defined as:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;applicationsets:
 mgmt-cluster:
 ...
 enable-etcd-encryption:
-...&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The &lt;strong>keys&lt;/strong>, for example, mgmt-cluster or enable-etcd-encryption are used as names of the ApplicationSets. This way you do not need to take care of unique names, as YAML will already complain if some kwy is used twice.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_enabledisable">Enable/Disable&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Like with all of my Helm Charts, I added a switch to enable (or disable) a certain configuration. This way, you can easily remove Applications without actually deleting the specification.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-The default value is &lt;strong>false&lt;/strong>, so you actively need to set it to &lt;code>true&lt;/code>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> mgmt-cluster:
+...&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;keys&lt;/strong&gt;, for example, mgmt-cluster or enable-etcd-encryption are used as names of the ApplicationSets. This way you do not need to take care of unique names, as YAML will already complain if some kwy is used twice.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_enabledisable"&gt;Enable/Disable&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Like with all of my Helm Charts, I added a switch to enable (or disable) a certain configuration. This way, you can easily remove Applications without actually deleting the specification.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The default value is &lt;strong&gt;false&lt;/strong&gt;, so you actively need to set it to &lt;code&gt;true&lt;/code&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; mgmt-cluster:
 # Is the ApplicationSet enabled or not
-enabled: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_supported_generators">Supported Generators&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The helm chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-argocd" target="_blank" rel="noopener">helper-argocd&lt;/a> supports the following generators currently:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Matrix Generator&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>List Generator&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Git Generator (for files)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Cluster Generator&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Additional generators might be added in the future (ping me or create a pull request), but I found these the most useful ones.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>But what is the difference between these generators from the configuration point of view? The different generators require different configurations and therefore provide different placeholders for variables. While the Git generator might use variables that are defined in a file that it finds {{environment}} the List (or Cluster) generator is using {{url}} to define the target cluster.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This might make the specification of an ApplicationSet quite complex …​ and that’s the whole reason for creating the &lt;strong>helper-argocd&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_example_applicationset_matrix_generator">Example ApplicationSet - Matrix Generator&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The first ApplicationSet I would like to show is probably the most important one. As described in &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/">GitOps Repository Structure&lt;/a> I am using a folder structure like &lt;strong>clusters/management-cluster/&lt;/strong> and in this folder I am defining any configuration that is applicable for that specific cluster. If I want to add a new cluster, I simply create a new folder (and a new App-of-Apps configuration). With this, you will always see which settings a specific cluster has without much hassle.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The idea is to walk over this folder and automatically create a new Argo CD Application for any sub-folder that is found. This has the advantage, that whenever I want to create an additional configuration for a cluster, I simply add another sub-folder and the ApplicationSet will automatically create a new Argo CD application.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To achieve this the so-called &lt;strong>Matrix Generator&lt;/strong> is used. This generator combines two (currently two are possible only) generators. In our case, it combines:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>git generator: to walk over the folder and get and sub-folder&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>list generator: to define the target cluster&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The snippet of the configuration will look like the following:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> # Definition of Matrix Generator. Only 2 generators are supported at the moment
-generatormatrix: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+enabled: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_supported_generators"&gt;Supported Generators&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The helm chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-argocd" target="_blank" rel="noopener"&gt;helper-argocd&lt;/a&gt; supports the following generators currently:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Matrix Generator&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;List Generator&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Git Generator (for files)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Cluster Generator&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Additional generators might be added in the future (ping me or create a pull request), but I found these the most useful ones.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But what is the difference between these generators from the configuration point of view? The different generators require different configurations and therefore provide different placeholders for variables. While the Git generator might use variables that are defined in a file that it finds {{environment}} the List (or Cluster) generator is using {{url}} to define the target cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This might make the specification of an ApplicationSet quite complex …​ and that’s the whole reason for creating the &lt;strong&gt;helper-argocd&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_example_applicationset_matrix_generator"&gt;Example ApplicationSet - Matrix Generator&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first ApplicationSet I would like to show is probably the most important one. As described in &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/"&gt;GitOps Repository Structure&lt;/a&gt; I am using a folder structure like &lt;strong&gt;clusters/management-cluster/&lt;/strong&gt; and in this folder I am defining any configuration that is applicable for that specific cluster. If I want to add a new cluster, I simply create a new folder (and a new App-of-Apps configuration). With this, you will always see which settings a specific cluster has without much hassle.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The idea is to walk over this folder and automatically create a new Argo CD Application for any sub-folder that is found. This has the advantage, that whenever I want to create an additional configuration for a cluster, I simply add another sub-folder and the ApplicationSet will automatically create a new Argo CD application.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To achieve this the so-called &lt;strong&gt;Matrix Generator&lt;/strong&gt; is used. This generator combines two (currently two are possible only) generators. In our case, it combines:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;git generator: to walk over the folder and get and sub-folder&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;list generator: to define the target cluster&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The snippet of the configuration will look like the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; # Definition of Matrix Generator. Only 2 generators are supported at the moment
+generatormatrix: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 # Git: Walking through the specific folder and take whatever is there.
-- git: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- git: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 directories:
 - path: clusters/management-cluster/*
 - path: clusters/management-cluster/waves
@@ -221,50 +221,50 @@ exclude: true
 repoURL: *repourl
 revision: *branch
 # List: simply define the targetCluster. The name of the cluster must be known by Argo CD
-- list: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+- list: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 elements:
 # targetCluster is important, this will define on which cluster it will be rolled out.
 # The cluster name must be known in Argo CD
-- targetCluster: *mgmtclustername&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Using matrix generator&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The first generator is Git: It will observe any changes in the folder &lt;strong>clusters/management-cluster&lt;/strong> and will create a new Argo CD Application if a new sub-folder is found. However, it excludes the folder &lt;strong>clusters/management-cluster/waves/&lt;/strong>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The second generator is List: It simply defines the target cluster where the Application that is created by the ApplicationSet shall be deployed.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Now let us bring the whole example together:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> mgmt-cluster: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- targetCluster: *mgmtclustername&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Using matrix generator&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The first generator is Git: It will observe any changes in the folder &lt;strong&gt;clusters/management-cluster&lt;/strong&gt; and will create a new Argo CD Application if a new sub-folder is found. However, it excludes the folder &lt;strong&gt;clusters/management-cluster/waves/&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The second generator is List: It simply defines the target cluster where the Application that is created by the ApplicationSet shall be deployed.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now let us bring the whole example together:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; mgmt-cluster: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 # Is the ApplicationSet enabled or not
-enabled: true &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+enabled: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 # Description - always useful
-description: &amp;#34;ApplicationSet that Deploys on Management Cluster Configuration (using Matrix Generator)&amp;#34; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+description: &amp;#34;ApplicationSet that Deploys on Management Cluster Configuration (using Matrix Generator)&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 # Any labels you would like to add to the Application. Good to filter it in the Argo CD UI.
-labels: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+labels: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 category: configuration
 env: mgmt-cluster
 # Using go text template. See: https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/GoTemplate/
-goTemplate: true &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
-argocd_project: *mgmtclustername &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+goTemplate: true &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+argocd_project: *mgmtclustername &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 # preserve all resources when the application get deleted. This is useful to keep that workload even if Argo CD is removed or severely changed.
-preserveResourcesOnDeletion: true &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>
+preserveResourcesOnDeletion: true &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
 # Definition of Matrix Generator. Only 2 generators are supported at the moment
-generatormatrix: &lt;i class="conum" data-value="8">&lt;/i>&lt;b>(8)&lt;/b>
+generatormatrix: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
 # Git: Walking through the specific folder and take whatever is there.
 - git:
 directories:
@@ -279,65 +279,65 @@ elements:
 # targetCluster is important, this will define on which cluster it will be rolled out.
 # The cluster name must be known in Argo CD
 - targetCluster: *mgmtclustername
-syncPolicy: &lt;i class="conum" data-value="9">&lt;/i>&lt;b>(9)&lt;/b>
-autosync_enabled: false&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Key of the ApplicationSet inside the yaml specification, that will be used as object name&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Is the ApplicationSet enabled or not (Default: false)&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>A useful description&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Labels that can be used to filter&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Enable the usage of Go Template for this ApplicationSet&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>The Argo CD project (not OpenShift project) the ApplicationSet belongs to&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>Be sure that resources are not deleted when deleting the ApplicationSet. I found this quite useful …​ otherwise, all Applications the ApplicationSet created will be removed INCLUDING the resources they have created.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="8">&lt;/i>&lt;b>8&lt;/b>&lt;/td>
-&lt;td>The specification of the matrix generator&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="9">&lt;/i>&lt;b>9&lt;/b>&lt;/td>
-&lt;td>Any kind of syncPolicy …​ in this case automatic synchronization of the Applications that are created is disabled.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Based on these settings the &lt;strong>helper-argocd&lt;/strong> helm chart will render an ApplicationSet object automatically. As mentioned above it will be called &lt;strong>mgmt-cluster&lt;/strong> and creates an Application for any sub-folder it finds in clusters/management-cluster.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Any new folder that is added will automatically create a new Application. You do not need to configure anything else.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The full objects will look like this:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+syncPolicy: &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
+autosync_enabled: false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Key of the ApplicationSet inside the yaml specification, that will be used as object name&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Is the ApplicationSet enabled or not (Default: false)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A useful description&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Labels that can be used to filter&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the usage of Go Template for this ApplicationSet&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The Argo CD project (not OpenShift project) the ApplicationSet belongs to&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Be sure that resources are not deleted when deleting the ApplicationSet. I found this quite useful …​ otherwise, all Applications the ApplicationSet created will be removed INCLUDING the resources they have created.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The specification of the matrix generator&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Any kind of syncPolicy …​ in this case automatic synchronization of the Applications that are created is disabled.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Based on these settings the &lt;strong&gt;helper-argocd&lt;/strong&gt; helm chart will render an ApplicationSet object automatically. As mentioned above it will be called &lt;strong&gt;mgmt-cluster&lt;/strong&gt; and creates an Application for any sub-folder it finds in clusters/management-cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Any new folder that is added will automatically create a new Application. You do not need to configure anything else.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The full objects will look like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-name: mgmt-cluster &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+name: mgmt-cluster &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 namespace: openshift-gitops
 labels:
 app.kubernetes.io/instance: argocd-resources-manager
@@ -347,7 +347,7 @@ category: configuration
 env: mgmt-cluster
 helm.sh/chart: helper-argocd-2.0.28
 spec:
-generators: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+generators: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 - matrix:
 generators:
 - git:
@@ -367,70 +367,70 @@ syncPolicy:
 preserveResourcesOnDeletion: true
 template:
 metadata:
-name: &amp;#39;{{ .targetCluster }}-{{ .path.basenameNormalized }}&amp;#39; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+name: &amp;#39;{{ .targetCluster }}-{{ .path.basenameNormalized }}&amp;#39; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 spec:
-destination: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+destination: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 name: &amp;#39;{{ .targetCluster }}&amp;#39;
 namespace: default
 info:
 - name: Description
 value: ApplicationSet that Deploys on Management Cluster Configuration (using Matrix Generator)
 project: in-cluster
-source: &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+source: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 path: &amp;#39;{{ .path.path }}&amp;#39;
 repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
-targetRevision: main&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Name of the object == name of the key in the values file definition&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Configuration of the matrix generator&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Name of the Applications that this ApplicationSet will generate. In this case, it will concat the name of the target cluster and the name of the path.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Target cluster&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Definition of the source for the Application&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_example_applicationset_git_generator">Example ApplicationSet - Git Generator&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Now let us take a look at a second example using the git generator. The basic idea is quite similar and just a few minor changes must be made to our configuration.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In the following object, a git &lt;strong>file&lt;/strong> generator is used to observe a specific folder and look for the file named values.yaml. For each file that it found an Application is created.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-This example is also explained in my article at &lt;a href="https://www.redhat.com/en/blog/project-onboarding-using-gitops-and-helm?channel=/en/blog/channel/hybrid-cloud-infrastructure" target="_blank" rel="noopener">Project onboarding using GitOps and Helm&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> # Tenant Onboarding (using Git Generator)
-onboarding-tenant-workload: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+targetRevision: main&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the object == name of the key in the values file definition&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Configuration of the matrix generator&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Applications that this ApplicationSet will generate. In this case, it will concat the name of the target cluster and the name of the path.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Target cluster&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Definition of the source for the Application&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_example_applicationset_git_generator"&gt;Example ApplicationSet - Git Generator&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now let us take a look at a second example using the git generator. The basic idea is quite similar and just a few minor changes must be made to our configuration.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the following object, a git &lt;strong&gt;file&lt;/strong&gt; generator is used to observe a specific folder and look for the file named values.yaml. For each file that it found an Application is created.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This example is also explained in my article at &lt;a href="https://www.redhat.com/en/blog/project-onboarding-using-gitops-and-helm?channel=/en/blog/channel/hybrid-cloud-infrastructure" target="_blank" rel="noopener"&gt;Project onboarding using GitOps and Helm&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; # Tenant Onboarding (using Git Generator)
+onboarding-tenant-workload: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 # Is the ApplicationSet enabled or not
 enabled: true
 # Description - always useful
@@ -439,13 +439,13 @@ description: &amp;#34;Onboarding Workload to the cluster&amp;#34;
 labels:
 catagory: tenant-onboarding
 # Path to the Git repository. The default URL and revision are defined as anchors at the beginning of the file, but could be overwritten here.
-path: clusters/all/project-onboarding &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+path: clusters/all/project-onboarding &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 repourl: *repourl
 targetrevision: *branch
 # Using go text template. See: https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/GoTemplate/
 goTemplate: true
 # Helm configuration. A list of helm values files
-helm: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+helm: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 per_cluster_helm_values: false
 value_files:
 - &amp;#39;/{{ .path.path }}/values.yaml&amp;#39;
@@ -453,45 +453,45 @@ value_files:
 # Generator: currently list, git and cluster are possible.
 # either &amp;#34;generatorlist&amp;#34;, &amp;#34;generatorgit&amp;#34; or &amp;#34;generatorclusters&amp;#34;
 # Define the repository that shall be checked for configuration file
-generatorgit: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+generatorgit: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 - repourl: *repourl
 targetrevision: *branch
 files:
-- tenants/**/values.yaml &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+- tenants/**/values.yaml &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 # preserve all resources when the application gets deleted. This is useful to keep that workload even if Argo CD is removed or severely changed.
-preserveResourcesOnDeletion: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Name of the ApplicationSet&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The repo URL and path which shall be read for the ApplicationSet&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>A list of values files, that shall be used.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>The specification of the Git generator&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>The path that shall be observed by this ApplicationSet. ** will return all files and directories recursively.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Again, the Helm chart &lt;strong>helper-argocd&lt;/strong> will render an ApplicationSet for us.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+preserveResourcesOnDeletion: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the ApplicationSet&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The repo URL and path which shall be read for the ApplicationSet&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A list of values files, that shall be used.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The specification of the Git generator&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The path that shall be observed by this ApplicationSet. ** will return all files and directories recursively.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Again, the Helm chart &lt;strong&gt;helper-argocd&lt;/strong&gt; will render an ApplicationSet for us.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
 name: onboarding-tenant-workload
@@ -532,47 +532,47 @@ valueFiles:
 - /tenants/values-global.yaml
 path: clusters/all/project-onboarding
 repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
-targetRevision: main&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_example_applicationset_list_generator">Example ApplicationSet - List Generator&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>At this point, we have seen two examples of ApplicationSets defined for &lt;strong>helper-argocd&lt;/strong>. The List generator will be very easy to understand as it simply uses a list of target clusters to render the ApplicationSet.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following snippet demonstrates that all you need to set are the &lt;strong>clustername&lt;/strong> and &lt;strong>clusterurl&lt;/strong>.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Please also verify the article &lt;a href="https://www.redhat.com/en/blog/argo-cd-and-release-management-with-helm-charts-and-applicationsets?channel=/en/blog/channel/hybrid-cloud-infrastructure" target="_blank" rel="noopener">Argo CD and Release Management with Helm Charts and ApplicationSets&lt;/a> to understand the usage of the setting &lt;strong>chart_version&lt;/strong>.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> # List of clusters
+targetRevision: main&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_example_applicationset_list_generator"&gt;Example ApplicationSet - List Generator&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At this point, we have seen two examples of ApplicationSets defined for &lt;strong&gt;helper-argocd&lt;/strong&gt;. The List generator will be very easy to understand as it simply uses a list of target clusters to render the ApplicationSet.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following snippet demonstrates that all you need to set are the &lt;strong&gt;clustername&lt;/strong&gt; and &lt;strong&gt;clusterurl&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Please also verify the article &lt;a href="https://www.redhat.com/en/blog/argo-cd-and-release-management-with-helm-charts-and-applicationsets?channel=/en/blog/channel/hybrid-cloud-infrastructure" target="_blank" rel="noopener"&gt;Argo CD and Release Management with Helm Charts and ApplicationSets&lt;/a&gt; to understand the usage of the setting &lt;strong&gt;chart_version&lt;/strong&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; # List of clusters
 # &amp;#34;clustername&amp;#34; (string): Is the name of the cluster a defined in Argo CD
 # &amp;#34;clusterurl&amp;#34; (string): Is the URL of the cluster API
 # &amp;#34;chart_version&amp;#34; (string, optional): Defines which chart version shall be deployed on each cluster.
 generatorlist:
 - clustername: *mgmtclustername
-clusterurl: *mgmtcluster&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This is all the magic. The rendered ApplicationSet will look like:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+clusterurl: *mgmtcluster&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is all the magic. The rendered ApplicationSet will look like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
 name: install-sonarqube
@@ -605,50 +605,50 @@ chart: sonarqube
 helm:
 releaseName: sonarqube
 repoURL: &amp;#39;https://charts.stderr.at/&amp;#39;
-targetRevision: 1.0.1&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-The list generator can be used to deploy on &lt;strong>ALL&lt;/strong> clusters too. Simply define &lt;strong>generatorlist: []&lt;/strong>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+targetRevision: 1.0.1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The list generator can be used to deploy on &lt;strong&gt;ALL&lt;/strong&gt; clusters too. Simply define &lt;strong&gt;generatorlist: []&lt;/strong&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The example above also demonstrates how to use a Helm chart instead of a git repository.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_what_about_applications">What about Applications?&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The examples above show the usage of ApplicationSet and recently I migrated any specification of an Application to ApplicationSets as I believe this is easier to use, especially when the Chart is rendering it for you.
-However, it is still possible to define Applications as well.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following example defines such an Application. The configuration differs compared to the ApplicationSet, however, the main idea stays the same:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">applications: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-node-labelling: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_about_applications"&gt;What about Applications?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The examples above show the usage of ApplicationSet and recently I migrated any specification of an Application to ApplicationSets as I believe this is easier to use, especially when the Chart is rendering it for you.
+However, it is still possible to define Applications as well.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following example defines such an Application. The configuration differs compared to the ApplicationSet, however, the main idea stays the same:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;applications: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+node-labelling: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 enabled: true
 description: &amp;#34;Deploy Node Labels&amp;#34;
 labels:
@@ -656,53 +656,53 @@ category: configuration
 namespace:
 name: default
 create: false
-server: *mgmtcluster &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+server: *mgmtcluster &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 project: default
-syncOptions: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+syncOptions: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 - name: ServerSideApply
 value: true
 - name: Validate
 value: false
-source: &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+source: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 path: clusters/management-cluster/node-labels
 helm:
 valuesfiles:
 - name: values.yaml
 repourl: *repourl
-targetrevision: *branch&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Defining Applications&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Name of the Application. Be sure that it is unique since this time no prefix will be added&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The target cluster for this Application&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Different options for the synchronization&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>The specification of the source. This contains the path, URL and branch of the repository and (in this case) the definition of a Helm values file.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_summary">Summary&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>I hope I was able to explain the usage of my chart &lt;strong>helper-argocd&lt;/strong> and how I configure it. You can also verify the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-argocd" target="_blank" rel="noopener">README&lt;/a> to find additional possible settings and the example &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/base/argocd-resources-manager/values.yaml" target="_blank" rel="noopener">values.file&lt;/a> that I use for all my clusters when I to a demo.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+targetrevision: *branch&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Defining Applications&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Application. Be sure that it is unique since this time no prefix will be added&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The target cluster for this Application&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Different options for the synchronization&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The specification of the source. This contains the path, URL and branch of the repository and (in this case) the definition of a Helm values file.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I hope I was able to explain the usage of my chart &lt;strong&gt;helper-argocd&lt;/strong&gt; and how I configure it. You can also verify the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-argocd" target="_blank" rel="noopener"&gt;README&lt;/a&gt; to find additional possible settings and the example &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/base/argocd-resources-manager/values.yaml" target="_blank" rel="noopener"&gt;values.file&lt;/a&gt; that I use for all my clusters when I to a demo.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

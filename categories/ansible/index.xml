@@ -1,103 +1,103 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Ansible on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/ansible/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 30 Nov 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/ansible/index.xml" rel="self" type="application/rss+xml"/><item><title>Ansible Style Guide</title><link>https://blog.stderr.at/ansible/2021/11/ansible-style-guide/</link><pubDate>Tue, 30 Nov 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2021/11/ansible-style-guide/</guid><description>&lt;div class="paragraph">
-&lt;p>You should always follow the &lt;a href="https://docs.ansible.com/ansible/latest/user_guide/playbooks_best_practices.html" target="_blank" rel="noopener">Best Practices&lt;/a> and &lt;a href="https://ansible-lint.readthedocs.io/en/latest/" target="_blank" rel="noopener">Ansible Lint&lt;/a> rules defined by the Ansible documentation when developing playbooks.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Although very basic, the &lt;a href="https://docs.ansible.com/ansible/latest/user_guide/playbooks_best_practices.html" target="_blank" rel="noopener">Best Practices&lt;/a> document gives a few guidelines to be able to carry out well-structured playbooks and roles, it contains recommendations that evolve with the project, so it is recommended to review it regularly. It is advisable to review the organization of content in Ansible.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The &lt;a href="https://ansible-lint.readthedocs.io/en/latest/" target="_blank" rel="noopener">Ansible Lint&lt;/a> documentation shows us through this tool the syntax rules that will be checked in the testing of roles and playbooks, the rules that will be checked are indicated in this document in their respective section.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-This style guide is meant as a base of playbook development. It is not the ultimate truth. Always verify and apply appropriate company rules. There are many additional references available, such as: &lt;a href="https://github.com/whitecloud/ansible-styleguide" class="bare">https://github.com/whitecloud/ansible-styleguide&lt;/a> or &lt;a href="https://github.com/redhat-cop/automation-good-practices" class="bare">https://github.com/redhat-cop/automation-good-practices&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_general_recommendations">General Recommendations&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Treat your Ansible content like code: Any playbook, role, inventory or collection should be versionized using Git or a similar tool.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Iterate: start with basic playbook and refactor later&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Use multiple Git repositories: on per role/collection, separate inventory from other repositories&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Use human-meaningful names in inventory files&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>group hosts in inventory files&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>use a consistent &lt;a href="#_directory_structure">Directory Structure&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_optimize_playbook_execution">Optimize Playbook Execution&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Disable facts gathering if it is not required.&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>Try not to use: &lt;code>ansible_facts[‘hostname’]&lt;/code> (or ‘nodename’)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Try to use &lt;code>inventory_hostname&lt;/code> and &lt;code>inventory_hostname_short&lt;/code> instead&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>It is possible to selectively gather facts (&lt;code>gather_subnet&lt;/code>)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Consider caching facts&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Increase Parallelism&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>Ansible runs 1st task on every host, then 2nd task on every host …&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Use “forks” (default is 5) to control how many connections can be active (load will increase, try first with conservative values)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>While testing forks analize &lt;a href="#_enable_cpu_and_memory_profiling">Enable CPU and Memory Profiling&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>If you use the module &amp;#34;copy&amp;#34; for large files: do not use “copy” module. Use “synchronize” module instead (based on rsync)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Use lists when ever a modules support it (i.e. yum)
-Instead of&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">tasks:
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Ansible on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/ansible/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 30 Nov 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/ansible/index.xml" rel="self" type="application/rss+xml"/><item><title>Ansible Style Guide</title><link>https://blog.stderr.at/ansible/2021/11/ansible-style-guide/</link><pubDate>Tue, 30 Nov 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2021/11/ansible-style-guide/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;You should always follow the &lt;a href="https://docs.ansible.com/ansible/latest/user_guide/playbooks_best_practices.html" target="_blank" rel="noopener"&gt;Best Practices&lt;/a&gt; and &lt;a href="https://ansible-lint.readthedocs.io/en/latest/" target="_blank" rel="noopener"&gt;Ansible Lint&lt;/a&gt; rules defined by the Ansible documentation when developing playbooks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Although very basic, the &lt;a href="https://docs.ansible.com/ansible/latest/user_guide/playbooks_best_practices.html" target="_blank" rel="noopener"&gt;Best Practices&lt;/a&gt; document gives a few guidelines to be able to carry out well-structured playbooks and roles, it contains recommendations that evolve with the project, so it is recommended to review it regularly. It is advisable to review the organization of content in Ansible.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;a href="https://ansible-lint.readthedocs.io/en/latest/" target="_blank" rel="noopener"&gt;Ansible Lint&lt;/a&gt; documentation shows us through this tool the syntax rules that will be checked in the testing of roles and playbooks, the rules that will be checked are indicated in this document in their respective section.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This style guide is meant as a base of playbook development. It is not the ultimate truth. Always verify and apply appropriate company rules. There are many additional references available, such as: &lt;a href="https://github.com/whitecloud/ansible-styleguide" class="bare"&gt;https://github.com/whitecloud/ansible-styleguide&lt;/a&gt; or &lt;a href="https://github.com/redhat-cop/automation-good-practices" class="bare"&gt;https://github.com/redhat-cop/automation-good-practices&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_general_recommendations"&gt;General Recommendations&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Treat your Ansible content like code: Any playbook, role, inventory or collection should be versionized using Git or a similar tool.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Iterate: start with basic playbook and refactor later&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use multiple Git repositories: on per role/collection, separate inventory from other repositories&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use human-meaningful names in inventory files&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;group hosts in inventory files&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;use a consistent &lt;a href="#_directory_structure"&gt;Directory Structure&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_optimize_playbook_execution"&gt;Optimize Playbook Execution&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Disable facts gathering if it is not required.&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;Try not to use: &lt;code&gt;ansible_facts[‘hostname’]&lt;/code&gt; (or ‘nodename’)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Try to use &lt;code&gt;inventory_hostname&lt;/code&gt; and &lt;code&gt;inventory_hostname_short&lt;/code&gt; instead&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;It is possible to selectively gather facts (&lt;code&gt;gather_subnet&lt;/code&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Consider caching facts&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Increase Parallelism&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;Ansible runs 1st task on every host, then 2nd task on every host …&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use “forks” (default is 5) to control how many connections can be active (load will increase, try first with conservative values)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;While testing forks analize &lt;a href="#_enable_cpu_and_memory_profiling"&gt;Enable CPU and Memory Profiling&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;If you use the module &amp;#34;copy&amp;#34; for large files: do not use “copy” module. Use “synchronize” module instead (based on rsync)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use lists when ever a modules support it (i.e. yum)
+Instead of&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;tasks:
 - name: Ensure the packages are installed
 yum:
 name: &amp;#34;{{ item }}&amp;#34;
@@ -109,15 +109,15 @@ loop:
 - mariadb-server
 - mariadb
 - php
-- php-mysqlnd&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>use&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">tasks:
+- php-mysqlnd&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;use&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;tasks:
 - name: Ensure the packages are installed
 yum:
 state: present
@@ -128,240 +128,240 @@ name:
 - mariadb-server
 - mariadb
 - php
-- php-mysqlnd&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic" start="5">
-&lt;li>
-&lt;p>Optimize SSH Connections&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>in &lt;em>ansible.cfg&lt;/em> set&lt;/p>
-&lt;div class="olist lowerroman">
-&lt;ol class="lowerroman" type="i">
-&lt;li>
-&lt;p>ControlMaster&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>ControlPersist&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>PreferredAuthentications&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Enabling &lt;strong>Pipelining&lt;/strong>&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>Not enabled by default&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>reduces number of SSH operations&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>requires to disable &lt;strong>requiertty&lt;/strong> in sudo options&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_name_tasks_and_plays">Name Tasks and Plays&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Every task or play should be explicitly named in a way that the purpose is easily understood and can be referred to if the playbook has to be restarted from a certain task.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For example the following is hard to read and debug:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">PLAY [localhost]
+- php-mysqlnd&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic" start="5"&gt;
+&lt;li&gt;
+&lt;p&gt;Optimize SSH Connections&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;in &lt;em&gt;ansible.cfg&lt;/em&gt; set&lt;/p&gt;
+&lt;div class="olist lowerroman"&gt;
+&lt;ol class="lowerroman" type="i"&gt;
+&lt;li&gt;
+&lt;p&gt;ControlMaster&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ControlPersist&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;PreferredAuthentications&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Enabling &lt;strong&gt;Pipelining&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;Not enabled by default&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;reduces number of SSH operations&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;requires to disable &lt;strong&gt;requiertty&lt;/strong&gt; in sudo options&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_name_tasks_and_plays"&gt;Name Tasks and Plays&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Every task or play should be explicitly named in a way that the purpose is easily understood and can be referred to if the playbook has to be restarted from a certain task.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example the following is hard to read and debug:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;PLAY [localhost]
 ********************************
 TASK [include_vars]
 ********************************
 ok: [localhost]
 TASK [yum]
 ********************************
-ok: [localhost]&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>While with naming it is easier to follow what is happening:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">PLAY [Create a new virtual machine]
+ok: [localhost]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While with naming it is easier to follow what is happening:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;PLAY [Create a new virtual machine]
 ********************************
 TASK [Include vmware-credentials]
 ********************************
 ok: [localhost]
 TASK [Install required packages with yum]
 ********************************
-ok: [localhost]&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+ok: [localhost]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 # set another variable
 - set_fact:
-my_second_var: &amp;#34;{{ my_var }}&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+my_second_var: &amp;#34;{{ my_var }}&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: set another variable
 set_fact:
-my_second_var: &amp;#34;{{ my_var }}&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Better understanding what is currently happening in a play and better possibility to debug.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_variables_in_task_names">Variables in Task Names&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Include as much information as necessary to explain the purpose of a task. Make usage of variables inside a task name to create dynamic output messages.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">#bad
+my_second_var: &amp;#34;{{ my_var }}&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Better understanding what is currently happening in a play and better possibility to debug.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_variables_in_task_names"&gt;Variables in Task Names&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Include as much information as necessary to explain the purpose of a task. Make usage of variables inside a task name to create dynamic output messages.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;#bad
 - name: &amp;#39;Change status&amp;#39;
 service:
 enabled: true
 name: &amp;#39;httpd&amp;#39;
 state: &amp;#39;{{ state }}&amp;#39;
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">#good
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;#good
 - name: &amp;#39;Change status of httpd to {{ state }}&amp;#39;
 service:
 enabled: true
 name: &amp;#39;httpd&amp;#39;
 state: &amp;#39;{{ state }}&amp;#39;
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-This will help to easily understand log outputs of playbooks.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_omitting_unnecessary_information">Omitting Unnecessary Information&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>While name tasks in a playbook, &lt;strong>do not&lt;/strong> include the name of the role which is currently executed, since Ansible will do this automatically.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Avoiding the same output twice on the console will prevent confusions.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_names">Names&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>All the newly created Ansible roles should follow the name convention using dashes if necessary:
-&lt;code>[company]-[action]-[function/technology]&lt;/code>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
-lvm&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
-mycompany-setup-lvm&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-If using roles from Ansible Galaxy, it will keep consistency about which roles are created internally.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_use_modules_instead_of_command_or_shell">Use Modules instead of command or shell&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Before using the &lt;code>command&lt;/code> or &lt;code>shell&lt;/code> module, verify if there is already a module available which can avoid the usage of raw shell command.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+This will help to easily understand log outputs of playbooks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_omitting_unnecessary_information"&gt;Omitting Unnecessary Information&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While name tasks in a playbook, &lt;strong&gt;do not&lt;/strong&gt; include the name of the role which is currently executed, since Ansible will do this automatically.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Avoiding the same output twice on the console will prevent confusions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_names"&gt;Names&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All the newly created Ansible roles should follow the name convention using dashes if necessary:
+&lt;code&gt;[company]-[action]-[function/technology]&lt;/code&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
+lvm&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
+mycompany-setup-lvm&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+If using roles from Ansible Galaxy, it will keep consistency about which roles are created internally.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_use_modules_instead_of_command_or_shell"&gt;Use Modules instead of command or shell&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before using the &lt;code&gt;command&lt;/code&gt; or &lt;code&gt;shell&lt;/code&gt; module, verify if there is already a module available which can avoid the usage of raw shell command.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: install httpd
 tasks:
-- command: &amp;#34;yum install httpd&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+- command: &amp;#34;yum install httpd&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: install packages
 tasks:
 - name: &amp;#39;install httpd&amp;#39;
 yum:
 name: &amp;#39;httpd&amp;#39;
-state: &amp;#39;present&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-While raw command could be seen as a security risk in general, another reason to avoid them is the loss of immutability of the ansible playbooks or roles. Ansible cannot verify if a command has been already executed before or not and will therefore execute it every time the playbook is running.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_documenting_a_taskplay">Documenting a Task/Play&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Every playbook, role or task should start with a documentation &lt;em>why&lt;/em> this code has been written and what it does and should include an example usage if applicable. The comment should be followed by &lt;code>---`&lt;/code> with no blank lines around it, to indicate the actual start of the yaml definition&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">#bad
+state: &amp;#39;present&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+While raw command could be seen as a security risk in general, another reason to avoid them is the loss of immutability of the ansible playbooks or roles. Ansible cannot verify if a command has been already executed before or not and will therefore execute it every time the playbook is running.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_documenting_a_taskplay"&gt;Documenting a Task/Play&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Every playbook, role or task should start with a documentation &lt;em&gt;why&lt;/em&gt; this code has been written and what it does and should include an example usage if applicable. The comment should be followed by &lt;code&gt;---`&lt;/code&gt; with no blank lines around it, to indicate the actual start of the yaml definition&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;#bad
 - name: &amp;#39;Change httpd status&amp;#39;
 service:
 enabled: true
 name: &amp;#39;httpd&amp;#39;
 state: &amp;#39;{{ state }}&amp;#39;
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">#good
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;#good
 # Example usage: ansible-playbook -e state=started playbook.yml
 # This playbook changes the state of the httpd daemon
 ---
@@ -370,94 +370,94 @@ service:
 enabled: true
 name: &amp;#39;httpd&amp;#39;
 state: &amp;#39;{{ state }}&amp;#39;
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-This common programmatic practice helps to quickly understand the purpose and usage of a playbook or role.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.document_start" target="_blank" rel="noopener">document-start rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_end_a_file">End a File&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Files should be ended with a newline.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-This is common Unix best practice which avoids any prompt misalignment when printing files in a terminal.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.new_line_at_end_of_file" target="_blank" rel="noopener">new-line-at-end-of-file rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_quotes">Quotes&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Strings should be quoted, while quotes for booleans (e.g. true/false) or integers (i.g. 42) should be avoided.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Do &lt;strong>NOT&lt;/strong> quote:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>hosts: targets (e.g. hosts: databases rather than hosts: ‘databases’)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>include_tasks: and include_roles: target file names&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>task and role names&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>registered variables&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>number values&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>boolean values&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+This common programmatic practice helps to quickly understand the purpose and usage of a playbook or role.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.document_start" target="_blank" rel="noopener"&gt;document-start rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_end_a_file"&gt;End a File&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Files should be ended with a newline.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+This is common Unix best practice which avoids any prompt misalignment when printing files in a terminal.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.new_line_at_end_of_file" target="_blank" rel="noopener"&gt;new-line-at-end-of-file rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_quotes"&gt;Quotes&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Strings should be quoted, while quotes for booleans (e.g. true/false) or integers (i.g. 42) should be avoided.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Do &lt;strong&gt;NOT&lt;/strong&gt; quote:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;hosts: targets (e.g. hosts: databases rather than hosts: ‘databases’)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;include_tasks: and include_roles: target file names&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;task and role names&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;registered variables&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;number values&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;boolean values&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 It is possible to use single or double quotes. In this document single quotes are used, as it seems to be more common. Double quotes are often seen in European countries, especially German speaking countries. The most important thing is to stick to one style.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: &amp;#39;start robot named my-robot&amp;#39;
 service:
 name: my-robot
 state: started
 enabled: true
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: &amp;#39;start robot named my-robot&amp;#39;
 service:
 name: &amp;#39;my-robot&amp;#39;
@@ -507,81 +507,81 @@ when: ansible_os_family == &amp;#39;Darwin&amp;#39;
 # variables example 3
 - name: &amp;#39;set another variable&amp;#39;
 set_fact:
-my_second_var: &amp;#39;{{ my_var }}&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.quoted_strings" target="_blank" rel="noopener">quoted-strings rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_sudo">Sudo&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Use the new become syntax when designating that a task needs to be run with sudo privileges&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">#bad
+my_second_var: &amp;#39;{{ my_var }}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.quoted_strings" target="_blank" rel="noopener"&gt;quoted-strings rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_sudo"&gt;Sudo&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use the new become syntax when designating that a task needs to be run with sudo privileges&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;#bad
 - name: &amp;#39;template client.json to /etc/sensu/conf.d/&amp;#39;
 template:
 dest: &amp;#39;/etc/sensu/conf.d/client.json&amp;#39;
 src: &amp;#39;client.json.j2&amp;#39;
-sudo: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+sudo: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: &amp;#39;template client.json to /etc/sensu/conf.d/&amp;#39;
 template:
 dest: &amp;#39;/etc/sensu/conf.d/client.json&amp;#39;
 src: &amp;#39;client.json.j2&amp;#39;
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Using sudo was deprecated at &lt;a href="https://docs.ansible.com/ansible/latest/user_guide/become.html">Ansible version 1.9.1&lt;/a>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Ansible-lint &lt;a href="https://docs.ansible.com/ansible-lint/rules/default_rules.html" target="_blank" rel="noopener">E103 rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_hosts_declarations">Hosts Declarations&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Host sections be defined in such a way that it follows this general order:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>host declaration&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>host options in alphabetical order&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>pre_tasks&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>roles&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>tasks&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># example
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Using sudo was deprecated at &lt;a href="https://docs.ansible.com/ansible/latest/user_guide/become.html"&gt;Ansible version 1.9.1&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Ansible-lint &lt;a href="https://docs.ansible.com/ansible-lint/rules/default_rules.html" target="_blank" rel="noopener"&gt;E103 rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_hosts_declarations"&gt;Hosts Declarations&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Host sections be defined in such a way that it follows this general order:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;host declaration&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;host options in alphabetical order&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;pre_tasks&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;roles&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;tasks&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# example
 - hosts: &amp;#39;webservers&amp;#39;
 remote_user: &amp;#39;centos&amp;#39;
 vars:
@@ -599,47 +599,47 @@ tasks:
 - name: &amp;#39;start the tomcat service&amp;#39;
 service:
 name: &amp;#39;tomcat&amp;#39;
-state: &amp;#39;{{ tomcat_state }}&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-A global definition about the order of these items, will create an easy and consistent human readable code.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_tasks_declarations">Tasks Declarations&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>A task should be defined in such a way that it follows this general order:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>task name&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>tags&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>task map declaration (e.g. service:)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>task parameters in alphabetical order (remember to always use multi-line map syntax)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>loop operators (e.g. with_items)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>task options in alphabetical order (e.g. become, ignore_errors, register)&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># example
+state: &amp;#39;{{ tomcat_state }}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+A global definition about the order of these items, will create an easy and consistent human readable code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_tasks_declarations"&gt;Tasks Declarations&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A task should be defined in such a way that it follows this general order:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;task name&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;tags&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;task map declaration (e.g. service:)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;task parameters in alphabetical order (remember to always use multi-line map syntax)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;loop operators (e.g. with_items)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;task options in alphabetical order (e.g. become, ignore_errors, register)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# example
 - name: &amp;#39;create some ec2 instances&amp;#39;
 tags: &amp;#39;ec2&amp;#39;
 ec2:
@@ -651,150 +651,150 @@ key_name: &amp;#39;my_key&amp;#39;
 with_items: &amp;#39;{{ instance_names }}&amp;#39;
 ignore_errors: true
 register: ec2_output
-when: ansible_os_family == &amp;#39;Darwin&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-A global definition about the order of these items, will create an easy and consistent human readable code.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_include_declaration">Include Declaration&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>For include statements, make sure to quote filenames and only use blank lines between include statements if they are multi-line (e.g. they have tags).&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+when: ansible_os_family == &amp;#39;Darwin&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+A global definition about the order of these items, will create an easy and consistent human readable code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_include_declaration"&gt;Include Declaration&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For include statements, make sure to quote filenames and only use blank lines between include statements if they are multi-line (e.g. they have tags).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - include: other_file.yml
 - include: &amp;#39;second_file.yml&amp;#39;
-- include: third_file.yml tags=third&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+- include: third_file.yml tags=third&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - include: &amp;#39;other_file.yml&amp;#39;
 - include: &amp;#39;second_file.yml&amp;#39;
 - include: &amp;#39;third_file.yml&amp;#39;
-tags: &amp;#39;third&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Using such syntax, will create an easy and consistent human readable code.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_booleans">Booleans&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Use true/false instead of yes/no (or 1/0).&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+tags: &amp;#39;third&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Using such syntax, will create an easy and consistent human readable code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_booleans"&gt;Booleans&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use true/false instead of yes/no (or 1/0).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: &amp;#39;start httpd&amp;#39;
 service:
 name: &amp;#39;httpd&amp;#39;
 state: &amp;#39;restarted&amp;#39;
 enabled: 1
-become: &amp;#39;yes&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+become: &amp;#39;yes&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: &amp;#39;start httpd&amp;#39;
 service:
 name: &amp;#39;httpd&amp;#39;
 state: &amp;#39;restarted&amp;#39;
 enabled: true
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Ansible can read boolean values in many different ways, like: True/False, true/false, yes/no, 1/0. It makes sense to stick to one option, which is then equally used in any playbook or role. It is recommended to use true/false since Java and Javascript are using the same values for boolean values.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.truthy" target="_blank" rel="noopener">truthy rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Required config: &lt;code>truthy: {allowed-values: [&amp;#34;true&amp;#34;, &amp;#34;false&amp;#34;]}`&lt;/code>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_key_value_pairs">Key Value Pairs&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Only one space should be used after the colon, when defining key/value pairs.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Ansible can read boolean values in many different ways, like: True/False, true/false, yes/no, 1/0. It makes sense to stick to one option, which is then equally used in any playbook or role. It is recommended to use true/false since Java and Javascript are using the same values for boolean values.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.truthy" target="_blank" rel="noopener"&gt;truthy rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Required config: &lt;code&gt;truthy: {allowed-values: [&amp;#34;true&amp;#34;, &amp;#34;false&amp;#34;]}`&lt;/code&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_key_value_pairs"&gt;Key Value Pairs&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Only one space should be used after the colon, when defining key/value pairs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name : &amp;#39;start httpd&amp;#39;
 service:
 name : &amp;#39;httpd&amp;#39;
 state : &amp;#39;restarted&amp;#39;
 enabled : true
-become : true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+become : true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: &amp;#39;start httpd&amp;#39;
 service:
 name: &amp;#39;httpd&amp;#39;
 state: &amp;#39;restarted&amp;#39;
 enabled: true
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-It increases human readability and reduces changeset collisions for version control.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.colons" target="_blank" rel="noopener">colons rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Required config: &lt;code>colons: {max-spaces-before: 0, max-spaces-after: 1}&lt;/code>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_using_map_syntax">Using Map Syntax&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Always use the map syntax&lt;/strong> for better readability.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+It increases human readability and reduces changeset collisions for version control.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.colons" target="_blank" rel="noopener"&gt;colons rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Required config: &lt;code&gt;colons: {max-spaces-before: 0, max-spaces-after: 1}&lt;/code&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_using_map_syntax"&gt;Using Map Syntax&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Always use the map syntax&lt;/strong&gt; for better readability.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: &amp;#39;create conf.d directory&amp;#39;
 file: &amp;#39;path=/etc/httpd/conf.d/ state=directory mode=0755 owner=httpd group=httpd&amp;#39;
 become: true
 - name: &amp;#39;copy mod_ssl.conf to /etc/httpd/conf.d&amp;#39;
 copy: &amp;#39;dest=/etc/httpd/conf.d/ src=mod_ssl.conf&amp;#39;
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: &amp;#39;create conf.d directory&amp;#39;
 file:
 group: &amp;#39;httpd&amp;#39;
@@ -807,25 +807,25 @@ become: true
 copy:
 dest: &amp;#39;/etc/httpd/conf.d/&amp;#39;
 src: &amp;#39;mod_ssl.conf&amp;#39;
-become: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-It increases human readability and reduces changeset collisions for version control.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_spacing">Spacing&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>You should have blank lines between two host blocks, between two task blocks, and between host and include blocks. When indenting, you should use 2 spaces to represent sub-maps, and multi-line maps should start with a &lt;code>-&lt;/code>. For a more in-depth example of how spacing (and other things) please take a look at the example below&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># Example: ansible-playbook --ask-become-pass --ask-vault-pass style.yml
+become: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+It increases human readability and reduces changeset collisions for version control.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_spacing"&gt;Spacing&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You should have blank lines between two host blocks, between two task blocks, and between host and include blocks. When indenting, you should use 2 spaces to represent sub-maps, and multi-line maps should start with a &lt;code&gt;-&lt;/code&gt;. For a more in-depth example of how spacing (and other things) please take a look at the example below&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# Example: ansible-playbook --ask-become-pass --ask-vault-pass style.yml
 #
 # This is a sample Ansible script to showcase all of our style decisions.
 # Pay close attention to things like spacing, where we use quotes, etc.
@@ -927,100 +927,100 @@ mr_fact: &amp;#39;w&amp;#39;
 - name: &amp;#39;perform an action&amp;#39;
 action: ec2_facts
 delegate_to: &amp;#39;localhost&amp;#39;
-# newline at end of file&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-This produces nice looking code that is easy to read.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.empty_lines" target="_blank" rel="noopener">empty-lines rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_variable_names">Variable Names&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Names of variables should be as expressive as possible. &lt;a href="https://en.wikipedia.org/wiki/Snake_case" target="_blank" rel="noopener">&lt;strong>snake_case&lt;/strong>&lt;/a> for names will help to make the code human readable. The prefix should contain the name of the role.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+# newline at end of file&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+This produces nice looking code that is easy to read.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Yamllint &lt;a href="https://yamllint.readthedocs.io/en/stable/rules.html#module-yamllint.rules.empty_lines" target="_blank" rel="noopener"&gt;empty-lines rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_variable_names"&gt;Variable Names&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Names of variables should be as expressive as possible. &lt;a href="https://en.wikipedia.org/wiki/Snake_case" target="_blank" rel="noopener"&gt;&lt;strong&gt;snake_case&lt;/strong&gt;&lt;/a&gt; for names will help to make the code human readable. The prefix should contain the name of the role.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: &amp;#39;set some facts&amp;#39;
 set_fact:
 myBoolean: true
 int: 20
-MY_STRING: &amp;#39;test&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+MY_STRING: &amp;#39;test&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: &amp;#39;set some facts&amp;#39;
 set_fact:
 rolename_my_boolean: true
 rolename_my_int: 20
-rolename_my_string: &amp;#39;test&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Ansible uses snake_case for module names so it makes sense to extend this convention to variable names. Perfixing the variable with the role name, makes it immediately obvious where it is used.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_jinja_variables">Jinja Variables&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Use spaces around Jinja variable names to increase readability.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+rolename_my_string: &amp;#39;test&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Ansible uses snake_case for module names so it makes sense to extend this convention to variable names. Perfixing the variable with the role name, makes it immediately obvious where it is used.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_jinja_variables"&gt;Jinja Variables&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use spaces around Jinja variable names to increase readability.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: set some facts
 set_fact:
-my_new_var: &amp;#34;{{my_old_var}}&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+my_new_var: &amp;#34;{{my_old_var}}&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: set some facts
 set_fact:
-my_new_var: &amp;#34;{{ my_old_var }}&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-A proper definition for how to create Jinja variables produces consistent and easily readable code.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Ansible-lint &lt;a href="https://ansible-lint.readthedocs.io/en/latest/default_rules.html#variables-should-have-spaces-before-and-after-var-name" target="_blank" rel="noopener">E206 rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_comparing">Comparing&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Do not compare to literal True/False.&lt;br/>
-Use &lt;code>when: var&lt;/code> rather than &lt;code>when: var == True&lt;/code> (or conversely &lt;code>when: not var&lt;/code>).&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Do not compare it to empty strings.&lt;br/>
-Use &lt;code>when: var&lt;/code> rather than &lt;code>when: var != &amp;#34;&amp;#34;&lt;/code> (or conversely &lt;code>when: not var&lt;/code> rather than &lt;code>when: var == &amp;#34;&amp;#34;&lt;/code>)&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+my_new_var: &amp;#34;{{ my_old_var }}&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+A proper definition for how to create Jinja variables produces consistent and easily readable code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Ansible-lint &lt;a href="https://ansible-lint.readthedocs.io/en/latest/default_rules.html#variables-should-have-spaces-before-and-after-var-name" target="_blank" rel="noopener"&gt;E206 rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_comparing"&gt;Comparing&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Do not compare to literal True/False.&lt;br/&gt;
+Use &lt;code&gt;when: var&lt;/code&gt; rather than &lt;code&gt;when: var == True&lt;/code&gt; (or conversely &lt;code&gt;when: not var&lt;/code&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Do not compare it to empty strings.&lt;br/&gt;
+Use &lt;code&gt;when: var&lt;/code&gt; rather than &lt;code&gt;when: var != &amp;#34;&amp;#34;&lt;/code&gt; (or conversely &lt;code&gt;when: not var&lt;/code&gt; rather than &lt;code&gt;when: var == &amp;#34;&amp;#34;&lt;/code&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: validate required variables
 fail:
 msg: &amp;#34;No value specified for &amp;#39;{{ item }}&amp;#39;&amp;#34;
@@ -1030,12 +1030,12 @@ with_items: &amp;#34;{{ appd_required_variables }}&amp;#34;
 include_tasks: user.yml
 when:
 - username is defined
-- username != &amp;#34;&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+- username != &amp;#34;&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: Validate required variables
 fail:
 msg: &amp;#34;No value specified for &amp;#39;{{ item }}&amp;#39;&amp;#34;
@@ -1045,216 +1045,216 @@ with_items: &amp;#34;{{ appd_required_variables }}&amp;#34;
 include_tasks: user.yml
 when:
 - username is defined
-- username&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Avoid code complexity using quotes and standardize the way literals and empty strings are used&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Ansible-lint &lt;a href="https://ansible-lint.readthedocs.io/en/latest/default_rules.html#don-t-compare-to-literal-true-false" target="_blank" rel="noopener">E601 rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_delegation">Delegation&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Do not use local_action, use delegate_to: localhost&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+- username&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Avoid code complexity using quotes and standardize the way literals and empty strings are used&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Ansible-lint &lt;a href="https://ansible-lint.readthedocs.io/en/latest/default_rules.html#don-t-compare-to-literal-true-false" target="_blank" rel="noopener"&gt;E601 rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_delegation"&gt;Delegation&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Do not use local_action, use delegate_to: localhost&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: Send summary mail
 local_action:
 module: mail
 subject: &amp;#34;Summary Mail&amp;#34;
 to: &amp;#34;{{ mail_recipient }}&amp;#34;
 body: &amp;#34;{{ mail_body }}&amp;#34;
-run_once: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+run_once: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: Send summary mail
 mail:
 subject: &amp;#34;Summary Mail&amp;#34;
 to: &amp;#34;{{ mail_recipient }}&amp;#34;
 body: &amp;#34;{{ mail_body }}&amp;#34;
 delegate_to: localhost
-run_once: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Avoid complexity, standardization, flexibility and code readability. The module and its parameters are easy to read and can be delegated even to a third party server.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Ansible-lint &lt;a href="https://ansible-lint.readthedocs.io/en/latest/default_rules.html#do-not-use-local-action-use-delegate-to-localhost" target="_blank" rel="noopener">E504 rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_playbook_file_extension">Playbook File Extension&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>All Ansible Yaml files should have a .yml extension (and NOT .YML, .yaml etc).&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
-~/tasks.yaml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
-~/tasks.yml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Ansible tooling (like ansible-galaxy init) creates files with a .yml extension. Also, the Ansible documentation website references files with a .yml extension several times. Because of this, it is normal in the Ansible community to use a .yml extension for all Ansible YAML files.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Lint rule&lt;/strong>&lt;br/>
-Ansible-lint &lt;a href="https://ansible-lint.readthedocs.io/en/latest/default_rules.html#use-yml-or-yaml-playbook-extension" target="_blank" rel="noopener">E205 rule&lt;/a>&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_template_file_extension">Template File Extension&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>All Ansible Template files should have a .j2 extension.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
-~/template.conf&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
-~/template.conf.j2&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Ansible Template files will usually have the .j2 extension, which denotes the Jinja2 templating engine used.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_vaults">Vaults&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>All Ansible Vault files should have a .vault extension (and NOT .yml, .YML, .yaml etc).&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
-~/secrets.yml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
-~/secrets.vault&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-It is easier to control unencrypted files automatically for the specific .vault extension.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_debug_and_comments">Debug and Comments&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Do not overuse debug and comments in final code as much as possible. Use task and role names to explain what the task or role does. Use the verbose option under ansible for debugging purposes. If debug is used, assign a verbosity option. This will display the message only on certain debugging levels.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># bad
+run_once: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Avoid complexity, standardization, flexibility and code readability. The module and its parameters are easy to read and can be delegated even to a third party server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Ansible-lint &lt;a href="https://ansible-lint.readthedocs.io/en/latest/default_rules.html#do-not-use-local-action-use-delegate-to-localhost" target="_blank" rel="noopener"&gt;E504 rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_playbook_file_extension"&gt;Playbook File Extension&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All Ansible Yaml files should have a .yml extension (and NOT .YML, .yaml etc).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
+~/tasks.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
+~/tasks.yml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Ansible tooling (like ansible-galaxy init) creates files with a .yml extension. Also, the Ansible documentation website references files with a .yml extension several times. Because of this, it is normal in the Ansible community to use a .yml extension for all Ansible YAML files.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Lint rule&lt;/strong&gt;&lt;br/&gt;
+Ansible-lint &lt;a href="https://ansible-lint.readthedocs.io/en/latest/default_rules.html#use-yml-or-yaml-playbook-extension" target="_blank" rel="noopener"&gt;E205 rule&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_template_file_extension"&gt;Template File Extension&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All Ansible Template files should have a .j2 extension.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
+~/template.conf&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
+~/template.conf.j2&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Ansible Template files will usually have the .j2 extension, which denotes the Jinja2 templating engine used.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_vaults"&gt;Vaults&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All Ansible Vault files should have a .vault extension (and NOT .yml, .YML, .yaml etc).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
+~/secrets.yml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
+~/secrets.vault&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+It is easier to control unencrypted files automatically for the specific .vault extension.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_debug_and_comments"&gt;Debug and Comments&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Do not overuse debug and comments in final code as much as possible. Use task and role names to explain what the task or role does. Use the verbose option under ansible for debugging purposes. If debug is used, assign a verbosity option. This will display the message only on certain debugging levels.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# bad
 - name: print my_var
 debug:
 var: my_var
-when: ansible_os_family == &amp;#34;Darwin&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># good
+when: ansible_os_family == &amp;#34;Darwin&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# good
 - name: print my_var
 debug:
 var: my_var
 verbosity: 2
-when: ansible_os_family == &amp;#34;Darwin&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-It will keep clean code and consistency avoiding extra debug and comments. Extra debug will spend extra time when running the playbook or role.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_use_modules_copy_or_templates_instead_of_linefile_or_blockfile">Use Modules copy or templates instead of linefile or blockfile&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Instead of using the modules &lt;em>linefile&lt;/em> and &lt;em>blockfile&lt;/em>, which manage changes inside a file, it should be tried to use the modules &lt;code>copy&lt;/code> or &lt;code>template&lt;/code> instead, which will manage the whole file. For better future proof template should be preferred over copy.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
+when: ansible_os_family == &amp;#34;Darwin&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+It will keep clean code and consistency avoiding extra debug and comments. Extra debug will spend extra time when running the playbook or role.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_use_modules_copy_or_templates_instead_of_linefile_or_blockfile"&gt;Use Modules copy or templates instead of linefile or blockfile&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of using the modules &lt;em&gt;linefile&lt;/em&gt; and &lt;em&gt;blockfile&lt;/em&gt;, which manage changes inside a file, it should be tried to use the modules &lt;code&gt;copy&lt;/code&gt; or &lt;code&gt;template&lt;/code&gt; instead, which will manage the whole file. For better future proof template should be preferred over copy.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
 When using linefile/blockfile only a single line or a part of a file is managed. It is not easy to remember which part exactly is managed and which is not. Using the template module the whole file is managed by Ansible and there is no confusion about different parts of a file.
-Moreover, regular expressions can be avoided, which are often used using linefile.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_use_module_synchronize_instead_of_copy_for_large_files">Use Module synchronize Instead of copy for Large Files&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Copying large files takes significantly longer than syncing it. The &lt;code>synchronize&lt;/code> modules which are based on rsync can increase the time moving large files from one node to another (or even on the same node).&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_do_not_show_sensitive_data_in_ansible_output">Do not Show Sensitive Data in Ansible Output&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>When using the template module and there are passwords or other sensitive data in the file, use the &lt;code>no_log&lt;/code> option to hide this information.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-For obvious reasons the output of sensitive data on the screen (and logfile) should be prohibited.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_use_block_module">Use Block-Module&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Block can help to organize the code and can enable rollbacks.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">- block:
+Moreover, regular expressions can be avoided, which are often used using linefile.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_use_module_synchronize_instead_of_copy_for_large_files"&gt;Use Module synchronize Instead of copy for Large Files&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Copying large files takes significantly longer than syncing it. The &lt;code&gt;synchronize&lt;/code&gt; modules which are based on rsync can increase the time moving large files from one node to another (or even on the same node).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_do_not_show_sensitive_data_in_ansible_output"&gt;Do not Show Sensitive Data in Ansible Output&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When using the template module and there are passwords or other sensitive data in the file, use the &lt;code&gt;no_log&lt;/code&gt; option to hide this information.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+For obvious reasons the output of sensitive data on the screen (and logfile) should be prohibited.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_use_block_module"&gt;Use Block-Module&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Block can help to organize the code and can enable rollbacks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;- block:
 copy:
 src: critical.conf
 dest: /etc/critical/crit.conf
@@ -1262,109 +1262,109 @@ service:
 name: critical
 state: restarted
 rescue:
-command: shutdown -h now&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong class="big">Reason&lt;/strong>&lt;br/>
-Using blocks groups critical tasks together and allows better management when a single task of this block fails.&lt;/p>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_enable_cpu_and_memory_profiling">Enable CPU and Memory Profiling&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Enabling profiling is extremely useful when testing forks or to analyse memory and cpu consumption in general. It will present a summary of used CPU/memory for the whole play and per task.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To enable it:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create a new &lt;strong>control group&lt;/strong> - which is required for CPU and memory profiling&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cgcreate -a root:root -t root:root -g cpuacct,memory,pids:ansible_profile&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Configure &lt;em>ansible.cfg&lt;/em>&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-ini" data-lang="ini">callback_whitelist=cgroup_perf_recap
+command: shutdown -h now&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong class="big"&gt;Reason&lt;/strong&gt;&lt;br/&gt;
+Using blocks groups critical tasks together and allows better management when a single task of this block fails.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_enable_cpu_and_memory_profiling"&gt;Enable CPU and Memory Profiling&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Enabling profiling is extremely useful when testing forks or to analyse memory and cpu consumption in general. It will present a summary of used CPU/memory for the whole play and per task.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To enable it:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a new &lt;strong&gt;control group&lt;/strong&gt; - which is required for CPU and memory profiling&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;cgcreate -a root:root -t root:root -g cpuacct,memory,pids:ansible_profile&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure &lt;em&gt;ansible.cfg&lt;/em&gt;&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-ini" data-lang="ini"&gt;callback_whitelist=cgroup_perf_recap
 [callback_cgroup_perf_recap]
-control_group=ansible_profile&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Execute the playbook using &lt;em>cgexec&lt;/em>&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cgexec -g cpuacct,memory,pids:ansible_profile ansible-playbook x.yaml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Analyse the usage&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Memory Execution Maximum: 11146.29MB
+control_group=ansible_profile&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Execute the playbook using &lt;em&gt;cgexec&lt;/em&gt;&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;cgexec -g cpuacct,memory,pids:ansible_profile ansible-playbook x.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Analyse the usage&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;Memory Execution Maximum: 11146.29MB
 cpu Execution Maximum: 112.08%
 pids Execution Maximum: 35.00
 memory:
-lab : creating network (b42e9945-0dc7-20b1-09d1-00000000000a): 11097.35MB …..&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_enable_task_and_role_profiling">Enable Task and Role Profiling&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following can be enabled as well, to help debugging playbooks and roles:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-ini" data-lang="ini"> [defaults]
-callback_whitelist = profile_tasks, profile_role, timer&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Timer: duration of playbook execution (activated by default)
-profile_tasks/role: displays execution time per tasks/role&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will generate an output like the following:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/ansible/images/profiling.png" alt="Profiling"/>
-&lt;/div>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_directory_structure">Directory Structure&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>A consistent directory structure is important to easily understand all playbooks and roles which are written. Ansible knows many different folder structures, any can be used. However, it is important to stick to one structure.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following is an example. Not all folders are usually used and working with collections will change such structure a little bit.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">.
+lab : creating network (b42e9945-0dc7-20b1-09d1-00000000000a): 11097.35MB …..&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_enable_task_and_role_profiling"&gt;Enable Task and Role Profiling&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following can be enabled as well, to help debugging playbooks and roles:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-ini" data-lang="ini"&gt; [defaults]
+callback_whitelist = profile_tasks, profile_role, timer&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Timer: duration of playbook execution (activated by default)
+profile_tasks/role: displays execution time per tasks/role&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will generate an output like the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/ansible/images/profiling.png" alt="Profiling"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_directory_structure"&gt;Directory Structure&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A consistent directory structure is important to easily understand all playbooks and roles which are written. Ansible knows many different folder structures, any can be used. However, it is important to stick to one structure.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following is an example. Not all folders are usually used and working with collections will change such structure a little bit.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;.
 ├── ansible.cfg
 ├── ansible_modules
 ├── group_vars
@@ -1390,38 +1390,38 @@ profile_tasks/role: displays execution time per tasks/role&lt;/p>
 ├── meta
 │ └── main.yml
 └── tasks
-└── main.yml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Automation Controller and LDAP Authentication</title><link>https://blog.stderr.at/ansible/2021/10/automation-controller-and-ldap-authentication/</link><pubDate>Mon, 25 Oct 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2021/10/automation-controller-and-ldap-authentication/</guid><description>&lt;div class="paragraph">
-&lt;p>The following article shall quickly, without huge background information, deploy an Identity Management Server (based on FreeIPA) and connect this IDM to an existing Automation Controller so authentication can be tested and verified based on LDAP.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_install_freeipa">Install FreeIPA&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Run the following command to deploy and configure the IPA Server:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>&lt;code>yum module enable idm:DL1&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;code>yum distro-sync&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;code>yum -y module install idm:DL1/server&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Install the server by calling the command &lt;code>ipa-server-install&lt;/code>. This will start an interactive installation modus which requires the basic information about the IPA server. The following uses &lt;strong>tower.local&lt;/strong> as base domain&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre>Do you want to configure integrated DNS (BIND)? [no]:
+└── main.yml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Automation Controller and LDAP Authentication</title><link>https://blog.stderr.at/ansible/2021/10/automation-controller-and-ldap-authentication/</link><pubDate>Mon, 25 Oct 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2021/10/automation-controller-and-ldap-authentication/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;The following article shall quickly, without huge background information, deploy an Identity Management Server (based on FreeIPA) and connect this IDM to an existing Automation Controller so authentication can be tested and verified based on LDAP.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_install_freeipa"&gt;Install FreeIPA&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Run the following command to deploy and configure the IPA Server:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;yum module enable idm:DL1&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;yum distro-sync&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;yum -y module install idm:DL1/server&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install the server by calling the command &lt;code&gt;ipa-server-install&lt;/code&gt;. This will start an interactive installation modus which requires the basic information about the IPA server. The following uses &lt;strong&gt;tower.local&lt;/strong&gt; as base domain&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre&gt;Do you want to configure integrated DNS (BIND)? [no]:
 Server host name [node01.tower.local]:
 Please confirm the domain name [tower.local]:
 Please provide a realm name [TOWER.LOCAL]:
@@ -1430,59 +1430,59 @@ Password (confirm): &amp;lt;enter password&amp;gt;
 IPA admin password: &amp;lt;enter password&amp;gt;
 Password (confirm): &amp;lt;enter password&amp;gt;
 Do you want to configure chrony with NTP server or pool address? [no]:
-Continue to configure the system with these values? [no]: yes&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Once all information have been provided the installation/configuration process starts. This will take a while…​&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Be sure that the hostname, here &lt;strong>node01.tower.local&lt;/strong>, is resolvable, at least from the Tower/Controller node and the node you are accessing the FreeIPA UI. You can use your local &lt;em>hosts&lt;/em> file or a real domain name for that.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_login_to_ipa_server_via_command_line">Login to IPA server via Command Line&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>For user admin use: &lt;code>kinit admin&lt;/code>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_create_a_binduser_binddn">Create a Binduser (BindDN)&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The Binduser (or BindDN) will be used by the Controller to authenticate the Controller against the LDAP server.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create the actual user&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ipa user-add --first=”BindUser” --last=”None” --password binduser&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Output:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Password:
+Continue to configure the system with these values? [no]: yes&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once all information have been provided the installation/configuration process starts. This will take a while…​&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Be sure that the hostname, here &lt;strong&gt;node01.tower.local&lt;/strong&gt;, is resolvable, at least from the Tower/Controller node and the node you are accessing the FreeIPA UI. You can use your local &lt;em&gt;hosts&lt;/em&gt; file or a real domain name for that.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_login_to_ipa_server_via_command_line"&gt;Login to IPA server via Command Line&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;For user admin use: &lt;code&gt;kinit admin&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_create_a_binduser_binddn"&gt;Create a Binduser (BindDN)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Binduser (or BindDN) will be used by the Controller to authenticate the Controller against the LDAP server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create the actual user&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ipa user-add --first=”BindUser” --last=”None” --password binduser&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Output:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;Password:
 Enter Password again to verify:
 ------------------
 Added user &amp;#34;binduser&amp;#34;
@@ -1504,240 +1504,240 @@ UID: 1573400003
 GID: 1573400003
 Password: True
 Member of groups: ipausers
-Kerberos keys available: True&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Assign the new user to the admin group&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ipa group-add-member admins --users=binduser&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Output:&lt;/p>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre> Group Name: admins
+Kerberos keys available: True&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign the new user to the admin group&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ipa group-add-member admins --users=binduser&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Output:&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre&gt; Group Name: admins
 Description: Account administrators group
 GID: 1573400000
 Member users: admin, binduser
 -----------------------------------
 Number of members added 1
------------------------------------&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create a 2nd User to test the authentication later&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre>ipa user-add --first=”User” --last=”Name” --password user1&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_enable_ldap_auth_in_automation_controller">Enable LDAP Auth in Automation Controller&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Login to Automation Controller ad go to &amp;#34;Settings &amp;gt; LDAP Settings &amp;gt; Default&amp;#34;&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>add a new connection:&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>&lt;strong>LDAP Service URI&lt;/strong>: &lt;code>ldap://node01.tower.local:389&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>LDAP Bind Password&lt;/strong>: &lt;code>&amp;lt;password of user binduser&amp;gt;`&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>LDAP Group Type&lt;/strong>: &lt;code>MemberDNGroupType&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>LDAP Bind DN&lt;/strong>: &lt;code>uid=binduser,cn=users,cn=accounts,dc=tower,dc=local&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>LDAP User Search&lt;/strong>:&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">[
+-----------------------------------&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a 2nd User to test the authentication later&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre&gt;ipa user-add --first=”User” --last=”Name” --password user1&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_enable_ldap_auth_in_automation_controller"&gt;Enable LDAP Auth in Automation Controller&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Login to Automation Controller ad go to &amp;#34;Settings &amp;gt; LDAP Settings &amp;gt; Default&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;add a new connection:&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;LDAP Service URI&lt;/strong&gt;: &lt;code&gt;ldap://node01.tower.local:389&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;LDAP Bind Password&lt;/strong&gt;: &lt;code&gt;&amp;lt;password of user binduser&amp;gt;`&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;LDAP Group Type&lt;/strong&gt;: &lt;code&gt;MemberDNGroupType&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;LDAP Bind DN&lt;/strong&gt;: &lt;code&gt;uid=binduser,cn=users,cn=accounts,dc=tower,dc=local&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;LDAP User Search&lt;/strong&gt;:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-json" data-lang="json"&gt;[
 &amp;#34;cn=users,cn=accounts,dc=tower,dc=local&amp;#34;,
 &amp;#34;SCOPE_SUBTREE&amp;#34;,
 &amp;#34;(uid=%(user)s)&amp;#34;
-]&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>LDAP Group Search&lt;/strong>:&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">[
+]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;LDAP Group Search&lt;/strong&gt;:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;[
 &amp;#34;cn=groups,cn=accounts,dc=tower,dc=local&amp;#34;,
 &amp;#34;SCOPE_SUBTREE&amp;#34;,
 &amp;#34;(objectClass=posixgroup)&amp;#34;
-]&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The configuration should look like the following image:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/ansible/images/ControllerLDAPAuth.png" alt="Automation Controller LDAP Authentication"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Automation Controller LDAP Authentication&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_verify_login_with_user1">Verify Login with user1&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>You can now test the login using &lt;strong>user1&lt;/strong>. If it does not work, check the following files for errors:&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Tower Node&lt;/strong>: /var/log/tower/tower.log&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>IPA Node&lt;/strong>: /var/log/dirsrv/slapd-TOWER-LOCAL/access&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The configuration should look like the following image:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/ansible/images/ControllerLDAPAuth.png" alt="Automation Controller LDAP Authentication"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Automation Controller LDAP Authentication&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_verify_login_with_user1"&gt;Verify Login with user1&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can now test the login using &lt;strong&gt;user1&lt;/strong&gt;. If it does not work, check the following files for errors:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Tower Node&lt;/strong&gt;: /var/log/tower/tower.log&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;IPA Node&lt;/strong&gt;: /var/log/dirsrv/slapd-TOWER-LOCAL/access&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The login should work, but since the user1 is not assigned to any Team/Organization inside the Automation Controller, no privileges are granted. The user can do nothing.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_automatically_assign_permissions">Automatically assign permissions&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>2 roles can be automatically assigned to authenticated users:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Super User&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Auditor&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To test this, 2 groups will be created in the LDAP server and a new user will be assigned to one of the groups.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create the group for super users: &lt;code>ipa group-add tower_administrators&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create the group for auditors: &lt;code>ipa group-add tower_auditors&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create a new user: &lt;code>ipa user-add --first=”User” --last=”Name” --password user2&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Assign the user to one the the groups: &lt;code>ipa group-add-member tower_administrators --users=user2&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Modify the Controller LDAP configuration and set &lt;strong>LDAP User Flags by Group&lt;/strong>. This will assing any member of &lt;em>tower_administrators&lt;/em> to &lt;em>is_superuser&lt;/em> for example.&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">{
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_automatically_assign_permissions"&gt;Automatically assign permissions&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;2 roles can be automatically assigned to authenticated users:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Super User&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Auditor&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To test this, 2 groups will be created in the LDAP server and a new user will be assigned to one of the groups.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create the group for super users: &lt;code&gt;ipa group-add tower_administrators&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create the group for auditors: &lt;code&gt;ipa group-add tower_auditors&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a new user: &lt;code&gt;ipa user-add --first=”User” --last=”Name” --password user2&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign the user to one the the groups: &lt;code&gt;ipa group-add-member tower_administrators --users=user2&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Modify the Controller LDAP configuration and set &lt;strong&gt;LDAP User Flags by Group&lt;/strong&gt;. This will assing any member of &lt;em&gt;tower_administrators&lt;/em&gt; to &lt;em&gt;is_superuser&lt;/em&gt; for example.&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-json" data-lang="json"&gt;{
 &amp;#34;is_superuser&amp;#34;: [
 &amp;#34;cn=tower_administrators,cn=groups,cn=accounts,dc=tower,dc=local&amp;#34;
 ],
 &amp;#34;is_system_auditor&amp;#34;: [
 &amp;#34;cn=tower_auditors,cn=groups,cn=accounts,dc=tower,dc=local&amp;#34;
 ]
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Test the authentication and authorization with the &lt;strong>user2&lt;/strong>. This user should now gain super admin permissions.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_allow_users_from_specific_groups_only">Allow Users From Specific Groups Only&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Not all LDAP users shall be able to authenticate. Only users, which are member of a specific group, shall be able to authenticate.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create a 3rd user: &lt;code>ipa user-add --first=”User” --last=”Name” --password user3&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Modify the LDAP Configuration in Automation Controller and set &lt;strong>LDAP Require Groups&lt;/strong>:&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">&amp;#34;cn=towerusers,cn=groups,cn=accounts,dc=tower,dc=local&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Add the group &lt;em>toweruser&lt;/em>: &lt;code>ipa group-add towerusers&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Assign the user &lt;strong>user3&lt;/strong> to that group: &lt;code>ipa group-add-member towerusers --users=user3&lt;/code>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>At this state only &lt;strong>user3&lt;/strong> will be able to login. In order to allow the other users as well, all must be assigned to the group &lt;strong>towerusers&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ipa group-add-member towerusers --users=user3
-ipa group-add-member towerusers --users=user1&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_additional_configuration">Additional Configuration&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>It is possible to automatically map users to Controller Organization. I did not fully test this, but the following is an example:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock json">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code> {
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Test the authentication and authorization with the &lt;strong&gt;user2&lt;/strong&gt;. This user should now gain super admin permissions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_allow_users_from_specific_groups_only"&gt;Allow Users From Specific Groups Only&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Not all LDAP users shall be able to authenticate. Only users, which are member of a specific group, shall be able to authenticate.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a 3rd user: &lt;code&gt;ipa user-add --first=”User” --last=”Name” --password user3&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Modify the LDAP Configuration in Automation Controller and set &lt;strong&gt;LDAP Require Groups&lt;/strong&gt;:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&amp;#34;cn=towerusers,cn=groups,cn=accounts,dc=tower,dc=local&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Add the group &lt;em&gt;toweruser&lt;/em&gt;: &lt;code&gt;ipa group-add towerusers&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign the user &lt;strong&gt;user3&lt;/strong&gt; to that group: &lt;code&gt;ipa group-add-member towerusers --users=user3&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At this state only &lt;strong&gt;user3&lt;/strong&gt; will be able to login. In order to allow the other users as well, all must be assigned to the group &lt;strong&gt;towerusers&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ipa group-add-member towerusers --users=user3
+ipa group-add-member towerusers --users=user1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_additional_configuration"&gt;Additional Configuration&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is possible to automatically map users to Controller Organization. I did not fully test this, but the following is an example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock json"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code&gt; {
 &amp;#34;LDAP Organization&amp;#34;: {
 &amp;#34;admins&amp;#34;: &amp;#34;cn=engineering_admins,ou=groups,dc=example,dc=com&amp;#34;,
 &amp;#34;remove_admins&amp;#34;: false,
@@ -1756,178 +1756,178 @@ ipa group-add-member towerusers --users=user1&lt;/code>&lt;/pre>
 &amp;#34;users&amp;#34;: true,
 &amp;#34;remove_users&amp;#34;: false
 }
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Ansible Tower and downloading collections</title><link>https://blog.stderr.at/ansible/2021/07/ansible-tower-and-downloading-collections/</link><pubDate>Sat, 31 Jul 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2021/07/ansible-tower-and-downloading-collections/</guid><description>&lt;div class="paragraph">
-&lt;p>Every wondered why Ansible Tower does not start downloading required
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Ansible Tower and downloading collections</title><link>https://blog.stderr.at/ansible/2021/07/ansible-tower-and-downloading-collections/</link><pubDate>Sat, 31 Jul 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2021/07/ansible-tower-and-downloading-collections/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Every wondered why Ansible Tower does not start downloading required
 collections when you synchronize a project? Here are the stumbling
-blocks we discovered so far:&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_wrong_name_for_requirements_yml">Wrong name for requirements.yml&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>When downloading collections Ansible Tower searches for a file
-&lt;code>requirements.yml&lt;/code> in the collections directory.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Be careful with the file extension: &lt;code>requirements.yml&lt;/code> has to end with
-the extension &lt;code>.yml&lt;/code> and &lt;strong>not&lt;/strong> &lt;code>.yaml&lt;/code>.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_collections_download_is_disabled_in_ansible_tower">Collections download is disabled in Ansible Tower&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Within Ansible Tower there is a setting called &lt;code>ENABLE COLLECTION(S)
-DOWNLOAD&lt;/code> under &lt;code>Settings&lt;/code>/&lt;code>Jobs&lt;/code>. This has to be set to true, which
-is also the default.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_no_ansible_galaxy_credential_defined_for_the_organization">No Ansible Galaxy credential defined for the organization&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Last but not least an Ansible Galaxy credential needs to be defined
+blocks we discovered so far:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_wrong_name_for_requirements_yml"&gt;Wrong name for requirements.yml&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When downloading collections Ansible Tower searches for a file
+&lt;code&gt;requirements.yml&lt;/code&gt; in the collections directory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Be careful with the file extension: &lt;code&gt;requirements.yml&lt;/code&gt; has to end with
+the extension &lt;code&gt;.yml&lt;/code&gt; and &lt;strong&gt;not&lt;/strong&gt; &lt;code&gt;.yaml&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_collections_download_is_disabled_in_ansible_tower"&gt;Collections download is disabled in Ansible Tower&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Within Ansible Tower there is a setting called &lt;code&gt;ENABLE COLLECTION(S)
+DOWNLOAD&lt;/code&gt; under &lt;code&gt;Settings&lt;/code&gt;/&lt;code&gt;Jobs&lt;/code&gt;. This has to be set to true, which
+is also the default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_no_ansible_galaxy_credential_defined_for_the_organization"&gt;No Ansible Galaxy credential defined for the organization&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Last but not least an Ansible Galaxy credential needs to be defined
 for the organization where the project is defined. With the default
 installation of Ansible Tower, when the sample playbooks are installed
-there is a credential called &lt;code>Ansible Galaxy&lt;/code> defined. You need to assign
-this credential to the organization.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>If you skip installing the sample playbooks, &lt;strong>no&lt;/strong> &lt;code>Ansible Galaxy&lt;/code>
-credential will be defined for you and you have to create it manually.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_how_does_this_actually_work">How does this actually work?&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Ansible Tower uses a Python virtual environment for running
+there is a credential called &lt;code&gt;Ansible Galaxy&lt;/code&gt; defined. You need to assign
+this credential to the organization.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you skip installing the sample playbooks, &lt;strong&gt;no&lt;/strong&gt; &lt;code&gt;Ansible Galaxy&lt;/code&gt;
+credential will be defined for you and you have to create it manually.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_how_does_this_actually_work"&gt;How does this actually work?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible Tower uses a Python virtual environment for running
 Ansible. The default environment is installed in
-&lt;code>/var/lib/awx/venv/awx&lt;/code>. You can also create custom environments, see
-&lt;a href="https://docs.ansible.com/ansible-tower/latest/html/upgrade-migration-guide/virtualenv.html">Using virtualenv with Ansible Tower&lt;/a>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In the default setup the following files define how collections are downloaded:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;code>lib/python3.6/site-packages/awx/main/tasks.py&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;code>lib/python3.6/site-packages/awx/playbooks/project_update.yml&lt;/code>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_task_py">task.py&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>&lt;code>task.py&lt;/code> defines various internal tasks Tower has to run on various
+&lt;code&gt;/var/lib/awx/venv/awx&lt;/code&gt;. You can also create custom environments, see
+&lt;a href="https://docs.ansible.com/ansible-tower/latest/html/upgrade-migration-guide/virtualenv.html"&gt;Using virtualenv with Ansible Tower&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the default setup the following files define how collections are downloaded:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;lib/python3.6/site-packages/awx/main/tasks.py&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;lib/python3.6/site-packages/awx/playbooks/project_update.yml&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_task_py"&gt;task.py&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;task.py&lt;/code&gt; defines various internal tasks Tower has to run on various
 occasions. For example in line number 1930 (Ansible Tower 3.8.3) the
-task &lt;code>RunProjectUpdate&lt;/code> gets defined. This is the task Tower
-has to run whenever a project update is required.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In our case the function &lt;code>build_extra_vars_file&lt;/code> (line 2083 with
-Ansible Tower 3.8.3) defines the variable &lt;code>galaxy_creds_are_defined&lt;/code>
+task &lt;code&gt;RunProjectUpdate&lt;/code&gt; gets defined. This is the task Tower
+has to run whenever a project update is required.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In our case the function &lt;code&gt;build_extra_vars_file&lt;/code&gt; (line 2083 with
+Ansible Tower 3.8.3) defines the variable &lt;code&gt;galaxy_creds_are_defined&lt;/code&gt;
 only if the organization has a galaxy credential defined (line 2099
-Ansible Tower 3.8.3).&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Line 2120 (Ansible Tower 3.8.3) finally defines the Ansible extra
-variable &lt;code>collections_enabled&lt;/code> depending on
-&lt;code>galaxy_creds_are_defined&lt;/code>.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_project_update_yml">project_update.yml&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>So &lt;code>task.py&lt;/code> defines the extra variable &lt;code>collections_enabled&lt;/code> (see
-above). Finally the playbook &lt;code>project_update.yml&lt;/code> consumes this extra
-variable and only downloads collections if &lt;code>collections_enabled&lt;/code> is
-set to &lt;code>true&lt;/code>, see the block string at line 192 (Ansible Tower 3.8.3)
-in `project_update.yml.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>So long and thanks for all the fish!&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Ansible - Azure Resource Manager Example</title><link>https://blog.stderr.at/ansible/2020/04/ansible-azure-resource-manager-example/</link><pubDate>Mon, 27 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2020/04/ansible-azure-resource-manager-example/</guid><description>&lt;div class="paragraph">
-&lt;p>Using Ansible Resource Manager with an ARM template and a simple Ansible playbook to deploy a Virtual Machine with Disk, virtual network, public IP and so on.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_introduction">Introduction&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>&lt;em>Source: [&lt;a href="#source_1">1&lt;/a>]&lt;/em>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In order to deploy a Virtual Machine and all depended resources using the Azure Resource Manager (ARM) template with Ansible, you will need three things:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>The ARM Template&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>The parameters you want to use&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>The Ansible playbook&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>All can be found below.
-Store them and simply call:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-playbook Azure/create_azure_deployment.yml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+Ansible Tower 3.8.3).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Line 2120 (Ansible Tower 3.8.3) finally defines the Ansible extra
+variable &lt;code&gt;collections_enabled&lt;/code&gt; depending on
+&lt;code&gt;galaxy_creds_are_defined&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_project_update_yml"&gt;project_update.yml&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So &lt;code&gt;task.py&lt;/code&gt; defines the extra variable &lt;code&gt;collections_enabled&lt;/code&gt; (see
+above). Finally the playbook &lt;code&gt;project_update.yml&lt;/code&gt; consumes this extra
+variable and only downloads collections if &lt;code&gt;collections_enabled&lt;/code&gt; is
+set to &lt;code&gt;true&lt;/code&gt;, see the block string at line 192 (Ansible Tower 3.8.3)
+in `project_update.yml.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So long and thanks for all the fish!&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Ansible - Azure Resource Manager Example</title><link>https://blog.stderr.at/ansible/2020/04/ansible-azure-resource-manager-example/</link><pubDate>Mon, 27 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2020/04/ansible-azure-resource-manager-example/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Using Ansible Resource Manager with an ARM template and a simple Ansible playbook to deploy a Virtual Machine with Disk, virtual network, public IP and so on.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;Source: [&lt;a href="#source_1"&gt;1&lt;/a&gt;]&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In order to deploy a Virtual Machine and all depended resources using the Azure Resource Manager (ARM) template with Ansible, you will need three things:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The ARM Template&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The parameters you want to use&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The Ansible playbook&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All can be found below.
+Store them and simply call:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-playbook Azure/create_azure_deployment.yml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 it will take several minutes, until everything has been deployment in Azure.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Instead of using a json file locally you can upload the template file (as well as a parameters file) to a version control system and use it from there.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_additional_resources">Additional Resources&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="sect2">
-&lt;h3 id="_ansible_playbook_create_azure_deplyoment_yml">Ansible Playbook: Create-Azure-Deplyoment.yml&lt;/h3>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_additional_resources"&gt;Additional Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_ansible_playbook_create_azure_deplyoment_yml"&gt;Ansible Playbook: Create-Azure-Deplyoment.yml&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;---
 - name: Get facts of a VM
 hosts: localhost
 connection: local
@@ -1969,15 +1969,15 @@ register: azure
 add_host:
 hostname: &amp;#34;{{ item[&amp;#39;ips&amp;#39;][0].public_ip }}&amp;#34;
 groupname: azure_vms
-loop: &amp;#34;{{ azure.deployment.instances }}&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_resourcemanagertemplate_json">ResourceManagerTemplate.json&lt;/h3>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">{
+loop: &amp;#34;{{ azure.deployment.instances }}&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_resourcemanagertemplate_json"&gt;ResourceManagerTemplate.json&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-json" data-lang="json"&gt;{
 &amp;#34;$schema&amp;#34;: &amp;#34;https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#&amp;#34;,
 &amp;#34;contentVersion&amp;#34;: &amp;#34;1.0.0.0&amp;#34;,
 &amp;#34;parameters&amp;#34;: {
@@ -2211,615 +2211,615 @@ loop: &amp;#34;{{ azure.deployment.instances }}&amp;#34;&lt;/code>&lt;/pre>
 &amp;#34;value&amp;#34;: &amp;#34;[parameters(&amp;#39;adminUsername&amp;#39;)]&amp;#34;
 }
 }
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_sources">Sources&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;a id="source_1">&lt;/a>[1]: &lt;a href="https://docs.ansible.com/ansible/latest/modules/azure_rm_deployment_module.html" target="_blank" rel="noopener">azure_rm_deployment – Create or destroy Azure Resource Manager template deployments&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>DO410 Ansible and Ansible Tower training notes</title><link>https://blog.stderr.at/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/</link><pubDate>Mon, 06 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/</guid><description>&lt;div class="paragraph">
-&lt;p>Notes taken during Red Hat course D410 Ansible and Ansible Tower.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_ansible_installation">Ansible installation&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>make sure that &lt;em>libselinux-python&lt;/em> is installed&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Ansible 2.7 requires python 2.6 or 3.5&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">yum list installed python&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>windows modules implemented in powershell&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>ansible requires at least .net 4.0&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_configuration_files">Configuration files&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Ansible searches for ansible.cfg in the following order:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>$ANSIBLE_CFG&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>ansible.cfg in the current directory&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>$HOME/ansible.cfg&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>/etc/ansible/ansible.cfg&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>whichever it finds first will be used.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>use&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible --version&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>to see which config file is currently used. you can view/dump/see what changed with&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-config [list|dump|view]&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_default_modules">Default modules&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>List all available modules via&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-doc -l&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For getting help on a specific module use&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-doc ping&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_ad_hoc_commmands">Ad-hoc commmands&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>To display ansible output on a single line per host for easier readablility use the &lt;em>-o&lt;/em> option&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible all -m command -a /bin/hostname -o&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Use the raw module for directly executing commands on remote systems that do not have python installed.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible -m raw&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_custom_facts">Custom Facts&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Ansible uses custom facts from &lt;em>/etc/ansible/facts.d/&lt;/em>. Facts can be
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_sources"&gt;Sources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a id="source_1"&gt;&lt;/a&gt;[1]: &lt;a href="https://docs.ansible.com/ansible/latest/modules/azure_rm_deployment_module.html" target="_blank" rel="noopener"&gt;azure_rm_deployment – Create or destroy Azure Resource Manager template deployments&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>DO410 Ansible and Ansible Tower training notes</title><link>https://blog.stderr.at/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/</link><pubDate>Mon, 06 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2020/04/do410-ansible-and-ansible-tower-training-notes/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Notes taken during Red Hat course D410 Ansible and Ansible Tower.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ansible_installation"&gt;Ansible installation&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;make sure that &lt;em&gt;libselinux-python&lt;/em&gt; is installed&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Ansible 2.7 requires python 2.6 or 3.5&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;yum list installed python&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;windows modules implemented in powershell&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ansible requires at least .net 4.0&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configuration_files"&gt;Configuration files&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible searches for ansible.cfg in the following order:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;$ANSIBLE_CFG&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ansible.cfg in the current directory&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;$HOME/ansible.cfg&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;/etc/ansible/ansible.cfg&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;whichever it finds first will be used.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;use&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible --version&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;to see which config file is currently used. you can view/dump/see what changed with&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-config [list|dump|view]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_default_modules"&gt;Default modules&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;List all available modules via&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-doc -l&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For getting help on a specific module use&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-doc ping&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ad_hoc_commmands"&gt;Ad-hoc commmands&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To display ansible output on a single line per host for easier readablility use the &lt;em&gt;-o&lt;/em&gt; option&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible all -m command -a /bin/hostname -o&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use the raw module for directly executing commands on remote systems that do not have python installed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible -m raw&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_custom_facts"&gt;Custom Facts&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible uses custom facts from &lt;em&gt;/etc/ansible/facts.d/&lt;/em&gt;. Facts can be
 stored in .ini style or you can place executable scripts in this
-directory. The script needs to output JSON. Custom facts are available via &lt;em>ansible_facts.ansible_local&lt;/em>.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_magic_variables_available">Magic variables available&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>hostvars: variables defined for this host&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>group_names: list of groups this host is a member of&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>groups: list of all groups and hosts in the inventory&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>inventory_hostname: host name of the current host as configured in the inventory&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_matching_hosts_in_the_inventory">Matching hosts in the inventory&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Some examples on how to match hosts defined in the inventory&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&amp;#39;*.lab.com&amp;#39;: match all hosts starting with lab.com&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&amp;#39;lab,datacenter&amp;#39;: match all hosts either in lab or datacenter&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&amp;#39;datacenter*&amp;#39;: match all host &lt;strong>and host groups&lt;/strong> starting with datacenter&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&amp;#39;lab,&amp;amp;datacenter&amp;#39;: match hosts in the lab and datacenter group&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&amp;#39;datacenter,!test.lab.com&amp;#39;: match all hosts in datacenter, except &lt;em>test.lab.com&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_dynamic_inventory">Dynamic inventory&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Example scripts for dynamic inventories can be found at
-&lt;a href="https://github.com/ansible/ansible/tree/devel/contrib/inventory" class="bare">https://github.com/ansible/ansible/tree/devel/contrib/inventory&lt;/a>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>You can use &lt;code>ansible-inventory&lt;/code> to take a look a the current inventory
-as json. This also works for static inventories.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Inventories can be combined. Just create a directory containing a
+directory. The script needs to output JSON. Custom facts are available via &lt;em&gt;ansible_facts.ansible_local&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_magic_variables_available"&gt;Magic variables available&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;hostvars: variables defined for this host&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;group_names: list of groups this host is a member of&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;groups: list of all groups and hosts in the inventory&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;inventory_hostname: host name of the current host as configured in the inventory&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_matching_hosts_in_the_inventory"&gt;Matching hosts in the inventory&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Some examples on how to match hosts defined in the inventory&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;*.lab.com&amp;#39;: match all hosts starting with lab.com&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;lab,datacenter&amp;#39;: match all hosts either in lab or datacenter&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;datacenter*&amp;#39;: match all host &lt;strong&gt;and host groups&lt;/strong&gt; starting with datacenter&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;lab,&amp;amp;datacenter&amp;#39;: match hosts in the lab and datacenter group&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&amp;#39;datacenter,!test.lab.com&amp;#39;: match all hosts in datacenter, except &lt;em&gt;test.lab.com&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_dynamic_inventory"&gt;Dynamic inventory&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Example scripts for dynamic inventories can be found at
+&lt;a href="https://github.com/ansible/ansible/tree/devel/contrib/inventory" class="bare"&gt;https://github.com/ansible/ansible/tree/devel/contrib/inventory&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can use &lt;code&gt;ansible-inventory&lt;/code&gt; to take a look a the current inventory
+as json. This also works for static inventories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Inventories can be combined. Just create a directory containing a
 static inventory and script to create a dynamic inventory, ansible
-will happily execute the scripts and merge everything together.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_debugging">Debugging&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following might be useful when debugging ansible roles and playbooks&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-playbook play.yml --syntax-check
+will happily execute the scripts and merge everything together.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_debugging"&gt;Debugging&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following might be useful when debugging ansible roles and playbooks&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-playbook play.yml --syntax-check
 ansible-playbook play.yml --step
 ansible-playbook play.yml --start-at-task=&amp;#34;start httpd service&amp;#34;
 ansible-playbook --check play.yml
-ansible-playbook --check --diff play.yml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_ansible_tower">Ansible Tower&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Notes on deploying and working with ansible tower.&lt;/p>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_installation">Installation&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>System requirements:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>at least 4GB of RAM&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>actual requirement depends on &lt;em>forks&lt;/em> variable&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>recommendation is 100MB memory for each for + 2GB of memory for tower services&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>20GB of disk storage, at least 10GB in /var&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Steps for installing:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>download setup tar.gz from &lt;a href="http://releases.ansible.com/ansible-tower/setup/" class="bare">http://releases.ansible.com/ansible-tower/setup/&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>set passwords in &lt;em>inventory&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>run &lt;em>./setup.sh&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_authentication">Authentication&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Authentication settings can be changed under Settings /
+ansible-playbook --check --diff play.yml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ansible_tower"&gt;Ansible Tower&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Notes on deploying and working with ansible tower.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_installation"&gt;Installation&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;System requirements:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;at least 4GB of RAM&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;actual requirement depends on &lt;em&gt;forks&lt;/em&gt; variable&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;recommendation is 100MB memory for each for + 2GB of memory for tower services&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;20GB of disk storage, at least 10GB in /var&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Steps for installing:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;download setup tar.gz from &lt;a href="http://releases.ansible.com/ansible-tower/setup/" class="bare"&gt;http://releases.ansible.com/ansible-tower/setup/&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;set passwords in &lt;em&gt;inventory&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;run &lt;em&gt;./setup.sh&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_authentication"&gt;Authentication&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Authentication settings can be changed under Settings /
 Authentication. E.g for configuring Azure AD authentication we are
-going to need&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>an Azure AD oauth2 key and&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>a Azure AD oauth2 secret&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_rbac">RBAC&lt;/h3>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>separate roles for organizations and inventories&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>you need to assign roles to organizations and inventories&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_the_tower_flow">The Tower Flow&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>These are the steps to run playbooks against managed nodes in Tower:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Create an organization if required&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create users&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create teams and assign users&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create credentials for accessing managed nodes&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Assign credential to organization&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create credentials for accessing SCM repositories (e.g. git)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Assign credentials to users or teams&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create a project&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Assign Teams to project&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create a job template for executing playbooks&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_ansible_roles_support">Ansible Roles support&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>If the project includes a &lt;code>requirements.txt&lt;/code> file in the &lt;em>roles/&lt;/em> folder, tower will automatically run&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">ansible-galaxy install -r roles/requirements.yml -p ./roles/ --force&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>at the end of an update. So this could be used to include external
-dependencies (like SAP ansible roles).&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_job_templates">Job Templates&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Ansible playbooks are stored in GIT repositories. A job template defines&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>the inventory used for this job template&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>the project for executing this job&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>this connects the GIT repository used in this project with the template&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>the playbook to execute&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>the credentials for executing jobs&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>permissions for users / teams (e.g. admin, execute)&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Tower creates jobs from those templates, which are ansible runs
-executed against managed nodes.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_fact_caching">Fact Caching&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>It might be a good idea to use the tower facts cache. To speed up
-playbook runs set &lt;code>gather_facts: no&lt;/code> in the play. Then enable the
-facts cache in tower.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>In tower settings set a timeout for the cache&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>In job templates enable &lt;code>Use facts cache&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create a playbook that runs on a regular basis to gather facts, e.g.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-ansible" data-lang="ansible">- name: Refresh fact cache
+going to need&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;an Azure AD oauth2 key and&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;a Azure AD oauth2 secret&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_rbac"&gt;RBAC&lt;/h3&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;separate roles for organizations and inventories&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;you need to assign roles to organizations and inventories&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_the_tower_flow"&gt;The Tower Flow&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;These are the steps to run playbooks against managed nodes in Tower:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Create an organization if required&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create users&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create teams and assign users&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create credentials for accessing managed nodes&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign credential to organization&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create credentials for accessing SCM repositories (e.g. git)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign credentials to users or teams&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a project&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Assign Teams to project&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a job template for executing playbooks&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_ansible_roles_support"&gt;Ansible Roles support&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the project includes a &lt;code&gt;requirements.txt&lt;/code&gt; file in the &lt;em&gt;roles/&lt;/em&gt; folder, tower will automatically run&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;ansible-galaxy install -r roles/requirements.yml -p ./roles/ --force&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;at the end of an update. So this could be used to include external
+dependencies (like SAP ansible roles).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_job_templates"&gt;Job Templates&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible playbooks are stored in GIT repositories. A job template defines&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;the inventory used for this job template&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the project for executing this job&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;this connects the GIT repository used in this project with the template&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the playbook to execute&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the credentials for executing jobs&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;permissions for users / teams (e.g. admin, execute)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tower creates jobs from those templates, which are ansible runs
+executed against managed nodes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_fact_caching"&gt;Fact Caching&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It might be a good idea to use the tower facts cache. To speed up
+playbook runs set &lt;code&gt;gather_facts: no&lt;/code&gt; in the play. Then enable the
+facts cache in tower.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;In tower settings set a timeout for the cache&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;In job templates enable &lt;code&gt;Use facts cache&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a playbook that runs on a regular basis to gather facts, e.g.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-ansible" data-lang="ansible"&gt;- name: Refresh fact cache
 hosts: all
-gather_facts: yes&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_inventory_options">Inventory options&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>These are the options for creating inventories in Ansible Tower&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>static inventory defined in tower&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>importing static inventories via &lt;em>awx-manage&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>static inventory defined in git repository&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>dynamic inventory via a custom script&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>dynamic inventory provides by tower (e.g. satellite)&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>A special feature in Tower are so called &lt;strong>smart inventories&lt;/strong>. A smart
+gather_facts: yes&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_inventory_options"&gt;Inventory options&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;These are the options for creating inventories in Ansible Tower&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;static inventory defined in tower&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;importing static inventories via &lt;em&gt;awx-manage&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;static inventory defined in git repository&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;dynamic inventory via a custom script&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;dynamic inventory provides by tower (e.g. satellite)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A special feature in Tower are so called &lt;strong&gt;smart inventories&lt;/strong&gt;. A smart
 inventory combines all static and dynamic inventories and allows
-filtering based on facts. Filtering requires a valid fact cache.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_troubleshooting">Troubleshooting&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Tower uses the following components:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>postgresql&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>nginx&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>memcached&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>rabbitmq&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>supervisord&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Useful tools&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;em>ansible-tower-service&lt;/em> (e.g. status / restart)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>supervisorctl&lt;/em> (e.g. status)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>awx-manage&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Tower stores log files in&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;em>/var/log/tower/&lt;/em> (e.g. tower.log).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/var/log/supervisor/&lt;/em>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/var/log/nginx/&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Other important directories&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;em>/var/lib/awx/public/static&lt;/em> static files served by django&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/var/lib/awx/projects&lt;/em> stores all project related files e.g. git checkouts)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/var/lib/awx/jobs_status&lt;/em> job status output&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-by default playbook runs are confined to &lt;em>/tmp&lt;/em> this might lead
+filtering based on facts. Filtering requires a valid fact cache.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_troubleshooting"&gt;Troubleshooting&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tower uses the following components:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;postgresql&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;nginx&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;memcached&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;rabbitmq&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;supervisord&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Useful tools&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;ansible-tower-service&lt;/em&gt; (e.g. status / restart)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;supervisorctl&lt;/em&gt; (e.g. status)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;awx-manage&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tower stores log files in&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/log/tower/&lt;/em&gt; (e.g. tower.log).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/log/supervisor/&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/log/nginx/&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Other important directories&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/lib/awx/public/static&lt;/em&gt; static files served by django&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/lib/awx/projects&lt;/em&gt; stores all project related files e.g. git checkouts)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/var/lib/awx/jobs_status&lt;/em&gt; job status output&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+by default playbook runs are confined to &lt;em&gt;/tmp&lt;/em&gt; this might lead
 to problems with tasks running on the local system.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In case of a lost &lt;em>admin&lt;/em> password you can use &lt;em>awx-manage&lt;/em> to reset the password or create a new superuser:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">awx-manage changepassword admin
-awx-manage createsuperuser&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_replacing_the_default_tls_certificates">Replacing the default TLS certificates&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Ansible tower uses nginx to service it’s web interface over TLS. Nginx
-uses the configuration file &lt;em>/etc/nginx/nginx.conf&lt;/em>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To deploy custom TLS certificates used by tower replace the
-certificate and private key in &lt;em>/etc/tower&lt;/em>. You have to replace&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;em>/etc/tower/tower.crt&lt;/em> and&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;em>/etc/tower/tower.key&lt;/em>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>It might be a good idea to create a backup copy before overwriting
-those files.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_backup_and_restore">Backup and restore&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Of course backup and restore are done via ansible. The ansible tower
-setup script &lt;code>setup.sh&lt;/code> provides a wrapper around these playbooks. Execute&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">setup.sh -b&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>to perform a backup. This creates a backup .tar.gz file in the current directory.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To restore a backup use&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">setup.sh -r&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>this restores the latest backup per default.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_things_to_remember">Things to remember&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Workflow job templates&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>add &lt;code>autocmd FileType yaml setlocal ai ts=2 sw=2 et&lt;/code> to .vimrc&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>use &lt;code>sudo yum install python-cryptography&lt;/code> if there are many vault files to speed up ansible&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In case of a lost &lt;em&gt;admin&lt;/em&gt; password you can use &lt;em&gt;awx-manage&lt;/em&gt; to reset the password or create a new superuser:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;awx-manage changepassword admin
+awx-manage createsuperuser&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_replacing_the_default_tls_certificates"&gt;Replacing the default TLS certificates&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible tower uses nginx to service it’s web interface over TLS. Nginx
+uses the configuration file &lt;em&gt;/etc/nginx/nginx.conf&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To deploy custom TLS certificates used by tower replace the
+certificate and private key in &lt;em&gt;/etc/tower&lt;/em&gt;. You have to replace&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/etc/tower/tower.crt&lt;/em&gt; and&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;em&gt;/etc/tower/tower.key&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It might be a good idea to create a backup copy before overwriting
+those files.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_backup_and_restore"&gt;Backup and restore&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Of course backup and restore are done via ansible. The ansible tower
+setup script &lt;code&gt;setup.sh&lt;/code&gt; provides a wrapper around these playbooks. Execute&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;setup.sh -b&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;to perform a backup. This creates a backup .tar.gz file in the current directory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To restore a backup use&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;setup.sh -r&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;this restores the latest backup per default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_things_to_remember"&gt;Things to remember&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Workflow job templates&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;add &lt;code&gt;autocmd FileType yaml setlocal ai ts=2 sw=2 et&lt;/code&gt; to .vimrc&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;use &lt;code&gt;sudo yum install python-cryptography&lt;/code&gt; if there are many vault files to speed up ansible&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

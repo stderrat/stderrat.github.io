@@ -1,183 +1,183 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Advanced Cluster Security on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/acs/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/acs/index.xml" rel="self" type="application/rss+xml"/><item><title>Advanced Cluster Security - Authentication</title><link>https://blog.stderr.at/acs/2021-12-11-acsauth/</link><pubDate>Sat, 11 Dec 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/acs/2021-12-11-acsauth/</guid><description>&lt;div class="paragraph">
-&lt;p>Red Hat Advanced Cluster Security (RHACS) Central is installed with one administrator user by default. Typically, customers request an integration with existing Identity Provider(s) (IDP). RHACS offers different options for such integration. In this article 2 IDPs will be configured as an example. First OpenShift Auth and second Red Hat Single Sign On (RHSSO) based on Keycloak&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>OpenShift 4 Cluster&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Advanced Cluster Security v3.66+&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Red Hat SSO Operator installed&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Advanced Cluster Security on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/acs/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/acs/index.xml" rel="self" type="application/rss+xml"/><item><title>Advanced Cluster Security - Authentication</title><link>https://blog.stderr.at/acs/2021-12-11-acsauth/</link><pubDate>Sat, 11 Dec 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/acs/2021-12-11-acsauth/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Red Hat Advanced Cluster Security (RHACS) Central is installed with one administrator user by default. Typically, customers request an integration with existing Identity Provider(s) (IDP). RHACS offers different options for such integration. In this article 2 IDPs will be configured as an example. First OpenShift Auth and second Red Hat Single Sign On (RHSSO) based on Keycloak&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift 4 Cluster&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advanced Cluster Security v3.66+&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Red Hat SSO Operator installed&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 While RHSSO will be installed during this article, only default and example values are used. These are by no means examples for a production system.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_introduction">Introduction&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Advanced Cluster Security comes with several default roles, which can be assigned to users:&lt;/p>
-&lt;/div>
-&lt;table class="tableblock frame-all grid-all stretch">
-&lt;colgroup>
-&lt;col style="width: 33.3333%;"/>
-&lt;col style="width: 66.6667%;"/>
-&lt;/colgroup>
-&lt;thead>
-&lt;tr>
-&lt;th class="tableblock halign-left valign-top">System role&lt;/th>
-&lt;th class="tableblock halign-left valign-top">Description&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Admin&lt;/p>&lt;/td>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role is targeted for administrators. Use it to provide read and write access to all resources.&lt;/p>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Analyst&lt;/p>&lt;/td>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role is targeted for a user who cannot make any changes, but can view everything. Use it to provide read-only access for all resources.&lt;/p>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Continuous Integration&lt;/p>&lt;/td>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role is targeted for CI (continuous integration) systems and includes the permission set required to enforce deployment policies.&lt;/p>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">None&lt;/p>&lt;/td>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role has no read and write access to any resource. You can set this role as the minimum access role for all users.&lt;/p>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Sensor Creator&lt;/p>&lt;/td>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Red Hat Advanced Cluster Security for Kubernetes uses this role to automate new cluster setups. It includes the permission set to create Sensors in secured clusters.&lt;/p>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">Scope Manager&lt;/p>&lt;/td>
-&lt;td class="tableblock halign-left valign-top">&lt;p class="tableblock">This role includes the minimum permissions required to create and modify access scopes.&lt;/p>&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Advanced Cluster Security comes with several default roles, which can be assigned to users:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 33.3333%;"/&gt;
+&lt;col style="width: 66.6667%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;System role&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Description&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Admin&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role is targeted for administrators. Use it to provide read and write access to all resources.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Analyst&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role is targeted for a user who cannot make any changes, but can view everything. Use it to provide read-only access for all resources.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Continuous Integration&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role is targeted for CI (continuous integration) systems and includes the permission set required to enforce deployment policies.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;None&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role has no read and write access to any resource. You can set this role as the minimum access role for all users.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Sensor Creator&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Red Hat Advanced Cluster Security for Kubernetes uses this role to automate new cluster setups. It includes the permission set to create Sensors in secured clusters.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Scope Manager&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role includes the minimum permissions required to create and modify access scopes.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 It is possible to create custom roles.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_configure_rhacs_authentication_openshift_auth">Configure RHACS Authentication: OpenShift Auth&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configure_rhacs_authentication_openshift_auth"&gt;Configure RHACS Authentication: OpenShift Auth&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 It is assumed that RHACS is already installed and login to the Central UI is available.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Login to your RHACS and select “Platform Configuration” &amp;gt; “Access Control”&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>From the drop down menu &lt;strong>Add auth provider&lt;/strong> select &lt;strong>OpenShift Auth&lt;/strong>&lt;/p>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/acs/images/ACS-AuthProvider.png?width=940px" alt="ACS AuthProvider"/>
-&lt;/div>
-&lt;div class="title">Figure 1. ACS Auth Provider&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Enter a &lt;strong>Name&lt;/strong> for your provider and select a default role which is assigned to any user who can authenticate.&lt;/p>
-&lt;div class="paragraph">
-&lt;p>It is recommended to select the role &lt;strong>None&lt;/strong>, so new accounts will have no privileges in RHACS.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For example the user with the name &lt;strong>poweruser&lt;/strong> gets the role &lt;strong>Admin&lt;/strong> assigned.&lt;/p>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_verify_authentication_with_openshift_auth">Verify Authentication with OpenShift Auth&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Logout from the Central UI and reload the browser.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Select from the drop down &lt;strong>OpenShift Auth&lt;/strong>&lt;/p>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/acs/images/ACS-LoginOpenShiftAuth.png?width=420px" alt="ACS LoginOpenShiftAuth"/>
-&lt;/div>
-&lt;div class="title">Figure 2. ACS Login&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Try to login with a valid OpenShift user.&lt;br/>
-Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.&lt;br/>
-For example: If you login as user &lt;strong>poweruser&lt;/strong> the role &lt;strong>Admin&lt;/strong> is assigned.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;hr/>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_configure_red_hat_single_sign_on">Configure Red Hat Single Sign On&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following steps will create some basic example objects to an existing RHSSO or Keycloak to test the authentication at RHACS.
-Skip to step #5 if you have Keycloak already up and running and would like to reuse an existing client.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The RHSSO operator (or Keycloak) is installed at the namespace &lt;strong>single-sign-on&lt;/strong>.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create an instance of Keycloak&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: keycloak.org/v1alpha1
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Login to your RHACS and select “Platform Configuration” &amp;gt; “Access Control”&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;From the drop down menu &lt;strong&gt;Add auth provider&lt;/strong&gt; select &lt;strong&gt;OpenShift Auth&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/acs/images/ACS-AuthProvider.png?width=940px" alt="ACS AuthProvider"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. ACS Auth Provider&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Enter a &lt;strong&gt;Name&lt;/strong&gt; for your provider and select a default role which is assigned to any user who can authenticate.&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is recommended to select the role &lt;strong&gt;None&lt;/strong&gt;, so new accounts will have no privileges in RHACS.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example the user with the name &lt;strong&gt;poweruser&lt;/strong&gt; gets the role &lt;strong&gt;Admin&lt;/strong&gt; assigned.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_verify_authentication_with_openshift_auth"&gt;Verify Authentication with OpenShift Auth&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Logout from the Central UI and reload the browser.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select from the drop down &lt;strong&gt;OpenShift Auth&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/acs/images/ACS-LoginOpenShiftAuth.png?width=420px" alt="ACS LoginOpenShiftAuth"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. ACS Login&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Try to login with a valid OpenShift user.&lt;br/&gt;
+Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.&lt;br/&gt;
+For example: If you login as user &lt;strong&gt;poweruser&lt;/strong&gt; the role &lt;strong&gt;Admin&lt;/strong&gt; is assigned.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configure_red_hat_single_sign_on"&gt;Configure Red Hat Single Sign On&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following steps will create some basic example objects to an existing RHSSO or Keycloak to test the authentication at RHACS.
+Skip to step #5 if you have Keycloak already up and running and would like to reuse an existing client.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The RHSSO operator (or Keycloak) is installed at the namespace &lt;strong&gt;single-sign-on&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create an instance of Keycloak&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: keycloak.org/v1alpha1
 kind: Keycloak
 metadata:
 name: example-keycloak
@@ -185,16 +185,16 @@ namespace: single-sign-on
 spec:
 externalAccess:
 enabled: true
-instances: 1&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Create a Realm&lt;br/>
-This will create a Realm called &lt;strong>Basic&lt;/strong>&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: keycloak.org/v1alpha1
+instances: 1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a Realm&lt;br/&gt;
+This will create a Realm called &lt;strong&gt;Basic&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: keycloak.org/v1alpha1
 kind: KeycloakRealm
 metadata:
 name: example-keycloakrealm
@@ -207,253 +207,253 @@ realm:
 displayName: Basic Realm
 enabled: true
 id: basic
-realm: basic&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Login into Red Hat SSO&lt;br/>
-Get the route to your RHSSO instance:&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get route keycloak -n single-sign-on --template=&amp;#39;{{ .spec.host }}&amp;#39;
-# keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>and log into the Administration Interface.&lt;/p>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Extract the admin password for Keycloak&lt;/p>
-&lt;div class="paragraph">
-&lt;p>The secret name is build from &amp;#34;credential&amp;#34;&amp;lt;keycloak-instance-name&amp;gt;&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc extract secret/credential-example-keycloak -n single-sign-on --to=-
+realm: basic&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Login into Red Hat SSO&lt;br/&gt;
+Get the route to your RHSSO instance:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get route keycloak -n single-sign-on --template=&amp;#39;{{ .spec.host }}&amp;#39;
+# keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;and log into the Administration Interface.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Extract the admin password for Keycloak&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The secret name is build from &amp;#34;credential&amp;#34;&amp;lt;keycloak-instance-name&amp;gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc extract secret/credential-example-keycloak -n single-sign-on --to=-
 # ADMIN_PASSWORD
 &amp;lt;you password&amp;gt;
 # ADMIN_USERNAME
-admin&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Be sure to select your Realm (&lt;strong>Basic&lt;/strong> in our case), goto &lt;strong>Clients&lt;/strong> and select a ClientID.&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>In this example we select &lt;strong>account&lt;/strong>&lt;/p>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/acs/images/ACS-SSOClientConfig.png?width=640px" alt="ACS SSOClientConfig"/>
-&lt;/div>
-&lt;div class="title">Figure 3. ACS Login&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+admin&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Be sure to select your Realm (&lt;strong&gt;Basic&lt;/strong&gt; in our case), goto &lt;strong&gt;Clients&lt;/strong&gt; and select a ClientID.&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;In this example we select &lt;strong&gt;account&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/acs/images/ACS-SSOClientConfig.png?width=640px" alt="ACS SSOClientConfig"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. ACS Login&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Of course you can create or use any other Client.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Enable the option &lt;strong>Implicit Flow&lt;/strong>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Get the &lt;strong>Issuer URL&lt;/strong> from your realm. This is typically your:&lt;br/>
-&lt;a href="https://&amp;lt;KEYCLOAK_URL&amp;gt;/auth/realms/&amp;lt;REALM_NAME&amp;gt;" class="bare">https://&amp;lt;KEYCLOAK_URL&amp;gt;/auth/realms/&amp;lt;REALM_NAME&amp;gt;&lt;/a>;&lt;/p>
-&lt;div class="paragraph">
-&lt;p>For Example:
-&lt;a href="https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic" class="bare">https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic&lt;/a>&lt;/p>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_create_test_users">Create Test Users&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>In RHSSO create 2 user accounts to test the authentication later.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Goto &lt;strong>Users&lt;/strong> and create the users:&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>User: acsadmin&lt;/p>
-&lt;div class="paragraph">
-&lt;p>First Name: acsadmin&lt;/p>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>User: user1&lt;/p>
-&lt;div class="paragraph">
-&lt;p>First Name: user 1&lt;/p>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>You can set any other values for these users. However, be sure to set a password for both, after they have been created.&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_configure_rhacs_authentication_rhsso">Configure RHACS Authentication: RHSSO&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Enable the option &lt;strong&gt;Implicit Flow&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Get the &lt;strong&gt;Issuer URL&lt;/strong&gt; from your realm. This is typically your:&lt;br/&gt;
+&lt;a href="https://&amp;lt;KEYCLOAK_URL&amp;gt;/auth/realms/&amp;lt;REALM_NAME&amp;gt;" class="bare"&gt;https://&amp;lt;KEYCLOAK_URL&amp;gt;/auth/realms/&amp;lt;REALM_NAME&amp;gt;&lt;/a&gt;;&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For Example:
+&lt;a href="https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic" class="bare"&gt;https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_create_test_users"&gt;Create Test Users&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In RHSSO create 2 user accounts to test the authentication later.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Goto &lt;strong&gt;Users&lt;/strong&gt; and create the users:&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;User: acsadmin&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First Name: acsadmin&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;User: user1&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First Name: user 1&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;You can set any other values for these users. However, be sure to set a password for both, after they have been created.&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configure_rhacs_authentication_rhsso"&gt;Configure RHACS Authentication: RHSSO&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 It is assumed that RSACS is already installed and login to the Central UI is available.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Login to your RHACS and select “Platform Configuration” &amp;gt; “Access Control”&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>From the drop down menu &lt;strong>Add auth provider&lt;/strong> select &lt;strong>OpenID Connect&lt;/strong>&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>Enter a “Name” for your provider i.e. “Single Sign On”&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Leave the “Callback Mode” to the “Auto-Select” setting&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Enter your Issuer URL&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>As Client ID enter &lt;strong>account&lt;/strong> (or the ClientID you would like to use)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Leave the Client Secret empty and select the checkbox &lt;strong>Do not use Client Secret&lt;/strong> which is good enough for our tests.&lt;/p>
-&lt;div class="paragraph">
-&lt;p>Remember the two callback URL from the blue box. They must be configured in Keycloak.&lt;/p>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Select a default role which is assigned to any user who can authenticate.&lt;/p>
-&lt;div class="paragraph">
-&lt;p>It is recommended to select the role &lt;strong>None&lt;/strong>, so new accounts will have no privileges in RHACS.&lt;/p>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>For example the user with the name &lt;strong>acsadmin&lt;/strong> (which have been created previously in our RHSSO) gets the role &lt;strong>Admin&lt;/strong> assigned.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The final settings are depict in the following image:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/acs/images/ACS-OpenIDConfig.png?width=640px" alt="ACS OpenIDConfig"/>
-&lt;/div>
-&lt;div class="title">Figure 4. ACS Login&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_continue_rhsso_configuration">Continue RHSSO Configuration&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>What is left to do is the configuration of redirect URLs. These URLs are shown in the ACS Authentication Provider configuration (see blue field in the image above)&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Log back into RHSSO and select “Clients” &amp;gt; “account”&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Into &lt;strong>Valid Redirect URLs&lt;/strong> enter the two URLs which you saved from the blue box in the RHACS configuration.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_troubleshoot_test_login">Troubleshoot: Test Login&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>In RHACS you can test the login to you SSO.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Goto &amp;#34;Platform Configuration&amp;#34; &amp;gt; &amp;#34;Access Control&amp;#34;&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Click the button &amp;#34;Test login&amp;#34;&lt;/p>
-&lt;div class="paragraph">
-&lt;p>A popup will appear which asks you to enter SSO credentials. The connection to RHSSO will be validated:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/acs/images/ACS-TestSSOAuth.png?width=420px" alt="ACS TestSSOAuth"/>
-&lt;/div>
-&lt;div class="title">Figure 5. ACS Test SSO&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_verify_authentication_with_openshift_auth_2">Verify Authentication with OpenShift Auth&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Logout from the Central UI and reload the browser.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Select from the drop down &lt;strong>Single Sign On&lt;/strong>&lt;/p>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/acs/images/ACS-LoginSSOAuth.png?width=420px" alt="ACS LoginSSOAuth"/>
-&lt;/div>
-&lt;div class="title">Figure 6. ACS Login SSO&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Try to login with a valid SSO user.&lt;br/>
-Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.&lt;br/>
-For example: If you login as user &lt;strong>acsadmin&lt;/strong> the role &lt;strong>Admin&lt;/strong> is assigned.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Login to your RHACS and select “Platform Configuration” &amp;gt; “Access Control”&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;From the drop down menu &lt;strong&gt;Add auth provider&lt;/strong&gt; select &lt;strong&gt;OpenID Connect&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;Enter a “Name” for your provider i.e. “Single Sign On”&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Leave the “Callback Mode” to the “Auto-Select” setting&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Enter your Issuer URL&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;As Client ID enter &lt;strong&gt;account&lt;/strong&gt; (or the ClientID you would like to use)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Leave the Client Secret empty and select the checkbox &lt;strong&gt;Do not use Client Secret&lt;/strong&gt; which is good enough for our tests.&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Remember the two callback URL from the blue box. They must be configured in Keycloak.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select a default role which is assigned to any user who can authenticate.&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is recommended to select the role &lt;strong&gt;None&lt;/strong&gt;, so new accounts will have no privileges in RHACS.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;For example the user with the name &lt;strong&gt;acsadmin&lt;/strong&gt; (which have been created previously in our RHSSO) gets the role &lt;strong&gt;Admin&lt;/strong&gt; assigned.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The final settings are depict in the following image:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/acs/images/ACS-OpenIDConfig.png?width=640px" alt="ACS OpenIDConfig"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 4. ACS Login&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_continue_rhsso_configuration"&gt;Continue RHSSO Configuration&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;What is left to do is the configuration of redirect URLs. These URLs are shown in the ACS Authentication Provider configuration (see blue field in the image above)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Log back into RHSSO and select “Clients” &amp;gt; “account”&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Into &lt;strong&gt;Valid Redirect URLs&lt;/strong&gt; enter the two URLs which you saved from the blue box in the RHACS configuration.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshoot_test_login"&gt;Troubleshoot: Test Login&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In RHACS you can test the login to you SSO.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Goto &amp;#34;Platform Configuration&amp;#34; &amp;gt; &amp;#34;Access Control&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Click the button &amp;#34;Test login&amp;#34;&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A popup will appear which asks you to enter SSO credentials. The connection to RHSSO will be validated:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/acs/images/ACS-TestSSOAuth.png?width=420px" alt="ACS TestSSOAuth"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 5. ACS Test SSO&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_verify_authentication_with_openshift_auth_2"&gt;Verify Authentication with OpenShift Auth&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Logout from the Central UI and reload the browser.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select from the drop down &lt;strong&gt;Single Sign On&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/acs/images/ACS-LoginSSOAuth.png?width=420px" alt="ACS LoginSSOAuth"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 6. ACS Login SSO&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Try to login with a valid SSO user.&lt;br/&gt;
+Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.&lt;br/&gt;
+For example: If you login as user &lt;strong&gt;acsadmin&lt;/strong&gt; the role &lt;strong&gt;Admin&lt;/strong&gt; is assigned.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

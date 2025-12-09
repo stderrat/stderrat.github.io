@@ -1,243 +1,243 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Lifecycle on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/lifecycle/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 12 Feb 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/lifecycle/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Data Foundation - Noobaa Bucket Data Retention (Lifecycle)</title><link>https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/</link><pubDate>Mon, 12 Feb 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/</guid><description>&lt;div class="paragraph">
-&lt;p>Data retention or lifecycle configuration for S3 buckets is done by the S3 provider directly. The provider keeps track and files are automatically rotated after the requested time.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This article is a simple step-by-step guide to configure such lifecycle for OpenShift Data Foundation (ODF), where buckets are provided by Noobaa. Knowledge about ODF is assumed, however similar steps can be reproduced for any S3-compliant storage operator.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Installed OpensShift 4.x cluster (latest version during the creation of this article 4.14)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Installed Open Data Foundation Operator (4.14+)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Configured Multi-Cloud Gateway (for example) to provide OpenShift with object storage.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Installed aws command line tool. The deployment for different operating system is explained at: &lt;a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#cliv2-linux-install">Installing AWS Client&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>A configured bucket and running openshift logging.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Lifecycle on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/lifecycle/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 12 Feb 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/lifecycle/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Data Foundation - Noobaa Bucket Data Retention (Lifecycle)</title><link>https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/</link><pubDate>Mon, 12 Feb 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Data retention or lifecycle configuration for S3 buckets is done by the S3 provider directly. The provider keeps track and files are automatically rotated after the requested time.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article is a simple step-by-step guide to configure such lifecycle for OpenShift Data Foundation (ODF), where buckets are provided by Noobaa. Knowledge about ODF is assumed, however similar steps can be reproduced for any S3-compliant storage operator.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Installed OpensShift 4.x cluster (latest version during the creation of this article 4.14)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Installed Open Data Foundation Operator (4.14+)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configured Multi-Cloud Gateway (for example) to provide OpenShift with object storage.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Installed aws command line tool. The deployment for different operating system is explained at: &lt;a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#cliv2-linux-install"&gt;Installing AWS Client&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A configured bucket and running openshift logging.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 In the further steps we use the bucket that is created for OpenShift Logging (using Lokistack) as a reference.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_working_with_aws_client">Working with aws client&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The first thing to do to work with the aws client is to retrieve the &lt;strong>access key&lt;/strong> and &lt;strong>secret key&lt;/strong> to be able to authenticate against the S3 API. During the deployment of OpenShift logging and the Lokistack a bucket has been created. The secret to authenticate against this bucket can be found in the openshift-logging namespace. In my example the name of this secret is &lt;strong>logging-loki-s3&lt;/strong> and it contains the following values:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/openshift/images/lokisecret.png?width=220" alt="Loki Secret"/>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The easiest way to authenticate against the S3 API is to create the following configuration file:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">&amp;gt; vim ~/.aws/credentials
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_working_with_aws_client"&gt;Working with aws client&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first thing to do to work with the aws client is to retrieve the &lt;strong&gt;access key&lt;/strong&gt; and &lt;strong&gt;secret key&lt;/strong&gt; to be able to authenticate against the S3 API. During the deployment of OpenShift logging and the Lokistack a bucket has been created. The secret to authenticate against this bucket can be found in the openshift-logging namespace. In my example the name of this secret is &lt;strong&gt;logging-loki-s3&lt;/strong&gt; and it contains the following values:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift/images/lokisecret.png?width=220" alt="Loki Secret"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The easiest way to authenticate against the S3 API is to create the following configuration file:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&amp;gt; vim ~/.aws/credentials
 [default]
 aws_access_key_id = &amp;lt;value of access_key_id&amp;gt;
-aws_secret_access_key = &amp;lt;value of access_key_secret&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+aws_secret_access_key = &amp;lt;value of access_key_secret&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Be sure that this file is not globally accessible.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_listing_objects">Listing Objects&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>As a first test, we can try to list objects. The following command uses the S3 endpoint and the name of the bucket. Again, these values can be found in the Loki secret, mentioned above:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 ls s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_listing_objects"&gt;Listing Objects&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As a first test, we can try to list objects. The following command uses the S3 endpoint and the name of the bucket. Again, these values can be found in the Loki secret, mentioned above:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 ls s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
 PRE application/
 PRE audit/
 PRE index/
-PRE infrastructure/&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This command simply lists the current content (some folders in our case) of this bucket.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_copy_a_file_into_the_bucket">Copy a file into the bucket&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>For further testing we copy a test file into the bucket. This can be any file, I have created an empty one called &lt;strong>testfile.txt&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 cp testfile.txt s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
-upload: ./testfile.txt to s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56/testfile.txt&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Listing the content again, will now show the uploaded testfile.txt&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 ls s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
+PRE infrastructure/&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This command simply lists the current content (some folders in our case) of this bucket.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_copy_a_file_into_the_bucket"&gt;Copy a file into the bucket&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For further testing we copy a test file into the bucket. This can be any file, I have created an empty one called &lt;strong&gt;testfile.txt&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 cp testfile.txt s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
+upload: ./testfile.txt to s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56/testfile.txt&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Listing the content again, will now show the uploaded testfile.txt&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 ls s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
 PRE application/
 PRE audit/
 PRE index/
 PRE infrastructure/
-2024-02-10 04:23:14 32 testfile.txt&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_verifying_current_lifecycle_configuration">Verifying current Lifecycle configuration&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>To verify the current lifecycle configuration, execute the following command. It will show any configuration that is currently available, or an empty value if there is no such setting yet.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api get-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_put_a_lifecycle_configuration_in_place">Put a lifecycle configuration in place&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>To configure a data retention of 4 days for our bucket we first need to create the following JSON file:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">cat logging-bucket-lifecycle.json
+2024-02-10 04:23:14 32 testfile.txt&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verifying_current_lifecycle_configuration"&gt;Verifying current Lifecycle configuration&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To verify the current lifecycle configuration, execute the following command. It will show any configuration that is currently available, or an empty value if there is no such setting yet.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api get-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_put_a_lifecycle_configuration_in_place"&gt;Put a lifecycle configuration in place&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To configure a data retention of 4 days for our bucket we first need to create the following JSON file:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-json" data-lang="json"&gt;cat logging-bucket-lifecycle.json
 {
 &amp;#34;Rules&amp;#34;: [
 {
 &amp;#34;Expiration&amp;#34;: {
-&amp;#34;Days&amp;#34;: 4 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+&amp;#34;Days&amp;#34;: 4 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 },
-&amp;#34;ID&amp;#34;: &amp;#34;123&amp;#34;, &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+&amp;#34;ID&amp;#34;: &amp;#34;123&amp;#34;, &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 &amp;#34;Filter&amp;#34;: {
-&amp;#34;Prefix&amp;#34;: &amp;#34;&amp;#34; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+&amp;#34;Prefix&amp;#34;: &amp;#34;&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 },
 &amp;#34;Status&amp;#34;: &amp;#34;Enabled&amp;#34;
 }
 ]
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Defines the retention period is days.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>A simple ID for this Rule. (string).&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>A filter used to identify objects that a Lifecycle Rule applies to, here the filter is empty, so all objects are affected.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-There are much more setting possible as describe at &lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3api/put-bucket-lifecycle-configuration.html">AWS S3API&lt;/a>.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following command will put the defined rule in place:&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Defines the retention period is days.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A simple ID for this Rule. (string).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A filter used to identify objects that a Lifecycle Rule applies to, here the filter is empty, so all objects are affected.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+There are much more setting possible as describe at &lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3api/put-bucket-lifecycle-configuration.html"&gt;AWS S3API&lt;/a&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following command will put the defined rule in place:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Already defined rules will be overwritten by the JSON file. If there have been previous configurations, put them into the JSON file as well.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api put-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56 --lifecycle-configuration file://logging-bucket-lifecycle.json&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Checking again with the previous command, the rule should now be configured:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api get-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_what_now">What now?&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Now you have to wait. With the configuration used above, it takes 4 days until the file is rotated. I have tested this using a 1 day retention period and saw that the file will be rotated after about 30 hours. So the rotation will not happen exactly at 24 hours but a bit afterwards.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_consclusion">Consclusion&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>This article describes very, and I mean very, briefly how to configure such data retention for OpenShift Data Foundation. Unfortunately, public documentation can be confusing, so I summarized here the commands I have used.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>There are some limitations with the Noobaa integration though. For example file transition (to a different storage class) is (currently) not supported.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Also, there are much more possible API calls that might be interesting. Please follow the AWS documentation:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3api/">S3 API&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3/">S3&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api put-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56 --lifecycle-configuration file://logging-bucket-lifecycle.json&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Checking again with the previous command, the rule should now be configured:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api get-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_what_now"&gt;What now?&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now you have to wait. With the configuration used above, it takes 4 days until the file is rotated. I have tested this using a 1 day retention period and saw that the file will be rotated after about 30 hours. So the rotation will not happen exactly at 24 hours but a bit afterwards.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_consclusion"&gt;Consclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article describes very, and I mean very, briefly how to configure such data retention for OpenShift Data Foundation. Unfortunately, public documentation can be confusing, so I summarized here the commands I have used.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;There are some limitations with the Noobaa integration though. For example file transition (to a different storage class) is (currently) not supported.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Also, there are much more possible API calls that might be interesting. Please follow the AWS documentation:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3api/"&gt;S3 API&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3/"&gt;S3&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

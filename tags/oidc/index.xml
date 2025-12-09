@@ -1,491 +1,491 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OIDC on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/oidc/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 19 Sep 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/oidc/index.xml" rel="self" type="application/rss+xml"/><item><title>Red Hat Quay Registry - Integrate Keycloak</title><link>https://blog.stderr.at/quay/2025-09-19-quay-integrate-keycloak/</link><pubDate>Fri, 19 Sep 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/2025-09-19-quay-integrate-keycloak/</guid><description>&lt;div class="paragraph">
-&lt;p>This guide shows you how to configure Keycloak as an OpenID Connect (OIDC) provider for Red Hat Quay Registry. It covers what to configure in Keycloak, what to put into Quay’s config.yaml (or Operator config), how to verify the login flow, and how to switch your Quay initial/admin account (stored locally in Quay’s DB) to an admin user that authenticates via Keycloak.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Before starting this integration, ensure you have:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>OpenShift cluster with admin access&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Red Hat Quay Registry 3.15+ installed (via Operator)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Red Hat build of Keycloak stable-v22+ installed and configured (via Operator)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Valid SSL certificates for both Quay and Keycloak&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Admin access to both Keycloak Admin Console and Quay configuration&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Basic understanding of OIDC/OAuth2 concepts&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OIDC on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/oidc/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 19 Sep 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/oidc/index.xml" rel="self" type="application/rss+xml"/><item><title>Red Hat Quay Registry - Integrate Keycloak</title><link>https://blog.stderr.at/quay/2025-09-19-quay-integrate-keycloak/</link><pubDate>Fri, 19 Sep 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/quay/2025-09-19-quay-integrate-keycloak/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;This guide shows you how to configure Keycloak as an OpenID Connect (OIDC) provider for Red Hat Quay Registry. It covers what to configure in Keycloak, what to put into Quay’s config.yaml (or Operator config), how to verify the login flow, and how to switch your Quay initial/admin account (stored locally in Quay’s DB) to an admin user that authenticates via Keycloak.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before starting this integration, ensure you have:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift cluster with admin access&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Red Hat Quay Registry 3.15+ installed (via Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Red Hat build of Keycloak stable-v22+ installed and configured (via Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Valid SSL certificates for both Quay and Keycloak&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Admin access to both Keycloak Admin Console and Quay configuration&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Basic understanding of OIDC/OAuth2 concepts&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Here we are using the Quay Operator and the Keycloak Operator on OpenShift.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_quick_overview_what_happens">Quick overview (what happens)&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create a Keycloak client for Quay (OIDC).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Configure Quay’s OIDC provider section in config.yaml to point to Keycloak (client id/secret, endpoints, scopes, claim names).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Restart Quay, test login via Keycloak. The first time an OIDC user logs in, Quay creates a local user record that is linked to the OIDC identity.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Promote that Quay user to superuser by adding their Quay username to SUPER_USERS (or use the UI/API).&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_keycloak_create_a_client_for_quay">Keycloak: create a client for Quay&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Steps in Keycloak Admin console:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Log in to the Keycloak Admin Console and select the realm you will use for Quay or create a new realm.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Select that realm and go to clients&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Press &lt;strong>Create client&lt;/strong> to create and configure a new client for Quay. Not much must be configured here, but at least the following:&lt;/p>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>Client type: OpenID Connect&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Client ID: quay-enterprise (The ID we will use in the Quay configuration as well)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Client authentication: ON&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Valid redirects URIs:&lt;/p>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback" class="bare">https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>(Optional) &lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/attach" class="bare">https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/attach&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>(Optional) &lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/cli" class="bare">https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/cli&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_quick_overview_what_happens"&gt;Quick overview (what happens)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a Keycloak client for Quay (OIDC).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure Quay’s OIDC provider section in config.yaml to point to Keycloak (client id/secret, endpoints, scopes, claim names).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Restart Quay, test login via Keycloak. The first time an OIDC user logs in, Quay creates a local user record that is linked to the OIDC identity.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Promote that Quay user to superuser by adding their Quay username to SUPER_USERS (or use the UI/API).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_keycloak_create_a_client_for_quay"&gt;Keycloak: create a client for Quay&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Steps in Keycloak Admin console:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Log in to the Keycloak Admin Console and select the realm you will use for Quay or create a new realm.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select that realm and go to clients&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Press &lt;strong&gt;Create client&lt;/strong&gt; to create and configure a new client for Quay. Not much must be configured here, but at least the following:&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;Client type: OpenID Connect&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Client ID: quay-enterprise (The ID we will use in the Quay configuration as well)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Client authentication: ON&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Valid redirects URIs:&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback" class="bare"&gt;https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;(Optional) &lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/attach" class="bare"&gt;https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/attach&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;(Optional) &lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/cli" class="bare"&gt;https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/cli&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The service-id is the parent key you’ll use in Quay config — e.g. keycloak.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="olist loweralpha">
-&lt;ol class="loweralpha" type="a">
-&lt;li>
-&lt;p>Save the client.&lt;/p>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Go to Credentials and create or copy the &lt;strong>client secret&lt;/strong> you will use in Quay.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-&lt;strong>(Optional)&lt;/strong> If you intend to use groups/roles from Keycloak for Quay team synchronization, ensure your Keycloak users or groups are populated and that Keycloak includes group membership in tokens or exposes group claims (you may need to add a protocol mapper in the client to include groups or roles in the ID token or userinfo response). Refer to Keycloak docs for adding protocol mappers.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_keycloak_create_users_and_groups">Keycloak: create users and groups&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Go to Users and create a new user or use an existing one.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>If you created a new user, set a password for them in the Credentials tab.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Go to Groups and create a new group or use an existing one.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>You can assign users to that group.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_quay_add_oidc_configuration">Quay: add OIDC configuration&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Quay’s OIDC block is a nested object under &lt;strong>AUTHENTICATION_TYPE: OIDC&lt;/strong>. The parent key can be any name (e.g., KEYCLOAK_LOGIN_CONFIG) — Quay uses the parent key name to form the callback paths.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock important">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-important" title="Important">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;Save the client.&lt;/p&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Go to Credentials and create or copy the &lt;strong&gt;client secret&lt;/strong&gt; you will use in Quay.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;(Optional)&lt;/strong&gt; If you intend to use groups/roles from Keycloak for Quay team synchronization, ensure your Keycloak users or groups are populated and that Keycloak includes group membership in tokens or exposes group claims (you may need to add a protocol mapper in the client to include groups or roles in the ID token or userinfo response). Refer to Keycloak docs for adding protocol mappers.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_keycloak_create_users_and_groups"&gt;Keycloak: create users and groups&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Go to Users and create a new user or use an existing one.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;If you created a new user, set a password for them in the Credentials tab.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Go to Groups and create a new group or use an existing one.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You can assign users to that group.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_quay_add_oidc_configuration"&gt;Quay: add OIDC configuration&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Quay’s OIDC block is a nested object under &lt;strong&gt;AUTHENTICATION_TYPE: OIDC&lt;/strong&gt;. The parent key can be any name (e.g., KEYCLOAK_LOGIN_CONFIG) — Quay uses the parent key name to form the callback paths.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock important"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-important" title="Important"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The parent key name (before _LOGIN_CONFIG) must match the service-id used in Keycloak redirect URIs.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Example config.yaml snippet for Keycloak:&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Example config.yaml snippet for Keycloak:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Using Quay Operator this configuration is stored as a secret in the namespace where Quay is installed.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">AUTHENTICATION_TYPE: OIDC &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-KEYCLOAK_LOGIN_CONFIG: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-CLIENT_ID: quay-enterprise &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-CLIENT_SECRET: &amp;lt;client-secret&amp;gt; &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;AUTHENTICATION_TYPE: OIDC &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+KEYCLOAK_LOGIN_CONFIG: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+CLIENT_ID: quay-enterprise &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+CLIENT_SECRET: &amp;lt;client-secret&amp;gt; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 LOGIN_SCOPES:
 - openid
 - email
 - profile
 - groups
-OIDC_SERVER: https://&amp;lt;keycloak hostname&amp;gt;/realms/quay/ &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
-SERVICE_NAME: keycloak &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+OIDC_SERVER: https://&amp;lt;keycloak hostname&amp;gt;/realms/quay/ &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+SERVICE_NAME: keycloak &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 PREFERRED_USERNAME_CLAIM_NAME: preferred_username
 VERIFIED_EMAIL_CLAIM_NAME: email
 PREFERRED_GROUP_CLAIM_NAME: groups
-OIDC_DISABLE_USER_ENDPOINT: false &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Set this parameter to &lt;strong>OIDC&lt;/strong>.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>parent key name can be any string (use KEYCLOAK_LOGIN_CONFIG here). This is important, and the part in front of _LOGIN_CONFIG must match the service-id you used in Keycloak.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The client id you used in Keycloak.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>The client secret you used in Keycloak.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>The realm base URL (no trailing /protocol…​), e.g.:
-&lt;a href="https://&amp;lt;keycloak_hostname&amp;gt;/realms/quay/" class="bare">https://&amp;lt;keycloak_hostname&amp;gt;/realms/quay/&lt;/a> — Quay will discover .well-known/openid-configuration endpoints automatically.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>The service name you used in Keycloak.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>Set this parameter to &lt;strong>false&lt;/strong> to allow Quay to fetch user information from Keycloak. If using Azure Entra ID set this to &lt;strong>true&lt;/strong>.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Since we are using Quay Operator, the operator will pick up the changes automatically and restart Quay.
-If you are using a standalone Quay installation, you need to restart Quay for the change to take effect. (Config is not hot-reloaded.)&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_testing_login">Testing Login&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Let’s do some tests to verify the configuration.
-Above we have created some users and groups in Keycloak. Let’s try to log in with one of them.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Open your Quay UI ( &lt;a href="https://&amp;lt;quay_hostname&amp;gt;" class="bare">https://&amp;lt;quay_hostname&amp;gt;&lt;/a>; ) in a browser. On the login page you should see the external login option labelled Keycloak (or the SERVICE_NAME you set).&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/quay/images/quay-login-oidc.png?width=320" alt="quay login oidc"/>
-&lt;/div>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic" start="2">
-&lt;li>
-&lt;p>Click the &amp;#34;Sign in with Keycloak&amp;#34; option. and you will be redirected to Keycloak’s login screen. Here you can authenticate with a Keycloak user.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/quay/images/quay-keycloak.png?width=320" alt="quay keycloak"/>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>After successful authentication, Keycloak redirects back to Quay and Quay creates a local user mapped to the OIDC claims (username, email). If you set USERNAME_CLAIM to preferred_username, look at the created Quay username in the UI under your user’s profile.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_make_the_keycloak_user_a_quay_admin">Make the Keycloak user a Quay admin&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>In Quay only one identity provider can be used at a time. If you previously set up a local admin account, you need to make a Keycloak user a Quay admin by adding their Quay username to SUPER_USERS where all administrators are listed.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In the Quay configuration, you can define administrators using the SUPER_USERS array.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+OIDC_DISABLE_USER_ENDPOINT: false &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Set this parameter to &lt;strong&gt;OIDC&lt;/strong&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;parent key name can be any string (use KEYCLOAK_LOGIN_CONFIG here). This is important, and the part in front of _LOGIN_CONFIG must match the service-id you used in Keycloak.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The client id you used in Keycloak.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The client secret you used in Keycloak.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The realm base URL (no trailing /protocol…​), e.g.:
+&lt;a href="https://&amp;lt;keycloak_hostname&amp;gt;/realms/quay/" class="bare"&gt;https://&amp;lt;keycloak_hostname&amp;gt;/realms/quay/&lt;/a&gt; — Quay will discover .well-known/openid-configuration endpoints automatically.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The service name you used in Keycloak.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Set this parameter to &lt;strong&gt;false&lt;/strong&gt; to allow Quay to fetch user information from Keycloak. If using Azure Entra ID set this to &lt;strong&gt;true&lt;/strong&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since we are using Quay Operator, the operator will pick up the changes automatically and restart Quay.
+If you are using a standalone Quay installation, you need to restart Quay for the change to take effect. (Config is not hot-reloaded.)&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_testing_login"&gt;Testing Login&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s do some tests to verify the configuration.
+Above we have created some users and groups in Keycloak. Let’s try to log in with one of them.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Open your Quay UI ( &lt;a href="https://&amp;lt;quay_hostname&amp;gt;" class="bare"&gt;https://&amp;lt;quay_hostname&amp;gt;&lt;/a&gt;; ) in a browser. On the login page you should see the external login option labelled Keycloak (or the SERVICE_NAME you set).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/quay/images/quay-login-oidc.png?width=320" alt="quay login oidc"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic" start="2"&gt;
+&lt;li&gt;
+&lt;p&gt;Click the &amp;#34;Sign in with Keycloak&amp;#34; option. and you will be redirected to Keycloak’s login screen. Here you can authenticate with a Keycloak user.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/quay/images/quay-keycloak.png?width=320" alt="quay keycloak"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After successful authentication, Keycloak redirects back to Quay and Quay creates a local user mapped to the OIDC claims (username, email). If you set USERNAME_CLAIM to preferred_username, look at the created Quay username in the UI under your user’s profile.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_make_the_keycloak_user_a_quay_admin"&gt;Make the Keycloak user a Quay admin&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In Quay only one identity provider can be used at a time. If you previously set up a local admin account, you need to make a Keycloak user a Quay admin by adding their Quay username to SUPER_USERS where all administrators are listed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the Quay configuration, you can define administrators using the SUPER_USERS array.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Make sure the Keycloak user has logged in once so Quay has created a local user record
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Edit the Quay configuration once more and add the Quay username (exact username created by Quay).&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For example, let’s say we have created a user called &amp;#34;alice&amp;#34; in Keycloak. We need to add this user to the SUPER_USERS array.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">SETUP_COMPLETE: true
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Edit the Quay configuration once more and add the Quay username (exact username created by Quay).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, let’s say we have created a user called &amp;#34;alice&amp;#34; in Keycloak. We need to add this user to the SUPER_USERS array.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;SETUP_COMPLETE: true
 SUPER_USERS:
 - admin # existing local admin (optional)
-- alice # alice is the Quay username created from Keycloak login&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>After restart, the Quay account alice will have superuser privileges (same as if created in the UI).&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_working_with_podman_on_cli">Working with Podman on CLI&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Now, as we changed the authentication method, we need to verify if we can push/pull images from/to the registry.
-The command line tool of the choice is &lt;strong>podman&lt;/strong>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>However, podman does not redirect to SSO login, so it needs a token to authenticate. We can generate a new token for a user in the Quay UI.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>In the Quay UI, go to the &lt;strong>Account Settings&lt;/strong> (upper right corner)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>In the settings section, under &lt;strong>Docker CLI and other Application Tokens&lt;/strong>, click on &lt;strong>Create Application Token&lt;/strong>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Enter a name for the token&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Select the newly created token and copy the podman login command (or any other command you need)&lt;/p>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/quay/images/quay-app-pass.png?width=320" alt="quay app pass"/>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>The command for podman will look like this:&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">podman login -u=&amp;#39;$app&amp;#39; -p=&amp;#39;&amp;lt;token&amp;gt;&amp;#39; &amp;lt;quay-url&amp;gt;
-Login Succeeded!&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Now you can push/pull images from/to the registry.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_troubleshooting">Troubleshooting&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Common issues and their solutions:&lt;/p>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_redirect_uri_mismatch">Redirect URI Mismatch&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Problem&lt;/strong>: Keycloak returns &amp;#34;Invalid redirect URI&amp;#34; error&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Solution&lt;/strong>: Ensure all three redirect URIs are configured in Keycloak client:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code>https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback
+- alice # alice is the Quay username created from Keycloak login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After restart, the Quay account alice will have superuser privileges (same as if created in the UI).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_working_with_podman_on_cli"&gt;Working with Podman on CLI&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now, as we changed the authentication method, we need to verify if we can push/pull images from/to the registry.
+The command line tool of the choice is &lt;strong&gt;podman&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, podman does not redirect to SSO login, so it needs a token to authenticate. We can generate a new token for a user in the Quay UI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;In the Quay UI, go to the &lt;strong&gt;Account Settings&lt;/strong&gt; (upper right corner)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;In the settings section, under &lt;strong&gt;Docker CLI and other Application Tokens&lt;/strong&gt;, click on &lt;strong&gt;Create Application Token&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Enter a name for the token&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select the newly created token and copy the podman login command (or any other command you need)&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/quay/images/quay-app-pass.png?width=320" alt="quay app pass"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The command for podman will look like this:&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;podman login -u=&amp;#39;$app&amp;#39; -p=&amp;#39;&amp;lt;token&amp;gt;&amp;#39; &amp;lt;quay-url&amp;gt;
+Login Succeeded!&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now you can push/pull images from/to the registry.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Common issues and their solutions:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_redirect_uri_mismatch"&gt;Redirect URI Mismatch&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;: Keycloak returns &amp;#34;Invalid redirect URI&amp;#34; error&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;: Ensure all three redirect URIs are configured in Keycloak client:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code&gt;https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback
 https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback/attach
-https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback/cli&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_username_mapping_issues">Username Mapping Issues&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Problem&lt;/strong>: Quay creates unexpected usernames&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Solution&lt;/strong>:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Check which claim Keycloak sends: inspect ID token in browser dev tools&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Common claims: preferred_username, email, sub, name&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Update PREFERRED_USERNAME_CLAIM_NAME in Quay config accordingly&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_ssl_certificate_issues">SSL Certificate Issues&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Problem&lt;/strong>: Quay cannot reach Keycloak due to TLS verification errors&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Solutions&lt;/strong>:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Install your internal CA certificate in the Quay container&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Use publicly trusted certificates for both services&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>For testing only: disable SSL verification (not recommended for production)&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_authentication_flow_failures">Authentication Flow Failures&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Problem&lt;/strong>: Login redirects but fails to create user in Quay&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>Debugging steps&lt;/strong>:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Check Quay logs: &lt;code>oc logs deployment/quay-app&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Verify OIDC discovery endpoint: &lt;code>&lt;a href="https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration" class="bare">https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration&lt;/a>&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Confirm client secret matches between Keycloak and Quay&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Test with curl: &lt;code>curl -k &lt;a href="https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration" class="bare">https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration&lt;/a>&lt;/code>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_conclusion">Conclusion&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Integrating Quay 3.15 with Keycloak via OIDC centralizes authentication, simplifies user management, and allows you to leverage enterprise identity features. The key steps are straightforward: create a Keycloak client with the correct redirect URIs, configure the corresponding OIDC block in Quay’s config.yaml.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>By switching the initial database-backed admin to an identity managed in Keycloak, you reduce the risk of “orphaned” local accounts and align Quay administration with your organization’s identity and access management strategy.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback/cli&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_username_mapping_issues"&gt;Username Mapping Issues&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;: Quay creates unexpected usernames&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Check which claim Keycloak sends: inspect ID token in browser dev tools&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Common claims: preferred_username, email, sub, name&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Update PREFERRED_USERNAME_CLAIM_NAME in Quay config accordingly&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_ssl_certificate_issues"&gt;SSL Certificate Issues&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;: Quay cannot reach Keycloak due to TLS verification errors&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solutions&lt;/strong&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Install your internal CA certificate in the Quay container&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use publicly trusted certificates for both services&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;For testing only: disable SSL verification (not recommended for production)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_authentication_flow_failures"&gt;Authentication Flow Failures&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;: Login redirects but fails to create user in Quay&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Debugging steps&lt;/strong&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Check Quay logs: &lt;code&gt;oc logs deployment/quay-app&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Verify OIDC discovery endpoint: &lt;code&gt;&lt;a href="https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration" class="bare"&gt;https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration&lt;/a&gt;&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Confirm client secret matches between Keycloak and Quay&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Test with curl: &lt;code&gt;curl -k &lt;a href="https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration" class="bare"&gt;https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration&lt;/a&gt;&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Integrating Quay 3.15 with Keycloak via OIDC centralizes authentication, simplifies user management, and allows you to leverage enterprise identity features. The key steps are straightforward: create a Keycloak client with the correct redirect URIs, configure the corresponding OIDC block in Quay’s config.yaml.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By switching the initial database-backed admin to an identity managed in Keycloak, you reduce the risk of “orphaned” local accounts and align Quay administration with your organization’s identity and access management strategy.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

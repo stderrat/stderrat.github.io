@@ -1,215 +1,215 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Rekor on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/rekor/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/rekor/index.xml" rel="self" type="application/rss+xml"/><item><title>Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/</guid><description/></item><item><title>Introduction to a Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</guid><description>&lt;div class="paragraph">
-&lt;p>The goal of the following (&amp;#34;short&amp;#34;) series is to build a secure CI/CD pipeline step by step using OpenShift Pipelines (based on Tekton).
-The whole build process shall pull and build an image, upload it to a development environment and subsequently update the production environment.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The main focus here is security. Several steps and tools shall help to build and deploy a &lt;strong>Secure Supply Chain&lt;/strong>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The whole process is part of a Red Hat workshop which can present to your organization. I did some tweaks and created a step-by-step plan in order
-to remember it …​ since I am getting old :)&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_the_journey_to_secure_supply_chain">The Journey to Secure Supply Chain&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>This series includes the following articles:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step1/">Listen to Events&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step2/">Pipelines&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step3/">SonarQube&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step4/">Verify Git Commit&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step5/">Build and Sign Image&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step6/">Scanning with ACS&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step7/">Generating a SBOM&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step8/">Updating Kubernetes Manifests&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step9/">Linting Kubernetes Manifests&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step10/">The Example Application&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step11/">ACS Deployment Check&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step12/">Verify TLOG Signature&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step13/">Bring it to Production&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>In order to develop our Secure Supply Chain, we need an &lt;strong>OpenShift 4 Cluster&lt;/strong>. I am currently using OpenShift 4.13.
-Moreover, the &lt;strong>OpenShift Pipelines&lt;/strong> operator must be deployed. It is based on &lt;a href="https://tekton.dev/" target="_blank" rel="noopener">Tekton&lt;/a> and provides a Kubernetes-native way to create CI/CD pipelines.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The operator is deployed using the Operator Hub inside your cluster. Simply search for OpenShift Pipelines and install the operator using the default settings.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/intro-install_Tekton_Operator.png?width=220px" alt="OpenShift Pipelines"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Install OpenShift Pipelines&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Finally, you will need a GitHub account to be able to fork some repositories.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Rekor on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/rekor/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/rekor/index.xml" rel="self" type="application/rss+xml"/><item><title>Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/</guid><description/></item><item><title>Introduction to a Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;The goal of the following (&amp;#34;short&amp;#34;) series is to build a secure CI/CD pipeline step by step using OpenShift Pipelines (based on Tekton).
+The whole build process shall pull and build an image, upload it to a development environment and subsequently update the production environment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The main focus here is security. Several steps and tools shall help to build and deploy a &lt;strong&gt;Secure Supply Chain&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The whole process is part of a Red Hat workshop which can present to your organization. I did some tweaks and created a step-by-step plan in order
+to remember it …​ since I am getting old :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_journey_to_secure_supply_chain"&gt;The Journey to Secure Supply Chain&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This series includes the following articles:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step1/"&gt;Listen to Events&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step2/"&gt;Pipelines&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step3/"&gt;SonarQube&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step4/"&gt;Verify Git Commit&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step5/"&gt;Build and Sign Image&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step6/"&gt;Scanning with ACS&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step7/"&gt;Generating a SBOM&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step8/"&gt;Updating Kubernetes Manifests&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step9/"&gt;Linting Kubernetes Manifests&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step10/"&gt;The Example Application&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step11/"&gt;ACS Deployment Check&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step12/"&gt;Verify TLOG Signature&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step13/"&gt;Bring it to Production&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In order to develop our Secure Supply Chain, we need an &lt;strong&gt;OpenShift 4 Cluster&lt;/strong&gt;. I am currently using OpenShift 4.13.
+Moreover, the &lt;strong&gt;OpenShift Pipelines&lt;/strong&gt; operator must be deployed. It is based on &lt;a href="https://tekton.dev/" target="_blank" rel="noopener"&gt;Tekton&lt;/a&gt; and provides a Kubernetes-native way to create CI/CD pipelines.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The operator is deployed using the Operator Hub inside your cluster. Simply search for OpenShift Pipelines and install the operator using the default settings.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/intro-install_Tekton_Operator.png?width=220px" alt="OpenShift Pipelines"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Install OpenShift Pipelines&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, you will need a GitHub account to be able to fork some repositories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Some steps in the pipeline are working tightly with GitHub, especially the very last one that is talking GitHub’s API. However, any Git-system should work, and probably just minor changes will be required.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Everything else will be installed during the different steps described in the upcoming articles, while we build and tweak our pipeline.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Remember, the big goal of our pipeline is NOT to simply pull, build and push our code, but to integrate certain security tools like code scanning, image scanning and linting.
-Otherwise, it would be boring.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_used_tools">Used Tools&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following list of tools (or specifications) are used for our pipeline. They will be deployed when the appropriate step requires it.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;a href="https://docs.openshift.com/acs/4.1/welcome/index.html" target="_blank" rel="noopener">Advanced Cluster Security&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.openshift.com/acs/4.1/cli/getting-started-cli.html" target="_blank" rel="noopener">roxctl&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://www.sonarsource.com/products/sonarqube/" target="_blank" rel="noopener">SonarQube&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://www.redhat.com/en/technologies/cloud-computing/quay" target="_blank" rel="noopener">Quay - quay.io as public registry&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener">CoSign (sigstore)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.sigstore.dev/rekor/overview/" target="_blank" rel="noopener">Rekor (sigstore)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://cyclonedx.org/capabilities/sbom/" target="_blank" rel="noopener">Software Bill of Material (SBOM)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.kubelinter.io/#/" target="_blank" rel="noopener">KubeLinter&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://kube-score.com/" target="_blank" rel="noopener">KubeScore&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://github.com/adrienverge/yamllint" target="_blank" rel="noopener">YamlLint&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://github.com/looztra/kubesplit" target="_blank" rel="noopener">kubesplit&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Step 12 - Verify TLog Signature</title><link>https://blog.stderr.at/securesupplychain/2023-06-27-securesupplychain-step12/</link><pubDate>Tue, 27 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-27-securesupplychain-step12/</guid><description>&lt;div class="paragraph">
-&lt;p>Since the image has been deployed on DEV now, we need to prepare everything for production. Before we start, we need to confirm that the whole signing process has been passed and that our signature has been applied correctly. With CoSign we signed our image and used Rekor to create a transparency log. We will use this log to confirm that the image was signed.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_goals">Goals&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The goals of this step are:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Verify if the image has been signed using Rekor transparency log.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_cosign_public_key">CoSign public key&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Before we start, we need a secret in the Namespace &lt;strong>ci&lt;/strong> that provides the PUBLIC key of CoSign. This key was generated in a previous &lt;a href="https://blog.stderr.at/securesupplychain/2023-06-20-securesupplychain-step5/#_cosign_signing_the_image">Step 5 - CoSign - Signing the Image&lt;/a>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Secret
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Everything else will be installed during the different steps described in the upcoming articles, while we build and tweak our pipeline.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Remember, the big goal of our pipeline is NOT to simply pull, build and push our code, but to integrate certain security tools like code scanning, image scanning and linting.
+Otherwise, it would be boring.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_used_tools"&gt;Used Tools&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following list of tools (or specifications) are used for our pipeline. They will be deployed when the appropriate step requires it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.openshift.com/acs/4.1/welcome/index.html" target="_blank" rel="noopener"&gt;Advanced Cluster Security&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.openshift.com/acs/4.1/cli/getting-started-cli.html" target="_blank" rel="noopener"&gt;roxctl&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://www.sonarsource.com/products/sonarqube/" target="_blank" rel="noopener"&gt;SonarQube&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://www.redhat.com/en/technologies/cloud-computing/quay" target="_blank" rel="noopener"&gt;Quay - quay.io as public registry&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener"&gt;CoSign (sigstore)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.sigstore.dev/rekor/overview/" target="_blank" rel="noopener"&gt;Rekor (sigstore)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://cyclonedx.org/capabilities/sbom/" target="_blank" rel="noopener"&gt;Software Bill of Material (SBOM)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.kubelinter.io/#/" target="_blank" rel="noopener"&gt;KubeLinter&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://kube-score.com/" target="_blank" rel="noopener"&gt;KubeScore&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/adrienverge/yamllint" target="_blank" rel="noopener"&gt;YamlLint&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/looztra/kubesplit" target="_blank" rel="noopener"&gt;kubesplit&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Step 12 - Verify TLog Signature</title><link>https://blog.stderr.at/securesupplychain/2023-06-27-securesupplychain-step12/</link><pubDate>Tue, 27 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-27-securesupplychain-step12/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Since the image has been deployed on DEV now, we need to prepare everything for production. Before we start, we need to confirm that the whole signing process has been passed and that our signature has been applied correctly. With CoSign we signed our image and used Rekor to create a transparency log. We will use this log to confirm that the image was signed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_goals"&gt;Goals&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The goals of this step are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Verify if the image has been signed using Rekor transparency log.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_cosign_public_key"&gt;CoSign public key&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start, we need a secret in the Namespace &lt;strong&gt;ci&lt;/strong&gt; that provides the PUBLIC key of CoSign. This key was generated in a previous &lt;a href="https://blog.stderr.at/securesupplychain/2023-06-20-securesupplychain-step5/#_cosign_signing_the_image"&gt;Step 5 - CoSign - Signing the Image&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: Secret
 apiVersion: v1
 metadata:
-name: cosign-secret &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+name: cosign-secret &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 namespace: ci
 data:
 cosign.pub: &amp;gt;-
 &amp;lt;base64 CoSign PUBLIC key&amp;gt;
-type: Opaque&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>base64 decoded PUBLIC key of CoSign&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_create_the_task">Create the Task&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following task will use several steps to fetch and parse the transparency log, that has been created. The different tasks are using images from &lt;strong>Redhat-gpte&lt;/strong>. The command line tool &lt;strong>rekor-cli&lt;/strong> will be used to verify the entries in the log.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: tekton.dev/v1beta1
+type: Opaque&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;base64 decoded PUBLIC key of CoSign&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_create_the_task"&gt;Create the Task&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following task will use several steps to fetch and parse the transparency log, that has been created. The different tasks are using images from &lt;strong&gt;Redhat-gpte&lt;/strong&gt;. The command line tool &lt;strong&gt;rekor-cli&lt;/strong&gt; will be used to verify the entries in the log.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
 name: rekor-verify
 namespace: ci
 spec:
 params:
-- default: image-registry-secret &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- default: image-registry-secret &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 name: registrySecret
 type: string
-- default: cosign-secret &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- default: cosign-secret &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 name: cosignSecret
 type: string
 - default: &amp;gt;-
@@ -248,205 +248,205 @@ cat /workspace/rekor.search | jq &amp;#39;.UUIDs[0]&amp;#39; | sed &amp;#39;s/\&
 /workspace/rekor.uuid
 rekor-cli get --uuid $(cat /workspace/rekor.uuid) --format json &amp;gt;
 /workspace/rekor.get
-cat /workspace/rekor.get | jq -r .Attestation&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Registry pull secret.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>CoSign public key.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_update_the_pipeline">Update the Pipeline&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The Pipeline object must be extended with another Task:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - name: verify-tlog-signature
-params: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-- name: registrySecret &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+cat /workspace/rekor.get | jq -r .Attestation&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Registry pull secret.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;CoSign public key.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_update_the_pipeline"&gt;Update the Pipeline&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Pipeline object must be extended with another Task:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; - name: verify-tlog-signature
+params: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+- name: registrySecret &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 value: tjungbau-secure-supply-chain-demo-pull-secret
-- name: cosignSecret &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+- name: cosignSecret &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 value: cosign-secret
 - name: image
 value: &amp;#39;$(params.IMAGE_REPO):$(params.IMAGE_TAG)&amp;#39;
-runAfter: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+runAfter: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 - yaml-lint
 - kube-score
 - kube-linter
 taskRef:
 kind: Task
-name: rekor-verify&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The parameters required for this task.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Pull secret for quay.io, which was created during step 5.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>CoSign public key.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>This task runs after the linting tasks.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_execute_the_pipeline">Execute the Pipeline&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Triggering the pipeline will now check the signature of an image.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The logs should show something like this:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step12-signature_verification.png" alt="Rekor Image Signature Verification"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Rekor Image Signature Verification&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>As you can see: The image has been signed correctly and the transparency logs can be parsed.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_summary">Summary&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Finally, everything has been verified and we can bring everything into production. The final two steps will create a new branch in the Git manifest repository and a pull request that can be manually merged.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Step 13 - Bring it to Production</title><link>https://blog.stderr.at/securesupplychain/2023-06-28-securesupplychain-step13/</link><pubDate>Tue, 27 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-28-securesupplychain-step13/</guid><description>&lt;div class="paragraph">
-&lt;p>If you reached this article, congratulations! You read through tons of pages to build up a Pipeline. The last two steps in our Pipeline are: Creating a new branch and creating a pull request, with the changes of the image tag that must be approved and will be merged then (We will not update the main branch directly!). Finally, we will do a &amp;#34;real&amp;#34; update to the application to see the actual changes.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_goals">Goals&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The goals of this step are:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Create a task that creates a new branch in Git repository.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Create a task that creates a pull request in Git repository.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Perform a full End2End run of the Pipeline and approve the pull request.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_create_a_token_at_github">Create a token at GitHub&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>To create a pull request we need to authenticate against the Git api. For this, we will need a token. In GitHub open your personal settings (by clicking on your avatar) and then go to &amp;#34;Developer settings&amp;#34;.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Select &amp;#34;Personal access tokens&amp;#34; and &amp;#34;fine-graining tokens&amp;#34; to create a new token.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-github_pta.png?width=400px" alt="GitHub Personal Access Token"/>
-&lt;/div>
-&lt;div class="title">Figure 1. GitHub Personal Access Token&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Enter the required fields:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Name: Secure Supply Chain&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Expiration: Whatever your like (max is 1 year)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Repository access: Only select repositories&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Select your repository, for example: tjungbauer/securing-software-supply-chain&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Permissions: &amp;#34;Pull requests&amp;#34; &amp;gt; Read and write&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-github_pta_created.png?width=600px" alt="GitHub Personal Access Token Created"/>
-&lt;/div>
-&lt;div class="title">Figure 2. GitHub Personal Access Token Created&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Save the created token and create the following secret:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Secret
+name: rekor-verify&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The parameters required for this task.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Pull secret for quay.io, which was created during step 5.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;CoSign public key.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This task runs after the linting tasks.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_execute_the_pipeline"&gt;Execute the Pipeline&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Triggering the pipeline will now check the signature of an image.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The logs should show something like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step12-signature_verification.png" alt="Rekor Image Signature Verification"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Rekor Image Signature Verification&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As you can see: The image has been signed correctly and the transparency logs can be parsed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, everything has been verified and we can bring everything into production. The final two steps will create a new branch in the Git manifest repository and a pull request that can be manually merged.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Step 13 - Bring it to Production</title><link>https://blog.stderr.at/securesupplychain/2023-06-28-securesupplychain-step13/</link><pubDate>Tue, 27 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-28-securesupplychain-step13/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;If you reached this article, congratulations! You read through tons of pages to build up a Pipeline. The last two steps in our Pipeline are: Creating a new branch and creating a pull request, with the changes of the image tag that must be approved and will be merged then (We will not update the main branch directly!). Finally, we will do a &amp;#34;real&amp;#34; update to the application to see the actual changes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_goals"&gt;Goals&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The goals of this step are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Create a task that creates a new branch in Git repository.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a task that creates a pull request in Git repository.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Perform a full End2End run of the Pipeline and approve the pull request.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_create_a_token_at_github"&gt;Create a token at GitHub&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create a pull request we need to authenticate against the Git api. For this, we will need a token. In GitHub open your personal settings (by clicking on your avatar) and then go to &amp;#34;Developer settings&amp;#34;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Select &amp;#34;Personal access tokens&amp;#34; and &amp;#34;fine-graining tokens&amp;#34; to create a new token.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-github_pta.png?width=400px" alt="GitHub Personal Access Token"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. GitHub Personal Access Token&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Enter the required fields:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Name: Secure Supply Chain&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Expiration: Whatever your like (max is 1 year)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Repository access: Only select repositories&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select your repository, for example: tjungbauer/securing-software-supply-chain&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Permissions: &amp;#34;Pull requests&amp;#34; &amp;gt; Read and write&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-github_pta_created.png?width=600px" alt="GitHub Personal Access Token Created"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. GitHub Personal Access Token Created&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Save the created token and create the following secret:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: Secret
 apiVersion: v1
 metadata:
 name: github-token
 namespace: ci
 stringData:
-token: &amp;lt;Token Value&amp;gt; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-type: Opaque&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Clear-text token. If already base64 encoded, change &lt;em>stringData&lt;/em> to &lt;em>data&lt;/em>.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_task_create_a_new_branch">Task: Create a new branch&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Since we do not update the main branch directly, we will create a new (feature) branch, that will be used for a pull request and can be deleted after the pull request has been merged.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create the following Task object&lt;/p>
-&lt;div class="paragraph">
-&lt;p>This Task will use git commands to create a new feature-branch and pushes the changes into that branch.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: tekton.dev/v1beta1
+token: &amp;lt;Token Value&amp;gt; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+type: Opaque&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Clear-text token. If already base64 encoded, change &lt;em&gt;stringData&lt;/em&gt; to &lt;em&gt;data&lt;/em&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_task_create_a_new_branch"&gt;Task: Create a new branch&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since we do not update the main branch directly, we will create a new (feature) branch, that will be used for a pull request and can be deleted after the pull request has been merged.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create the following Task object&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This Task will use git commands to create a new feature-branch and pushes the changes into that branch.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
 name: new-branch-manifest-repo
@@ -491,44 +491,44 @@ git config --global user.name &amp;#34;$(params.git_user_name)&amp;#34;
 # Checkout target branch to avoid the detached HEAD state
 TMPDIR=$(mktemp -d)
 cd $TMPDIR
-git clone $(params.repository) &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+git clone $(params.repository) &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 cd securing-software-supply-chain
-git checkout -b $(params.target-branch) &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+git checkout -b $(params.target-branch) &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 # Set to the short commit value passed as parameter.
 # Notice the enclosing &amp;#34; to keep it as a string in the resulting YAML.
 IMAGE=\&amp;#34;$(params.image)\&amp;#34;
 sed -i &amp;#34;s#\(.*value:\s*\).*#\1 ${IMAGE}#&amp;#34; $(params.configuration_file)
-git add $(params.configuration_file) &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+git add $(params.configuration_file) &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 git commit -m &amp;#34;Automatically updated manifest to point to image tag
 $IMAGE&amp;#34;
-git push origin $(params.target-branch)&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Clone the main repository.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Create a new feature branch.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Add, commit, and push everything to the new branch.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Modify the Pipeline object&lt;/p>
-&lt;div class="paragraph">
-&lt;p>The Task must be added to the Pipeline, it provides several required parameters.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - name: create-prod-manifest-branch
+git push origin $(params.target-branch)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Clone the main repository.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Create a new feature branch.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Add, commit, and push everything to the new branch.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Modify the Pipeline object&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Task must be added to the Pipeline, it provides several required parameters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; - name: create-prod-manifest-branch
 params:
 - name: image
 value: &amp;#39;$(params.IMAGE_REPO):$(params.IMAGE_TAG)&amp;#39;
@@ -545,27 +545,27 @@ runAfter:
 - verify-tlog-signature
 taskRef:
 kind: Task
-name: new-branch-manifest-repo&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_task_create_a_pull_request">Task: Create a Pull request&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create the following Task object&lt;/p>
-&lt;div class="paragraph">
-&lt;p>The following task will take the token and create a new pull request at GitHub:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: tekton.dev/v1beta1
+name: new-branch-manifest-repo&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_task_create_a_pull_request"&gt;Task: Create a Pull request&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create the following Task object&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following task will take the token and create a new pull request at GitHub:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
 name: git-open-pull-request
@@ -643,17 +643,17 @@ image: $(params.ubi8PythonImage)
 name: open-pr
 resources: {}
 script: &amp;gt;-
-#!/usr/libexec/platform-python &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+#!/usr/libexec/platform-python &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 &amp;#34;&amp;#34;&amp;#34;This script will open a PR on Github&amp;#34;&amp;#34;&amp;#34;
 import json
 import os
 import sys
 import http.client
-github_token = &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+github_token = &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 open(&amp;#34;/etc/github-open-pr/$(params.GITHUB_TOKEN_SECRET_KEY)&amp;#34;,
 &amp;#34;r&amp;#34;).read()
 open_pr_url = &amp;#34;/repos/$(params.REPO_FULL_NAME)/pulls&amp;#34;
-data = { &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+data = { &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 &amp;#34;head&amp;#34;: &amp;#34;$(params.HEAD)&amp;#34;,
 &amp;#34;base&amp;#34;: &amp;#34;$(params.BASE)&amp;#34;,
 &amp;#34;title&amp;#34;: &amp;#34;&amp;#34;&amp;#34;$(params.TITLE)&amp;#34;&amp;#34;&amp;#34;,
@@ -694,31 +694,31 @@ readOnly: true
 volumes:
 - name: githubtoken
 secret:
-secretName: $(params.GITHUB_TOKEN_SECRET_NAME)&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Python script to create the pull request.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The token from the secret object.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The data we will send to GitHub.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Modify the Pipeline object&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - name: issue-prod-pull-request
+secretName: $(params.GITHUB_TOKEN_SECRET_NAME)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Python script to create the pull request.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The token from the secret object.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The data we will send to GitHub.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Modify the Pipeline object&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; - name: issue-prod-pull-request
 params:
 - name: GITHUB_HOST_URL
 value: $(params.REPO_HOST)
@@ -738,130 +738,130 @@ runAfter:
 - create-prod-manifest-branch
 taskRef:
 kind: Task
-name: git-open-pull-request&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_review_the_whole_pipeline">Review the whole Pipeline&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>We did it, we created a Secure Supply Chain using Tekton Tasks. The full Pipeline now looks like this:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-pipeline.png" alt="Pipeline Details"/>
-&lt;/div>
-&lt;div class="title">Figure 3. Pipeline Details&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The last step will create a pull request on Git. When this request is approved and merged, the update will finally happen in the production environment. This is a manual process to have control what comes in production and what does not.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_execute_full_pipeline_e2e">Execute full Pipeline E2E&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>It is time to execute the whole pipeline now end to end. We will do a real update to the application now, so we can see the differences.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>As described in step 10, the DEV and PROD environments are running on the same cluster. In the field, this will probably not happen, but for now, it is good enough. GitOps/Argo CD monitors any changes and automatically updates whenever the Git repository (Kubernetes Manifests) is changed. During the PipelineRun we will update the image tag for DEV, which automatically rolls out and create a Pull request which is waiting for approval and will roll out the changes onto production.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Both environments have a route to access the application. At the moment both will look the same:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-dev_origin.png?width=600px" alt="Globex DEV origin"/>
-&lt;/div>
-&lt;div class="title">Figure 4. Globex DEV origin&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_update_application">Update application&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The repository of Globex UI is forked at: &lt;a href="https://github.com/tjungbauer/globex-ui" class="bare">https://github.com/tjungbauer/globex-ui&lt;/a>. We used it throughout this journey to update the README.md file.
-The readme file does not really change anything. So, let’s update the UI itself.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>look for the file &lt;strong>src/index.html&lt;/strong> and add the following line before &lt;code>&amp;lt;/body&amp;gt;&lt;/code>&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-html" data-lang="html">&amp;lt;center&amp;gt;&amp;lt;strong&amp;gt;My very important update&amp;lt;/strong&amp;gt;&amp;lt;/center&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Save this change and push it to GitHub.
-This will trigger the Pipeline which is running quite long. However, once it is finished, the DEV environment should now show the new line in the UI.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+name: git-open-pull-request&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_review_the_whole_pipeline"&gt;Review the whole Pipeline&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We did it, we created a Secure Supply Chain using Tekton Tasks. The full Pipeline now looks like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-pipeline.png" alt="Pipeline Details"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. Pipeline Details&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The last step will create a pull request on Git. When this request is approved and merged, the update will finally happen in the production environment. This is a manual process to have control what comes in production and what does not.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_execute_full_pipeline_e2e"&gt;Execute full Pipeline E2E&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is time to execute the whole pipeline now end to end. We will do a real update to the application now, so we can see the differences.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As described in step 10, the DEV and PROD environments are running on the same cluster. In the field, this will probably not happen, but for now, it is good enough. GitOps/Argo CD monitors any changes and automatically updates whenever the Git repository (Kubernetes Manifests) is changed. During the PipelineRun we will update the image tag for DEV, which automatically rolls out and create a Pull request which is waiting for approval and will roll out the changes onto production.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Both environments have a route to access the application. At the moment both will look the same:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-dev_origin.png?width=600px" alt="Globex DEV origin"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 4. Globex DEV origin&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_update_application"&gt;Update application&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The repository of Globex UI is forked at: &lt;a href="https://github.com/tjungbauer/globex-ui" class="bare"&gt;https://github.com/tjungbauer/globex-ui&lt;/a&gt;. We used it throughout this journey to update the README.md file.
+The readme file does not really change anything. So, let’s update the UI itself.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;look for the file &lt;strong&gt;src/index.html&lt;/strong&gt; and add the following line before &lt;code&gt;&amp;lt;/body&amp;gt;&lt;/code&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-html" data-lang="html"&gt;&amp;lt;center&amp;gt;&amp;lt;strong&amp;gt;My very important update&amp;lt;/strong&amp;gt;&amp;lt;/center&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Save this change and push it to GitHub.
+This will trigger the Pipeline which is running quite long. However, once it is finished, the DEV environment should now show the new line in the UI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 After the pipeline updated the image tag in Git, the GitOps process must fetch this change. This may take a while. You can speed this up by refreshing the &amp;#34;Application&amp;#34; inside the Argo CD interface. It should then automatically synchronize.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The update can now be seen in the browser. The &amp;#34;important update&amp;#34; is visible at the bottom of the page.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-dev_updated.png?width=600px" alt="Globex DEV updated"/>
-&lt;/div>
-&lt;div class="title">Figure 5. Globex DEV updated&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The production environment was not yet updated. Instead, a pull request has been created:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-open_pr.png?width=600px" alt="Open pull request"/>
-&lt;/div>
-&lt;div class="title">Figure 6. Open pull request&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This request can be reviewed and merged. As you can see there was only one change in the files:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-pr_fileschanged.png" alt="Open pull request - changed files"/>
-&lt;/div>
-&lt;div class="title">Figure 7. Open pull request - changed files&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Merge the pull request and wait until Argo CD fetched the changes and updates the production environment. This is it, the changes are done and promoted to production:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-prod_updated.png?width=600px" alt="Globex PROD updated"/>
-&lt;/div>
-&lt;div class="title">Figure 8. Globex PROD updated&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_conclusion">Conclusion&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>This concludes this journey to a Secure Supply Chain using Tekton (OpenShift Pipelines). Is this the best must-have you need to do? No, it is an example, a demonstration. Feel free to use and modify it. You can also use other tools for the tasks or the pipeline as such. It does not matter if you use Tekton, Jenkins, Gitlab Runner etc. What is important is that you secure your whole supply chain as much as possible.
-Any image you create should be signed to ensure that the source can be trusted. Every source code should be verified against best practices and all images should be scanned for vulnerabilities and policy violations during the build AND the deployment process.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
-&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
-&lt;p>Well we hope the articles here are not totally useless :)&lt;/p>
-&lt;p>Who are we, you might ask.
-We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p>
-&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p>
-&lt;p>If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" >GitHub issue&lt;/a>&lt;/p></description></item></channel></rss>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The update can now be seen in the browser. The &amp;#34;important update&amp;#34; is visible at the bottom of the page.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-dev_updated.png?width=600px" alt="Globex DEV updated"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 5. Globex DEV updated&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The production environment was not yet updated. Instead, a pull request has been created:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-open_pr.png?width=600px" alt="Open pull request"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 6. Open pull request&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This request can be reviewed and merged. As you can see there was only one change in the files:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-pr_fileschanged.png" alt="Open pull request - changed files"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 7. Open pull request - changed files&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Merge the pull request and wait until Argo CD fetched the changes and updates the production environment. This is it, the changes are done and promoted to production:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step13-prod_updated.png?width=600px" alt="Globex PROD updated"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 8. Globex PROD updated&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This concludes this journey to a Secure Supply Chain using Tekton (OpenShift Pipelines). Is this the best must-have you need to do? No, it is an example, a demonstration. Feel free to use and modify it. You can also use other tools for the tasks or the pipeline as such. It does not matter if you use Tekton, Jenkins, Gitlab Runner etc. What is important is that you secure your whole supply chain as much as possible.
+Any image you create should be signed to ensure that the source can be trusted. Every source code should be verified against best practices and all images should be scanned for vulnerabilities and policy violations during the build AND the deployment process.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
+&lt;h1 class="blog-title gradient-header"&gt;Welcome to Yet Another Useless Blog&lt;/h1&gt;
+&lt;p&gt;Well we hope the articles here are not totally useless :)&lt;/p&gt;
+&lt;p&gt;Who are we, you might ask.
+We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p&gt;
+&lt;p&gt;The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p&gt;
+&lt;p&gt;If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" &gt;GitHub issue&lt;/a&gt;&lt;/p&gt;</description></item></channel></rss>

@@ -1,246 +1,246 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>SBOM on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/sbom/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/sbom/index.xml" rel="self" type="application/rss+xml"/><item><title>Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/</guid><description/></item><item><title>Introduction to a Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</guid><description>&lt;div class="paragraph">
-&lt;p>The goal of the following (&amp;#34;short&amp;#34;) series is to build a secure CI/CD pipeline step by step using OpenShift Pipelines (based on Tekton).
-The whole build process shall pull and build an image, upload it to a development environment and subsequently update the production environment.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The main focus here is security. Several steps and tools shall help to build and deploy a &lt;strong>Secure Supply Chain&lt;/strong>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The whole process is part of a Red Hat workshop which can present to your organization. I did some tweaks and created a step-by-step plan in order
-to remember it …​ since I am getting old :)&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_the_journey_to_secure_supply_chain">The Journey to Secure Supply Chain&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>This series includes the following articles:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step1/">Listen to Events&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step2/">Pipelines&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step3/">SonarQube&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step4/">Verify Git Commit&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step5/">Build and Sign Image&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step6/">Scanning with ACS&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step7/">Generating a SBOM&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step8/">Updating Kubernetes Manifests&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step9/">Linting Kubernetes Manifests&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step10/">The Example Application&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step11/">ACS Deployment Check&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step12/">Verify TLOG Signature&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step13/">Bring it to Production&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>In order to develop our Secure Supply Chain, we need an &lt;strong>OpenShift 4 Cluster&lt;/strong>. I am currently using OpenShift 4.13.
-Moreover, the &lt;strong>OpenShift Pipelines&lt;/strong> operator must be deployed. It is based on &lt;a href="https://tekton.dev/" target="_blank" rel="noopener">Tekton&lt;/a> and provides a Kubernetes-native way to create CI/CD pipelines.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The operator is deployed using the Operator Hub inside your cluster. Simply search for OpenShift Pipelines and install the operator using the default settings.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/intro-install_Tekton_Operator.png?width=220px" alt="OpenShift Pipelines"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Install OpenShift Pipelines&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Finally, you will need a GitHub account to be able to fork some repositories.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>SBOM on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/sbom/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/sbom/index.xml" rel="self" type="application/rss+xml"/><item><title>Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/</guid><description/></item><item><title>Introduction to a Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;The goal of the following (&amp;#34;short&amp;#34;) series is to build a secure CI/CD pipeline step by step using OpenShift Pipelines (based on Tekton).
+The whole build process shall pull and build an image, upload it to a development environment and subsequently update the production environment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The main focus here is security. Several steps and tools shall help to build and deploy a &lt;strong&gt;Secure Supply Chain&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The whole process is part of a Red Hat workshop which can present to your organization. I did some tweaks and created a step-by-step plan in order
+to remember it …​ since I am getting old :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_journey_to_secure_supply_chain"&gt;The Journey to Secure Supply Chain&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This series includes the following articles:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step1/"&gt;Listen to Events&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step2/"&gt;Pipelines&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step3/"&gt;SonarQube&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step4/"&gt;Verify Git Commit&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step5/"&gt;Build and Sign Image&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step6/"&gt;Scanning with ACS&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step7/"&gt;Generating a SBOM&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step8/"&gt;Updating Kubernetes Manifests&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step9/"&gt;Linting Kubernetes Manifests&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step10/"&gt;The Example Application&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step11/"&gt;ACS Deployment Check&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step12/"&gt;Verify TLOG Signature&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step13/"&gt;Bring it to Production&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In order to develop our Secure Supply Chain, we need an &lt;strong&gt;OpenShift 4 Cluster&lt;/strong&gt;. I am currently using OpenShift 4.13.
+Moreover, the &lt;strong&gt;OpenShift Pipelines&lt;/strong&gt; operator must be deployed. It is based on &lt;a href="https://tekton.dev/" target="_blank" rel="noopener"&gt;Tekton&lt;/a&gt; and provides a Kubernetes-native way to create CI/CD pipelines.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The operator is deployed using the Operator Hub inside your cluster. Simply search for OpenShift Pipelines and install the operator using the default settings.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/intro-install_Tekton_Operator.png?width=220px" alt="OpenShift Pipelines"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Install OpenShift Pipelines&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, you will need a GitHub account to be able to fork some repositories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Some steps in the pipeline are working tightly with GitHub, especially the very last one that is talking GitHub’s API. However, any Git-system should work, and probably just minor changes will be required.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Everything else will be installed during the different steps described in the upcoming articles, while we build and tweak our pipeline.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Remember, the big goal of our pipeline is NOT to simply pull, build and push our code, but to integrate certain security tools like code scanning, image scanning and linting.
-Otherwise, it would be boring.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_used_tools">Used Tools&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following list of tools (or specifications) are used for our pipeline. They will be deployed when the appropriate step requires it.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;a href="https://docs.openshift.com/acs/4.1/welcome/index.html" target="_blank" rel="noopener">Advanced Cluster Security&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.openshift.com/acs/4.1/cli/getting-started-cli.html" target="_blank" rel="noopener">roxctl&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://www.sonarsource.com/products/sonarqube/" target="_blank" rel="noopener">SonarQube&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://www.redhat.com/en/technologies/cloud-computing/quay" target="_blank" rel="noopener">Quay - quay.io as public registry&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener">CoSign (sigstore)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.sigstore.dev/rekor/overview/" target="_blank" rel="noopener">Rekor (sigstore)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://cyclonedx.org/capabilities/sbom/" target="_blank" rel="noopener">Software Bill of Material (SBOM)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.kubelinter.io/#/" target="_blank" rel="noopener">KubeLinter&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://kube-score.com/" target="_blank" rel="noopener">KubeScore&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://github.com/adrienverge/yamllint" target="_blank" rel="noopener">YamlLint&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://github.com/looztra/kubesplit" target="_blank" rel="noopener">kubesplit&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Step 7 - Generating a SBOM</title><link>https://blog.stderr.at/securesupplychain/2023-06-22-securesupplychain-step7/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-22-securesupplychain-step7/</guid><description>&lt;div class="paragraph">
-&lt;p>A &lt;strong>software bill of materials&lt;/strong> (SBOM) offers an insight into the makeup of an application developed using third-party commercial tools and open-source software. It is a machine-readable, formally structured list of all components. This list is important to gain visibility into what risks might exist in a package and their potential impact. It allows to prioritize the risks and define a remediation path.
-The teams can use the SBOM to monitor all components that are used across an application.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>We will create a Task that will generate a SBOM and uploads it into an SBOM repository.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_goals">Goals&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The goals of this step are:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Install a SBOM repository.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Generate a SBOM and upload it to the repository.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_toolstandard_cyclonedx">Tool/Standard CycloneDX&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>OWASP CycloneDX is a full-stack Bill of Materials (BOM) standard that provides advanced supply chain capabilities for cyber risk reduction. The specification supports:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Software Bill of Materials (SBOM)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Software-as-a-Service Bill of Materials (SaaSBOM)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Hardware Bill of Materials (HBOM)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Operations Bill of Materials (OBOM)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Vulnerability Disclosure Reports (VDR)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Vulnerability Exploitability eXchange (VEX)&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Strategic direction of the specification is managed by the CycloneDX Core Working Group, is backed by the OWASP Foundation, and is supported by the global information security community.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Source: &lt;a href="https://cyclonedx.org/" class="bare">https://cyclonedx.org/&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The CycloneDX module for Node.js creates a valid CycloneDX Software Bill-of-Materials (SBOM) containing an aggregate of all project dependencies. CycloneDX is a lightweight SBOM specification that is easily created, human and machine-readable, and simple to parse.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-&lt;a href="https://cyclonedx.org/capabilities/sbom/" class="bare">https://cyclonedx.org/capabilities/sbom/&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>We will use this standard and will deploy a small Pod in our cluster to be able to upload our SBOM locally.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_install_cyclonedx_repository_server">Install CycloneDX Repository Server&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>We can install a CycloneDX Repository Server, which is a simple Pod running in our cluster. You can use the following Argo CD application, which will create the Namespace (cyclonedx),Deployment, Route, and Service.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Everything else will be installed during the different steps described in the upcoming articles, while we build and tweak our pipeline.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Remember, the big goal of our pipeline is NOT to simply pull, build and push our code, but to integrate certain security tools like code scanning, image scanning and linting.
+Otherwise, it would be boring.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_used_tools"&gt;Used Tools&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following list of tools (or specifications) are used for our pipeline. They will be deployed when the appropriate step requires it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.openshift.com/acs/4.1/welcome/index.html" target="_blank" rel="noopener"&gt;Advanced Cluster Security&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.openshift.com/acs/4.1/cli/getting-started-cli.html" target="_blank" rel="noopener"&gt;roxctl&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://www.sonarsource.com/products/sonarqube/" target="_blank" rel="noopener"&gt;SonarQube&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://www.redhat.com/en/technologies/cloud-computing/quay" target="_blank" rel="noopener"&gt;Quay - quay.io as public registry&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener"&gt;CoSign (sigstore)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.sigstore.dev/rekor/overview/" target="_blank" rel="noopener"&gt;Rekor (sigstore)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://cyclonedx.org/capabilities/sbom/" target="_blank" rel="noopener"&gt;Software Bill of Material (SBOM)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.kubelinter.io/#/" target="_blank" rel="noopener"&gt;KubeLinter&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://kube-score.com/" target="_blank" rel="noopener"&gt;KubeScore&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/adrienverge/yamllint" target="_blank" rel="noopener"&gt;YamlLint&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/looztra/kubesplit" target="_blank" rel="noopener"&gt;kubesplit&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Step 7 - Generating a SBOM</title><link>https://blog.stderr.at/securesupplychain/2023-06-22-securesupplychain-step7/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-22-securesupplychain-step7/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;A &lt;strong&gt;software bill of materials&lt;/strong&gt; (SBOM) offers an insight into the makeup of an application developed using third-party commercial tools and open-source software. It is a machine-readable, formally structured list of all components. This list is important to gain visibility into what risks might exist in a package and their potential impact. It allows to prioritize the risks and define a remediation path.
+The teams can use the SBOM to monitor all components that are used across an application.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will create a Task that will generate a SBOM and uploads it into an SBOM repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_goals"&gt;Goals&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The goals of this step are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Install a SBOM repository.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Generate a SBOM and upload it to the repository.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_toolstandard_cyclonedx"&gt;Tool/Standard CycloneDX&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OWASP CycloneDX is a full-stack Bill of Materials (BOM) standard that provides advanced supply chain capabilities for cyber risk reduction. The specification supports:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Software Bill of Materials (SBOM)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Software-as-a-Service Bill of Materials (SaaSBOM)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Hardware Bill of Materials (HBOM)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Operations Bill of Materials (OBOM)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Vulnerability Disclosure Reports (VDR)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Vulnerability Exploitability eXchange (VEX)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Strategic direction of the specification is managed by the CycloneDX Core Working Group, is backed by the OWASP Foundation, and is supported by the global information security community.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Source: &lt;a href="https://cyclonedx.org/" class="bare"&gt;https://cyclonedx.org/&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The CycloneDX module for Node.js creates a valid CycloneDX Software Bill-of-Materials (SBOM) containing an aggregate of all project dependencies. CycloneDX is a lightweight SBOM specification that is easily created, human and machine-readable, and simple to parse.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;a href="https://cyclonedx.org/capabilities/sbom/" class="bare"&gt;https://cyclonedx.org/capabilities/sbom/&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will use this standard and will deploy a small Pod in our cluster to be able to upload our SBOM locally.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_install_cyclonedx_repository_server"&gt;Install CycloneDX Repository Server&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can install a CycloneDX Repository Server, which is a simple Pod running in our cluster. You can use the following Argo CD application, which will create the Namespace (cyclonedx),Deployment, Route, and Service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
 name: in-cluster-install-cyclonedx
@@ -254,95 +254,95 @@ info:
 value: Install CycloneDX SBOM Repository
 project: in-cluster
 source:
-path: clusters/management-cluster/cyclonedx &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+path: clusters/management-cluster/cyclonedx &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
-targetRevision: main&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Path and URL to the Git repository.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In Argo CD the following Application will be created:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step7-install_cyclonedx.png?width=600px" alt="CycloneDX Installation"/>
-&lt;/div>
-&lt;div class="title">Figure 1. CycloneDX Installation&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_update_the_tekton_pipeline">Update the Tekton Pipeline&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Update the TriggerBinding &lt;strong>globex-ui&lt;/strong> and add the following:&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - name: cyclonedxHostUrl
+targetRevision: main&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path and URL to the Git repository.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In Argo CD the following Application will be created:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step7-install_cyclonedx.png?width=600px" alt="CycloneDX Installation"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. CycloneDX Installation&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_update_the_tekton_pipeline"&gt;Update the Tekton Pipeline&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Update the TriggerBinding &lt;strong&gt;globex-ui&lt;/strong&gt; and add the following:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; - name: cyclonedxHostUrl
 value: &amp;gt;-
-https://cyclonedx-bom-repo-server-cyclonedx.apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>DO NOT add a trailing slash here.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Update the TriggerTemplate and add the following to the appropriate blocks:&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">spec:
+https://cyclonedx-bom-repo-server-cyclonedx.apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;DO NOT add a trailing slash here.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Update the TriggerTemplate and add the following to the appropriate blocks:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;spec:
 parames:
 ...
 - description: Cyclonedx host url
-name: cyclonedxHostUrl &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+name: cyclonedxHostUrl &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 resourcetemplates:
 ...
 spec:
 params:
 ...
 - name: CYCLONEDX_HOST_URL
-value: $(tt.params.cyclonedxHostUrl) &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The parameter defined in the TriggerBinding&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The parameter as it will be provided to the Pipeline.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Install the following Task&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: tekton.dev/v1beta1
+value: $(tt.params.cyclonedxHostUrl) &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The parameter defined in the TriggerBinding&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The parameter as it will be provided to the Pipeline.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install the following Task&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
 name: generate-sbom
 namespace: ci
 spec:
-params: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+params: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 - default: &amp;gt;-
 https://cyclonedx-bom-repo-server-cyclonedx.apps.placeholder.com/
 name: cyclonedxHostUrl
@@ -360,7 +360,7 @@ name: generate-sbom
 resources:
 requests:
 memory: 1Gi
-script: &amp;gt; &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+script: &amp;gt; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 apk add git curl
 npm install .
 /usr/src/cyclonedx-bom/bin/make-bom.js -o bom.xml
@@ -373,95 +373,95 @@ printf &amp;#34;%s&amp;#34; &amp;#34;$LOCATION&amp;#34; &amp;gt; &amp;#34;$(resu
 echo &amp;#34;SBOM URL accessible on Results of TaskRun $(context.taskRun.name)&amp;#34;
 workingDir: /workspace/repository
 workspaces:
-- name: repository&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Default parameters for this task. Might be overwritten, by the EventListener&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Script to be executed. It will download a script and upload the SBOM to our CycloneDX server.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Update the Pipeline object&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">spec:
+- name: repository&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Default parameters for this task. Might be overwritten, by the EventListener&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Script to be executed. It will download a script and upload the SBOM to our CycloneDX server.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Update the Pipeline object&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;spec:
 params:
 ...
-- name: CYCLONEDX_HOST_URL &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- name: CYCLONEDX_HOST_URL &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 type: string
 tasks:
 ...
-- name: generate-sbom &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- name: generate-sbom &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 params:
 - name: cyclonedxHostUrl
 value: $(params.CYCLONEDX_HOST_URL)
 runAfter:
-- build-sign-image &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+- build-sign-image &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 taskRef:
 kind: Task
 name: generate-sbom
 workspaces:
 - name: repository
-workspace: shared-data&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Add this to the parameter section&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The new Task to generate a SBOM&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Run after build-sign-image (and in parallel to the ACS tasks)&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step7-pipeline.png?width=800px" alt="Pipeline"/>
-&lt;/div>
-&lt;div class="title">Figure 2. Pipeline&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_execute_the_pipeline">Execute the Pipeline&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Let’s trigger the pipeline again. If everything works well, the URL to the uploaded SBOM will be visible in the TaskRun log.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step7-sbom_url.png" alt="Pipeline"/>
-&lt;/div>
-&lt;div class="title">Figure 3. Pipeline&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>When you open this URL, you will get a huge list of components end dependencies.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For example, the following snippet shows that the angular component &lt;strong>animations&lt;/strong> (version 13.2.6) is used.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-xml" data-lang="xml">&amp;lt;components&amp;gt;
+workspace: shared-data&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Add this to the parameter section&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The new Task to generate a SBOM&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Run after build-sign-image (and in parallel to the ACS tasks)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step7-pipeline.png?width=800px" alt="Pipeline"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. Pipeline&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_execute_the_pipeline"&gt;Execute the Pipeline&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s trigger the pipeline again. If everything works well, the URL to the uploaded SBOM will be visible in the TaskRun log.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step7-sbom_url.png" alt="Pipeline"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. Pipeline&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you open this URL, you will get a huge list of components end dependencies.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, the following snippet shows that the angular component &lt;strong&gt;animations&lt;/strong&gt; (version 13.2.6) is used.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-xml" data-lang="xml"&gt;&amp;lt;components&amp;gt;
 &amp;lt;component type=&amp;#34;library&amp;#34; bom-ref=&amp;#34;pkg:npm/%40angular/animations@13.2.6&amp;#34;&amp;gt;
 &amp;lt;author&amp;gt;angular&amp;lt;/author&amp;gt;
 &amp;lt;group&amp;gt;@angular&amp;lt;/group&amp;gt;
@@ -485,25 +485,25 @@ workspace: shared-data&lt;/code>&lt;/pre>
 &amp;lt;url&amp;gt;git+https://github.com/angular/angular.git&amp;lt;/url&amp;gt;
 &amp;lt;/reference&amp;gt;
 &amp;lt;/externalReferences&amp;gt;
-&amp;lt;/component&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_summary">Summary&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>This concludes our security scans for the whole build process. With the SBOM you have now a complete list of components and dependencies of your images.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>During the next steps, we will work with the Kubernetes manifests and update them, perform a linting on these manifests, and try to deploy the updated image to our DEV environment.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
-&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
-&lt;p>Well we hope the articles here are not totally useless :)&lt;/p>
-&lt;p>Who are we, you might ask.
-We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p>
-&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p>
-&lt;p>If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" >GitHub issue&lt;/a>&lt;/p></description></item></channel></rss>
+&amp;lt;/component&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This concludes our security scans for the whole build process. With the SBOM you have now a complete list of components and dependencies of your images.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;During the next steps, we will work with the Kubernetes manifests and update them, perform a linting on these manifests, and try to deploy the updated image to our DEV environment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
+&lt;h1 class="blog-title gradient-header"&gt;Welcome to Yet Another Useless Blog&lt;/h1&gt;
+&lt;p&gt;Well we hope the articles here are not totally useless :)&lt;/p&gt;
+&lt;p&gt;Who are we, you might ask.
+We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p&gt;
+&lt;p&gt;The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p&gt;
+&lt;p&gt;If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" &gt;GitHub issue&lt;/a&gt;&lt;/p&gt;</description></item></channel></rss>

@@ -1,191 +1,191 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Certificate on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/certificate/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 03 Jun 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/certificate/index.xml" rel="self" type="application/rss+xml"/><item><title>Cert-Manager Policy Approver in OpenShift</title><link>https://blog.stderr.at/openshift/2025/06/cert-manager-policy-approver-in-openshift/</link><pubDate>Tue, 03 Jun 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/06/cert-manager-policy-approver-in-openshift/</guid><description>&lt;div class="paragraph">
-&lt;p>One of the most commonly deployed operators in OpenShift environments is the &lt;strong>Cert-Manager Operator&lt;/strong>. It automates the management of TLS certificates for applications running within the cluster, including their issuance and renewal.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The tool supports a variety of certificate issuers by default, including ACME, Vault, and self-signed certificates. Whenever a certificate is needed, Cert-Manager will automatically create a CertificateRequest resource that contains the details of the certificate. This resource is then processed by the appropriate issuer to generate the actual TLS certificate. The approval process in this case is usually fully automated, meaning that the certificate is issued without any manual intervention.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>But what if you want to have more control? What if certificate issuance must follow strict organizational policies, such as requiring a specifc country code or organization name?
-This is where the &lt;strong>CertificateRequestPolicy&lt;/strong> resource, a resource provided by the Approver Policy, comes into play.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This article walks through configuring the &lt;strong>Cert-Manager Approver Policy&lt;/strong> in OpenShift to enforce granular policies on certificate requests.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Before you begin, ensure you have the following:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>OpenShift 4.16 or higher with cluster-admin access&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Cert-Manager Operator installed&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-The installation of Cert-Manager itself is discussed in the article: &lt;a href="https://blog.stderr.at/gitopscollection/2024-07-04-managing-certificates-with-gitops/">Managing Certificates using GitOps approach&lt;/a>.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Certificate on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/certificate/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 03 Jun 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/certificate/index.xml" rel="self" type="application/rss+xml"/><item><title>Cert-Manager Policy Approver in OpenShift</title><link>https://blog.stderr.at/openshift/2025/06/cert-manager-policy-approver-in-openshift/</link><pubDate>Tue, 03 Jun 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/06/cert-manager-policy-approver-in-openshift/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;One of the most commonly deployed operators in OpenShift environments is the &lt;strong&gt;Cert-Manager Operator&lt;/strong&gt;. It automates the management of TLS certificates for applications running within the cluster, including their issuance and renewal.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The tool supports a variety of certificate issuers by default, including ACME, Vault, and self-signed certificates. Whenever a certificate is needed, Cert-Manager will automatically create a CertificateRequest resource that contains the details of the certificate. This resource is then processed by the appropriate issuer to generate the actual TLS certificate. The approval process in this case is usually fully automated, meaning that the certificate is issued without any manual intervention.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But what if you want to have more control? What if certificate issuance must follow strict organizational policies, such as requiring a specifc country code or organization name?
+This is where the &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; resource, a resource provided by the Approver Policy, comes into play.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article walks through configuring the &lt;strong&gt;Cert-Manager Approver Policy&lt;/strong&gt; in OpenShift to enforce granular policies on certificate requests.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before you begin, ensure you have the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift 4.16 or higher with cluster-admin access&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Cert-Manager Operator installed&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The installation of Cert-Manager itself is discussed in the article: &lt;a href="https://blog.stderr.at/gitopscollection/2024-07-04-managing-certificates-with-gitops/"&gt;Managing Certificates using GitOps approach&lt;/a&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The Cert-Manager Operator does not currently support the Approver Policy by default. You need to install the Approver Policy manually using a Helm Chart. There is a feature request to include the Approver Policy in the Cert-Manager Operator in the future.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_adding_approver_policy_chart_as_a_dependency">Adding Approver Policy Chart as a dependency&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Source: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/cert-manager" target="_blank" rel="noopener">Cert-Manager Deployment&lt;/a>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The above Chart contains the necessary resources to deploy the Cert-Manager itself and Cert-Manager Approver Policy in OpenShift.
-To deploy the Approver Policy alongside Cert-Manager, add it as a dependency in your &lt;strong>Chart.yaml&lt;/strong>:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">[...]
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_adding_approver_policy_chart_as_a_dependency"&gt;Adding Approver Policy Chart as a dependency&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Source: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The above Chart contains the necessary resources to deploy the Cert-Manager itself and Cert-Manager Approver Policy in OpenShift.
+To deploy the Approver Policy alongside Cert-Manager, add it as a dependency in your &lt;strong&gt;Chart.yaml&lt;/strong&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;[...]
 - name: cert-manager-approver-policy
 version: v0.19.0
 repository: https://charts.jetstack.io
-[...]&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This is the official Helm Chart for the Cert-Manager Approver Policy tool provided by Jetstack. The version used in this example is v0.19.0, but you can use a newer version if available.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_configuration_of_the_helm_chart">Configuration of the Helm Chart&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The initial &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/cert-manager/values.yaml" target="_blank" rel="noopener">values.yaml&lt;/a> file was extended to:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>include the configuration for the Approver Policy Chart&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>the configuration for a &lt;strong>CertificateRequestPolicy&lt;/strong> object&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>with some specific modifications to the CertManager resource itself&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_disabling_cert_managers_auto_approver">Disabling Cert-Manager’s Auto-Approver&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The first step we need to do is to disable the auto-approver of the Cert-Manager. If this is not done, there will be a race condition between the auto-approver and the Approver Policy, which will lead to unexpected results.
-These changes are done by:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cert-manager:
+[...]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is the official Helm Chart for the Cert-Manager Approver Policy tool provided by Jetstack. The version used in this example is v0.19.0, but you can use a newer version if available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configuration_of_the_helm_chart"&gt;Configuration of the Helm Chart&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The initial &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/cert-manager/values.yaml" target="_blank" rel="noopener"&gt;values.yaml&lt;/a&gt; file was extended to:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;include the configuration for the Approver Policy Chart&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the configuration for a &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; object&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;with some specific modifications to the CertManager resource itself&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_disabling_cert_managers_auto_approver"&gt;Disabling Cert-Manager’s Auto-Approver&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first step we need to do is to disable the auto-approver of the Cert-Manager. If this is not done, there will be a race condition between the auto-approver and the Approver Policy, which will lead to unexpected results.
+These changes are done by:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;cert-manager:
 certManager:
-enable_patch: true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+enable_patch: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 unsupportedConfigOverrides:
 controller:
 args:
-- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39; &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>This enables the patching of the CertManager resource, which tells the chart to overwrite (patch) the automatically generated CertManager resource with the custom configuration.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>This disables the auto-approver Controller of the Cert-Manager.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This enables the patching of the CertManager resource, which tells the chart to overwrite (patch) the automatically generated CertManager resource with the custom configuration.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This disables the auto-approver Controller of the Cert-Manager.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 As the name suggests, this is currently an unsupported configuration, but it is necessary to disable the auto-approver for the Cert-Manager. In the future versions of the Cert-Manager, this might change, and the auto-approver might be supported out of the box.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In my case, the full CertManager resource looks like this:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: operator.openshift.io/v1alpha1
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In my case, the full CertManager resource looks like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: operator.openshift.io/v1alpha1
 kind: CertManager
 metadata:
 annotations:
 name: cluster
 spec:
 controllerConfig:
-overrideArgs: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+overrideArgs: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 - &amp;#39;--dns01-recursive-nameservers-only&amp;#39;
 - &amp;#39;--dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53&amp;#39;
 logLevel: Normal
 managementState: Managed
 operatorLogLevel: Normal
-unsupportedConfigOverrides: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+unsupportedConfigOverrides: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 controller:
 args:
-- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Settings to support AWS Nameservers for DNS01 challenges.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>This disables the auto-approver Controller of the Cert-Manager.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_configuration_of_the_approver_policy">Configuration of the Approver Policy&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The second step is to configure the Approver Policy chart. This chart will deploy the necessary resources, most importantly a Deployment that will start the Pods which will process the CertificateRequestPolicy resources later on.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>My configuration for that chart looks like this (some default values are omitted for brevity):&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">cert-manager-approver-policy:
-crds: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Settings to support AWS Nameservers for DNS01 challenges.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This disables the auto-approver Controller of the Cert-Manager.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configuration_of_the_approver_policy"&gt;Configuration of the Approver Policy&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The second step is to configure the Approver Policy chart. This chart will deploy the necessary resources, most importantly a Deployment that will start the Pods which will process the CertificateRequestPolicy resources later on.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;My configuration for that chart looks like this (some default values are omitted for brevity):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;cert-manager-approver-policy:
+crds: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 # This option decides if the CRDs should be installed
 # as part of the Helm installation.
 enabled: true
@@ -196,8 +196,8 @@ enabled: true
 # (CertificateRequestPolicy) will be removed too by the garbage collector.
 keep: true
 # Number of replicas of approver-policy to run.
-replicaCount: 1 &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-image: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+replicaCount: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+image: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 # Target image repository.
 repository: quay.io/jetstack/cert-manager-approver-policy
 # Kubernetes imagePullPolicy on Deployment.
@@ -208,82 +208,82 @@ app:
 # approve and deny. CertificateRequests referencing these signer names can be
 # processed by approver-policy. Defaults to an empty array, allowing approval
 # for all signers.
-approveSignerNames: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+approveSignerNames: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 - &amp;#39;issuers.cert-manager.io/*&amp;#39;
-- &amp;#39;clusterissuers.cert-manager.io/*&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>This enables the installation of the CRDs that are required for the Approver Policy.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The number of replicas of the Approver Policy Deployment. In most cases, one replica is enough.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The image configuration for the Approver Policy. The image is pulled from the Jetstack Quay.io repository.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>The list of signer names that the Approver Policy will be allowed to approve. In this case, it is configured to allow all issuers and clusterissuers.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+- &amp;#39;clusterissuers.cert-manager.io/*&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This enables the installation of the CRDs that are required for the Approver Policy.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The number of replicas of the Approver Policy Deployment. In most cases, one replica is enough.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The image configuration for the Approver Policy. The image is pulled from the Jetstack Quay.io repository.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The list of signer names that the Approver Policy will be allowed to approve. In this case, it is configured to allow all issuers and clusterissuers.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The approveSignerNames are, if configured, an important setting, especially if you want to add custom (cluster)issuers. In such a case, you need to add the name of the custom issuer to this list. Otherwise the Approver Policy will not be able to approve the CertificateRequests for that issuer.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_creating_a_certificaterequestpolicy_and_rolebinding">Creating a CertificateRequestPolicy and Role(Binding)&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The final step in our configuration is to define a &lt;strong>CertificateRequestPolicy&lt;/strong> resource that will define the policy for the certificate requests. This resource will be processed by the Approver Policy and will determine if a certificate request is approved or denied based on the defined criteria.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following example shows a CertificateRequestPolicy that will:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Allow certificate requests with any common name, DNS names, IP addresses, URIs, and email addresses.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Require DNS names to be set.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Require the subject to contain a specific organization (MyOrganization) and country code (AT).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Allow usages for server auth and client auth.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Set constraints for the certificate duration (1h-24h) and private key algorithm (RSA) and size (2048-4096).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Allow all issuers by using an empty selector.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">role: cert-manager-policy:global-approver &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-serviceAccount: cert-manager &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-cert_manager_Namespace: cert-manager &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_creating_a_certificaterequestpolicy_and_rolebinding"&gt;Creating a CertificateRequestPolicy and Role(Binding)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The final step in our configuration is to define a &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; resource that will define the policy for the certificate requests. This resource will be processed by the Approver Policy and will determine if a certificate request is approved or denied based on the defined criteria.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following example shows a CertificateRequestPolicy that will:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Allow certificate requests with any common name, DNS names, IP addresses, URIs, and email addresses.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Require DNS names to be set.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Require the subject to contain a specific organization (MyOrganization) and country code (AT).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Allow usages for server auth and client auth.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Set constraints for the certificate duration (1h-24h) and private key algorithm (RSA) and size (2048-4096).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Allow all issuers by using an empty selector.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;role: cert-manager-policy:global-approver &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+serviceAccount: cert-manager &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+cert_manager_Namespace: cert-manager &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 policies:
 - name: my-approver-policy
 enabled: true
@@ -292,7 +292,7 @@ commonName:
 required: false
 value: &amp;#34;*&amp;#34;
 validations: []
-dnsNames: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+dnsNames: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 required: true
 values:
 - &amp;#34;*&amp;#34;
@@ -313,7 +313,7 @@ values:
 validations: []
 # isCA: false
 subject:
-organizations: &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+organizations: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 required: true
 values:
 - &amp;#34;MyOrganization&amp;#34;
@@ -330,7 +330,7 @@ message: Country code must be AT
 usages:
 - &amp;#34;server auth&amp;#34;
 - &amp;#34;client auth&amp;#34;
-constraints: &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+constraints: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 minDuration: 1h
 maxDuration: 24h
 privateKey:
@@ -338,56 +338,56 @@ algorithm: RSA
 minSize: 2048
 maxSize: 4096
 selector:
-issuerRef: {} &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The role that is used to approve the certificate requests. This role must be created in the OpenShift cluster and must have the necessary permissions to approve certificate requests.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The service account that is used by the Approver Policy to process the certificate requests. This service account must have the necessary permissions to access the CertificateRequest resources.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The namespace where the Cert-Manager is deployed. This is usually the &lt;code>cert-manager&lt;/code> namespace, but you can change it if you have a different namespace.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>The DNS names are required to be set for the certificate request.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>The subject must contain the organization MyOrganization and the country code AT.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>The constraints for the certificate request, such as the minimum and maximum duration, private key algorithm, and size.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>The selector is empty, which means that the policy applies to all issuers. If you want to limit the policy to specific issuers, you can specify the issuerRef here.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_rendered_certificaterequestpolicy_and_rolebinding">Rendered CertificateRequestPolicy and Role(Binding)&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The above configuration will create a CertificateRequestPolicy resource that looks like this:
-&lt;div class="expand">
-&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
-&lt;i style="font-size:x-small;" class="fas fa-chevron-right">&lt;/i>
-&lt;span>
-&lt;a>Expand me...&lt;/a>
-&lt;/span>
-&lt;/div>
-&lt;div class="expand-content" style="display: none;">
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">---
+issuerRef: {} &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The role that is used to approve the certificate requests. This role must be created in the OpenShift cluster and must have the necessary permissions to approve certificate requests.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The service account that is used by the Approver Policy to process the certificate requests. This service account must have the necessary permissions to access the CertificateRequest resources.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Cert-Manager is deployed. This is usually the &lt;code&gt;cert-manager&lt;/code&gt; namespace, but you can change it if you have a different namespace.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The DNS names are required to be set for the certificate request.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The subject must contain the organization MyOrganization and the country code AT.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The constraints for the certificate request, such as the minimum and maximum duration, private key algorithm, and size.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The selector is empty, which means that the policy applies to all issuers. If you want to limit the policy to specific issuers, you can specify the issuerRef here.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_rendered_certificaterequestpolicy_and_rolebinding"&gt;Rendered CertificateRequestPolicy and Role(Binding)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The above configuration will create a CertificateRequestPolicy resource that looks like this:
+&lt;div class="expand"&gt;
+&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});"&gt;
+&lt;i style="font-size:x-small;" class="fas fa-chevron-right"&gt;&lt;/i&gt;
+&lt;span&gt;
+&lt;a&gt;Expand me...&lt;/a&gt;
+&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class="expand-content" style="display: none;"&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;---
 # Source: cert-manager/templates/ClusterRole-Approver-Policy-approving.yaml
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -517,18 +517,18 @@ algorithm: RSA
 minSize: 2048
 maxSize: 4096
 selector:
-issuerRef: {}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>One important note is about the ClusterRole and ClusterRoleBinding that are created by the Helm Chart. The role looks like the following and is required to allow the Approver Policy to approve certificate requests. This small bit, puzzled me for a while:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">rules:
+issuerRef: {}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One important note is about the ClusterRole and ClusterRoleBinding that are created by the Helm Chart. The role looks like the following and is required to allow the Approver Policy to approve certificate requests. This small bit, puzzled me for a while:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;rules:
 - verbs:
 - use
 apiGroups:
@@ -536,69 +536,69 @@ apiGroups:
 resources:
 - certificaterequestpolicies
 resourceNames:
-- my-approver-policy&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>With the above configuration we are good to go. The Helm Chart can be deployed to the OpenShift cluster (for example, using Argo CD), and the CertificateRequestPolicy will be created automatically.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>A new Pod is running in the &lt;strong>cert-manager&lt;/strong> namespace:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">❯ oc get pods -n cert-manager | grep approver
+- my-approver-policy&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With the above configuration we are good to go. The Helm Chart can be deployed to the OpenShift cluster (for example, using Argo CD), and the CertificateRequestPolicy will be created automatically.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A new Pod is running in the &lt;strong&gt;cert-manager&lt;/strong&gt; namespace:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-console" data-lang="console"&gt;❯ oc get pods -n cert-manager | grep approver
 NAME READY STATUS RESTARTS AGE
-cert-manager-approver-policy-xxxxx 1/1 Running 0 XXm &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The Pod &lt;code>cert-manager-approver-policy-xxxxx&lt;/code> is the Pod that is responsible for processing the CertificateRequestPolicy resources.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_testing_the_policy">Testing the Policy&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="sect2">
-&lt;h3 id="_test_1_valid_certificate_request">Test 1 - Valid Certificate Request&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Now it is time to test the policy. We need to create a Certificate and monitor the output of our approval pod.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>As a reminder, the policy we created requires the following:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>The subject must contain the organization MyOrganization&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>The subject must contain the country code AT.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>The keysize must be at least 2048 bits. (max 4096 bits)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>The duration must be between 1 hour and 24 hours.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>The usage must be server auth or client auth.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Let’s create this example Certificate in the &lt;code>myproject&lt;/code> namespace:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: cert-manager.io/v1
+cert-manager-approver-policy-xxxxx 1/1 Running 0 XXm &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The Pod &lt;code&gt;cert-manager-approver-policy-xxxxx&lt;/code&gt; is the Pod that is responsible for processing the CertificateRequestPolicy resources.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_testing_the_policy"&gt;Testing the Policy&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_test_1_valid_certificate_request"&gt;Test 1 - Valid Certificate Request&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now it is time to test the policy. We need to create a Certificate and monitor the output of our approval pod.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As a reminder, the policy we created requires the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The subject must contain the organization MyOrganization&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The subject must contain the country code AT.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The keysize must be at least 2048 bits. (max 4096 bits)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The duration must be between 1 hour and 24 hours.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The usage must be server auth or client auth.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s create this example Certificate in the &lt;code&gt;myproject&lt;/code&gt; namespace:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
 name: test-certificate1
@@ -621,24 +621,24 @@ organizations:
 countries:
 - AT
 usages:
-- server auth&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In the log of the Approver Policy Pod, we should see the following output:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">time=2025-06-03T16:07:58.656Z level=DEBUG+3 msg=&amp;#34;Approved by CertificateRequestPolicy: \&amp;#34;my-approver-policy\&amp;#34;&amp;#34; logger=controller-manager/events type=Normal object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate1-1 [...]}&amp;#34; reason=Approved&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This indicates that the CertificateRequest was approved by the Approver Policy. The policy was able to validate the subject, keysize, duration, and usage of the certificate request and approved it accordingly.
-The certificate has been created successfully in the &lt;strong>myproject&lt;/strong> namespace, and the secret &lt;strong>test1&lt;/strong> contains the TLS certificate and private key.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">❯ oc get secret test1 -n myproject -o yaml
+- server auth&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the log of the Approver Policy Pod, we should see the following output:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-console" data-lang="console"&gt;time=2025-06-03T16:07:58.656Z level=DEBUG+3 msg=&amp;#34;Approved by CertificateRequestPolicy: \&amp;#34;my-approver-policy\&amp;#34;&amp;#34; logger=controller-manager/events type=Normal object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate1-1 [...]}&amp;#34; reason=Approved&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This indicates that the CertificateRequest was approved by the Approver Policy. The policy was able to validate the subject, keysize, duration, and usage of the certificate request and approved it accordingly.
+The certificate has been created successfully in the &lt;strong&gt;myproject&lt;/strong&gt; namespace, and the secret &lt;strong&gt;test1&lt;/strong&gt; contains the TLS certificate and private key.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;❯ oc get secret test1 -n myproject -o yaml
 apiVersion: v1
 data:
 tls.crt: ...
@@ -649,18 +649,18 @@ labels:
 controller.cert-manager.io/fao: &amp;#34;true&amp;#34;
 name: test1
 namespace: myproject
-type: kubernetes.io/tls&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_test_2_invalid_certificate_request">Test 2 - Invalid Certificate Request&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>That was easy, but what happens if we create a CertificateRequest that does not meet the policy requirements? Let’s try to create a Certificate without the required organization or a wrong country code:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: cert-manager.io/v1
+type: kubernetes.io/tls&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_test_2_invalid_certificate_request"&gt;Test 2 - Invalid Certificate Request&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;That was easy, but what happens if we create a CertificateRequest that does not meet the policy requirements? Let’s try to create a Certificate without the required organization or a wrong country code:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
 name: test-certificate2
@@ -677,66 +677,66 @@ algorithm: RSA
 encoding: PKCS1
 rotationPolicy: Always
 secretName: test2
-subject: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+subject: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 countries:
 - XX
 usages:
-- server auth&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The subject does not contain the required organization MyOrganization and the country code is set to XX, which is not allowed by the policy.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will lead to the following error in the log of the Approver Policy Pod:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-console" data-lang="console">time=2025-06-03T16:16:02.233Z level=DEBUG+3 msg=&amp;#34;No policy approved this request: [my-approver-policy: [spec.allowed.subject.organizations.required: Required value: true, spec.allowed.subject.countries.values: Invalid value: []string{\&amp;#34;XX\&amp;#34;}: AT, spec.allowed.subject.countries.validations[0]: Invalid value: \&amp;#34;XX\&amp;#34;: Country code must be AT]]&amp;#34; logger=controller-manager/events type=Warning object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate2-1 ...&amp;#34; reason=Denied&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>It complains that the subject does not meet the policy requirements and therefore the CertificateRequest was denied.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_ok_we_have_a_policy_but_whats_next">Ok we have a policy, but whats next?&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The above example shows how the Cert-Manager Approver Policy can be configured and deployed, even if it is not yet supported by the Cert-Manager Operator. However, we only scratched the surface of what is possible with the Approver Policy.
-You can create more complex policies that include additional validations, such as checking the validity of the DNS names, IP addresses, or URIs. You can also create policies that require specific email addresses or organizational units in the subject.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>You can even create fine-grained policies that apply to specific issuers or namespaces by using the &lt;code>selector&lt;/code> field in the CertificateRequestPolicy resource. This allows you to create policies that are tailored to your specific requirements and use cases.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The best references can be found here:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Official documentation: &lt;a href="https://cert-manager.io/docs/policy/approval/approver-policy/" target="_blank" rel="noopener">Cert-Manager Approver Policy&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Example Policies: &lt;a href="https://github.com/cert-manager/approver-policy/tree/main/docs/examples" target="_blank" rel="noopener">Cert-Manager Approver Policy Examples&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_conclusion">Conclusion&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The Cert-Manager Approver Policy is a powerful tool that allows you to implement custom policies for certificate requests in OpenShift. It provides a way to control the issuance of TLS certificates based on specific criteria, such as the subject, key size, duration, and usage of the certificate.
-While not yet officially supported by the Cert-Manager Operator, it can be easily integrated into your OpenShift environment using a Helm Chart. Future support is currently being discussed, and it is expected that the Approver Policy will be included in the Cert-Manager Operator in the future.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+- server auth&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The subject does not contain the required organization MyOrganization and the country code is set to XX, which is not allowed by the policy.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will lead to the following error in the log of the Approver Policy Pod:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-console" data-lang="console"&gt;time=2025-06-03T16:16:02.233Z level=DEBUG+3 msg=&amp;#34;No policy approved this request: [my-approver-policy: [spec.allowed.subject.organizations.required: Required value: true, spec.allowed.subject.countries.values: Invalid value: []string{\&amp;#34;XX\&amp;#34;}: AT, spec.allowed.subject.countries.validations[0]: Invalid value: \&amp;#34;XX\&amp;#34;: Country code must be AT]]&amp;#34; logger=controller-manager/events type=Warning object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate2-1 ...&amp;#34; reason=Denied&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It complains that the subject does not meet the policy requirements and therefore the CertificateRequest was denied.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ok_we_have_a_policy_but_whats_next"&gt;Ok we have a policy, but whats next?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The above example shows how the Cert-Manager Approver Policy can be configured and deployed, even if it is not yet supported by the Cert-Manager Operator. However, we only scratched the surface of what is possible with the Approver Policy.
+You can create more complex policies that include additional validations, such as checking the validity of the DNS names, IP addresses, or URIs. You can also create policies that require specific email addresses or organizational units in the subject.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can even create fine-grained policies that apply to specific issuers or namespaces by using the &lt;code&gt;selector&lt;/code&gt; field in the CertificateRequestPolicy resource. This allows you to create policies that are tailored to your specific requirements and use cases.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The best references can be found here:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Official documentation: &lt;a href="https://cert-manager.io/docs/policy/approval/approver-policy/" target="_blank" rel="noopener"&gt;Cert-Manager Approver Policy&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Example Policies: &lt;a href="https://github.com/cert-manager/approver-policy/tree/main/docs/examples" target="_blank" rel="noopener"&gt;Cert-Manager Approver Policy Examples&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Cert-Manager Approver Policy is a powerful tool that allows you to implement custom policies for certificate requests in OpenShift. It provides a way to control the issuance of TLS certificates based on specific criteria, such as the subject, key size, duration, and usage of the certificate.
+While not yet officially supported by the Cert-Manager Operator, it can be easily integrated into your OpenShift environment using a Helm Chart. Future support is currently being discussed, and it is expected that the Approver Policy will be included in the Cert-Manager Operator in the future.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

@@ -1,626 +1,626 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Object Storage on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/object-storage/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 24 May 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/object-storage/index.xml" rel="self" type="application/rss+xml"/><item><title>Installing OpenShift Logging using GitOps</title><link>https://blog.stderr.at/gitopscollection/2024-05-24-install-openshift-logging/</link><pubDate>Fri, 24 May 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-05-24-install-openshift-logging/</guid><description>&lt;div class="paragraph">
-&lt;p>&lt;a href="https://docs.openshift.com/container-platform/4.15/observability/logging/logging_release_notes/logging-5-9-release-notes.html" target="_blank" rel="noopener">OpenShift Logging&lt;/a> is one of the more complex things to install and configure on an OpenShift cluster. Not because the service or Operators are so complex to understand, but because of the dependencies logging has. Besides the logging operator itself, the Loki operator is required, the Loki operator requires access to an object storage, that might be configured or is already available.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In this article, I would like to demonstrate the configuration of the full stack using an object storage from OpenShift Data Foundation. This means:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Installing the logging operator into the namespace openshift-logging&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Installing the Loki operator into the namespace openshift-operators-redhat&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Creating a new BackingStore and BucketClass&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Generating the Secret for Loki to authenticate against the object storage&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Configuring the LokiStack resource&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Configuring the ClusterLogging resource&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>All steps will be done automatically. In case you have S3 storage available, or you are not using OpenShift Data Foundation, the setup will be a bit different. For example, you do not need to create a BackingStore or the Loki authentication Secret.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>OpenShift 4&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Argo CD (OpenShift GitOps) deployed&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>OpenShift Data Foundation (ODF) deployed and ready to provide object storage.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Enough available compute resources to deploy LokiStack. Verify the official &lt;a href="https://docs.openshift.com/container-platform/4.15/observability/logging/log_storage/installing-log-storage.html" target="_blank" rel="noopener">OpenShift Logging documentation&lt;/a> to see which option might need which resources.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-For ODF it would be enough to deploy object storage only, instead of the full storage stack based on Ceph. In this case, the so-called &lt;strong>MultiCloudObjectGateway&lt;/strong> option is used, which creates (virtualizes) object storage on top of an existing StorageClass
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-If ODF object storage based on Noobaa should be used, then it makes sense to think about the data retention process, which will take care of removing old data from the storage. It is recommended to configure this directly on the object storage, because this is much more compute-friendly, then letting OpenShift Logging take care of that. The configuration depends on the object storage vendor. In the case of Noobaa, I have prepared a separate article: &lt;a href="https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/">Noobaa Bucket Data Retention Lifecycle&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_introduction">Introduction&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The main resources of OpenShift Logging are the three custom resources: &lt;strong>ClusterLogging&lt;/strong>, &lt;strong>ClusterLogForwarder&lt;/strong> and &lt;strong>LokiStack&lt;/strong>. The first two are provided by the OpenShift Logging Operator, the last one is provided by the Loki Operator. ClusterLogForwarder is an optional configuration. It allows us to forward logs to external destinations, such as Splunk, or to forward the OpenShift audit logs to Loki. (They are not stored by default). The LokiStack resource requires an available object storage to be able to start its workloads.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In my case, I would like to configure everything automatically. This means, that I also want to configure the object or S3 storage and create the required authentication secret for Loki without manual intervention. This can be easily done using ODF.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/">Configure App-of-Apps&lt;/a> installed an Argo CD Application called &lt;strong>in-cluster-setup-openshift-logging&lt;/strong>:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup-openshift-logging.png?width=720px" alt="Argo CD Application: setup-openshift-logging"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Argo CD Application: setup-openshift-logging&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This Argo CD Application uses the following path to find the Helm Chart: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-openshift-logging" target="_blank" rel="noopener">setup-openshift-logging&lt;/a>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This Helm chart is a &lt;strong>wrapper chart&lt;/strong> that uses sub-charts as dependencies to install and configure the operator as well as to do some OpenShift Jobs on top, for example, creating the required Secret for LokiStack.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The deployment workflow will go through the sub-charts and look like the following:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/gitopscollection/images/logging-deployment-flow.png" alt="Deployment Workflow"/>
-&lt;/div>
-&lt;div class="title">Figure 2. Deployment Workflow&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>While this looks quite huge and complex, the idea of the sub-charts is quite simple: Do a small specific task, that can be reused by other charts. For example, the NetworkObservability Operator also required an object storage and Loki. I can easily reuse the sub-charts without repeating the logic behind them.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_installing_openshift_logging_stack">Installing OpenShift Logging Stack&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="sect2">
-&lt;h3 id="_analyzing_chart_yaml">Analyzing Chart.yaml&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Let’s examine the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-openshift-logging/Chart.yaml" target="_blank" rel="noopener">Chart.yaml&lt;/a> file to see which dependencies are used:&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The file looks like the following. The Chart has a lot of dependencies on sub-charts, that have been created to make specific, small and defined operations re-useable for multiple Charts. A total number of 6 sub-charts are used:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">dependencies:
-- name: helper-operator &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Object Storage on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/object-storage/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 24 May 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/object-storage/index.xml" rel="self" type="application/rss+xml"/><item><title>Installing OpenShift Logging using GitOps</title><link>https://blog.stderr.at/gitopscollection/2024-05-24-install-openshift-logging/</link><pubDate>Fri, 24 May 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-05-24-install-openshift-logging/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://docs.openshift.com/container-platform/4.15/observability/logging/logging_release_notes/logging-5-9-release-notes.html" target="_blank" rel="noopener"&gt;OpenShift Logging&lt;/a&gt; is one of the more complex things to install and configure on an OpenShift cluster. Not because the service or Operators are so complex to understand, but because of the dependencies logging has. Besides the logging operator itself, the Loki operator is required, the Loki operator requires access to an object storage, that might be configured or is already available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this article, I would like to demonstrate the configuration of the full stack using an object storage from OpenShift Data Foundation. This means:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Installing the logging operator into the namespace openshift-logging&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Installing the Loki operator into the namespace openshift-operators-redhat&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Creating a new BackingStore and BucketClass&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Generating the Secret for Loki to authenticate against the object storage&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configuring the LokiStack resource&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configuring the ClusterLogging resource&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All steps will be done automatically. In case you have S3 storage available, or you are not using OpenShift Data Foundation, the setup will be a bit different. For example, you do not need to create a BackingStore or the Loki authentication Secret.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift 4&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Argo CD (OpenShift GitOps) deployed&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift Data Foundation (ODF) deployed and ready to provide object storage.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Enough available compute resources to deploy LokiStack. Verify the official &lt;a href="https://docs.openshift.com/container-platform/4.15/observability/logging/log_storage/installing-log-storage.html" target="_blank" rel="noopener"&gt;OpenShift Logging documentation&lt;/a&gt; to see which option might need which resources.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For ODF it would be enough to deploy object storage only, instead of the full storage stack based on Ceph. In this case, the so-called &lt;strong&gt;MultiCloudObjectGateway&lt;/strong&gt; option is used, which creates (virtualizes) object storage on top of an existing StorageClass
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If ODF object storage based on Noobaa should be used, then it makes sense to think about the data retention process, which will take care of removing old data from the storage. It is recommended to configure this directly on the object storage, because this is much more compute-friendly, then letting OpenShift Logging take care of that. The configuration depends on the object storage vendor. In the case of Noobaa, I have prepared a separate article: &lt;a href="https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/"&gt;Noobaa Bucket Data Retention Lifecycle&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The main resources of OpenShift Logging are the three custom resources: &lt;strong&gt;ClusterLogging&lt;/strong&gt;, &lt;strong&gt;ClusterLogForwarder&lt;/strong&gt; and &lt;strong&gt;LokiStack&lt;/strong&gt;. The first two are provided by the OpenShift Logging Operator, the last one is provided by the Loki Operator. ClusterLogForwarder is an optional configuration. It allows us to forward logs to external destinations, such as Splunk, or to forward the OpenShift audit logs to Loki. (They are not stored by default). The LokiStack resource requires an available object storage to be able to start its workloads.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In my case, I would like to configure everything automatically. This means, that I also want to configure the object or S3 storage and create the required authentication secret for Loki without manual intervention. This can be easily done using ODF.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/"&gt;Configure App-of-Apps&lt;/a&gt; installed an Argo CD Application called &lt;strong&gt;in-cluster-setup-openshift-logging&lt;/strong&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/setup-openshift-logging.png?width=720px" alt="Argo CD Application: setup-openshift-logging"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Argo CD Application: setup-openshift-logging&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This Argo CD Application uses the following path to find the Helm Chart: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-openshift-logging" target="_blank" rel="noopener"&gt;setup-openshift-logging&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This Helm chart is a &lt;strong&gt;wrapper chart&lt;/strong&gt; that uses sub-charts as dependencies to install and configure the operator as well as to do some OpenShift Jobs on top, for example, creating the required Secret for LokiStack.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The deployment workflow will go through the sub-charts and look like the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/logging-deployment-flow.png" alt="Deployment Workflow"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. Deployment Workflow&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While this looks quite huge and complex, the idea of the sub-charts is quite simple: Do a small specific task, that can be reused by other charts. For example, the NetworkObservability Operator also required an object storage and Loki. I can easily reuse the sub-charts without repeating the logic behind them.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_installing_openshift_logging_stack"&gt;Installing OpenShift Logging Stack&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_analyzing_chart_yaml"&gt;Analyzing Chart.yaml&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s examine the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-openshift-logging/Chart.yaml" target="_blank" rel="noopener"&gt;Chart.yaml&lt;/a&gt; file to see which dependencies are used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The file looks like the following. The Chart has a lot of dependencies on sub-charts, that have been created to make specific, small and defined operations re-useable for multiple Charts. A total number of 6 sub-charts are used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;dependencies:
+- name: helper-operator &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 version: ~1.0.18
 repository: https://charts.stderr.at/
-- name: helper-status-checker &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- name: helper-status-checker &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 version: ~4.0.0
 repository: https://charts.stderr.at/
 condition: helper-status-checker.enabled
-- name: openshift-logging &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+- name: openshift-logging &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 version: ~2.0.0
 repository: https://charts.stderr.at/
-- name: helper-loki-bucket-secret &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+- name: helper-loki-bucket-secret &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 version: ~1.0.0
 repository: https://charts.stderr.at/
 condition: helper-loki-bucket-secret.enabled
-- name: helper-objectstore &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+- name: helper-objectstore &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 version: ~1.0.0
 repository: https://charts.stderr.at/
 condition: helper-objectstore.enabled
-- name: helper-lokistack &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+- name: helper-lokistack &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 version: ~1.0.0
 repository: https://charts.stderr.at/
-condition: helper-lokistack.enabled&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" target="_blank" rel="noopener">Helper Operator&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" target="_blank" rel="noopener">Helper Status Checker&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/openshift-logging" target="_blank" rel="noopener">OpenShift Logging&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-loki-bucket-secret" target="_blank" rel="noopener">Helper Loki Bucket Secret&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-objectstore" target="_blank" rel="noopener">Helper Objectstore&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-lokistack" target="_blank" rel="noopener">Helper Lokistack&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+condition: helper-lokistack.enabled&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" target="_blank" rel="noopener"&gt;Helper Operator&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" target="_blank" rel="noopener"&gt;Helper Status Checker&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/openshift-logging" target="_blank" rel="noopener"&gt;OpenShift Logging&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-loki-bucket-secret" target="_blank" rel="noopener"&gt;Helper Loki Bucket Secret&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-objectstore" target="_blank" rel="noopener"&gt;Helper Objectstore&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-lokistack" target="_blank" rel="noopener"&gt;Helper Lokistack&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Verify the READMEs of the different Charts for detailed information on how to configure them.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_configuration_of_the_chart">Configuration of the Chart&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>To configure OpenShift Logging the &lt;strong>&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-openshift-logging/values.yaml" target="_blank" rel="noopener">values file&lt;/a>&lt;/strong> of the wrapper Chart must be prepared accordingly.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-The important thing here is, that any value that should be bypassed to a sub-chart is defined under the name of the sub-chart. For example, everything under &lt;strong>helper-operator:&lt;/strong> will be sent to the helper-operator Chart and is used there for its configuration.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Let’s walk through the configuration for each sub-chart in the order they are required:&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_installing_the_operator">Installing the Operator&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The first thing to do is to deploy the Operators themselves. For OpenShift Logging two Operators are required:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>OpenShift Logging&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Loki&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Loki might be installed already due to a different dependency. Maybe you have deployed the Network Observability Operator previously. In that case, OpenShift Logging is required only.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The Helm Chart &lt;strong>&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" target="_blank" rel="noopener">helper-operator&lt;/a>&lt;/strong> is responsible for deploying the Operators. In the following example, I will deploy both Operators (Logging and Loki) and enable the console plugin for the OpenShift Logging operator:&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configuration_of_the_chart"&gt;Configuration of the Chart&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To configure OpenShift Logging the &lt;strong&gt;&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-openshift-logging/values.yaml" target="_blank" rel="noopener"&gt;values file&lt;/a&gt;&lt;/strong&gt; of the wrapper Chart must be prepared accordingly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The important thing here is, that any value that should be bypassed to a sub-chart is defined under the name of the sub-chart. For example, everything under &lt;strong&gt;helper-operator:&lt;/strong&gt; will be sent to the helper-operator Chart and is used there for its configuration.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s walk through the configuration for each sub-chart in the order they are required:&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_installing_the_operator"&gt;Installing the Operator&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first thing to do is to deploy the Operators themselves. For OpenShift Logging two Operators are required:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift Logging&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Loki&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Loki might be installed already due to a different dependency. Maybe you have deployed the Network Observability Operator previously. In that case, OpenShift Logging is required only.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Helm Chart &lt;strong&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" target="_blank" rel="noopener"&gt;helper-operator&lt;/a&gt;&lt;/strong&gt; is responsible for deploying the Operators. In the following example, I will deploy both Operators (Logging and Loki) and enable the console plugin for the OpenShift Logging operator:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The console plugin will only work when the whole stack, this means when Logging itself, has been rolled out.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">helper-operator:
-console_plugins: &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-operator:
+console_plugins: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 enabled: true
-plugins: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+plugins: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 - logging-view-plugin
 operators:
-cluster-logging-operator: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-enabled: true &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
-syncwave: &amp;#39;0&amp;#39; &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
-namespace: &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+cluster-logging-operator: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+enabled: true &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+syncwave: &amp;#39;0&amp;#39; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+namespace: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 name: openshift-logging
 create: true
-subscription: &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>
+subscription: &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
 channel: stable
 source: redhat-operators
 approval: Automatic
 operatorName: cluster-logging
 sourceNamespace: openshift-marketplace
-operatorgroup: &lt;i class="conum" data-value="8">&lt;/i>&lt;b>(8)&lt;/b>
+operatorgroup: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
 create: true
 notownnamespace: false
-loki-operator: &lt;i class="conum" data-value="9">&lt;/i>&lt;b>(9)&lt;/b>
+loki-operator: &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
 enabled: true
-namespace: &lt;i class="conum" data-value="10">&lt;/i>&lt;b>(10)&lt;/b>
+namespace: &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
 name: openshift-operators-redhat
 create: true
-subscription: &lt;i class="conum" data-value="11">&lt;/i>&lt;b>(11)&lt;/b>
+subscription: &lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;(11)&lt;/b&gt;
 channel: stable-5.8
 approval: Automatic
 operatorName: loki-operator
 source: redhat-operators
 sourceNamespace: openshift-marketplace
-operatorgroup: &lt;i class="conum" data-value="12">&lt;/i>&lt;b>(12)&lt;/b>
+operatorgroup: &lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;(12)&lt;/b&gt;
 create: true
-notownnamespace: true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Activate Console Plugin. This will trigger a Kubernetes Job, that will modify the current list of console plugins and add the new plugin to it.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>List of plugins that should be added by the Job. The name of that plugin must be known. In the case of OpenShift Logging it is called &lt;strong>logging-view-plugin&lt;/strong>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Key of the first operator: &lt;strong>cluster-logging-operator&lt;/strong>. Everything below here will define the settings for the Logging Operator.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Is this Operator enabled yes/no.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Syncwave for the Operator deployment. (Subscription and OperatorGroup etc.) This should be early enough for other tasks.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>The Namespace where the Operator shall be deployed and if this namespace shall be created.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>Configuration of the Subscription resource. This defines the channel (version) that shall be used and whether the approval of the installPlan shall happen automatically or not.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="8">&lt;/i>&lt;b>8&lt;/b>&lt;/td>
-&lt;td>Configuration of the OperatorGroup. Typically, you will need one when you create a new Namespace. &lt;em>Notownnamespace&lt;/em> defines whether or not the targetNamespace is configured for this Operator or if the Operator is available in any Namespace.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="9">&lt;/i>&lt;b>9&lt;/b>&lt;/td>
-&lt;td>Key of the second Operator: &lt;strong>loki-operator&lt;/strong>. Everything below here will define the settings for the Logging Operator.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="10">&lt;/i>&lt;b>10&lt;/b>&lt;/td>
-&lt;td>The Namespace where the Operator shall be deployed, must be &lt;strong>openshift-operators-redhat&lt;/strong> and if this namespace shall be created.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="11">&lt;/i>&lt;b>11&lt;/b>&lt;/td>
-&lt;td>Configuration of the Subscription resource. This defines the channel (version) that shall be used and whether the approval of the installPlan shall happen automatically or not.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="12">&lt;/i>&lt;b>12&lt;/b>&lt;/td>
-&lt;td>Configuration of the OperatorGroup&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-The &lt;strong>approval&lt;/strong> setting can either be &lt;em>Automatic&lt;/em> or &lt;em>Manual&lt;/em>. If the Operator requires approval to be installed, then this must either be done manually (via WebUI or CLI) or using the &lt;strong>helper-status-checker&lt;/strong> chart which automatically can approve existing installPlans (explained in the next section). This is helpful, to automatically deploy the first version of the Operator without the need for manual intervention.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Verify the README at &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" target="_blank" rel="noopener">Helper Operator&lt;/a> to find additional possible configurations. Also, verify the separate article &lt;a href="https://blog.stderr.at/openshift/2023/03/operator-installation-with-argo-cd/">Operator Installation with Argo CD&lt;/a> to understand why I am verifying the status of the Operator installation.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_verifying_the_operator_deployment">Verifying the Operator Deployment&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>An Operator deployment can take some time and before you continue to configure the operator’s CRDs you must be sure that the installation finished successfully. Otherwise, the synchronization in Argo CD will fail because the CRD is not ready.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>There are mainly two tactics to really verify the status of the Operator:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Simply retry a failed sync in Argo CD. This can be done automatically x-times.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Verify if the Operator installation succeeded by starting a Kubernetes Job that monitors the status.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+notownnamespace: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Activate Console Plugin. This will trigger a Kubernetes Job, that will modify the current list of console plugins and add the new plugin to it.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;List of plugins that should be added by the Job. The name of that plugin must be known. In the case of OpenShift Logging it is called &lt;strong&gt;logging-view-plugin&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Key of the first operator: &lt;strong&gt;cluster-logging-operator&lt;/strong&gt;. Everything below here will define the settings for the Logging Operator.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Is this Operator enabled yes/no.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Syncwave for the Operator deployment. (Subscription and OperatorGroup etc.) This should be early enough for other tasks.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The Namespace where the Operator shall be deployed and if this namespace shall be created.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Configuration of the Subscription resource. This defines the channel (version) that shall be used and whether the approval of the installPlan shall happen automatically or not.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Configuration of the OperatorGroup. Typically, you will need one when you create a new Namespace. &lt;em&gt;Notownnamespace&lt;/em&gt; defines whether or not the targetNamespace is configured for this Operator or if the Operator is available in any Namespace.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Key of the second Operator: &lt;strong&gt;loki-operator&lt;/strong&gt;. Everything below here will define the settings for the Logging Operator.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The Namespace where the Operator shall be deployed, must be &lt;strong&gt;openshift-operators-redhat&lt;/strong&gt; and if this namespace shall be created.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;11&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Configuration of the Subscription resource. This defines the channel (version) that shall be used and whether the approval of the installPlan shall happen automatically or not.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;12&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Configuration of the OperatorGroup&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The &lt;strong&gt;approval&lt;/strong&gt; setting can either be &lt;em&gt;Automatic&lt;/em&gt; or &lt;em&gt;Manual&lt;/em&gt;. If the Operator requires approval to be installed, then this must either be done manually (via WebUI or CLI) or using the &lt;strong&gt;helper-status-checker&lt;/strong&gt; chart which automatically can approve existing installPlans (explained in the next section). This is helpful, to automatically deploy the first version of the Operator without the need for manual intervention.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Verify the README at &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" target="_blank" rel="noopener"&gt;Helper Operator&lt;/a&gt; to find additional possible configurations. Also, verify the separate article &lt;a href="https://blog.stderr.at/openshift/2023/03/operator-installation-with-argo-cd/"&gt;Operator Installation with Argo CD&lt;/a&gt; to understand why I am verifying the status of the Operator installation.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verifying_the_operator_deployment"&gt;Verifying the Operator Deployment&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;An Operator deployment can take some time and before you continue to configure the operator’s CRDs you must be sure that the installation finished successfully. Otherwise, the synchronization in Argo CD will fail because the CRD is not ready.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;There are mainly two tactics to really verify the status of the Operator:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Simply retry a failed sync in Argo CD. This can be done automatically x-times.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Verify if the Operator installation succeeded by starting a Kubernetes Job that monitors the status.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 (Custom) Health checks in Argo CD proved to be not 100% accurate because sometimes the Operator says it is &amp;#34;Ready&amp;#34; but the CRD still cannot be configured for some seconds. Looking at you Compliance Operator …​.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>I chose the second option, simply because I could also add a second Job that approved pending installPlans in case the deployment was set to manual approval.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The Helm Chart &lt;strong>&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" target="_blank" rel="noopener">helper-status-checker&lt;/a>&lt;/strong> has two main purposes:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Start a Kubernetes Job to verify the status of one or multiple Operator installation(s)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Optional: start a Kubernetes Job to approve the installPlan(s)&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>An example configuration, that verifies two Operators, looks like the following:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">helper-status-checker:
-enabled: true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-approver: false &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I chose the second option, simply because I could also add a second Job that approved pending installPlans in case the deployment was set to manual approval.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Helm Chart &lt;strong&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" target="_blank" rel="noopener"&gt;helper-status-checker&lt;/a&gt;&lt;/strong&gt; has two main purposes:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Start a Kubernetes Job to verify the status of one or multiple Operator installation(s)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Optional: start a Kubernetes Job to approve the installPlan(s)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;An example configuration, that verifies two Operators, looks like the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-status-checker:
+enabled: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+approver: false &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 # List of checks that shall be performed.
 checks:
-- operatorName: cluster-logging &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+- operatorName: cluster-logging &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 # -- OPTIONAL: Name of subscription that shall be approved. In some cases the name of the Subscription is different to the name of the operator.
 # @default --operatorName
-subscriptionName: cluster-logging-operator &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
-namespace: &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+subscriptionName: cluster-logging-operator &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+namespace: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 name: openshift-logging
-serviceAccount: &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+serviceAccount: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 name: &amp;#34;status-checker-logging&amp;#34;
-- operatorName: loki-operator &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>
+- operatorName: loki-operator &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
 namespace:
 name: openshift-operators-redhat
 serviceAccount:
-name: &amp;#34;status-checker-loki&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Enable the status checker.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Enable the installPlan approver. Only required if the approval strategy for an Operator is set to &lt;em>Manual&lt;/em>.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Verify the status of the first Operator &lt;strong>cluster-logging&lt;/strong>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Sometimes the name of the Subscription differs from the Operator name. Logging is such a case. To be able to find which Subscription should be verified, the subscriptionName must be defined here.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Namespace for OpenShift Logging&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>Name of the ServiceAccount that will be created to verify the status of the logging operator.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>Settings for the 2nd operator: Loki. This one is running in a different Namespace and must be verified there.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Verify the README at &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" target="_blank" rel="noopener">Helper Operator Status Checker&lt;/a> to find additional possible configurations.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>At this stage, the Operators have been deployed and they have been verified if the deployment was finished successfully.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Now the real complex part can start…​&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_creating_a_new_backingstore_for_openshift_data_foundation">Creating a new BackingStore for OpenShift Data Foundation&lt;/h3>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+name: &amp;#34;status-checker-loki&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the status checker.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the installPlan approver. Only required if the approval strategy for an Operator is set to &lt;em&gt;Manual&lt;/em&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Verify the status of the first Operator &lt;strong&gt;cluster-logging&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Sometimes the name of the Subscription differs from the Operator name. Logging is such a case. To be able to find which Subscription should be verified, the subscriptionName must be defined here.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Namespace for OpenShift Logging&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the ServiceAccount that will be created to verify the status of the logging operator.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Settings for the 2nd operator: Loki. This one is running in a different Namespace and must be verified there.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Verify the README at &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" target="_blank" rel="noopener"&gt;Helper Operator Status Checker&lt;/a&gt; to find additional possible configurations.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At this stage, the Operators have been deployed and they have been verified if the deployment was finished successfully.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now the real complex part can start…​&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_creating_a_new_backingstore_for_openshift_data_foundation"&gt;Creating a new BackingStore for OpenShift Data Foundation&lt;/h3&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 If you want to use a different storage solution or you have a bucket already, you can skip this section and simply create the LokiStack Secret manually.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In the case that ODF is used and a BackingStore together with a BucketClass shall be created another sub-chart called &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-objectstore" target="_blank" rel="noopener">Helper ObjectStore&lt;/a> can be used.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>It will help you to create a:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>BackingStore&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>BucketClass&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>StorageClass&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>BucketClaim&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This fully automates the creation of the bucket and the required Class when using ODF. As a prerequisite, OpenShift Data Foundation (ODF) must be configured and available of course.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the case that ODF is used and a BackingStore together with a BucketClass shall be created another sub-chart called &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-objectstore" target="_blank" rel="noopener"&gt;Helper ObjectStore&lt;/a&gt; can be used.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It will help you to create a:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;BackingStore&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;BucketClass&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;StorageClass&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;BucketClaim&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This fully automates the creation of the bucket and the required Class when using ODF. As a prerequisite, OpenShift Data Foundation (ODF) must be configured and available of course.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 This is completely optional. If you want to use a different storage solution and have the buckets ready, you can simply create the Secret that Loki requires to authenticate at the storage. In this case, you can ignore this and the next section.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following example will create a BackingStore with the size of 700Gi for our OpenShift Logging. A bucket named &lt;strong>logging-bucket&lt;/strong> is created and can be used to store the logs.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">helper-objectstore:
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following example will create a BackingStore with the size of 700Gi for our OpenShift Logging. A bucket named &lt;strong&gt;logging-bucket&lt;/strong&gt; is created and can be used to store the logs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-objectstore:
 enabled: true
-syncwave: 1 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-backingstore_name: logging-backingstore &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-backingstore_size: 700Gi &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-limits_cpu: 500m &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+syncwave: 1 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+backingstore_name: logging-backingstore &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+backingstore_size: 700Gi &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+limits_cpu: 500m &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 limits_memory: 2Gi
-pvPool: &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+pvPool: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 numOfVolumes: 1
 type: pv-pool
-baseStorageClass: gp3-csi &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
-storageclass_name: logging-bucket-storage-class &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>
-bucket: &lt;i class="conum" data-value="8">&lt;/i>&lt;b>(8)&lt;/b>
+baseStorageClass: gp3-csi &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+storageclass_name: logging-bucket-storage-class &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+bucket: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
 enabled: true
 name: logging-bucket
 namespace: openshift-logging
 syncwave: 2
-storageclass: logging-bucket-storage-class&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Syncwave to create the BackingStore.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Name of the Backingstore.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Size of the BackingStore. 700Gi is good enough for testing Logging. Keep in mind that data retention should be configured separately for &lt;a href="https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/">Noobaa&lt;/a>.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Limit for CPU and Memory for the Noobaa (BackingStore) pod. They might need to be adjusted since the original ones are quite small for bigger buckets.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Pool of Persistent Volumes. Currently &lt;strong>pv-pool&lt;/strong> is supported by the chart only.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>The basic storage class that shall be used to virtualize ODF object storage on.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>The name of the StorageClass that will be created and used by the BackingStore.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="8">&lt;/i>&lt;b>8&lt;/b>&lt;/td>
-&lt;td>The configuration of the Bucket and its namespace and storageClass (defined at &amp;lt;7&amp;gt;)&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Eventually, the BackingClass and the BucketClaim are created and ready.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/gitopscollection/images/logging-objectstore.png?width=720px" alt="Ready BackingStore and bound BucketClaim"/>
-&lt;/div>
-&lt;div class="title">Figure 3. Ready BackingStore and bound BucketClaim&lt;/div>
-&lt;/div>
-&lt;div class="sect3">
-&lt;h4 id="_custom_argo_cd_health_check_for_backingstore">Custom Argo CD Health Check for BackingStore&lt;/h4>
-&lt;div class="paragraph">
-&lt;p>The creation of the BackingStore is a process that will take several minutes. Storage must be prepared, and several services must be started. To let Argo CD wait until the BackingStore is fully operational, instead of blindly continuing with the deployment of Loki and Logging, a custom &lt;strong>Health Check&lt;/strong> in Argo CD might help.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following health check should be placed into the Argo CD resource. Be aware, that there might be others already defined.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The status of the BackingStore resource inside Argo CD will continue &lt;em>progressing&lt;/em> until the status of the resource becomes &lt;em>Ready&lt;/em>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Due to different syncwaves, Argo CD will wait for the Ready-status before it continues deploying Loki and Logging.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> resourceHealthChecks:
+storageclass: logging-bucket-storage-class&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Syncwave to create the BackingStore.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Backingstore.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Size of the BackingStore. 700Gi is good enough for testing Logging. Keep in mind that data retention should be configured separately for &lt;a href="https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/"&gt;Noobaa&lt;/a&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Limit for CPU and Memory for the Noobaa (BackingStore) pod. They might need to be adjusted since the original ones are quite small for bigger buckets.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Pool of Persistent Volumes. Currently &lt;strong&gt;pv-pool&lt;/strong&gt; is supported by the chart only.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The basic storage class that shall be used to virtualize ODF object storage on.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the StorageClass that will be created and used by the BackingStore.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The configuration of the Bucket and its namespace and storageClass (defined at &amp;lt;7&amp;gt;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Eventually, the BackingClass and the BucketClaim are created and ready.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/logging-objectstore.png?width=720px" alt="Ready BackingStore and bound BucketClaim"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. Ready BackingStore and bound BucketClaim&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_custom_argo_cd_health_check_for_backingstore"&gt;Custom Argo CD Health Check for BackingStore&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The creation of the BackingStore is a process that will take several minutes. Storage must be prepared, and several services must be started. To let Argo CD wait until the BackingStore is fully operational, instead of blindly continuing with the deployment of Loki and Logging, a custom &lt;strong&gt;Health Check&lt;/strong&gt; in Argo CD might help.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following health check should be placed into the Argo CD resource. Be aware, that there might be others already defined.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The status of the BackingStore resource inside Argo CD will continue &lt;em&gt;progressing&lt;/em&gt; until the status of the resource becomes &lt;em&gt;Ready&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Due to different syncwaves, Argo CD will wait for the Ready-status before it continues deploying Loki and Logging.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; resourceHealthChecks:
 - check: |
 hs = {}
 if obj.status ~= nil then
@@ -636,108 +636,108 @@ hs.status = &amp;#34;Progressing&amp;#34;
 hs.message = &amp;#34;Waiting for BackinbgStore to complete&amp;#34;
 return hs
 group: noobaa.io
-kind: BackingStore&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_generating_secret_for_lokistack">Generating Secret for LokiStack&lt;/h3>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+kind: BackingStore&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_generating_secret_for_lokistack"&gt;Generating Secret for LokiStack&lt;/h3&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 If you want to use a different storage solution or you have a bucket already, you can skip this section and simply create the LokiStack Secret manually.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Creating the BackingStore and the BucketClaim will generate a Secret and a ConfigMap inside the target namespace. These hold the information about the connection to the object storage.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Creating the BackingStore and the BucketClaim will generate a Secret and a ConfigMap inside the target namespace. These hold the information about the connection to the object storage.
 Both resources are named as the bucket.
-The Secret contains the keys: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY while the ConfigMap stores the information about the URL, region etc.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>While this is all we need to connect to the object store, Loki itself unfortunately requires a different Secret with a specific format.
-Before Loki can be configured, this Secret must be created, containing the keys: access_key_id, access_key_secret, bucketnames, endpoint and region (could be empty)&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To automate the process another Helm Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-loki-bucket-secret" target="_blank" rel="noopener">Helper Loki Bucket Secret&lt;/a> has been created (we have too few charts) that has the only task to wait until the object store has been created, read the ConfigMap and the Secret and create the required Secret for Loki for us. Easy …​&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">helper-loki-bucket-secret:
+The Secret contains the keys: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY while the ConfigMap stores the information about the URL, region etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While this is all we need to connect to the object store, Loki itself unfortunately requires a different Secret with a specific format.
+Before Loki can be configured, this Secret must be created, containing the keys: access_key_id, access_key_secret, bucketnames, endpoint and region (could be empty)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To automate the process another Helm Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-loki-bucket-secret" target="_blank" rel="noopener"&gt;Helper Loki Bucket Secret&lt;/a&gt; has been created (we have too few charts) that has the only task to wait until the object store has been created, read the ConfigMap and the Secret and create the required Secret for Loki for us. Easy …​&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-loki-bucket-secret:
 enabled: true
 syncwave: 3
-namespace: openshift-logging &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-secretname: logging-loki-s3 &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+namespace: openshift-logging &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+secretname: logging-loki-s3 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 bucket:
-name: logging-bucket &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Namespace we are working in&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The name of the Secret that shall be created&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The name of the bucket that was created in the previous step to find the source information.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>A Kubernetes Job is created, that will mount the created Secret and ConfigMap, read their values and create the Secret we need. It will simply execute the following command:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">oc create secret generic {{ .secretname }} --from-literal access_key_id=${bucket_user} \
+name: logging-bucket &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Namespace we are working in&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the Secret that shall be created&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the bucket that was created in the previous step to find the source information.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A Kubernetes Job is created, that will mount the created Secret and ConfigMap, read their values and create the Secret we need. It will simply execute the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;oc create secret generic {{ .secretname }} --from-literal access_key_id=${bucket_user} \
 --from-literal access_key_secret=${bucket_secret} \
 --from-literal bucketnames=${bucket_name} \
 --from-literal endpoint=https://${bucket_host} \
---from-literal region=${bucket_region} \&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+--from-literal region=${bucket_region} \&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 This is completely optional. If you want to use a different storage solution and have the buckets ready, you can simply create the Secret (Sealed or inside a Vault) and put it into the wrapper chart. In this case, you can ignore this section.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_configuring_the_lokistack">Configuring the LokiStack&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Up until now, all we did was the deployment of the Operators, verifying if they were ready, creating the object storage and the Secret that will be required by Loki. At this point, we can configure Loki by creating the resource LokiStack. This will start a lot of Pods (depending on your selected size). Loki itself then takes care to push the logs into the object store and to query them etc.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Believe it or not, but there is another Helm Chart called &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-lokistack" target="_blank" rel="noopener">Helper LokiStack&lt;/a> this will configure the service as we need.
-The configuration can become very big and the following example shows the main settings. Please consult the README of the Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-lokistack" target="_blank" rel="noopener">Helper LokiStack&lt;/a> or the values file from our wrapper chart &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-openshift-logging/values.yaml#L234-L395" target="_blank" rel="noopener">setup-openshift-logging&lt;/a>. Especially, the pod placement using tolerations might be interesting, as it must be set per component individually.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">helper-lokistack:
-enabled: true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configuring_the_lokistack"&gt;Configuring the LokiStack&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Up until now, all we did was the deployment of the Operators, verifying if they were ready, creating the object storage and the Secret that will be required by Loki. At this point, we can configure Loki by creating the resource LokiStack. This will start a lot of Pods (depending on your selected size). Loki itself then takes care to push the logs into the object store and to query them etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Believe it or not, but there is another Helm Chart called &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-lokistack" target="_blank" rel="noopener"&gt;Helper LokiStack&lt;/a&gt; this will configure the service as we need.
+The configuration can become very big and the following example shows the main settings. Please consult the README of the Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-lokistack" target="_blank" rel="noopener"&gt;Helper LokiStack&lt;/a&gt; or the values file from our wrapper chart &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-openshift-logging/values.yaml#L234-L395" target="_blank" rel="noopener"&gt;setup-openshift-logging&lt;/a&gt;. Especially, the pod placement using tolerations might be interesting, as it must be set per component individually.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-lokistack:
+enabled: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 name: logging-loki
 namespace: openshift-logging
 syncwave: 3
 # -- This is for log streams only, not the retention of the object store. Data retention must be configured on the bucket.
 global_retention_days: 4
-storage: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+storage: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 # -- Size defines one of the supported Loki deployment scale out sizes.
 # Can be either:
 # - 1x.demo
@@ -747,168 +747,168 @@ storage: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
 # @default -- 1x.extra-small
 size: 1x.extra-small
 # Secret for object storage authentication. Name of a secret in the same namespace as the LokiStack custom resource.
-secret: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+secret: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 name: logging-loki-s3
 # -- Storage class name defines the storage class for ingester/querier PVCs.
 # @default -- gp3-csi
-storageclassname: gp3-csi &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+storageclassname: gp3-csi &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 # -- Mode defines the mode in which lokistack-gateway component will be configured.
 # Can be either: static (default), dynamic, openshift-logging, openshift-network
 # @default -- static
-mode: openshift-logging &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+mode: openshift-logging &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 # -- Control pod placement for LokiStack components. You can define a list of tolerations for the following components:
 # compactor, distributer, gateway, indexGateway, ingester, querier, queryFrontend, ruler
-podPlacements: {}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Basic settings, like Namespace, name of the resource and syncwave.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Size of the LokiStack. Depending on the selected size more or less compute resources will be required. &lt;strong>1x.demo&lt;/strong> is for testing only and is not supported for production workload.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Name of the Secret that was created in the previous step (or manually)&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>StorageClass that is required for additional workload. This is NOT the object storage.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Mode for the LokiStack Gateway to store the data. Possible values are static, dynamic, openshift-logging and openshift-network.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect3">
-&lt;h4 id="_custom_argo_cd_health_check_for_lokistack">Custom Argo CD Health Check for LokiStack&lt;/h4>
-&lt;div class="paragraph">
-&lt;p>As for the BackingStore resource, the LokiStack resource can take a couple of minutes before it is ready. Moreover, it can easily break when there are not enough computing resources available in the cluster. Therefore, I suggest creating another custom health check for Argo CD, to let it wait until the resource is ready. Only when it is ready, Argo CD will continue with the synchronization. Add the following to the &lt;strong>resourceHealthChecks&lt;/strong> in your Argo CD resource.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - check: |
+podPlacements: {}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Basic settings, like Namespace, name of the resource and syncwave.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Size of the LokiStack. Depending on the selected size more or less compute resources will be required. &lt;strong&gt;1x.demo&lt;/strong&gt; is for testing only and is not supported for production workload.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Secret that was created in the previous step (or manually)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;StorageClass that is required for additional workload. This is NOT the object storage.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Mode for the LokiStack Gateway to store the data. Possible values are static, dynamic, openshift-logging and openshift-network.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_custom_argo_cd_health_check_for_lokistack"&gt;Custom Argo CD Health Check for LokiStack&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As for the BackingStore resource, the LokiStack resource can take a couple of minutes before it is ready. Moreover, it can easily break when there are not enough computing resources available in the cluster. Therefore, I suggest creating another custom health check for Argo CD, to let it wait until the resource is ready. Only when it is ready, Argo CD will continue with the synchronization. Add the following to the &lt;strong&gt;resourceHealthChecks&lt;/strong&gt; in your Argo CD resource.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; - check: |
 hs = {}
 if obj.status ~= nil and obj.status.conditions ~= nil then
 for i, condition in ipairs(obj.status.conditions) do
-if condition.type == &amp;#34;Degraded&amp;#34; and condition.reason == &amp;#34;MissingObjectStorageSecret&amp;#34; then &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+if condition.type == &amp;#34;Degraded&amp;#34; and condition.reason == &amp;#34;MissingObjectStorageSecret&amp;#34; then &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 hs.status = &amp;#34;Degraded&amp;#34;
 hs.message = &amp;#34;Missing Bucket Secret&amp;#34;
 end
-if condition.type == &amp;#34;Pending&amp;#34; and condition.reason == &amp;#34;PendingComponents&amp;#34; and condition.status == &amp;#34;True&amp;#34; then &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+if condition.type == &amp;#34;Pending&amp;#34; and condition.reason == &amp;#34;PendingComponents&amp;#34; and condition.status == &amp;#34;True&amp;#34; then &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 hs.status = &amp;#34;Progressing&amp;#34;
 hs.message = &amp;#34;Some LokiStack components pending on dependencies&amp;#34;
 end
-if condition.type == &amp;#34;Ready&amp;#34; and condition.reason == &amp;#34;ReadyComponents&amp;#34; then &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+if condition.type == &amp;#34;Ready&amp;#34; and condition.reason == &amp;#34;ReadyComponents&amp;#34; then &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 hs.status = &amp;#34;Healthy&amp;#34;
 hs.message = &amp;#34;All components are ready&amp;#34;
 end
 end
 return hs
 end
-hs.status = &amp;#34;Progressing&amp;#34; &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+hs.status = &amp;#34;Progressing&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 hs.message = &amp;#34;Waiting for LokiStack to deploy.&amp;#34;
 return hs
 group: loki.grafana.com
-kind: LokiStack&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>In LokiStack resources, if the fields &amp;#39;status.conditions.condition.type&amp;#39; is &amp;#34;Degraded&amp;#34; and &amp;#39;status.conditions.condition.reason&amp;#39; is MissingObjectStoreSecret then set the synchronization in Argo CD to &lt;strong>Degraded&lt;/strong>.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>In LokiStack resources, if the fields &amp;#39;status.conditions.condition.type&amp;#39; is &amp;#34;Pending&amp;#34; and &amp;#39;status.conditions.condition.reason&amp;#39; is PendingComponents and &amp;#39;status.conditions.condition.status&amp;#39; is True then set the synchronization in Argo CD to &lt;strong>Progressing&lt;/strong>.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>In LokiStack resources, if the fields &amp;#39;status.conditions.condition.type&amp;#39; is &amp;#34;Ready&amp;#34; and &amp;#39;status.conditions.condition.reason&amp;#39; is ReadyComponents then set the synchronization in Argo CD to &lt;strong>Healthy&lt;/strong>.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Per default set the status to &lt;strong>Progressing&lt;/strong>.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_configuring_clusterlogging">Configuring ClusterLogging&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Finally, the time …​ or should I say syncwave …​ has come to actually deploy the Logging components. The Operators are deployed, the object storage has been created and LokiStack is running.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following settings will start the deployment of the ClusterLogging resource. As usual, please read the README of the Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/openshift-logging" target="_blank" rel="noopener">OpenShift Logging&lt;/a> to find additional settings, such as tolerations etc.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">openshift-logging:
+kind: LokiStack&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;In LokiStack resources, if the fields &amp;#39;status.conditions.condition.type&amp;#39; is &amp;#34;Degraded&amp;#34; and &amp;#39;status.conditions.condition.reason&amp;#39; is MissingObjectStoreSecret then set the synchronization in Argo CD to &lt;strong&gt;Degraded&lt;/strong&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;In LokiStack resources, if the fields &amp;#39;status.conditions.condition.type&amp;#39; is &amp;#34;Pending&amp;#34; and &amp;#39;status.conditions.condition.reason&amp;#39; is PendingComponents and &amp;#39;status.conditions.condition.status&amp;#39; is True then set the synchronization in Argo CD to &lt;strong&gt;Progressing&lt;/strong&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;In LokiStack resources, if the fields &amp;#39;status.conditions.condition.type&amp;#39; is &amp;#34;Ready&amp;#34; and &amp;#39;status.conditions.condition.reason&amp;#39; is ReadyComponents then set the synchronization in Argo CD to &lt;strong&gt;Healthy&lt;/strong&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Per default set the status to &lt;strong&gt;Progressing&lt;/strong&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configuring_clusterlogging"&gt;Configuring ClusterLogging&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, the time …​ or should I say syncwave …​ has come to actually deploy the Logging components. The Operators are deployed, the object storage has been created and LokiStack is running.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following settings will start the deployment of the ClusterLogging resource. As usual, please read the README of the Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/openshift-logging" target="_blank" rel="noopener"&gt;OpenShift Logging&lt;/a&gt; to find additional settings, such as tolerations etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;openshift-logging:
 loggingConfig:
 enabled: true
-syncwave: &amp;#39;4&amp;#39; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-logStore: &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+syncwave: &amp;#39;4&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+logStore: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 type: lokistack
 lokistack: logging-loki
-visualization: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+visualization: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 type: ocp-console
-collection: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
-type: vector&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The next syncwave, should be after LokiStack deployment.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Define the logStore (LokiStack) and its type (Loki or Elasticsearch). Please note that Elasticsearch as storage is deprecated and will be removed in the future. In my chart, I already removed the support for Elasticsearch&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Type of virtualisation: should be &lt;strong>ocp-console&lt;/strong> since Kibana and Elasticsearch are deprecated.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Type of collection: should be &lt;strong>vector&lt;/strong> since Fluentd and Elasticsearch are deprecated.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will deploy the ClusterLogging resource and OpenShift Logging is finally deployed. In the WebUI of OpenShift, you should now see at Observe &amp;gt; Logs the log files for the cluster.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/gitopscollection/images/logging-installed.png?width=940px" alt="OpenShift Logging"/>
-&lt;/div>
-&lt;div class="title">Figure 4. OpenShift Logging&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For individual Pods, a new tab called Aggregated Logs is available too:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/gitopscollection/images/logging-podtab.png?width=940px" alt="Aggregated Logs tab"/>
-&lt;/div>
-&lt;div class="title">Figure 5. Aggregated Logs tab&lt;/div>
-&lt;/div>
-&lt;div class="sect3">
-&lt;h4 id="_custom_argo_cd_health_check_for_clusterlogging">Custom Argo CD Health Check for ClusterLogging&lt;/h4>
-&lt;div class="paragraph">
-&lt;p>One last thing to mention is the 3rd health check for Argo CD I usually configure that provides a proper response in the UI when the Logging stack is in a healthy state. The following will verify if the status is &amp;#34;Ready&amp;#34;:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - check: |
+collection: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+type: vector&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The next syncwave, should be after LokiStack deployment.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the logStore (LokiStack) and its type (Loki or Elasticsearch). Please note that Elasticsearch as storage is deprecated and will be removed in the future. In my chart, I already removed the support for Elasticsearch&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Type of virtualisation: should be &lt;strong&gt;ocp-console&lt;/strong&gt; since Kibana and Elasticsearch are deprecated.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Type of collection: should be &lt;strong&gt;vector&lt;/strong&gt; since Fluentd and Elasticsearch are deprecated.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will deploy the ClusterLogging resource and OpenShift Logging is finally deployed. In the WebUI of OpenShift, you should now see at Observe &amp;gt; Logs the log files for the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/logging-installed.png?width=940px" alt="OpenShift Logging"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 4. OpenShift Logging&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For individual Pods, a new tab called Aggregated Logs is available too:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/logging-podtab.png?width=940px" alt="Aggregated Logs tab"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 5. Aggregated Logs tab&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_custom_argo_cd_health_check_for_clusterlogging"&gt;Custom Argo CD Health Check for ClusterLogging&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One last thing to mention is the 3rd health check for Argo CD I usually configure that provides a proper response in the UI when the Logging stack is in a healthy state. The following will verify if the status is &amp;#34;Ready&amp;#34;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; - check: |
 hs = {}
 hs.status = &amp;#34;Progressing&amp;#34;
 hs.message = &amp;#34;Progressing ClusterLogging&amp;#34;
@@ -923,29 +923,29 @@ return hs
 end
 return hs
 group: logging.openshift.io
-kind: ClusterLogging&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_tips_and_tricks">Tips and Tricks&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;strong>Anchors in yaml files&lt;/strong>: Several parameters in the values file will repeat themselves. For example, the name of the LokiStack resource. Typically, I define this as an anchor on the top of the yaml files and then reference it inside the file. This way I see these anchors at the top and can easily change them there:&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>For example:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">lokistack: &amp;amp;lokistackname logging-loki
+kind: ClusterLogging&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_tips_and_tricks"&gt;Tips and Tricks&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Anchors in yaml files&lt;/strong&gt;: Several parameters in the values file will repeat themselves. For example, the name of the LokiStack resource. Typically, I define this as an anchor on the top of the yaml files and then reference it inside the file. This way I see these anchors at the top and can easily change them there:&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;lokistack: &amp;amp;lokistackname logging-loki
 [...]
 helper-lokistack:
 [...]
@@ -954,360 +954,360 @@ openshift-logging:
 loggingConfig:
 [...]
 logStore:
-lokistack: *lokistackname&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;strong>Object Storage Data Retention&lt;/strong>: The object storage is configured with a size of 700Gi, but without any lifecycle management. For object storage, the lifecycle (or data retention) is done on the bucket itself, not by the service. Please read the article &lt;a href="https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/">Noobaa Bucket Data Retention Lifecycle&lt;/a> to find out how to configure the data retention.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_conclusion">Conclusion&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>OpenShift Logging with all its dependencies, especially when you also want to use OpenShift Data Foundation and automate the bucket creation, is for sure one of the most complex Argo CD Applications I have created. I wanted to create one Application that completely deploys Logging for me, without manual interference. It will become much easier when you do not need to create the ODF bucket and the Secret for Loki. However, in such a case you define the Bucket somewhere else and must create the Secret manually (and put it into the wrapper Helm Chart for example). So probably the effort just shifts to somewhere else.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>I hope this article was somehow understandable. I am always happy for Feedback, GitHub issues or Pull Requests.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>One last thing, OpenShift Logging also supports the &lt;strong>forwarding of logs&lt;/strong>. This is currently not supported by the Helm Chart per se. I would suggest creating such a resource and storing it in the wrapper Chart. Just be sure that the syncwave is after the ClusterLogging deployment and it will install the resource accordingly.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Configure Buckets in MinIO using GitOps</title><link>https://blog.stderr.at/gitopscollection/2024-05-17-configure-minio-buckets/</link><pubDate>Fri, 17 May 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-05-17-configure-minio-buckets/</guid><description>&lt;div class="paragraph">
-&lt;p>&lt;a href="https://min.io/" target="_blank" rel="noopener">MinIO&lt;/a> is a simple, S3-compatible object storage, built for high-performance and large-scale environments. It can be installed as an Operator to Openshift. In addition, to a command line tool, it provides a WebUI where all settings can be done, especially creating and configuring new buckets. Currently, this is not possible in a declarative GitOps-friendly way.
-Therefore, I created the Helm chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" target="_blank" rel="noopener">minio configurator&lt;/a>, that will start a Kubernetes Job, which will take care of the configuration.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Honestly, when I say I have created it, the truth is, that it is based on an existing &lt;a href="https://github.com/bitnami/charts/tree/main/bitnami/minio" target="_blank" rel="noopener">MinIO Chart by Bitnami&lt;/a>, that does much more than just set up a bucket. I took out the bucket configuration part, streamlined it a bit and added some new features, which I required.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This article shall explain how to achieve this.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Argo CD (OpenShift GitOps) deployed&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>MinIO including a deployed tenant that is waiting for buckets&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_introduction">Introduction&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>After MinIO and the Tenant have been deployed, we can &lt;strong>configure and update&lt;/strong> a bucket, users, policies and more. Since I do not want to do this manually, the Helm Chart that will be described here creates a Kubernetes Job that leverages the &lt;strong>mc command line tool&lt;/strong> to execute certain tasks automatically. The chart will take care of:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>creating a lifecycle policy&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>creating an access policy&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>creating a new user/group. User credentials might be added directly to the values file or, better, are imported as a secret&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>attaching policies to a user/group&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>creating a bucket&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>set a quota for a bucket&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>set tags for a bucket&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>enable versioning for a bucket&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>enable object locking for a bucket (&lt;strong>be aware&lt;/strong> that this can only be enabled during the bucket creation)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>enable bucket replication to a target cluster/bucket&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>execute possible extra commands that are configured in the values file&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To perform all these tasks Bitnami released a container image: &lt;strong>docker.io/bitnami/minio:2024.5.1-debian-12-r0&lt;/strong>
-They are updating this image regularly.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Actually, the image can be used to deploy the minio server. At this moment, we are interested in the command line tool only. Bitnami also managing a &lt;em>minio-client&lt;/em> image, that can be tested and used. However, I left the original image, which is working very well.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_the_values">The Values&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-All settings are explained in more detail at: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" class="bare">https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-The Job and everything that is required, are executed inside the Tenant namespace. In the following examples, this will be &lt;strong>minio-tenant-namespace&lt;/strong>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_basic_settings">Basic Settings&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The basic settings are the following. They will define the namespace of the Tenant, the name of the ServiceAccount, the URL of the tenant, Argo CD Hook settings and the image that shall be used for the deployment.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">name: minio-provisioner &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-namespace: minio-tenant-namespace &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-synwave: 5 &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-argoproj: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+lokistack: *lokistackname&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Object Storage Data Retention&lt;/strong&gt;: The object storage is configured with a size of 700Gi, but without any lifecycle management. For object storage, the lifecycle (or data retention) is done on the bucket itself, not by the service. Please read the article &lt;a href="https://blog.stderr.at/openshift/2024/02/openshift-data-foundation-noobaa-bucket-data-retention-lifecycle/"&gt;Noobaa Bucket Data Retention Lifecycle&lt;/a&gt; to find out how to configure the data retention.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenShift Logging with all its dependencies, especially when you also want to use OpenShift Data Foundation and automate the bucket creation, is for sure one of the most complex Argo CD Applications I have created. I wanted to create one Application that completely deploys Logging for me, without manual interference. It will become much easier when you do not need to create the ODF bucket and the Secret for Loki. However, in such a case you define the Bucket somewhere else and must create the Secret manually (and put it into the wrapper Helm Chart for example). So probably the effort just shifts to somewhere else.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I hope this article was somehow understandable. I am always happy for Feedback, GitHub issues or Pull Requests.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One last thing, OpenShift Logging also supports the &lt;strong&gt;forwarding of logs&lt;/strong&gt;. This is currently not supported by the Helm Chart per se. I would suggest creating such a resource and storing it in the wrapper Chart. Just be sure that the syncwave is after the ClusterLogging deployment and it will install the resource accordingly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Configure Buckets in MinIO using GitOps</title><link>https://blog.stderr.at/gitopscollection/2024-05-17-configure-minio-buckets/</link><pubDate>Fri, 17 May 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-05-17-configure-minio-buckets/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://min.io/" target="_blank" rel="noopener"&gt;MinIO&lt;/a&gt; is a simple, S3-compatible object storage, built for high-performance and large-scale environments. It can be installed as an Operator to Openshift. In addition, to a command line tool, it provides a WebUI where all settings can be done, especially creating and configuring new buckets. Currently, this is not possible in a declarative GitOps-friendly way.
+Therefore, I created the Helm chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" target="_blank" rel="noopener"&gt;minio configurator&lt;/a&gt;, that will start a Kubernetes Job, which will take care of the configuration.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Honestly, when I say I have created it, the truth is, that it is based on an existing &lt;a href="https://github.com/bitnami/charts/tree/main/bitnami/minio" target="_blank" rel="noopener"&gt;MinIO Chart by Bitnami&lt;/a&gt;, that does much more than just set up a bucket. I took out the bucket configuration part, streamlined it a bit and added some new features, which I required.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article shall explain how to achieve this.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Argo CD (OpenShift GitOps) deployed&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;MinIO including a deployed tenant that is waiting for buckets&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After MinIO and the Tenant have been deployed, we can &lt;strong&gt;configure and update&lt;/strong&gt; a bucket, users, policies and more. Since I do not want to do this manually, the Helm Chart that will be described here creates a Kubernetes Job that leverages the &lt;strong&gt;mc command line tool&lt;/strong&gt; to execute certain tasks automatically. The chart will take care of:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;creating a lifecycle policy&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;creating an access policy&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;creating a new user/group. User credentials might be added directly to the values file or, better, are imported as a secret&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;attaching policies to a user/group&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;creating a bucket&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;set a quota for a bucket&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;set tags for a bucket&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;enable versioning for a bucket&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;enable object locking for a bucket (&lt;strong&gt;be aware&lt;/strong&gt; that this can only be enabled during the bucket creation)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;enable bucket replication to a target cluster/bucket&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;execute possible extra commands that are configured in the values file&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To perform all these tasks Bitnami released a container image: &lt;strong&gt;docker.io/bitnami/minio:2024.5.1-debian-12-r0&lt;/strong&gt;
+They are updating this image regularly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Actually, the image can be used to deploy the minio server. At this moment, we are interested in the command line tool only. Bitnami also managing a &lt;em&gt;minio-client&lt;/em&gt; image, that can be tested and used. However, I left the original image, which is working very well.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_values"&gt;The Values&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+All settings are explained in more detail at: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" class="bare"&gt;https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The Job and everything that is required, are executed inside the Tenant namespace. In the following examples, this will be &lt;strong&gt;minio-tenant-namespace&lt;/strong&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_basic_settings"&gt;Basic Settings&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The basic settings are the following. They will define the namespace of the Tenant, the name of the ServiceAccount, the URL of the tenant, Argo CD Hook settings and the image that shall be used for the deployment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;name: minio-provisioner &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: minio-tenant-namespace &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+synwave: 5 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+argoproj: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 hook: Sync
 hook_delete_policy: HookSucceeded
 image:
-url: docker.io/bitnami/minio:2024.5.1-debian-12-r0 &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+url: docker.io/bitnami/minio:2024.5.1-debian-12-r0 &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 # Information of the Minio Cluster
-miniocluster: &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+miniocluster: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 url: minio-tenant-api-url
 port: 443
-skip_tls_verification: true &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>
+skip_tls_verification: true &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
 # Specifies whether a ServiceAccount should be created
-serviceAccount: &lt;i class="conum" data-value="8">&lt;/i>&lt;b>(8)&lt;/b>
+serviceAccount: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
 create: true
-name: &amp;#34;minio-provisioner&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Name of the Kubernetes provisioner Job resource.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Namespace of the MinIO Tenant.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Syncwave of the provisioner Job.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Possible Argo CD hook configuration.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>The container image the provisioner Job will use.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>The URL of the minio console. This will be used to set the &amp;#34;alias&amp;#34; for the mc command&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>Skip verification of TLS for the mc command. This will disable the TLS check for any mc command the Job will execute.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="8">&lt;/i>&lt;b>8&lt;/b>&lt;/td>
-&lt;td>Information about the ServiceAccount&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_authentication_settings">Authentication Settings&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>To be able to authenticate against MinIO credentials must be provided. This happens, typically, in the form of a Secret:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">auth:
-useCredentialsFiles: true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-secretName: minio-provisioner &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Shall a secret mounted as a file be used (preferred)&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Name of the Secret&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The Secret itself requires specific keys and should look like the following:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Secret
+name: &amp;#34;minio-provisioner&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Kubernetes provisioner Job resource.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Namespace of the MinIO Tenant.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Syncwave of the provisioner Job.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Possible Argo CD hook configuration.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The container image the provisioner Job will use.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The URL of the minio console. This will be used to set the &amp;#34;alias&amp;#34; for the mc command&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Skip verification of TLS for the mc command. This will disable the TLS check for any mc command the Job will execute.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Information about the ServiceAccount&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_authentication_settings"&gt;Authentication Settings&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To be able to authenticate against MinIO credentials must be provided. This happens, typically, in the form of a Secret:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;auth:
+useCredentialsFiles: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+secretName: minio-provisioner &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Shall a secret mounted as a file be used (preferred)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Secret itself requires specific keys and should look like the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: Secret
 apiVersion: v1
 metadata:
-name: minio-provisioner &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-namespace: minio-tenant-namespace &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+name: minio-provisioner &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: minio-tenant-namespace &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 data:
-root-password: &amp;lt;base64 string&amp;gt; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-root-user: &amp;lt;base64 string&amp;gt; &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
-type: Opaque&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Name of the Secret as mentioned in the minio-configurator values files&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Name of the Namespace as mentioned in the minio-configurator values files&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Password to access MinIO&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>User to access MinIO&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+root-password: &amp;lt;base64 string&amp;gt; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+root-user: &amp;lt;base64 string&amp;gt; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+type: Opaque&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Secret as mentioned in the minio-configurator values files&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Namespace as mentioned in the minio-configurator values files&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Password to access MinIO&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;User to access MinIO&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The Secret must exist upfront and is not created by the Helm Chart. Either pick it from a Vault or create a Sealed Secret to be able to store it in Git.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-The credentials are called &lt;strong>root-&lt;/strong>. Any user that has permission to configure buckets is sufficient here. Still, the keys must be named that way.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_creating_minio_policies">Creating MinIO Policies&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>MinIO uses Policy-Based Access Control to define which actions can be performed on certain resources by an authenticated user.
-A policy can be created by the command &lt;strong>mc admin policy&lt;/strong>. Our Kubernetes Job will take the configuration from the values file and mount the information as a JSON file, that will be imported into MinIO.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following specification shows the example for OpenShift Logging:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">provisioning:
-enabled: true &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The credentials are called &lt;strong&gt;root-&lt;/strong&gt;. Any user that has permission to configure buckets is sufficient here. Still, the keys must be named that way.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_creating_minio_policies"&gt;Creating MinIO Policies&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;MinIO uses Policy-Based Access Control to define which actions can be performed on certain resources by an authenticated user.
+A policy can be created by the command &lt;strong&gt;mc admin policy&lt;/strong&gt;. Our Kubernetes Job will take the configuration from the values file and mount the information as a JSON file, that will be imported into MinIO.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following specification shows the example for OpenShift Logging:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;provisioning:
+enabled: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 policies:
-- name: openshift-logging-access-policy &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- name: openshift-logging-access-policy &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 statements:
-- resources: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+- resources: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 - &amp;#34;arn:aws:s3:::openshift-logging&amp;#34;
 - &amp;#34;arn:aws:s3:::openshift-logging/*&amp;#34;
-effect: &amp;#34;Allow&amp;#34; &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+effect: &amp;#34;Allow&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 actions:
-- &amp;#34;s3:*&amp;#34; &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>In general, enable the provisioning or not&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Name of the policy. Multiple can be defined and assigned to a user or group.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Define the resources the policy should manage access to.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Define the effect: Allow or Deny (default)&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>The actions that are allowed. Here: any s3: action&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Multiple policies can be defined in the values file, and it is very important to exactly define the resources, the effect and the actions.
-The above configuration will allow the user that has the policy assigned:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>All s3 actions to the bucket openshift-logging and everything inside this bucket (thus two resources)&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>All actions are defined at: &lt;a href="https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html#minio-policy" target="_blank" rel="noopener">MinIO Access Management&lt;/a>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Another example would be the following:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> policies:
+- &amp;#34;s3:*&amp;#34; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;In general, enable the provisioning or not&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the policy. Multiple can be defined and assigned to a user or group.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the resources the policy should manage access to.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the effect: Allow or Deny (default)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The actions that are allowed. Here: any s3: action&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Multiple policies can be defined in the values file, and it is very important to exactly define the resources, the effect and the actions.
+The above configuration will allow the user that has the policy assigned:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;All s3 actions to the bucket openshift-logging and everything inside this bucket (thus two resources)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All actions are defined at: &lt;a href="https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html#minio-policy" target="_blank" rel="noopener"&gt;MinIO Access Management&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Another example would be the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; policies:
 - name: custom-bucket-specific-policy
 statements:
 - resources:
@@ -1324,333 +1324,333 @@ actions:
 - &amp;#34;s3:DeleteObject&amp;#34;
 - &amp;#34;s3:GetObject&amp;#34;
 - &amp;#34;s3:ListMultipartUploadParts&amp;#34;
-- &amp;#34;s3:PutObject&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This policy defines the actions in a fine granular way:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>To the bucket &lt;strong>my-bucket&lt;/strong> we have three allowed actions (GetBucketLocation, ListBucket and ListBucketMultipartUploads)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>To everything inside the bucket (/*) we can also Delete, Get, Put objects etc.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_creating_a_user">Creating a User&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>The policy that has been created must be assigned to a user (or a group) to be effective. Such a user requires a username, a password and a list of policies that shall be assigned.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The required information can be added directly to the values file like this:&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-&lt;strong>This is NOT the recommended way!&lt;/strong>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> # users:
-# - username: test-username &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-# password: test-password &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-# disabled: false &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-# policies: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+- &amp;#34;s3:PutObject&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This policy defines the actions in a fine granular way:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;To the bucket &lt;strong&gt;my-bucket&lt;/strong&gt; we have three allowed actions (GetBucketLocation, ListBucket and ListBucketMultipartUploads)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;To everything inside the bucket (/*) we can also Delete, Get, Put objects etc.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_creating_a_user"&gt;Creating a User&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The policy that has been created must be assigned to a user (or a group) to be effective. Such a user requires a username, a password and a list of policies that shall be assigned.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The required information can be added directly to the values file like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;This is NOT the recommended way!&lt;/strong&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; # users:
+# - username: test-username &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+# password: test-password &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+# disabled: false &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+# policies: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 # - readwrite
 # - consoleAdmin
 # - diagnostics
 # # When set to true, it will replace all policies with the specified.
 # # When false, the policies will be added to the existing.
 # setPolicies: false
-# @default -- []&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Username&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>clear text password&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Shall the user be created or not&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>List of policies that shall be assigned&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>As mentioned above: Defining a list of users directly in the values file is &lt;strong>not recommended&lt;/strong> as it would mean that the passwords are stored in clear text.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Instead, a list of Secrets can be defined:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> usersExistingSecrets:
-- minio-users&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The defined Secrets require a specific structure and can be encrypted and stored in Git or a Vault.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The data structure is the following:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+# @default -- []&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Username&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;clear text password&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Shall the user be created or not&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;List of policies that shall be assigned&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As mentioned above: Defining a list of users directly in the values file is &lt;strong&gt;not recommended&lt;/strong&gt; as it would mean that the passwords are stored in clear text.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead, a list of Secrets can be defined:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; usersExistingSecrets:
+- minio-users&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The defined Secrets require a specific structure and can be encrypted and stored in Git or a Vault.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The data structure is the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: v1
 kind: Secret
 metadata:
-name: minio-users &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+name: minio-users &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 type: Opaque
 stringData:
-username1: | &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-username=username &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-password=password &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
-disabled=false &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
-policies=openshift-logging-access-policy,readwrite,consoleAdmin,diagnostics &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
-setPolicies=false &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Name of the Secret as referenced in the values file.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>List of users, distinguished by the key &amp;#34;username1&amp;#34;, &amp;#34;username2&amp;#34;, etc.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Username&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Password&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Enabled or disabled&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>List of policies to assign to the user&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>Replace or add the policies to an (existing) user.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect3">
-&lt;h4 id="_built_in_policies">Built-In Policies&lt;/h4>
-&lt;div class="paragraph">
-&lt;p>MinIO provides several &lt;a href="https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html#built-in-policies" target="_blank" rel="noopener">Built-In Policies&lt;/a> that can be attached to a user or group.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following policies will always exist: (Please verify the official documentation for further information)&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>consoleAdmin&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Grants complete access to all S3 and administrative API operations against all resources on the MinIO deployment.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>s3:*&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>admin:*&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>readonly&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Grants read-only permissions on any object on the MinIO deployment. The GET action must apply to a specific object without requiring any listing.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>s3:GetBucketLocation&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>s3:GetObject&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>readwrite&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Grants read and write permissions for all buckets and objects on the MinIO server.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>s3:*&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>diagnostics&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Grants permission to perform diagnostic actions on the MinIO deployment.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>admin:ServerTrace&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>admin:Profiling&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>admin:ConsoleLog&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>admin:ServerInfo&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>admin:TopLocksInfo&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>admin:OBDInfo&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>admin:BandwidthMonitor&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>admin:Prometheus&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;strong>writeonly&lt;/strong>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Grants write-only permissions to any namespace (bucket and path to object) the MinIO deployment.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>s3:PutObject&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_provisioning_groups">Provisioning Groups&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Users can be combined into groups and instead of assigning policies to individual users, we can assign them to a whole group.
-The idea is the same as for users, except, that we define a list of members for that group:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> groups
-- name: test-group &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-disabled: false &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-members: &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+username1: | &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+username=username &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+password=password &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+disabled=false &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+policies=openshift-logging-access-policy,readwrite,consoleAdmin,diagnostics &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+setPolicies=false &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Secret as referenced in the values file.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;List of users, distinguished by the key &amp;#34;username1&amp;#34;, &amp;#34;username2&amp;#34;, etc.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Username&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Password&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enabled or disabled&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;List of policies to assign to the user&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Replace or add the policies to an (existing) user.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_built_in_policies"&gt;Built-In Policies&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;MinIO provides several &lt;a href="https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html#built-in-policies" target="_blank" rel="noopener"&gt;Built-In Policies&lt;/a&gt; that can be attached to a user or group.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following policies will always exist: (Please verify the official documentation for further information)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;consoleAdmin&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Grants complete access to all S3 and administrative API operations against all resources on the MinIO deployment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;s3:*&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;admin:*&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;readonly&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Grants read-only permissions on any object on the MinIO deployment. The GET action must apply to a specific object without requiring any listing.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;s3:GetBucketLocation&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;s3:GetObject&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;readwrite&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Grants read and write permissions for all buckets and objects on the MinIO server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;s3:*&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;diagnostics&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Grants permission to perform diagnostic actions on the MinIO deployment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;admin:ServerTrace&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;admin:Profiling&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;admin:ConsoleLog&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;admin:ServerInfo&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;admin:TopLocksInfo&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;admin:OBDInfo&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;admin:BandwidthMonitor&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;admin:Prometheus&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;writeonly&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Grants write-only permissions to any namespace (bucket and path to object) the MinIO deployment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;s3:PutObject&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_provisioning_groups"&gt;Provisioning Groups&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Users can be combined into groups and instead of assigning policies to individual users, we can assign them to a whole group.
+The idea is the same as for users, except, that we define a list of members for that group:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; groups
+- name: test-group &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+disabled: false &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+members: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 - username
-policies: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+policies: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 - readwrite
 # When set to true, it will replace all policies with the specified.
 # When false, the policies will be added to the existing.
-setPolicies: false &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Name of the group.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Enabled or disabled.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>List of users that are members of this group.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>List of policies that are assigned to this group.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Replace or add the policies to an (existing) user.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_configure_the_bucket">Configure the Bucket&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Finally, we can configure the bucket itself. A bucket will have a specific configuration, a lifecycle a quota etc.
-A list of buckets with different configurations can be defined in the values files.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+setPolicies: false &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the group.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enabled or disabled.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;List of users that are members of this group.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;List of policies that are assigned to this group.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Replace or add the policies to an (existing) user.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_the_bucket"&gt;Configure the Bucket&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, we can configure the bucket itself. A bucket will have a specific configuration, a lifecycle a quota etc.
+A list of buckets with different configurations can be defined in the values files.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The only mandatory information is the name of the bucket. It is not required to configure a lifecycle or quota etc.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Let us analyse the following example, which tries to cover all possible settings:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> buckets:
-- name: mybucket &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-region: my-region &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-versioning: Versioned &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-withLock: false &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
-bucketReplication: &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let us analyse the following example, which tries to cover all possible settings:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; buckets:
+- name: mybucket &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+region: my-region &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+versioning: Versioned &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+withLock: false &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+bucketReplication: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 enabled: true
 targetClusterUrl: replication-target-cluster
 targetClusterPort: 443
 targetBucket: replication-target-bucket
-replicationSettings: &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+replicationSettings: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 - existing-objects
-credSecretName: replication-credentials &lt;i class="conum" data-value="7">&lt;/i>&lt;b>(7)&lt;/b>
+credSecretName: replication-credentials &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
 lifecycle:
-- id: name-of-lifecycle &lt;i class="conum" data-value="8">&lt;/i>&lt;b>(8)&lt;/b>
-prefix: test-prefix &lt;i class="conum" data-value="9">&lt;/i>&lt;b>(9)&lt;/b>
+- id: name-of-lifecycle &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+prefix: test-prefix &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
 disabled: false
-expiry: &lt;i class="conum" data-value="10">&lt;/i>&lt;b>(10)&lt;/b>
+expiry: &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
 days: 30 # or date
 nonconcurrentDays: 10
 - id: name-of-second-lifecycle
@@ -1658,97 +1658,97 @@ disabled: false
 expiry:
 deleteMarker: true
 nonconcurrentDays: 10
-quota: &lt;i class="conum" data-value="11">&lt;/i>&lt;b>(11)&lt;/b>
+quota: &lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;(11)&lt;/b&gt;
 type: set
 size: 1024Gib
-tags: &lt;i class="conum" data-value="12">&lt;/i>&lt;b>(12)&lt;/b>
-key1: value1&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Name of the bucket.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Region of the bucket&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Enable versioning (&lt;a href="https://docs.min.io/docs/minio-client-complete-guide.html#ilm" class="bare">https://docs.min.io/docs/minio-client-complete-guide.html#ilm&lt;/a>). Allowed options are: Versioned, Suspended or Unchanged.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Enable object Locking&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Configure bucket replication to a target cluster and a target bucket&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>Define the settings for the bucket replication can be: delete, delete-marker or existing-objects: &lt;a href="https://min.io/docs/minio/linux/administration/bucket-replication/enable-server-side-one-way-bucket-replication.html" class="bare">https://min.io/docs/minio/linux/administration/bucket-replication/enable-server-side-one-way-bucket-replication.html&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="7">&lt;/i>&lt;b>7&lt;/b>&lt;/td>
-&lt;td>Name of the Secret that stores the credentials for the replication&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="8">&lt;/i>&lt;b>8&lt;/b>&lt;/td>
-&lt;td>Define a list of lifecycle policies for the bucket: &lt;a href="https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html" class="bare">https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="9">&lt;/i>&lt;b>9&lt;/b>&lt;/td>
-&lt;td>A prefix that can be defined&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="10">&lt;/i>&lt;b>10&lt;/b>&lt;/td>
-&lt;td>Define the expiration. This can be defined as &lt;strong>days&lt;/strong> OR as a &lt;strong>date&lt;/strong>, for example &amp;#34;2021-11-11T00:00:00Z&amp;#34;&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="11">&lt;/i>&lt;b>11&lt;/b>&lt;/td>
-&lt;td>Set a quota for the bucket: &lt;a href="https://docs.min.io/docs/minio-admin-complete-guide.html#bucket" class="bare">https://docs.min.io/docs/minio-admin-complete-guide.html#bucket&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="12">&lt;/i>&lt;b>12&lt;/b>&lt;/td>
-&lt;td>Define additional tags for the bucket &lt;a href="https://docs.min.io/docs/minio-client-complete-guide.html#tag" class="bare">https://docs.min.io/docs/minio-client-complete-guide.html#tag&lt;/a>&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect3">
-&lt;h4 id="_replication_secret">Replication Secret&lt;/h4>
-&lt;div class="paragraph">
-&lt;p>The definition above defines a bucket replication. To authenticate at the target cluster, we need to provide a username and a password. This is stored inside a secret:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+tags: &lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;(12)&lt;/b&gt;
+key1: value1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the bucket.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Region of the bucket&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable versioning (&lt;a href="https://docs.min.io/docs/minio-client-complete-guide.html#ilm" class="bare"&gt;https://docs.min.io/docs/minio-client-complete-guide.html#ilm&lt;/a&gt;). Allowed options are: Versioned, Suspended or Unchanged.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable object Locking&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Configure bucket replication to a target cluster and a target bucket&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the settings for the bucket replication can be: delete, delete-marker or existing-objects: &lt;a href="https://min.io/docs/minio/linux/administration/bucket-replication/enable-server-side-one-way-bucket-replication.html" class="bare"&gt;https://min.io/docs/minio/linux/administration/bucket-replication/enable-server-side-one-way-bucket-replication.html&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Secret that stores the credentials for the replication&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define a list of lifecycle policies for the bucket: &lt;a href="https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html" class="bare"&gt;https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A prefix that can be defined&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the expiration. This can be defined as &lt;strong&gt;days&lt;/strong&gt; OR as a &lt;strong&gt;date&lt;/strong&gt;, for example &amp;#34;2021-11-11T00:00:00Z&amp;#34;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;11&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Set a quota for the bucket: &lt;a href="https://docs.min.io/docs/minio-admin-complete-guide.html#bucket" class="bare"&gt;https://docs.min.io/docs/minio-admin-complete-guide.html#bucket&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;12&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define additional tags for the bucket &lt;a href="https://docs.min.io/docs/minio-client-complete-guide.html#tag" class="bare"&gt;https://docs.min.io/docs/minio-client-complete-guide.html#tag&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_replication_secret"&gt;Replication Secret&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The definition above defines a bucket replication. To authenticate at the target cluster, we need to provide a username and a password. This is stored inside a secret:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: v1
 kind: Secret
 metadata:
 name: replication-user
 type: Opaque
 stringData:
 username: username
-password: password&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This defines a whole bunch of settings. Except for the bucket name, none is mandatory.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect3">
-&lt;h4 id="_example_openshift_logging_bucket">Example OpenShift-Logging Bucket&lt;/h4>
-&lt;div class="paragraph">
-&lt;p>The following is a more realistic example, for defining a bucket used for OpenShift Logging:&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>It defines the bucket name, with a lifecycle of 4 days and a quota of 1TB:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> buckets:
+password: password&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This defines a whole bunch of settings. Except for the bucket name, none is mandatory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_example_openshift_logging_bucket"&gt;Example OpenShift-Logging Bucket&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following is a more realistic example, for defining a bucket used for OpenShift Logging:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It defines the bucket name, with a lifecycle of 4 days and a quota of 1TB:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; buckets:
 - name: openshift-logging
 lifecycle:
 - id: logging-retention
@@ -1757,58 +1757,58 @@ expiry:
 days: 4
 quota:
 type: set
-size: 1024GiB&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_additional_settings">Additional Settings&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Finally, there are some additional settings, I would like to mention here. They are completely optional, but might be interesting:&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Automatically clean up the provisioning job after it has finished:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> cleanupAfterFinished:
+size: 1024GiB&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_additional_settings"&gt;Additional Settings&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, there are some additional settings, I would like to mention here. They are completely optional, but might be interesting:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Automatically clean up the provisioning job after it has finished:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; cleanupAfterFinished:
 enabled: false
-seconds: 600&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Define resources for the provisioning job. For example:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">resources:
+seconds: 600&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Define resources for the provisioning job. For example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;resources:
 requests:
 cpu: 2
 memory: 512Mi
 limits:
 cpu: 3
-memory: 1024Mi&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Typically, I leave this to &lt;strong>resources: {}&lt;/strong>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Take care of the pod placement and define a nodeSelector and tolerations, for example:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> nodeSelector: {}
+memory: 1024Mi&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Typically, I leave this to &lt;strong&gt;resources: {}&lt;/strong&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Take care of the pod placement and define a nodeSelector and tolerations, for example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; nodeSelector: {}
 tolerations:
 - effect: NoSchedule
 key: infra
@@ -1817,23 +1817,23 @@ value: reserved
 - effect: NoExecute
 key: infra
 operator: Equal
-value: reserved&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_conclusion">Conclusion&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>With this Helm chart by Bitnami, with a little modification from my side, it is possible to &lt;strong>create and update&lt;/strong> buckets, policies, users etc. There is no need, to perform any modification manually in the MinIO WebUI.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>I am currently using this chart for several bucket configurations, with sometimes more and sometimes fewer settings in the values file. Keep in mind, that many settings, especially for the bucket itself, are completely optional and are not required to create a new bucket. (For example, lifecycle). Please check out the source of the Helm Chart and the values file to get further information: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" target="_blank" rel="noopener">minio configurator&lt;/a>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>If you have any feedback or miss something, feel free to create a pull request or an issue :)&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+value: reserved&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With this Helm chart by Bitnami, with a little modification from my side, it is possible to &lt;strong&gt;create and update&lt;/strong&gt; buckets, policies, users etc. There is no need, to perform any modification manually in the MinIO WebUI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I am currently using this chart for several bucket configurations, with sometimes more and sometimes fewer settings in the values file. Keep in mind, that many settings, especially for the bucket itself, are completely optional and are not required to create a new bucket. (For example, lifecycle). Please check out the source of the Helm Chart and the values file to get further information: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" target="_blank" rel="noopener"&gt;minio configurator&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you have any feedback or miss something, feel free to create a pull request or an issue :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

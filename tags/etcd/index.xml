@@ -1,82 +1,82 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Etcd on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/etcd/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sat, 29 Jan 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/etcd/index.xml" rel="self" type="application/rss+xml"/><item><title>etcd</title><link>https://blog.stderr.at/day-2/etcd/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/etcd/</guid><description/></item><item><title>Automated ETCD Backup</title><link>https://blog.stderr.at/day-2/etcd/2022-01-29-automatedetcdbackup/</link><pubDate>Sat, 29 Jan 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/etcd/2022-01-29-automatedetcdbackup/</guid><description>&lt;div class="paragraph">
-&lt;p>Securing ETCD is one of the major Day-2 tasks for a Kubernetes cluster. This article will explain how to create a backup using OpenShift Cronjob.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Etcd on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/etcd/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sat, 29 Jan 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/etcd/index.xml" rel="self" type="application/rss+xml"/><item><title>etcd</title><link>https://blog.stderr.at/day-2/etcd/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/etcd/</guid><description/></item><item><title>Automated ETCD Backup</title><link>https://blog.stderr.at/day-2/etcd/2022-01-29-automatedetcdbackup/</link><pubDate>Sat, 29 Jan 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/etcd/2022-01-29-automatedetcdbackup/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Securing ETCD is one of the major Day-2 tasks for a Kubernetes cluster. This article will explain how to create a backup using OpenShift Cronjob.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 There is absolutely no warranty. Verify your backups regularly and perform restore tests.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following is required:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>OpenShift Cluster 4.x&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Integrated Storage, might be NFS or anything. Best practice would be a RWX enabled storage.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_configure_project_cronjob">Configure Project &amp;amp; Cronjob&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Create the following objects in OpenShift. This fill create:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>A Project called &lt;code>ocp-etcd-backup&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>A PersistentVolumeClaim to store the backups. &lt;strong>Change to your appropriate StorageClass and accessMode&lt;/strong>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>A ServiceAccount called &lt;code>openshift-backup&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>A dedicated ClusterRole which is able to start (debug pods)&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>A ClusterRoleBinding between the created ServiceAccount and the customer ClusterRole&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>A 2nd ClusterRoleBinding, which gives our ServiceAccount the permission to start privileged containers. This is required to start a debug pod on a control plane node.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>A CronJob which performs the backup …​ see Callouts for inline explanations.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-A helm chart, which would create these objects below, can be found at: &lt;a href="https://github.com/tjungbauer/ocp-auto-backup" class="bare">https://github.com/tjungbauer/ocp-auto-backup&lt;/a>. This is probably a better way to manage the variables via the values.yaml file.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Namespace
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following is required:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift Cluster 4.x&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Integrated Storage, might be NFS or anything. Best practice would be a RWX enabled storage.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configure_project_cronjob"&gt;Configure Project &amp;amp; Cronjob&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create the following objects in OpenShift. This fill create:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;A Project called &lt;code&gt;ocp-etcd-backup&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A PersistentVolumeClaim to store the backups. &lt;strong&gt;Change to your appropriate StorageClass and accessMode&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A ServiceAccount called &lt;code&gt;openshift-backup&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A dedicated ClusterRole which is able to start (debug pods)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A ClusterRoleBinding between the created ServiceAccount and the customer ClusterRole&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A 2nd ClusterRoleBinding, which gives our ServiceAccount the permission to start privileged containers. This is required to start a debug pod on a control plane node.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A CronJob which performs the backup …​ see Callouts for inline explanations.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+A helm chart, which would create these objects below, can be found at: &lt;a href="https://github.com/tjungbauer/ocp-auto-backup" class="bare"&gt;https://github.com/tjungbauer/ocp-auto-backup&lt;/a&gt;. This is probably a better way to manage the variables via the values.yaml file.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: Namespace
 apiVersion: v1
 metadata:
 name: ocp-etcd-backup
@@ -93,7 +93,7 @@ name: etcd-backup-pvc
 namespace: ocp-etcd-backup
 spec:
 accessModes:
-- ReadWriteOnce &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- ReadWriteOnce &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 resources:
 requests:
 storage: 100Gi
@@ -155,7 +155,7 @@ namespace: ocp-etcd-backup
 labels:
 purpose: etcd-backup
 spec:
-schedule: &amp;#39;*/5 * * * *&amp;#39; &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+schedule: &amp;#39;*/5 * * * *&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 startingDeadlineSeconds: 200
 concurrencyPolicy: Forbid
 suspend: false
@@ -169,7 +169,7 @@ metadata:
 creationTimestamp: null
 spec:
 nodeSelector:
-node-role.kubernetes.io/master: &amp;#39;&amp;#39; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+node-role.kubernetes.io/master: &amp;#39;&amp;#39; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 restartPolicy: Never
 activeDeadlineSeconds: 200
 serviceAccountName: openshift-backup
@@ -184,7 +184,7 @@ cpu: 300m
 memory: 250Mi
 terminationMessagePath: /dev/termination-log
 name: etcd-backup
-command: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+command: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 - /bin/bash
 - &amp;#39;-c&amp;#39;
 - &amp;gt;-
@@ -202,9 +202,9 @@ runAsUser: 0
 imagePullPolicy: IfNotPresent
 volumeMounts:
 - name: temp-backup
-mountPath: /home/core/backup &lt;i class="conum" data-value="5">&lt;/i>&lt;b>(5)&lt;/b>
+mountPath: /home/core/backup &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 - name: etcd-backup
-mountPath: /etcd-backup &lt;i class="conum" data-value="6">&lt;/i>&lt;b>(6)&lt;/b>
+mountPath: /etcd-backup &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
 terminationMessagePolicy: FallbackToLogsOnError
 image: registry.redhat.io/openshift4/ose-cli
 serviceAccount: openshift-backup
@@ -223,56 +223,56 @@ effect: NoSchedule
 - operator: Exists
 effect: NoExecute
 successfulJobsHistoryLimit: 5
-failedJobsHistoryLimit: 5&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>RWO is used here, since I have no other available storage on my test cluster.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>How often shall the job be executed. Here, every 5 minutes.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Bind the job to &amp;#34;Master&amp;#34; nodes.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Command to be executed…​ It fetches the actual local master nodename and starts a debugging Pod there. The backup script is called and moves the backup to /home/core/backup which is a folder on the control plane itself. The move command will move the backups from the local folder to the actual backup target volume. Finally, it will remove backups older than 30 days.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="5">&lt;/i>&lt;b>5&lt;/b>&lt;/td>
-&lt;td>Mounted /home/core/backup on the master nodes, here the command will store the backups before they are moved&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="6">&lt;/i>&lt;b>6&lt;/b>&lt;/td>
-&lt;td>Target destination for the etcd backup on the mounted PVC&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_start_a_job">Start a Job&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>If you do not want to wait until the CronJob is triggered, you can manually start the Job using the following commands:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create job backup --from=cronjob/cronjob-etcd-backup -n ocp-etcd-backup&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will start a Pod which will do the backup:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code>Starting pod/ip-10-0-196-187us-east-2computeinternal-debug ...
+failedJobsHistoryLimit: 5&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;RWO is used here, since I have no other available storage on my test cluster.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;How often shall the job be executed. Here, every 5 minutes.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Bind the job to &amp;#34;Master&amp;#34; nodes.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Command to be executed…​ It fetches the actual local master nodename and starts a debugging Pod there. The backup script is called and moves the backup to /home/core/backup which is a folder on the control plane itself. The move command will move the backups from the local folder to the actual backup target volume. Finally, it will remove backups older than 30 days.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Mounted /home/core/backup on the master nodes, here the command will store the backups before they are moved&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Target destination for the etcd backup on the mounted PVC&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_start_a_job"&gt;Start a Job&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you do not want to wait until the CronJob is triggered, you can manually start the Job using the following commands:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc create job backup --from=cronjob/cronjob-etcd-backup -n ocp-etcd-backup&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will start a Pod which will do the backup:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code&gt;Starting pod/ip-10-0-196-187us-east-2computeinternal-debug ...
 To use host binaries, run `chroot /host`
 found latest kube-apiserver: /etc/kubernetes/static-pod-resources/kube-apiserver-pod-15
 found latest kube-controller-manager: /etc/kubernetes/static-pod-resources/kube-controller-manager-pod-10
@@ -289,20 +289,20 @@ Snapshot saved at /home/core/backup/snapshot_2021-11-29_152949.db
 {&amp;#34;hash&amp;#34;:1180914745,&amp;#34;revision&amp;#34;:10182252,&amp;#34;totalKey&amp;#34;:19360,&amp;#34;totalSize&amp;#34;:179896320}
 snapshot db and kube resources are successfully saved to /home/core/backup
 Removing debug pod ...
-Moving Local Master Backups to target directory (from /home/core/backup to mounted PVC)&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_verifying_the_backup">Verifying the Backup&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Let’s start a dummy Pod which can access the PVC to verify if the backup is really there.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+Moving Local Master Backups to target directory (from /home/core/backup to mounted PVC)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_verifying_the_backup"&gt;Verifying the Backup&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s start a dummy Pod which can access the PVC to verify if the backup is really there.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: v1
 kind: Pod
 metadata:
 name: verify-etcd-backup
@@ -317,15 +317,15 @@ mountPath: /etcd-backup
 volumes:
 - name: etcd-backup
 persistentVolumeClaim:
-claimName: etcd-backup-pvc&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Logging into that Pod will show the available backups stored at /etcd-backup which is the mounted PVC.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc rsh -n ocp-etcd-backup verify-etcd-backup ls -la etcd-backup
+claimName: etcd-backup-pvc&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Logging into that Pod will show the available backups stored at /etcd-backup which is the mounted PVC.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc rsh -n ocp-etcd-backup verify-etcd-backup ls -la etcd-backup
 total 1406196
 drwxr-xr-x. 3 root root 4096 Nov 29 17:00 .
 dr-xr-xr-x. 1 root root 25 Nov 29 17:06 ..
@@ -345,8 +345,8 @@ drwx------. 2 root root 16384 Nov 29 15:21 lost+found
 -rw-------. 1 root root 89875 Nov 29 15:55 static_kuberesources_2021-11-29_155513.tar.gz
 -rw-------. 1 root root 89875 Nov 29 16:00 static_kuberesources_2021-11-29_160020.tar.gz
 -rw-------. 1 root root 89875 Nov 29 16:55 static_kuberesources_2021-11-29_165521.tar.gz
--rw-------. 1 root root 89875 Nov 29 17:00 static_kuberesources_2021-11-29_170020.tar.gz&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+-rw-------. 1 root root 89875 Nov 29 17:00 static_kuberesources_2021-11-29_170020.tar.gz&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

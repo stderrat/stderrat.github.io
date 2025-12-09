@@ -1,251 +1,251 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Java on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/java/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 25 Feb 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/java/index.xml" rel="self" type="application/rss+xml"/><item><title>Adventures in Java Land: JPA disconnected entities</title><link>https://blog.stderr.at/java/2022-02-25-jpa-disconnected-entity/</link><pubDate>Fri, 25 Feb 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/java/2022-02-25-jpa-disconnected-entity/</guid><description>
-&lt;p>
-An old man tries to refresh his Java skills and does &lt;a href="https://www.redhat.com/en/services/training/red-hat-cloud-native-microservices-development-quarkus-do378">DO378&lt;/a>. He fails
-spectacularly at the first real example but learns a lot on the way.&lt;/p>
-&lt;div id="outline-container-headline-1" class="outline-2">
-&lt;h2 id="headline-1">
+&lt;p&gt;
+An old man tries to refresh his Java skills and does &lt;a href="https://www.redhat.com/en/services/training/red-hat-cloud-native-microservices-development-quarkus-do378"&gt;DO378&lt;/a&gt;. He fails
+spectacularly at the first real example but learns a lot on the way.&lt;/p&gt;
+&lt;div id="outline-container-headline-1" class="outline-2"&gt;
+&lt;h2 id="headline-1"&gt;
 The exception
-&lt;/h2>
-&lt;div id="outline-text-headline-1" class="outline-text-2">
-&lt;p>
+&lt;/h2&gt;
+&lt;div id="outline-text-headline-1" class="outline-text-2"&gt;
+&lt;p&gt;
 There is this basic example where you build a minimal REST API for
 storing speaker data in a database. Quarkus makes this quite easy. You
 just have to define your database connection properties in
-&lt;code>resources/application.properties&lt;/code> and off you go developing your Java
-Quarkus REST service:&lt;/p>
-&lt;div class="src src-ini">
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-ini" data-lang="ini">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">quarkus.datasource.db-kind&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">h2&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">quarkus.datasource.jdbc.url&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">jdbc:h2:mem:default&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">quarkus.datasource.username&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">admin&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">quarkus.hibernate-orm.database.generation&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">drop-and-create&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">quarkus.hibernate-orm.log.sql&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">true&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p>
+&lt;code&gt;resources/application.properties&lt;/code&gt; and off you go developing your Java
+Quarkus REST service:&lt;/p&gt;
+&lt;div class="src src-ini"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-ini" data-lang="ini"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;quarkus.datasource.db-kind&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;h2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;quarkus.datasource.jdbc.url&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;jdbc:h2:mem:default&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;quarkus.datasource.username&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;admin&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;quarkus.hibernate-orm.database.generation&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;drop-and-create&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;quarkus.hibernate-orm.log.sql&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;true&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;
 So next we define our entity class to be stored in the database. I
 will skip the import statements and any other code not relevant for
-this post.&lt;/p>
-&lt;div class="src src-java">
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-java" data-lang="java">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">// import statements skipped&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">@Entity&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">public&lt;/span> &lt;span style="color:#66d9ef">class&lt;/span> &lt;span style="color:#a6e22e">Speaker&lt;/span> &lt;span style="color:#66d9ef">extends&lt;/span> PanacheEntity {
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> UUID uuid;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> String nameFirst;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> String nameLast;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> String organization;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#a6e22e">@JsonbTransient&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> String biography;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> String picture;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> String twitterHandle;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">// Constructors, getters and setters, toString and other methods skipped&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> ....
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p>
-We define an entity &lt;code>Speaker&lt;/code> which extends the &lt;a href="https://github.com/quarkusio/quarkus/blob/main/extensions/panache/hibernate-orm-panache/runtime/src/main/java/io/quarkus/hibernate/orm/panache/PanacheEntity.java">&lt;code>PanacheEntity&lt;/code>&lt;/a>
-class. &lt;a href="https://quarkus.io/guides/hibernate-orm-panache">Panache&lt;/a> is a thin wrapper around &lt;a href="https://hibernate.org/">Hibernate&lt;/a> providing convince
-features. For example the base class &lt;code>PanacheEntity&lt;/code> defines a
-autoincrement &lt;code>Id&lt;/code> column for us. This inherited &lt;code>Id&lt;/code> column is of
-importance for understanding the problem ahead of us.&lt;/p>
-&lt;p>
-So next you define your &lt;code>SpeakerService&lt;/code> class which uses the
+this post.&lt;/p&gt;
+&lt;div class="src src-java"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-java" data-lang="java"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;// import statements skipped&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;@Entity&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;class&lt;/span&gt; &lt;span style="color:#a6e22e"&gt;Speaker&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;extends&lt;/span&gt; PanacheEntity {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; UUID uuid;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; String nameFirst;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; String nameLast;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; String organization;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#a6e22e"&gt;@JsonbTransient&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; String biography;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; String picture;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; String twitterHandle;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;// Constructors, getters and setters, toString and other methods skipped&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ....
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;
+We define an entity &lt;code&gt;Speaker&lt;/code&gt; which extends the &lt;a href="https://github.com/quarkusio/quarkus/blob/main/extensions/panache/hibernate-orm-panache/runtime/src/main/java/io/quarkus/hibernate/orm/panache/PanacheEntity.java"&gt;&lt;code&gt;PanacheEntity&lt;/code&gt;&lt;/a&gt;
+class. &lt;a href="https://quarkus.io/guides/hibernate-orm-panache"&gt;Panache&lt;/a&gt; is a thin wrapper around &lt;a href="https://hibernate.org/"&gt;Hibernate&lt;/a&gt; providing convince
+features. For example the base class &lt;code&gt;PanacheEntity&lt;/code&gt; defines a
+autoincrement &lt;code&gt;Id&lt;/code&gt; column for us. This inherited &lt;code&gt;Id&lt;/code&gt; column is of
+importance for understanding the problem ahead of us.&lt;/p&gt;
+&lt;p&gt;
+So next you define your &lt;code&gt;SpeakerService&lt;/code&gt; class which uses the
 entity. Once again I will skip the imports and any code not relevant
-for understanding the problem:&lt;/p>
-&lt;div class="src src-java">
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-java" data-lang="java">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">// imports omitted&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">@ApplicationScoped&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">public&lt;/span> &lt;span style="color:#66d9ef">class&lt;/span> &lt;span style="color:#a6e22e">SpeakerService&lt;/span> {
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">// other code omitted&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> Speaker &lt;span style="color:#a6e22e">create&lt;/span>(Speaker speaker) {
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> speaker.&lt;span style="color:#a6e22e">persist&lt;/span>();
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">return&lt;/span> speaker;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p>
-We focus on the &lt;code>create&lt;/code> method here because the call to
-&lt;code>speaker.persist()&lt;/code> was the reason for all the headache.&lt;/p>
-&lt;p>
+for understanding the problem:&lt;/p&gt;
+&lt;div class="src src-java"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-java" data-lang="java"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;// imports omitted&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;@ApplicationScoped&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;class&lt;/span&gt; &lt;span style="color:#a6e22e"&gt;SpeakerService&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;// other code omitted&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; Speaker &lt;span style="color:#a6e22e"&gt;create&lt;/span&gt;(Speaker speaker) {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; speaker.&lt;span style="color:#a6e22e"&gt;persist&lt;/span&gt;();
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;return&lt;/span&gt; speaker;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; }&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;
+We focus on the &lt;code&gt;create&lt;/code&gt; method here because the call to
+&lt;code&gt;speaker.persist()&lt;/code&gt; was the reason for all the headache.&lt;/p&gt;
+&lt;p&gt;
 But we are still in coding mode and last but not least we define our
-&lt;code>SpeakerResource&lt;/code> class, again everything not relevant for
-understanding the problem was removed:&lt;/p>
-&lt;div class="src src-java">
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-java" data-lang="java">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">// import statements omitted&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">@Path&lt;/span>(&lt;span style="color:#e6db74">&amp;#34;/speaker&amp;#34;&lt;/span>)
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">@Produces&lt;/span>(MediaType.&lt;span style="color:#a6e22e">APPLICATION_JSON&lt;/span>)
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">@Consumes&lt;/span>(MediaType.&lt;span style="color:#a6e22e">APPLICATION_JSON&lt;/span>)
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">public&lt;/span> &lt;span style="color:#66d9ef">class&lt;/span> &lt;span style="color:#a6e22e">SpeakerResource&lt;/span> {
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#a6e22e">@Inject&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> SpeakerService service;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">// other code omitted&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#a6e22e">@POST&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#a6e22e">@Transactional&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> Speaker &lt;span style="color:#a6e22e">create&lt;/span>(Speaker newSpeaker) {
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> service.&lt;span style="color:#a6e22e">create&lt;/span>(newSpeaker);
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">return&lt;/span> newSpeaker;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p>
-The root path for our &lt;code>SpeakerResource&lt;/code> is &lt;span style="text-decoration: underline;">/speaker&lt;/span>. We inject the
-&lt;code>SpeakerService&lt;/code> and define a method &lt;code>create()&lt;/code> for creating a &lt;code>Speaker&lt;/code>. We
-would like to be able to send &lt;code>@Post&lt;/code> requests to this endpoint and &lt;a href="https://javaee.github.io/jsonb-spec/">Jsonb&lt;/a>
-or&lt;a href="https://github.com/FasterXML/jackson"> Jackson,&lt;/a> whichever we currently prefer, will deserialize the JSON
-body in a &lt;code>Speaker&lt;/code> object for us.&lt;/p>
-&lt;p>
-Splendid, time to switch from coding mode to testing.&lt;/p>
-&lt;p>
-We launch that Quarkus application in developer mode&lt;/p>
-&lt;div class="src src-sh">
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-sh" data-lang="sh">&lt;span style="display:flex;">&lt;span>mvn quarkus:dev&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p>
+&lt;code&gt;SpeakerResource&lt;/code&gt; class, again everything not relevant for
+understanding the problem was removed:&lt;/p&gt;
+&lt;div class="src src-java"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-java" data-lang="java"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;// import statements omitted&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;@Path&lt;/span&gt;(&lt;span style="color:#e6db74"&gt;&amp;#34;/speaker&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;@Produces&lt;/span&gt;(MediaType.&lt;span style="color:#a6e22e"&gt;APPLICATION_JSON&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;@Consumes&lt;/span&gt;(MediaType.&lt;span style="color:#a6e22e"&gt;APPLICATION_JSON&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;class&lt;/span&gt; &lt;span style="color:#a6e22e"&gt;SpeakerResource&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#a6e22e"&gt;@Inject&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; SpeakerService service;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;// other code omitted&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#a6e22e"&gt;@POST&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#a6e22e"&gt;@Transactional&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; Speaker &lt;span style="color:#a6e22e"&gt;create&lt;/span&gt;(Speaker newSpeaker) {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; service.&lt;span style="color:#a6e22e"&gt;create&lt;/span&gt;(newSpeaker);
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;return&lt;/span&gt; newSpeaker;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; }
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;
+The root path for our &lt;code&gt;SpeakerResource&lt;/code&gt; is &lt;span style="text-decoration: underline;"&gt;/speaker&lt;/span&gt;. We inject the
+&lt;code&gt;SpeakerService&lt;/code&gt; and define a method &lt;code&gt;create()&lt;/code&gt; for creating a &lt;code&gt;Speaker&lt;/code&gt;. We
+would like to be able to send &lt;code&gt;@Post&lt;/code&gt; requests to this endpoint and &lt;a href="https://javaee.github.io/jsonb-spec/"&gt;Jsonb&lt;/a&gt;
+or&lt;a href="https://github.com/FasterXML/jackson"&gt; Jackson,&lt;/a&gt; whichever we currently prefer, will deserialize the JSON
+body in a &lt;code&gt;Speaker&lt;/code&gt; object for us.&lt;/p&gt;
+&lt;p&gt;
+Splendid, time to switch from coding mode to testing.&lt;/p&gt;
+&lt;p&gt;
+We launch that Quarkus application in developer mode&lt;/p&gt;
+&lt;div class="src src-sh"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mvn quarkus:dev&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;
 Quarkus is so friendly and provides a swagger-ui in dev mode for testing
-our endpoint. Super duper lets call the &lt;code>create()&lt;/code> endpoint via Swagger:&lt;/p>
-&lt;p>
-&lt;img src="https://blog.stderr.at/java/images/swagger_post_500.png" alt="/java/images/swagger_post_500.png" title="/java/images/swagger_post_500.png" />&lt;/p>
-&lt;p>
+our endpoint. Super duper lets call the &lt;code&gt;create()&lt;/code&gt; endpoint via Swagger:&lt;/p&gt;
+&lt;p&gt;
+&lt;img src="https://blog.stderr.at/java/images/swagger_post_500.png" alt="/java/images/swagger_post_500.png" title="/java/images/swagger_post_500.png" /&gt;&lt;/p&gt;
+&lt;p&gt;
 Because we are lazy we accept the default Swagger provides for us and
-just click &lt;span style="text-decoration: underline;">Execute&lt;/span>.&lt;/p>
-&lt;p>
-BOOM, 500 internal server error. And a beautiful Java exception:&lt;/p>
-&lt;div class="src src-text">
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-text" data-lang="text">&lt;span style="display:flex;">&lt;span>org.jboss.resteasy.spi.UnhandledException: javax.persistence.PersistenceException: org.hibernate.PersistentObjectException: detached entity passed to persist: org.acme.conference.speaker.Speaker&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p>
-What? Detached entity what does this mean and why?&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div id="outline-container-headline-2" class="outline-2">
-&lt;h2 id="headline-2">
+just click &lt;span style="text-decoration: underline;"&gt;Execute&lt;/span&gt;.&lt;/p&gt;
+&lt;p&gt;
+BOOM, 500 internal server error. And a beautiful Java exception:&lt;/p&gt;
+&lt;div class="src src-text"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;org.jboss.resteasy.spi.UnhandledException: javax.persistence.PersistenceException: org.hibernate.PersistentObjectException: detached entity passed to persist: org.acme.conference.speaker.Speaker&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;
+What? Detached entity what does this mean and why?&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div id="outline-container-headline-2" class="outline-2"&gt;
+&lt;h2 id="headline-2"&gt;
 Enlightenment
-&lt;/h2>
-&lt;div id="outline-text-headline-2" class="outline-text-2">
-&lt;p>
-Behind the scenes &lt;a href="https://hibernate.org">Hibernate&lt;/a> uses a so called EntityManager for
+&lt;/h2&gt;
+&lt;div id="outline-text-headline-2" class="outline-text-2"&gt;
+&lt;p&gt;
+Behind the scenes &lt;a href="https://hibernate.org"&gt;Hibernate&lt;/a&gt; uses a so called EntityManager for
 managing entities. An Entity can be in the following states when
-managed by Hibernate:&lt;/p>
-&lt;ul>
-&lt;li>NEW: The entity object was just created and is not persisted to the database&lt;/li>
-&lt;li>MANAGED: The entity is managed by a running Session and all changes
+managed by Hibernate:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;NEW: The entity object was just created and is not persisted to the database&lt;/li&gt;
+&lt;li&gt;MANAGED: The entity is managed by a running Session and all changes
 to the entity will be propagated to the database. After call to
-&lt;code>entitymanager.persist()&lt;/code> or in our case &lt;code>newSpeaker.persist()&lt;/code> the
-entity is stored in the database and in the &lt;code>managed&lt;/code> state.&lt;/li>
-&lt;li>REMOVED: The entity is removed from the database. And finally&lt;/li>
-&lt;li>DETACHED: The Entity was detached from the EntityManager, e.g. by
-calling &lt;code>entitymanager.detach()&lt;/code> or &lt;code>entitymanager.close()&lt;/code>.&lt;/li>
-&lt;/ul>
-&lt;p>See &lt;a href="https://www.baeldung.com/hibernate-entity-lifecycle">this&lt;/a> blog for a way better explanation what is going on with
-entity states.&lt;/p>
-&lt;p>
-Ok, cool but why the hell is our &lt;code>Speaker&lt;/code> entity in the &lt;span style="text-decoration: underline;">DETACHED&lt;/span>
-state? It was just created and never saved to the database before!&lt;/p>
-&lt;p>
+&lt;code&gt;entitymanager.persist()&lt;/code&gt; or in our case &lt;code&gt;newSpeaker.persist()&lt;/code&gt; the
+entity is stored in the database and in the &lt;code&gt;managed&lt;/code&gt; state.&lt;/li&gt;
+&lt;li&gt;REMOVED: The entity is removed from the database. And finally&lt;/li&gt;
+&lt;li&gt;DETACHED: The Entity was detached from the EntityManager, e.g. by
+calling &lt;code&gt;entitymanager.detach()&lt;/code&gt; or &lt;code&gt;entitymanager.close()&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;See &lt;a href="https://www.baeldung.com/hibernate-entity-lifecycle"&gt;this&lt;/a&gt; blog for a way better explanation what is going on with
+entity states.&lt;/p&gt;
+&lt;p&gt;
+Ok, cool but why the hell is our &lt;code&gt;Speaker&lt;/code&gt; entity in the &lt;span style="text-decoration: underline;"&gt;DETACHED&lt;/span&gt;
+state? It was just created and never saved to the database before!&lt;/p&gt;
+&lt;p&gt;
 After checking the database (was empty), I started my Java debugger of
 choice (IntellJ, but use whatever fit&amp;#39;s your needs. I&amp;#39;m to old for IDE
-vs Editor and Editor vs Editor wars).&lt;/p>
-&lt;p>
-So looking at the &lt;code>Speaker&lt;/code> entity before calling &lt;code>persist()&lt;/code> revealed the following:&lt;/p>
-&lt;p>
-&lt;img src="https://blog.stderr.at/java/images/speaker_object_debugger.png" alt="/java/images/speaker_object_debugger.png" title="/java/images/speaker_object_debugger.png" />&lt;/p>
-&lt;p>
-The &lt;code>Speaker&lt;/code> object passed into &lt;code>create()&lt;/code> has an &lt;span style="text-decoration: underline;">Id&lt;/span> of 0 and all
+vs Editor and Editor vs Editor wars).&lt;/p&gt;
+&lt;p&gt;
+So looking at the &lt;code&gt;Speaker&lt;/code&gt; entity before calling &lt;code&gt;persist()&lt;/code&gt; revealed the following:&lt;/p&gt;
+&lt;p&gt;
+&lt;img src="https://blog.stderr.at/java/images/speaker_object_debugger.png" alt="/java/images/speaker_object_debugger.png" title="/java/images/speaker_object_debugger.png" /&gt;&lt;/p&gt;
+&lt;p&gt;
+The &lt;code&gt;Speaker&lt;/code&gt; object passed into &lt;code&gt;create()&lt;/code&gt; has an &lt;span style="text-decoration: underline;"&gt;Id&lt;/span&gt; of 0 and all
 the internal Hibernate fields are set to null. So this seems to
-indicate that this &lt;code>Speaker&lt;/code> object is currently not attached to an
-&lt;code>EntityManager&lt;/code> session. This might explain the &lt;strong>DETACHED&lt;/strong> state.&lt;/p>
-&lt;p>
-I started playing around with &lt;code>EntityManager&lt;/code> and calling &lt;code>merge()&lt;/code> on the
-speaker object. The code looked like this:&lt;/p>
-&lt;div class="src src-java">
-&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-java" data-lang="java">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a6e22e">@ApplicationScoped&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">public&lt;/span> &lt;span style="color:#66d9ef">class&lt;/span> &lt;span style="color:#a6e22e">SpeakerService&lt;/span> {
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#a6e22e">@Inject&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> EntityManager em;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e">// lots of code skipped&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">public&lt;/span> Speaker &lt;span style="color:#a6e22e">create&lt;/span>(Speaker speaker) {
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">var&lt;/span> newSpeaker &lt;span style="color:#f92672">=&lt;/span> em.&lt;span style="color:#a6e22e">merge&lt;/span>(speaker);
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> newSpeaker.&lt;span style="color:#a6e22e">persist&lt;/span>();
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">return&lt;/span> speaker;
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p>
-Looking at the &lt;code>newSpeaker&lt;/code> object returned by calling &lt;code>entitymanager.merge()&lt;/code>
-in the debugger revealed the following:&lt;/p>
-&lt;p>
-&lt;img src="https://blog.stderr.at/java/images/speaker_object_entitymanager_debugger.png" alt="/java/images/speaker_object_entitymanager_debugger.png" title="/java/images/speaker_object_entitymanager_debugger.png" />&lt;/p>
-&lt;p>
-&lt;code>newSpeaker&lt;/code> has an Id of 1 (hm, why no 0?) and some those special
+indicate that this &lt;code&gt;Speaker&lt;/code&gt; object is currently not attached to an
+&lt;code&gt;EntityManager&lt;/code&gt; session. This might explain the &lt;strong&gt;DETACHED&lt;/strong&gt; state.&lt;/p&gt;
+&lt;p&gt;
+I started playing around with &lt;code&gt;EntityManager&lt;/code&gt; and calling &lt;code&gt;merge()&lt;/code&gt; on the
+speaker object. The code looked like this:&lt;/p&gt;
+&lt;div class="src src-java"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-java" data-lang="java"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;@ApplicationScoped&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;class&lt;/span&gt; &lt;span style="color:#a6e22e"&gt;SpeakerService&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#a6e22e"&gt;@Inject&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; EntityManager em;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;// lots of code skipped&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;public&lt;/span&gt; Speaker &lt;span style="color:#a6e22e"&gt;create&lt;/span&gt;(Speaker speaker) {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;var&lt;/span&gt; newSpeaker &lt;span style="color:#f92672"&gt;=&lt;/span&gt; em.&lt;span style="color:#a6e22e"&gt;merge&lt;/span&gt;(speaker);
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; newSpeaker.&lt;span style="color:#a6e22e"&gt;persist&lt;/span&gt;();
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;return&lt;/span&gt; speaker;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; }&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;
+Looking at the &lt;code&gt;newSpeaker&lt;/code&gt; object returned by calling &lt;code&gt;entitymanager.merge()&lt;/code&gt;
+in the debugger revealed the following:&lt;/p&gt;
+&lt;p&gt;
+&lt;img src="https://blog.stderr.at/java/images/speaker_object_entitymanager_debugger.png" alt="/java/images/speaker_object_entitymanager_debugger.png" title="/java/images/speaker_object_entitymanager_debugger.png" /&gt;&lt;/p&gt;
+&lt;p&gt;
+&lt;code&gt;newSpeaker&lt;/code&gt; has an Id of 1 (hm, why no 0?) and some those special
 Hibernate fields starting with $$ have a value assigned. So for me
-this indicates that the object is now managed by an &lt;code>EntityManager&lt;/code>
-session and in the &lt;strong>MANAGED&lt;/strong> state.&lt;/p>
-&lt;p>
-And the &lt;code>Id&lt;/code>, already assigned to the original &lt;code>Speaker&lt;/code> object,
+this indicates that the object is now managed by an &lt;code&gt;EntityManager&lt;/code&gt;
+session and in the &lt;strong&gt;MANAGED&lt;/strong&gt; state.&lt;/p&gt;
+&lt;p&gt;
+And the &lt;code&gt;Id&lt;/code&gt;, already assigned to the original &lt;code&gt;Speaker&lt;/code&gt; object,
 de-serialized form JSON is actually the reason for the beautiful
-exception above.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;div id="outline-container-headline-3" class="outline-2">
-&lt;h2 id="headline-3">
+exception above.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div id="outline-container-headline-3" class="outline-2"&gt;
+&lt;h2 id="headline-3"&gt;
 Explanation
-&lt;/h2>
-&lt;div id="outline-text-headline-3" class="outline-text-2">
-&lt;p>
+&lt;/h2&gt;
+&lt;div id="outline-text-headline-3" class="outline-text-2"&gt;
+&lt;p&gt;
 So after a little bit of internet search magic I found an explanation
-for the exception:&lt;/p>
-&lt;p>
-&lt;div class="admonitionblock important" >&lt;table>&lt;tbody>&lt;tr>&lt;td class="icon">&lt;i class="fa icon-important" title="important">&lt;/i>&lt;/td>&lt;td class="content">&lt;p>
-If an &lt;code>Id&lt;/code> is already assigned to an entity object, Hibernate assumes
-that this is an entity in the &lt;strong>DETACHED&lt;/strong> state (if the &lt;span style="text-decoration: underline;">Id&lt;/span> is
+for the exception:&lt;/p&gt;
+&lt;p&gt;
+&lt;div class="admonitionblock important" &gt;&lt;table&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td class="icon"&gt;&lt;i class="fa icon-important" title="important"&gt;&lt;/i&gt;&lt;/td&gt;&lt;td class="content"&gt;&lt;p&gt;
+If an &lt;code&gt;Id&lt;/code&gt; is already assigned to an entity object, Hibernate assumes
+that this is an entity in the &lt;strong&gt;DETACHED&lt;/strong&gt; state (if the &lt;span style="text-decoration: underline;"&gt;Id&lt;/span&gt; is
 auto-generated). For an entity to be persisted to the database it has
-to be transferred in the &lt;strong>MANAGED&lt;/strong> state by calling
-&lt;code>entitymanager.merge()&lt;/code>&lt;/p>
-&lt;p>
-For more information see the &lt;a href="https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html#pc">Hibernate documentation&lt;/a>.&lt;/p>
-&lt;/td>&lt;/tr>&lt;/tbody>&lt;/table>&lt;/div>
-&lt;/p>
-&lt;p>
-We can only call &lt;code>persist()&lt;/code> if the object is in the transient state,
-to quote the &lt;a href="https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html#pc">Hibernate documentation&lt;/a>:&lt;/p>
-&lt;p>
-&lt;span style="text-decoration: underline;">transient&lt;/span>: the entity has just been instantiated and is not associated
+to be transferred in the &lt;strong&gt;MANAGED&lt;/strong&gt; state by calling
+&lt;code&gt;entitymanager.merge()&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;
+For more information see the &lt;a href="https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html#pc"&gt;Hibernate documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
+&lt;/p&gt;
+&lt;p&gt;
+We can only call &lt;code&gt;persist()&lt;/code&gt; if the object is in the transient state,
+to quote the &lt;a href="https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html#pc"&gt;Hibernate documentation&lt;/a&gt;:&lt;/p&gt;
+&lt;p&gt;
+&lt;span style="text-decoration: underline;"&gt;transient&lt;/span&gt;: the entity has just been instantiated and is not associated
 with a persistence context. It has no persistent representation in the
-database and &lt;strong>typically no identifier value has been assigned (unless
-the assigned generator was used)&lt;/strong>.&lt;/p>
-&lt;p>
-And reading on we also get explanation for the detached state:&lt;/p>
-&lt;p>
-&lt;span style="text-decoration: underline;">detached&lt;/span>: &lt;strong>the entity has an associated identifier&lt;/strong> but is no longer
+database and &lt;strong&gt;typically no identifier value has been assigned (unless
+the assigned generator was used)&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;
+And reading on we also get explanation for the detached state:&lt;/p&gt;
+&lt;p&gt;
+&lt;span style="text-decoration: underline;"&gt;detached&lt;/span&gt;: &lt;strong&gt;the entity has an associated identifier&lt;/strong&gt; but is no longer
 associated with a persistence context (usually because the persistence
-context was closed or the instance was evicted from the context)&lt;/p>
-&lt;p>
-Just removing the &lt;code>Id&lt;/code> from the POST request will solve the issue and
-the example started to work.&lt;/p>
-&lt;p>
-This is also why the &lt;code>Id&lt;/code> column is different in the &lt;code>Speaker&lt;/code> object
-(deserialized from JSON) and &lt;code>newSpeaker&lt;/code> object (create by calling
-&lt;code>entitymanager.merge()&lt;/code>). The &lt;code>Speaker&lt;/code> &lt;span style="text-decoration: underline;">Id&lt;/span> got passed in from JSON,
-and has nothing to do with the auto generated primary key &lt;span style="text-decoration: underline;">Id&lt;/span> within
-our database. After calling &lt;code>entitymanager.merge()&lt;/code> the entity is
-actually associated with a database session and the &lt;span style="text-decoration: underline;">Id&lt;/span> is
-auto generated.&lt;/p>
-&lt;p>
+context was closed or the instance was evicted from the context)&lt;/p&gt;
+&lt;p&gt;
+Just removing the &lt;code&gt;Id&lt;/code&gt; from the POST request will solve the issue and
+the example started to work.&lt;/p&gt;
+&lt;p&gt;
+This is also why the &lt;code&gt;Id&lt;/code&gt; column is different in the &lt;code&gt;Speaker&lt;/code&gt; object
+(deserialized from JSON) and &lt;code&gt;newSpeaker&lt;/code&gt; object (create by calling
+&lt;code&gt;entitymanager.merge()&lt;/code&gt;). The &lt;code&gt;Speaker&lt;/code&gt; &lt;span style="text-decoration: underline;"&gt;Id&lt;/span&gt; got passed in from JSON,
+and has nothing to do with the auto generated primary key &lt;span style="text-decoration: underline;"&gt;Id&lt;/span&gt; within
+our database. After calling &lt;code&gt;entitymanager.merge()&lt;/code&gt; the entity is
+actually associated with a database session and the &lt;span style="text-decoration: underline;"&gt;Id&lt;/span&gt; is
+auto generated.&lt;/p&gt;
+&lt;p&gt;
 So maybe this is basic stuff, but it took me quite a few hours to
-understand what was going on.&lt;/p>
-&lt;p>
-Maybe this is also a bad example. Should one expose the &lt;code>Id&lt;/code> if it is
+understand what was going on.&lt;/p&gt;
+&lt;p&gt;
+Maybe this is also a bad example. Should one expose the &lt;code&gt;Id&lt;/code&gt; if it is
 auto generated and only used internally? Or the code just needs to
-handle that case… But this needs me more learning about API design.&lt;/p>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+handle that case… But this needs me more learning about API design.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

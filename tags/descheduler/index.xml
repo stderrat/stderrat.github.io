@@ -1,238 +1,238 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Descheduler on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/descheduler/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 26 Aug 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/descheduler/index.xml" rel="self" type="application/rss+xml"/><item><title>Pod Placement</title><link>https://blog.stderr.at/day-2/pod-placement/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/pod-placement/</guid><description/></item><item><title>Using Descheduler</title><link>https://blog.stderr.at/day-2/pod-placement/2021-09-01-descheduler/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/pod-placement/2021-09-01-descheduler/</guid><description>&lt;div class="paragraph">
-&lt;p>&lt;strong>Descheduler&lt;/strong> is a new feature which is GA since OpenShift 4.7. It can be used to evict pods from nodes based on specific strategies. The evicted pod is then scheduled on another node (by the Scheduler) which is more suitable.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This feature can be used when:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>nodes are under/over-utilized&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>pod or node affinity, taints or labels have changed and are no longer valid for a running pod&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>node failures&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>pods have been restarted too many times&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_pod_placement_series">Pod Placement Series&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Please check out other ways of pod placements:&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;div class="expand">
-&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
-&lt;i style="font-size:x-small;" class="fas fa-chevron-right">&lt;/i>
-&lt;span>
-&lt;a>Expand me...&lt;/a>
-&lt;/span>
-&lt;/div>
-&lt;div class="expand-content" style="display: none;">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-nodeselector/">NodeSelector&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-node-affinity/">Node Affinity&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/day-2/descheduler/">Descheduler&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_descheduler_profiles">Descheduler Profiles&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following descheduler profiles are known and one or multiple can be configured for the Descheduler. Each profiles enables certain strategies which the Descheduler is leveraging.
-Since the strategies names are more or less self explaining, I did not add their full description here. Instead detailed information can be found at: &lt;a href="https://docs.openshift.com/container-platform/4.8/nodes/scheduling/nodes-descheduler.html#nodes-descheduler-profiles_nodes-descheduler" target="_blank" rel="noopener">Descheduler Profiles&lt;/a>&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;code>AffinityAndTaints&lt;/code> - removes pods that violates affinity and anti-affinity rules or taints&lt;/p>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>RemovePodsViolatingInterPodAntiAffinity&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>RemovePodsViolatingNodeAffinity&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>RemovePodsViolatingNodeTaints&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;code>TopologyAndDuplicates&lt;/code> - evicts pods which are not evenly spreaded or which are violating the topology domain&lt;/p>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>RemovePodsViolatingTopologySpreadConstraint&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>RemoveDuplicates&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;code>LifecycleAndUtilization&lt;/code> - evicts long-running pods to balance resource usage of nodes&lt;/p>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>RemovePodsHavingTooManyRestarts - Pods that are restarted more than 100 times&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>LowNodeUtilization - removes pods from overutilized nodes.&lt;/p>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>A node is considered underutilized if its usage is below 20% for all thresholds (CPU, memory, and number of pods).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>A node is considered overutilized if its usage is above 50% for any of the thresholds (CPU, memory, and number of pods).&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>PodLifeTime - evicts pods that are too old&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_descheduler_mechanism">Descheduler mechanism&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following rules are followed by the Descheduler to ensure that eviction of pods does not go wild. Therefore the following pods will never be evicted:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>pods in openshift-* or kube-system namespaces&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>pods with priorityClassName equal to &lt;code>system-cluster-critical&lt;/code> or &lt;code>system-node-critical&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>pods which cannot be recreated, for example: static or stand-alone pods/jobs or pods without a replication controller or replica set&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>pods of a daemon set&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>pods with local storage&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>pods which are violating the pod disruption budget&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_installing_the_descheduler">Installing the Descheduler&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The Descheduler is not installed by default and must be installed after the cluster has been initiated. This is done by installed the &lt;strong>Kube Descheduler&lt;/strong> Operator.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>First we create a separate namespace for our operator, including a label:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc adm new-project openshift-kube-descheduler-operator
-oc label ns/openshift-kube-descheduler-operator openshift.io/cluster-monitoring=true&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Then we search for the &lt;strong>Kube Descheduler&lt;/strong> operator and install it, using the newly created namespace:&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/day-2/images/descheduler-install.png?height=400px" alt="Install Descheduler Operator"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Install Descheduler Operator&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>After a few moments the operator will be installed.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>You can now create a Descheduler instance either via UI (wizard) or by using the following specification:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: operator.openshift.io/v1
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Descheduler on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/descheduler/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 26 Aug 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/descheduler/index.xml" rel="self" type="application/rss+xml"/><item><title>Pod Placement</title><link>https://blog.stderr.at/day-2/pod-placement/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/pod-placement/</guid><description/></item><item><title>Using Descheduler</title><link>https://blog.stderr.at/day-2/pod-placement/2021-09-01-descheduler/</link><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/pod-placement/2021-09-01-descheduler/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Descheduler&lt;/strong&gt; is a new feature which is GA since OpenShift 4.7. It can be used to evict pods from nodes based on specific strategies. The evicted pod is then scheduled on another node (by the Scheduler) which is more suitable.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This feature can be used when:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;nodes are under/over-utilized&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;pod or node affinity, taints or labels have changed and are no longer valid for a running pod&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;node failures&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;pods have been restarted too many times&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_pod_placement_series"&gt;Pod Placement Series&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Please check out other ways of pod placements:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;div class="expand"&gt;
+&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});"&gt;
+&lt;i style="font-size:x-small;" class="fas fa-chevron-right"&gt;&lt;/i&gt;
+&lt;span&gt;
+&lt;a&gt;Expand me...&lt;/a&gt;
+&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class="expand-content" style="display: none;"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-nodeselector/"&gt;NodeSelector&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-pod-affinity/"&gt;Pod Affinity and Anti Affinity&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-node-affinity/"&gt;Node Affinity&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-taints-and-tolerations"&gt;Taints and Tolerations&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/pod-placement-topology-spread-constraints/"&gt;Topology Spread Constraints&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/day-2/descheduler/"&gt;Descheduler&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_descheduler_profiles"&gt;Descheduler Profiles&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following descheduler profiles are known and one or multiple can be configured for the Descheduler. Each profiles enables certain strategies which the Descheduler is leveraging.
+Since the strategies names are more or less self explaining, I did not add their full description here. Instead detailed information can be found at: &lt;a href="https://docs.openshift.com/container-platform/4.8/nodes/scheduling/nodes-descheduler.html#nodes-descheduler-profiles_nodes-descheduler" target="_blank" rel="noopener"&gt;Descheduler Profiles&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;AffinityAndTaints&lt;/code&gt; - removes pods that violates affinity and anti-affinity rules or taints&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;RemovePodsViolatingInterPodAntiAffinity&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;RemovePodsViolatingNodeAffinity&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;RemovePodsViolatingNodeTaints&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;TopologyAndDuplicates&lt;/code&gt; - evicts pods which are not evenly spreaded or which are violating the topology domain&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;RemovePodsViolatingTopologySpreadConstraint&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;RemoveDuplicates&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;LifecycleAndUtilization&lt;/code&gt; - evicts long-running pods to balance resource usage of nodes&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;RemovePodsHavingTooManyRestarts - Pods that are restarted more than 100 times&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;LowNodeUtilization - removes pods from overutilized nodes.&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;A node is considered underutilized if its usage is below 20% for all thresholds (CPU, memory, and number of pods).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A node is considered overutilized if its usage is above 50% for any of the thresholds (CPU, memory, and number of pods).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;PodLifeTime - evicts pods that are too old&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_descheduler_mechanism"&gt;Descheduler mechanism&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following rules are followed by the Descheduler to ensure that eviction of pods does not go wild. Therefore the following pods will never be evicted:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;pods in openshift-* or kube-system namespaces&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;pods with priorityClassName equal to &lt;code&gt;system-cluster-critical&lt;/code&gt; or &lt;code&gt;system-node-critical&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;pods which cannot be recreated, for example: static or stand-alone pods/jobs or pods without a replication controller or replica set&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;pods of a daemon set&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;pods with local storage&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;pods which are violating the pod disruption budget&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_installing_the_descheduler"&gt;Installing the Descheduler&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Descheduler is not installed by default and must be installed after the cluster has been initiated. This is done by installed the &lt;strong&gt;Kube Descheduler&lt;/strong&gt; Operator.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First we create a separate namespace for our operator, including a label:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc adm new-project openshift-kube-descheduler-operator
+oc label ns/openshift-kube-descheduler-operator openshift.io/cluster-monitoring=true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Then we search for the &lt;strong&gt;Kube Descheduler&lt;/strong&gt; operator and install it, using the newly created namespace:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/day-2/images/descheduler-install.png?height=400px" alt="Install Descheduler Operator"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Install Descheduler Operator&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After a few moments the operator will be installed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can now create a Descheduler instance either via UI (wizard) or by using the following specification:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: operator.openshift.io/v1
 kind: KubeDescheduler
 metadata:
 name: cluster
 namespace: openshift-kube-descheduler-operator
 spec:
-deschedulingIntervalSeconds: 3600 &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-logLevel: Normal &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+deschedulingIntervalSeconds: 3600 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+logLevel: Normal &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 managementState: Managed
-operatorLogLevel: Normal &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-profiles: &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>
+operatorLogLevel: Normal &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+profiles: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 - AffinityAndTaints
 - TopologyAndDuplicates
-- LifecycleAndUtilization&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Defines the time interval the descheduler is running. Default is 3600 seconds&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Defines logging for overall component. Can be Normal, Debug, Trace or TraceAll&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Defines logging for the operator itself. Can be Normal, Debug, Trace or TraceAll&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Enables on or multiple profiles the Descheduler should consider&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
-&lt;h1 class="blog-title gradient-header">Welcome to Yet Another Useless Blog&lt;/h1>
-&lt;p>Well we hope the articles here are not totally useless :)&lt;/p>
-&lt;p>Who are we, you might ask.
-We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p>
-&lt;p>The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p>
-&lt;p>If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" >GitHub issue&lt;/a>&lt;/p></description></item></channel></rss>
+- LifecycleAndUtilization&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Defines the time interval the descheduler is running. Default is 3600 seconds&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Defines logging for overall component. Can be Normal, Debug, Trace or TraceAll&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Defines logging for the operator itself. Can be Normal, Debug, Trace or TraceAll&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enables on or multiple profiles the Descheduler should consider&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>
+&lt;h1 class="blog-title gradient-header"&gt;Welcome to Yet Another Useless Blog&lt;/h1&gt;
+&lt;p&gt;Well we hope the articles here are not totally useless :)&lt;/p&gt;
+&lt;p&gt;Who are we, you might ask.
+We (Thomas Jungbauer and Toni Schmidbauer) are two old IT guys, working in the business since more than 20 years. At the moment we are architects at Red Hat Austria, mainly responsible helping customers with OpenShift or Ansible architectures. &lt;/p&gt;
+&lt;p&gt;The articles in this blog shall help to easily test and understand specific issues so they can be reproduced and tested. We simply wrote down what we saw in the field and of what we thought it might be helpful, so no frustrating searches in documentations or manual testing is required. &lt;/p&gt;
+&lt;p&gt;If you have any question, please feel free to send us an e-mail or create a &lt;a href="https://github.com/stderrat/stderrat.github.io/issues" &gt;GitHub issue&lt;/a&gt;&lt;/p&gt;</description></item></channel></rss>

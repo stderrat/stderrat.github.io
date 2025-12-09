@@ -1,290 +1,290 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Sigstore on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/sigstore/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/sigstore/index.xml" rel="self" type="application/rss+xml"/><item><title>Introduction to a Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</guid><description>&lt;div class="paragraph">
-&lt;p>The goal of the following (&amp;#34;short&amp;#34;) series is to build a secure CI/CD pipeline step by step using OpenShift Pipelines (based on Tekton).
-The whole build process shall pull and build an image, upload it to a development environment and subsequently update the production environment.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The main focus here is security. Several steps and tools shall help to build and deploy a &lt;strong>Secure Supply Chain&lt;/strong>.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The whole process is part of a Red Hat workshop which can present to your organization. I did some tweaks and created a step-by-step plan in order
-to remember it …​ since I am getting old :)&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_the_journey_to_secure_supply_chain">The Journey to Secure Supply Chain&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>This series includes the following articles:&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step1/">Listen to Events&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step2/">Pipelines&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step3/">SonarQube&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step4/">Verify Git Commit&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step5/">Build and Sign Image&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step6/">Scanning with ACS&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step7/">Generating a SBOM&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step8/">Updating Kubernetes Manifests&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step9/">Linting Kubernetes Manifests&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step10/">The Example Application&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step11/">ACS Deployment Check&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step12/">Verify TLOG Signature&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step13/">Bring it to Production&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>In order to develop our Secure Supply Chain, we need an &lt;strong>OpenShift 4 Cluster&lt;/strong>. I am currently using OpenShift 4.13.
-Moreover, the &lt;strong>OpenShift Pipelines&lt;/strong> operator must be deployed. It is based on &lt;a href="https://tekton.dev/" target="_blank" rel="noopener">Tekton&lt;/a> and provides a Kubernetes-native way to create CI/CD pipelines.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The operator is deployed using the Operator Hub inside your cluster. Simply search for OpenShift Pipelines and install the operator using the default settings.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/intro-install_Tekton_Operator.png?width=220px" alt="OpenShift Pipelines"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Install OpenShift Pipelines&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Finally, you will need a GitHub account to be able to fork some repositories.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Sigstore on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/sigstore/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/sigstore/index.xml" rel="self" type="application/rss+xml"/><item><title>Introduction to a Secure Supply Chain</title><link>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;The goal of the following (&amp;#34;short&amp;#34;) series is to build a secure CI/CD pipeline step by step using OpenShift Pipelines (based on Tekton).
+The whole build process shall pull and build an image, upload it to a development environment and subsequently update the production environment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The main focus here is security. Several steps and tools shall help to build and deploy a &lt;strong&gt;Secure Supply Chain&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The whole process is part of a Red Hat workshop which can present to your organization. I did some tweaks and created a step-by-step plan in order
+to remember it …​ since I am getting old :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_journey_to_secure_supply_chain"&gt;The Journey to Secure Supply Chain&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This series includes the following articles:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step1/"&gt;Listen to Events&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step2/"&gt;Pipelines&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step3/"&gt;SonarQube&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step4/"&gt;Verify Git Commit&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step5/"&gt;Build and Sign Image&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step6/"&gt;Scanning with ACS&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step7/"&gt;Generating a SBOM&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step8/"&gt;Updating Kubernetes Manifests&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step9/"&gt;Linting Kubernetes Manifests&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step10/"&gt;The Example Application&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step11/"&gt;ACS Deployment Check&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step12/"&gt;Verify TLOG Signature&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift/securesupplychain/step13/"&gt;Bring it to Production&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In order to develop our Secure Supply Chain, we need an &lt;strong&gt;OpenShift 4 Cluster&lt;/strong&gt;. I am currently using OpenShift 4.13.
+Moreover, the &lt;strong&gt;OpenShift Pipelines&lt;/strong&gt; operator must be deployed. It is based on &lt;a href="https://tekton.dev/" target="_blank" rel="noopener"&gt;Tekton&lt;/a&gt; and provides a Kubernetes-native way to create CI/CD pipelines.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The operator is deployed using the Operator Hub inside your cluster. Simply search for OpenShift Pipelines and install the operator using the default settings.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/intro-install_Tekton_Operator.png?width=220px" alt="OpenShift Pipelines"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Install OpenShift Pipelines&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, you will need a GitHub account to be able to fork some repositories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Some steps in the pipeline are working tightly with GitHub, especially the very last one that is talking GitHub’s API. However, any Git-system should work, and probably just minor changes will be required.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Everything else will be installed during the different steps described in the upcoming articles, while we build and tweak our pipeline.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Remember, the big goal of our pipeline is NOT to simply pull, build and push our code, but to integrate certain security tools like code scanning, image scanning and linting.
-Otherwise, it would be boring.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_used_tools">Used Tools&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following list of tools (or specifications) are used for our pipeline. They will be deployed when the appropriate step requires it.&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>&lt;a href="https://docs.openshift.com/acs/4.1/welcome/index.html" target="_blank" rel="noopener">Advanced Cluster Security&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.openshift.com/acs/4.1/cli/getting-started-cli.html" target="_blank" rel="noopener">roxctl&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://www.sonarsource.com/products/sonarqube/" target="_blank" rel="noopener">SonarQube&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://www.redhat.com/en/technologies/cloud-computing/quay" target="_blank" rel="noopener">Quay - quay.io as public registry&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener">CoSign (sigstore)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.sigstore.dev/rekor/overview/" target="_blank" rel="noopener">Rekor (sigstore)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://cyclonedx.org/capabilities/sbom/" target="_blank" rel="noopener">Software Bill of Material (SBOM)&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://docs.kubelinter.io/#/" target="_blank" rel="noopener">KubeLinter&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://kube-score.com/" target="_blank" rel="noopener">KubeScore&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://github.com/adrienverge/yamllint" target="_blank" rel="noopener">YamlLint&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;a href="https://github.com/looztra/kubesplit" target="_blank" rel="noopener">kubesplit&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item><item><title>Step 5 - Build and Sign Image</title><link>https://blog.stderr.at/securesupplychain/2023-06-20-securesupplychain-step5/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-20-securesupplychain-step5/</guid><description>&lt;div class="paragraph">
-&lt;p>Finally, after pulling and checking the code, we are going to create the image. During this process the image will be signed and uploaded to the public registry &lt;a href="https://quay.io" target="_blank" rel="noopener">Quay.io&lt;/a>.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_goals">Goals&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The goals of this step are:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Build the image&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Sign the image&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Upload it Quay.io&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Everything else will be installed during the different steps described in the upcoming articles, while we build and tweak our pipeline.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Remember, the big goal of our pipeline is NOT to simply pull, build and push our code, but to integrate certain security tools like code scanning, image scanning and linting.
+Otherwise, it would be boring.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_used_tools"&gt;Used Tools&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following list of tools (or specifications) are used for our pipeline. They will be deployed when the appropriate step requires it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.openshift.com/acs/4.1/welcome/index.html" target="_blank" rel="noopener"&gt;Advanced Cluster Security&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.openshift.com/acs/4.1/cli/getting-started-cli.html" target="_blank" rel="noopener"&gt;roxctl&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://www.sonarsource.com/products/sonarqube/" target="_blank" rel="noopener"&gt;SonarQube&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://www.redhat.com/en/technologies/cloud-computing/quay" target="_blank" rel="noopener"&gt;Quay - quay.io as public registry&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener"&gt;CoSign (sigstore)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.sigstore.dev/rekor/overview/" target="_blank" rel="noopener"&gt;Rekor (sigstore)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://cyclonedx.org/capabilities/sbom/" target="_blank" rel="noopener"&gt;Software Bill of Material (SBOM)&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.kubelinter.io/#/" target="_blank" rel="noopener"&gt;KubeLinter&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://kube-score.com/" target="_blank" rel="noopener"&gt;KubeScore&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/adrienverge/yamllint" target="_blank" rel="noopener"&gt;YamlLint&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/looztra/kubesplit" target="_blank" rel="noopener"&gt;kubesplit&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Step 5 - Build and Sign Image</title><link>https://blog.stderr.at/securesupplychain/2023-06-20-securesupplychain-step5/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-20-securesupplychain-step5/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, after pulling and checking the code, we are going to create the image. During this process the image will be signed and uploaded to the public registry &lt;a href="https://quay.io" target="_blank" rel="noopener"&gt;Quay.io&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_goals"&gt;Goals&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The goals of this step are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Build the image&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Sign the image&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Upload it Quay.io&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 You can use any registry you like.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>You need to have an account in Quay.io and create a repository there.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>I have created the repository &lt;a href="https://quay.io/repository/tjungbau/secure-supply-chain-demo" class="bare">https://quay.io/repository/tjungbau/secure-supply-chain-demo&lt;/a> which will contain the images and the signatures.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_steps">Steps&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Create a Robot account in Quay.io and get the authentication json. Go to &amp;#34;Account Settings &amp;gt; Robot Accounts&amp;#34; and create a new account.&lt;/p>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step5-quay_robot_account.png?width=600px" alt="Quay Robot Account"/>
-&lt;/div>
-&lt;div class="title">Figure 1. Quay Robot Account&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Allow this account WRITE permissions to the repository&lt;/p>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step5-quay_robot_account_perms.png?width=600px" alt="Quay Robot Account Permissions"/>
-&lt;/div>
-&lt;div class="title">Figure 2. Quay Robot Account Permissions&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Select the just-created account and go to Kubernetes Secret.&lt;/p>
-&lt;div class="paragraph">
-&lt;p>Here you can view or download the Secret. It should look like the following:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: v1
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;You need to have an account in Quay.io and create a repository there.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I have created the repository &lt;a href="https://quay.io/repository/tjungbau/secure-supply-chain-demo" class="bare"&gt;https://quay.io/repository/tjungbau/secure-supply-chain-demo&lt;/a&gt; which will contain the images and the signatures.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_steps"&gt;Steps&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a Robot account in Quay.io and get the authentication json. Go to &amp;#34;Account Settings &amp;gt; Robot Accounts&amp;#34; and create a new account.&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step5-quay_robot_account.png?width=600px" alt="Quay Robot Account"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Quay Robot Account&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Allow this account WRITE permissions to the repository&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step5-quay_robot_account_perms.png?width=600px" alt="Quay Robot Account Permissions"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. Quay Robot Account Permissions&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select the just-created account and go to Kubernetes Secret.&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here you can view or download the Secret. It should look like the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: v1
 kind: Secret
 metadata:
 name: tjungbau-secure-supply-chain-demo-pull-secret
 data:
 .dockerconfigjson: &amp;lt;SECURE&amp;gt;
-type: kubernetes.io/dockerconfigjson&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Copy the content and store it in your &lt;strong>ci&lt;/strong> Namespace.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+type: kubernetes.io/dockerconfigjson&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Copy the content and store it in your &lt;strong&gt;ci&lt;/strong&gt; Namespace.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 The name will be probably different in other examples.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>To be able for the ServiceAccount, which is executing the Pipelines, to use this Secret, we need to modify the ServiceAccount object.&lt;/p>
-&lt;div class="paragraph">
-&lt;p>In our case the ServiceAccount is called &lt;strong>pipeline&lt;/strong>. Modify it and add the following lines:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">secrets:
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;To be able for the ServiceAccount, which is executing the Pipelines, to use this Secret, we need to modify the ServiceAccount object.&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In our case the ServiceAccount is called &lt;strong&gt;pipeline&lt;/strong&gt;. Modify it and add the following lines:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;secrets:
 ...
-- name: tjungbau-secure-supply-chain-demo-pull-secret &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+- name: tjungbau-secure-supply-chain-demo-pull-secret &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 imagePullSecrets:
-- name: tjungbau-secure-supply-chain-demo-pull-secret &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Use your appropriate name for the secret&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Use your appropriate name for the secret, required to be able to sign the image&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Update the Pipeline object and add the following block&lt;/p>
-&lt;div class="paragraph">
-&lt;p>This time we do not need to add a Task object, because we are using a ClusterTask &amp;#34;buildah&amp;#34; that takes care of the building process. As workspace &amp;#34;shared-data&amp;#34; is used again, which has all the source code stored:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> - name: build-sign-image
+- name: tjungbau-secure-supply-chain-demo-pull-secret &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Use your appropriate name for the secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Use your appropriate name for the secret, required to be able to sign the image&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Update the Pipeline object and add the following block&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This time we do not need to add a Task object, because we are using a ClusterTask &amp;#34;buildah&amp;#34; that takes care of the building process. As workspace &amp;#34;shared-data&amp;#34; is used again, which has all the source code stored:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; - name: build-sign-image
 params:
 - name: TLSVERIFY
 value: $(params.TLSVERIFY)
@@ -307,211 +307,211 @@ kind: ClusterTask
 name: buildah
 workspaces:
 - name: source
-workspace: shared-data&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Update the TriggerBinding &lt;strong>globex-ui&lt;/strong> and define the URL for your registry respectively for your image repository&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">spec:
+workspace: shared-data&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Update the TriggerBinding &lt;strong&gt;globex-ui&lt;/strong&gt; and define the URL for your registry respectively for your image repository&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;spec:
 parameters:
 - name: imageRepo
-value: quay.io/tjungbau/secure-supply-chain-demo&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+value: quay.io/tjungbau/secure-supply-chain-demo&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 With this configuration, we could already build the image and push it into the registry. However, we also would like to sign it.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prepare_tekton_for_image_signing">Prepare Tekton for Image Signing&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>To automatically sign images, we use &lt;a href="https://github.com/tektoncd/chains" target="_blank" rel="noopener">TektonChains&lt;/a> which is a controller that allows you to manage your supply chain security by signing TaskRuns and/or OCI images. Once the build-Task has pushed the images to Quay, Tekton will detect this event (by monitoring specific values of Task results) and then creates and pushes the signature for that image.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>By default, Tekton Chains observes all task run executions. When the task runs complete, Tekton Chains signs and stores all artefacts.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Tekton Chain is part of OpenShift Pipelines and has the following main features:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>You can sign task runs, task run results, and OCI registry images with cryptographic keys that are generated by tools such as cosign and skopeo.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>You can use attestation formats such as &lt;a href="https://github.com/in-toto/attestation/tree/v0.1.0/spec" target="_blank" rel="noopener">in-toto&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>You can securely store signatures and signed artefacts using OCI repository as a storage backend.&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>In our case, we will use &lt;a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener">CoSign&lt;/a> for signing the images and &lt;a href="https://docs.sigstore.dev/rekor/overview/" target="_blank" rel="noopener">Rekor&lt;/a> for the attestation.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To activate image signing add the following to the TektonConfig object by removing the &amp;#34;chain{}&amp;#34; entry.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> chain:
-artifacts.oci.storage: oci &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-artifacts.taskrun.format: in-toto &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
-artifacts.taskrun.storage: oci &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
-transparency.enabled: true &lt;i class="conum" data-value="4">&lt;/i>&lt;b>(4)&lt;/b>&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>The storage backend for storing OCI signatures.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>The format for storing TaskRun payloads. Can be in-toto or slsa/v1.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>The storage backend for TaskRun signatures. Multiple can be defined.&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="4">&lt;/i>&lt;b>4&lt;/b>&lt;/td>
-&lt;td>Enable or disable automatic binary transparency uploads. The URL for uploading binary transparency attestations is &lt;a href="https://rekor.sigstore.dev" class="bare">https://rekor.sigstore.dev&lt;/a> by default.&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-More details can be found at &lt;a href="https://docs.openshift.com/container-platform/4.13/cicd/pipelines/using-tekton-chains-for-openshift-pipelines-supply-chain-security.html" class="bare">https://docs.openshift.com/container-platform/4.13/cicd/pipelines/using-tekton-chains-for-openshift-pipelines-supply-chain-security.html&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_cosign_signing_the_image">CoSign - Signing the Image&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>We will use &lt;a href="https://github.com/sigstore/cosign" target="_blank" rel="noopener">CoSign&lt;/a> to sign our image. To do so we need to download the cosign binary and generate a key pair:&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prepare_tekton_for_image_signing"&gt;Prepare Tekton for Image Signing&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To automatically sign images, we use &lt;a href="https://github.com/tektoncd/chains" target="_blank" rel="noopener"&gt;TektonChains&lt;/a&gt; which is a controller that allows you to manage your supply chain security by signing TaskRuns and/or OCI images. Once the build-Task has pushed the images to Quay, Tekton will detect this event (by monitoring specific values of Task results) and then creates and pushes the signature for that image.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By default, Tekton Chains observes all task run executions. When the task runs complete, Tekton Chains signs and stores all artefacts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tekton Chain is part of OpenShift Pipelines and has the following main features:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;You can sign task runs, task run results, and OCI registry images with cryptographic keys that are generated by tools such as cosign and skopeo.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You can use attestation formats such as &lt;a href="https://github.com/in-toto/attestation/tree/v0.1.0/spec" target="_blank" rel="noopener"&gt;in-toto&lt;/a&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You can securely store signatures and signed artefacts using OCI repository as a storage backend.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In our case, we will use &lt;a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener"&gt;CoSign&lt;/a&gt; for signing the images and &lt;a href="https://docs.sigstore.dev/rekor/overview/" target="_blank" rel="noopener"&gt;Rekor&lt;/a&gt; for the attestation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To activate image signing add the following to the TektonConfig object by removing the &amp;#34;chain{}&amp;#34; entry.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; chain:
+artifacts.oci.storage: oci &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+artifacts.taskrun.format: in-toto &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+artifacts.taskrun.storage: oci &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+transparency.enabled: true &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The storage backend for storing OCI signatures.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The format for storing TaskRun payloads. Can be in-toto or slsa/v1.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The storage backend for TaskRun signatures. Multiple can be defined.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable or disable automatic binary transparency uploads. The URL for uploading binary transparency attestations is &lt;a href="https://rekor.sigstore.dev" class="bare"&gt;https://rekor.sigstore.dev&lt;/a&gt; by default.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+More details can be found at &lt;a href="https://docs.openshift.com/container-platform/4.13/cicd/pipelines/using-tekton-chains-for-openshift-pipelines-supply-chain-security.html" class="bare"&gt;https://docs.openshift.com/container-platform/4.13/cicd/pipelines/using-tekton-chains-for-openshift-pipelines-supply-chain-security.html&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_cosign_signing_the_image"&gt;CoSign - Signing the Image&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will use &lt;a href="https://github.com/sigstore/cosign" target="_blank" rel="noopener"&gt;CoSign&lt;/a&gt; to sign our image. To do so we need to download the cosign binary and generate a key pair:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Be sure that you are logged into the OpenShift cluster.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cosign generate-key-pair k8s://openshift-pipelines/signing-secrets&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">Enter password for private key:
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;cosign generate-key-pair k8s://openshift-pipelines/signing-secrets&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;Enter password for private key:
 Enter password for private key again:
 Successfully created secret signing-secrets in namespace openshift-pipelines
 oc get secrets signing-secrets -n openshift-pipelines
 NAME TYPE DATA AGE
-signing-secrets Opaque 3 46h&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Cosign will ask you to enter a password and will then create a Kubernetes secret in the Namespace openshift-pipelines.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>When OpenShift Pipelines now execute a Task that is pushing an image, this Secret will be used to sign the image.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Let’s update our source code. The image will be built and pushed into Quay. The small black shield indicates that this image has been signed.&lt;/p>
-&lt;/div>
-&lt;div class="imageblock">
-&lt;div class="content">
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step5-signed_image.png?width=600px" alt="Quay Signed Image"/>
-&lt;/div>
-&lt;div class="title">Figure 3. Quay Signed Image&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Besides the actual image the files: *.sig and *.att can be seen. The first one is the signature, the second one shows metadata about the attestation retrieved from Rekor which can be compared with the Rekor URL.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_rekor">Rekor&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>&lt;em>Rekor’s goals are to provide an immutable tamper resistant ledger of metadata generated within a software projects supply chain. Rekor will enable software maintainers and build systems to record signed metadata to an immutable record. Other parties can then query said metadata to enable them to make informed decisions on trust and non-repudiation of an object’s lifecycle. For more details visit the sigstore website.&lt;/em>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>&lt;em>The Rekor project provides a restful API based server for validation and a transparency log for storage. A CLI application is available to make and verify entries, query the transparency log for inclusion proof, integrity verification of the transparency log or retrieval of entries by either public key or artifact.&lt;/em> &lt;a href="https://github.com/sigstore/rekor" target="_blank" rel="noopener">Rekor Git&lt;/a>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>An important feature of Tekton Chains is that it integrates seamlessly with an application called &lt;strong>Rekor&lt;/strong>. The configuration &lt;code>transparency.enabled: true&lt;/code> enables the call to the Rekor API that can be found by default at: &lt;a href="https://rekor.sigstore.dev" class="bare">https://rekor.sigstore.dev&lt;/a>. This will create a transparency log which can be used for verification purposes later.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
-Of course, it would be possible to install your own server. Learn in the official &lt;a href="https://docs.sigstore.dev/rekor/installation/" target="_blank" rel="noopener">Docs&lt;/a> how this can be achieved.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This means every time our build-Tasks successfully completes a URL to the transparency logs will be attached to the Task.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>After our PipelineRuns were successful, we can verify if the image has an entry in the Rekor transparency log. This is important to ensure that the image went through a valid signing process. At a later step (before we create the pull request for the production update) we will verify if the log exists.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The following annotations should have been added to the TaskRun or PipelineRun secure-supply-chain-XXX-build-sign-image automatically:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">metadata:
+signing-secrets Opaque 3 46h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Cosign will ask you to enter a password and will then create a Kubernetes secret in the Namespace openshift-pipelines.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When OpenShift Pipelines now execute a Task that is pushing an image, this Secret will be used to sign the image.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s update our source code. The image will be built and pushed into Quay. The small black shield indicates that this image has been signed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/securesupplychain/images/step5-signed_image.png?width=600px" alt="Quay Signed Image"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. Quay Signed Image&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Besides the actual image the files: *.sig and *.att can be seen. The first one is the signature, the second one shows metadata about the attestation retrieved from Rekor which can be compared with the Rekor URL.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_rekor"&gt;Rekor&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;Rekor’s goals are to provide an immutable tamper resistant ledger of metadata generated within a software projects supply chain. Rekor will enable software maintainers and build systems to record signed metadata to an immutable record. Other parties can then query said metadata to enable them to make informed decisions on trust and non-repudiation of an object’s lifecycle. For more details visit the sigstore website.&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;The Rekor project provides a restful API based server for validation and a transparency log for storage. A CLI application is available to make and verify entries, query the transparency log for inclusion proof, integrity verification of the transparency log or retrieval of entries by either public key or artifact.&lt;/em&gt; &lt;a href="https://github.com/sigstore/rekor" target="_blank" rel="noopener"&gt;Rekor Git&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;An important feature of Tekton Chains is that it integrates seamlessly with an application called &lt;strong&gt;Rekor&lt;/strong&gt;. The configuration &lt;code&gt;transparency.enabled: true&lt;/code&gt; enables the call to the Rekor API that can be found by default at: &lt;a href="https://rekor.sigstore.dev" class="bare"&gt;https://rekor.sigstore.dev&lt;/a&gt;. This will create a transparency log which can be used for verification purposes later.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Of course, it would be possible to install your own server. Learn in the official &lt;a href="https://docs.sigstore.dev/rekor/installation/" target="_blank" rel="noopener"&gt;Docs&lt;/a&gt; how this can be achieved.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This means every time our build-Tasks successfully completes a URL to the transparency logs will be attached to the Task.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After our PipelineRuns were successful, we can verify if the image has an entry in the Rekor transparency log. This is important to ensure that the image went through a valid signing process. At a later step (before we create the pull request for the production update) we will verify if the log exists.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following annotations should have been added to the TaskRun or PipelineRun secure-supply-chain-XXX-build-sign-image automatically:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;metadata:
 annotations:
 chains.tekton.dev/signed: &amp;#39;true&amp;#39;
-chains.tekton.dev/transparency: &amp;#39;https://rekor.sigstore.dev/api/v1/log/entries?logIndex=25593495&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This created the following transparency logs:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-json" data-lang="json">{
+chains.tekton.dev/transparency: &amp;#39;https://rekor.sigstore.dev/api/v1/log/entries?logIndex=25593495&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This created the following transparency logs:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-json" data-lang="json"&gt;{
 &amp;#34;24296fb24b8ad77a7ae84f4b950336d1872a066aeb9463dfbc231a7d3b73dd040dd5faefb3c013a7&amp;#34;: {
 &amp;#34;body&amp;#34;: &amp;#34;eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiaGFzaGVkcmVrb3JkIiwic3BlYyI6eyJkYXRhIjp7Imhhc2giOnsiYWxnb3JpdGhtIjoic2hhMjU2IiwidmFsdWUiOiJmYzE2ODM3Mzc1ODUyNjc0MTQ4MjIyMDJhMWU2Y2RkZDkxNWI4NWUzYzhhNDVhZmI0YzEyYmE2YmNhMGNmNDQyIn19LCJzaWduYXR1cmUiOnsiY29udGVudCI6Ik1FWUNJUUNRMnlnU2ZGTllHS2pzbXRIYjVielAwdlRNMFgyNHVlNXlKbjJxdWFWSyt3SWhBSmhoSWpweEFybDJERjFsVmpMT0ZzVnRhMzJmbXJXRmxXWkdRQ015b2xrayIsInB1YmxpY0tleSI6eyJjb250ZW50IjoiTFMwdExTMUNSVWRKVGlCUVZVSk1TVU1nUzBWWkxTMHRMUzBLVFVacmQwVjNXVWhMYjFwSmVtb3dRMEZSV1VsTGIxcEplbW93UkVGUlkwUlJaMEZGVEc0clduaENNMHNyS3pWSk1pOWlNWFJqVFVKcVZXODRjWGx6YVFwNlQzUlpVbGRQUTBwTVRWQlNWVGR4WTFJeVMyWlZZazAzYlVwUlNtbHZjbXR6VW1KUmNHMTBTekV4WjJNM1pIVkZObGg0WmxOdlpWUkJQVDBLTFMwdExTMUZUa1FnVUZWQ1RFbERJRXRGV1MwdExTMHRDZz09In19fX0=&amp;#34;,
 &amp;#34;integratedTime&amp;#34;: 1688060588,
@@ -550,16 +550,16 @@ chains.tekton.dev/transparency: &amp;#39;https://rekor.sigstore.dev/api/v1/log/e
 &amp;#34;signedEntryTimestamp&amp;#34;: &amp;#34;MEYCIQDqmqb4k95FjiBNogOAmjTskkIPaGslgvrSND4pQdUALwIhAMt85yLsa5Ei+3NsmJ906/T9Hx1YZDDHQfHlTEYqqcaE&amp;#34;
 }
 }
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_summary">Summary&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Finally, we have a signed image uploaded to Quay. In addition, a transparency log has been created. Now let us add some security checks in the next steps.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, we have a signed image uploaded to Quay. In addition, a transparency log has been created. Now let us add some security checks in the next steps.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

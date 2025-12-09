@@ -1,15 +1,15 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>IngressController on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/ingresscontroller/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 12 Jan 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/ingresscontroller/index.xml" rel="self" type="application/rss+xml"/><item><title>Labels &amp; Environments</title><link>https://blog.stderr.at/day-2/labels_environmets/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/labels_environmets/</guid><description/></item><item><title>Working with Environments</title><link>https://blog.stderr.at/day-2/labels_environmets/2022-01-12-creatingenvironment/</link><pubDate>Wed, 12 Jan 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/labels_environmets/2022-01-12-creatingenvironment/</guid><description>&lt;div class="paragraph">
-&lt;p>Imagine you have one OpenShift cluster and you would like to create 2 or more environments inside this cluster, but also separate them and force the environments to specific nodes, or use specific inbound routers. All this can be achieved using labels, IngressControllers and so on. The following article will guide you to set up dedicated compute nodes for infrastructure, development and test environments as well as the creation of IngressController which are bound to the appropriate nodes.&lt;/p>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_prerequisites">Prerequisites&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Before we start we need an OpenShift cluster of course. In this example we have a cluster with typical 3 control plane nodes (labelled as master) and 7 compute nodes (labelled as worker)&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get nodes
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>IngressController on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/ingresscontroller/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 12 Jan 2022 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/ingresscontroller/index.xml" rel="self" type="application/rss+xml"/><item><title>Labels &amp; Environments</title><link>https://blog.stderr.at/day-2/labels_environmets/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/labels_environmets/</guid><description/></item><item><title>Working with Environments</title><link>https://blog.stderr.at/day-2/labels_environmets/2022-01-12-creatingenvironment/</link><pubDate>Wed, 12 Jan 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/labels_environmets/2022-01-12-creatingenvironment/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine you have one OpenShift cluster and you would like to create 2 or more environments inside this cluster, but also separate them and force the environments to specific nodes, or use specific inbound routers. All this can be achieved using labels, IngressControllers and so on. The following article will guide you to set up dedicated compute nodes for infrastructure, development and test environments as well as the creation of IngressController which are bound to the appropriate nodes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start we need an OpenShift cluster of course. In this example we have a cluster with typical 3 control plane nodes (labelled as master) and 7 compute nodes (labelled as worker)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get nodes
 NAME STATUS ROLES AGE VERSION
 ip-10-0-138-104.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
 ip-10-0-149-168.us-east-2.compute.internal Ready worker 13h v1.21.1+6438632 # &amp;lt;-- will become infra
@@ -20,46 +20,46 @@ ip-10-0-188-198.us-east-2.compute.internal Ready worker 13h v1.21.1+6438632 # &a
 ip-10-0-191-9.us-east-2.compute.internal Ready worker 16m v1.21.1+6438632 # &amp;lt;-- will become worker-test
 ip-10-0-192-174.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
 ip-10-0-195-201.us-east-2.compute.internal Ready worker 16m v1.21.1+6438632 # &amp;lt;-- will become worker-dev
-ip-10-0-199-235.us-east-2.compute.internal Ready worker 16m v1.21.1+6438632 # &amp;lt;-- will become worker-dev&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>We will use the 7 nodes to create the environments for:&lt;/p>
-&lt;/div>
-&lt;div class="ulist">
-&lt;ul>
-&lt;li>
-&lt;p>Infrastructure Services (3 nodes) - will be labelled as &lt;code>infra&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Development Environment (2 nodes) - will be labelled as &lt;code>worker-dev&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Test Environment (2 nodes) - will be labelled as &lt;code>worker-test&lt;/code>&lt;/p>
-&lt;/li>
-&lt;/ul>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>To do this, we will label the nodes and create dedicated roles for them.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_create_nodes_labels_and_machineconfigpools">Create Nodes Labels and MachineConfigPools&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Let’s create a maschine config pool for the different environments.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The pool inherits the configuration from &lt;code>worker&lt;/code> nodes by default, which means that any new update on the worker configuration will also update custom labeled nodes.
-Or in other words: it is possible to remove the worker label from the custom pools.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Create the following objects:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"># Infrastructure
+ip-10-0-199-235.us-east-2.compute.internal Ready worker 16m v1.21.1+6438632 # &amp;lt;-- will become worker-dev&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will use the 7 nodes to create the environments for:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Infrastructure Services (3 nodes) - will be labelled as &lt;code&gt;infra&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Development Environment (2 nodes) - will be labelled as &lt;code&gt;worker-dev&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Test Environment (2 nodes) - will be labelled as &lt;code&gt;worker-test&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To do this, we will label the nodes and create dedicated roles for them.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_create_nodes_labels_and_machineconfigpools"&gt;Create Nodes Labels and MachineConfigPools&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s create a maschine config pool for the different environments.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The pool inherits the configuration from &lt;code&gt;worker&lt;/code&gt; nodes by default, which means that any new update on the worker configuration will also update custom labeled nodes.
+Or in other words: it is possible to remove the worker label from the custom pools.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create the following objects:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# Infrastructure
 apiVersion: machineconfiguration.openshift.io/v1
 kind: MachineConfigPool
 metadata:
@@ -67,11 +67,11 @@ name: infra
 spec:
 machineConfigSelector:
 matchExpressions:
-- {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,infra]} &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
-maxUnavailable: 1 &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+- {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,infra]} &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+maxUnavailable: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 nodeSelector:
 matchLabels:
-node-role.kubernetes.io/infra: &amp;#34;&amp;#34; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+node-role.kubernetes.io/infra: &amp;#34;&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 paused: false
 ---
 # Worker-DEV
@@ -98,45 +98,45 @@ matchExpressions:
 - {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,worker-test]}
 nodeSelector:
 matchLabels:
-node-role.kubernetes.io/worker-test: &amp;#34;&amp;#34;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>User worker and infra so that the default worker configuration gets applied during upgrades&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Whenever an update happens, do only 1 at a time&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>This pool is valid for nodes which are labelled as &lt;code>infra&lt;/code>&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Now let’s label our nodes.
-First add the new, additional label:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash"># Add the label &amp;#34;infra&amp;#34;
+node-role.kubernetes.io/worker-test: &amp;#34;&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;User worker and infra so that the default worker configuration gets applied during upgrades&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Whenever an update happens, do only 1 at a time&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This pool is valid for nodes which are labelled as &lt;code&gt;infra&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now let’s label our nodes.
+First add the new, additional label:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;# Add the label &amp;#34;infra&amp;#34;
 oc label node ip-10-0-149-168.us-east-2.compute.internal ip-10-0-154-244.us-east-2.compute.internal ip-10-0-158-44.us-east-2.compute.internal node-role.kubernetes.io/infra=
 # Add the label &amp;#34;worker-dev&amp;#34;
 oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal node-role.kubernetes.io/worker-dev=
 # Add the label &amp;#34;worker-test&amp;#34;
-oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal node-role.kubernetes.io/worker-test=&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will result in:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME STATUS ROLES AGE VERSION
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal node-role.kubernetes.io/worker-test=&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will result in:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;NAME STATUS ROLES AGE VERSION
 ip-10-0-138-104.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
 ip-10-0-149-168.us-east-2.compute.internal Ready infra,worker 13h v1.21.1+6438632
 ip-10-0-154-244.us-east-2.compute.internal Ready infra,worker 20m v1.21.1+6438632
@@ -146,36 +146,36 @@ ip-10-0-188-198.us-east-2.compute.internal Ready worker,worker-test 13h v1.21.1+
 ip-10-0-191-9.us-east-2.compute.internal Ready worker,worker-test 20m v1.21.1+6438632
 ip-10-0-192-174.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
 ip-10-0-195-201.us-east-2.compute.internal Ready worker,worker-dev 20m v1.21.1+6438632
-ip-10-0-199-235.us-east-2.compute.internal Ready worker,worker-dev 20m v1.21.1+6438632&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>We can remove the worker label from the worker-dev and worker-test nodes now.&lt;/p>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+ip-10-0-199-235.us-east-2.compute.internal Ready worker,worker-dev 20m v1.21.1+6438632&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can remove the worker label from the worker-dev and worker-test nodes now.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Keep the label &amp;#34;worker&amp;#34; for the infra nodes as this is the default worker label which is used when no nodeselector is in use. You can use any other node, just keep in mind that per default new applications will be started on nodes with the labels &amp;#34;worker&amp;#34;. As an alternative, you can also define a cluster-wide default node selector.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal node-role.kubernetes.io/worker-
-oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal node-role.kubernetes.io/worker-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The final node labels will look like the following:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME STATUS ROLES AGE VERSION
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal node-role.kubernetes.io/worker-
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal node-role.kubernetes.io/worker-&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The final node labels will look like the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;NAME STATUS ROLES AGE VERSION
 ip-10-0-138-104.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
 ip-10-0-149-168.us-east-2.compute.internal Ready infra,worker 13h v1.21.1+6438632
 ip-10-0-154-244.us-east-2.compute.internal Ready infra,worker 22m v1.21.1+6438632
@@ -185,37 +185,37 @@ ip-10-0-188-198.us-east-2.compute.internal Ready worker-test 13h v1.21.1+6438632
 ip-10-0-191-9.us-east-2.compute.internal Ready worker-test 21m v1.21.1+6438632
 ip-10-0-192-174.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
 ip-10-0-195-201.us-east-2.compute.internal Ready worker-dev 21m v1.21.1+6438632
-ip-10-0-199-235.us-east-2.compute.internal Ready worker-dev 22m v1.21.1+6438632&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock note">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-note" title="Note">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+ip-10-0-199-235.us-east-2.compute.internal Ready worker-dev 22m v1.21.1+6438632&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Since the custom pools (infra, worker-test and worker-dev) inherit their configuration from the default worker pool, no changes on the files on the nodes themselves are triggered at this point.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_create_custom_configuration">Create Custom Configuration&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Let’s test our setup by deploying a configuration on specific nodes. The following MaschineConfig objects will create a file at &lt;strong>/etc/myfile&lt;/strong> on the nodes labelled either &lt;em>infra&lt;/em>, &lt;em>worker-dev&lt;/em> or &lt;em>worker_test&lt;/em>.
-Dependent on the node role the content of the file will vary.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: machineconfiguration.openshift.io/v1
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_create_custom_configuration"&gt;Create Custom Configuration&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s test our setup by deploying a configuration on specific nodes. The following MaschineConfig objects will create a file at &lt;strong&gt;/etc/myfile&lt;/strong&gt; on the nodes labelled either &lt;em&gt;infra&lt;/em&gt;, &lt;em&gt;worker-dev&lt;/em&gt; or &lt;em&gt;worker_test&lt;/em&gt;.
+Dependent on the node role the content of the file will vary.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: machineconfiguration.openshift.io/v1
 kind: MachineConfig
 metadata:
 labels:
-machineconfiguration.openshift.io/role: infra &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+machineconfiguration.openshift.io/role: infra &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 name: 55-infra
 spec:
 config:
@@ -224,10 +224,10 @@ version: 2.2.0
 storage:
 files:
 - contents:
-source: data:,infra &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+source: data:,infra &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 filesystem: root
 mode: 0644
-path: /etc/myfile &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+path: /etc/myfile &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 ---
 apiVersion: machineconfiguration.openshift.io/v1
 kind: MachineConfig
@@ -263,31 +263,31 @@ files:
 source: data:,worker-test
 filesystem: root
 mode: 0644
-path: /etc/myfile&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Valid for node with the role xyz&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Content of the file&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>File to be created&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Since this is a new configuration, all nodes will get reconfigured.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">NAME STATUS ROLES AGE VERSION
+path: /etc/myfile&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Valid for node with the role xyz&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Content of the file&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;File to be created&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since this is a new configuration, all nodes will get reconfigured.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;NAME STATUS ROLES AGE VERSION
 ip-10-0-138-104.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
 ip-10-0-149-168.us-east-2.compute.internal Ready,SchedulingDisabled infra,worker 13h v1.21.1+6438632
 ip-10-0-154-244.us-east-2.compute.internal Ready infra,worker 28m v1.21.1+6438632
@@ -297,15 +297,15 @@ ip-10-0-188-198.us-east-2.compute.internal Ready worker-test 13h v1.21.1+6438632
 ip-10-0-191-9.us-east-2.compute.internal NotReady,SchedulingDisabled worker-test 27m v1.21.1+6438632
 ip-10-0-192-174.us-east-2.compute.internal Ready master 13h v1.21.1+6438632
 ip-10-0-195-201.us-east-2.compute.internal Ready worker-dev 27m v1.21.1+6438632
-ip-10-0-199-235.us-east-2.compute.internal NotReady,SchedulingDisabled worker-dev 28m v1.21.1+6438632&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Wait until all nodes are ready and test the configuration by verifying the content of &lt;em>/etc/myfile&lt;/em>:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">###
+ip-10-0-199-235.us-east-2.compute.internal NotReady,SchedulingDisabled worker-dev 28m v1.21.1+6438632&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Wait until all nodes are ready and test the configuration by verifying the content of &lt;em&gt;/etc/myfile&lt;/em&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;###
 # infra nodes:
 ###
 oc get pods -n openshift-machine-config-operator -l k8s-app=machine-config-daemon --field-selector &amp;#34;spec.nodeName=ip-10-0-149-168.us-east-2.compute.internal&amp;#34;
@@ -334,126 +334,126 @@ machine-config-daemon-m22rf 2/2 Running 6 16h
 # Get file content
 oc rsh -n openshift-machine-config-operator machine-config-daemon-m22rf chroot /rootfs cat /etc/myfile
 Defaulted container &amp;#34;machine-config-daemon&amp;#34; out of: machine-config-daemon, oauth-proxy
-worker-test&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The file /etc/myfile exists on all nodes and depending on their role the files have a different content.&lt;/p>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_bind_an_application_to_a_specific_environment">Bind an Application to a Specific Environment&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>The following will label the nodes with a specific environment and will deploy an example application, which should only be executed on the appropriate nodes.&lt;/p>
-&lt;/div>
-&lt;div class="olist arabic">
-&lt;ol class="arabic">
-&lt;li>
-&lt;p>Let’s label the nodes with &lt;strong>environment=worker-dev&lt;/strong> and &lt;strong>environment=worker-test&lt;/strong>:&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal environment=worker-dev
-oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal environment=worker-test&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Create a namespace for the example application&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc new-project bookinfo&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Create an annotation and a label for the namespace. The annotation will make sure that the application will only be started on nodes with the same label. The label will be later used for the IngressController setup.&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc annotate namespace bookinfo environment=worker-dev
+worker-test&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The file /etc/myfile exists on all nodes and depending on their role the files have a different content.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_bind_an_application_to_a_specific_environment"&gt;Bind an Application to a Specific Environment&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following will label the nodes with a specific environment and will deploy an example application, which should only be executed on the appropriate nodes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Let’s label the nodes with &lt;strong&gt;environment=worker-dev&lt;/strong&gt; and &lt;strong&gt;environment=worker-test&lt;/strong&gt;:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal environment=worker-dev
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal environment=worker-test&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a namespace for the example application&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc new-project bookinfo&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create an annotation and a label for the namespace. The annotation will make sure that the application will only be started on nodes with the same label. The label will be later used for the IngressController setup.&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc annotate namespace bookinfo environment=worker-dev
 oc annotate namespace bookinfo openshift.io/node-selector: environment=worker-test
-oc label namespace bookinfo environment=worker-dev&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;li>
-&lt;p>Deploy the example application. In this article the sample application of Istio was used:&lt;/p>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.11/samples/bookinfo/platform/kube/bookinfo.yaml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
-&lt;/ol>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will start the application on &lt;code>worker-dev`&lt;/code> nodes only, because the annotation in the namespace was created accordingly.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n bookinfo -o wide
+oc label namespace bookinfo environment=worker-dev&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Deploy the example application. In this article the sample application of Istio was used:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.11/samples/bookinfo/platform/kube/bookinfo.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will start the application on &lt;code&gt;worker-dev`&lt;/code&gt; nodes only, because the annotation in the namespace was created accordingly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods -n bookinfo -o wide
 NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
 details-v1-86dfdc4b95-v8zfv 1/1 Running 0 9m19s 10.130.2.17 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 productpage-v1-658849bb5-8gcl7 1/1 Running 0 7m17s 10.128.4.21 ip-10-0-195-201.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 ratings-v1-76b8c9cbf9-cc4js 1/1 Running 0 9m19s 10.130.2.19 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 reviews-v1-58b8568645-mbgth 1/1 Running 0 7m44s 10.128.4.20 ip-10-0-195-201.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 reviews-v2-5d8f8b6775-qkdmz 1/1 Running 0 9m19s 10.130.2.21 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-reviews-v3-666b89cfdf-8zv8w 1/1 Running 0 9m18s 10.130.2.22 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_create_dedicated_ingresscontroller">Create Dedicated IngressController&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>IngressController are responsible to bring the traffic into the cluster. OpenShift comes with one default controller, but it is possible to create more in order to use different domains and separate the incoming traffic to different nodes.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Bind the default ingress controller to the infra labeled nodes, so we can be sure that the default router pods are executed only on these nodes:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch=&amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;nodePlacement&amp;#34;:{&amp;#34;nodeSelector&amp;#34;: {&amp;#34;matchLabels&amp;#34;:{&amp;#34;node-role.kubernetes.io/infra&amp;#34;:&amp;#34;&amp;#34;}}}}}&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>The pods will get restarted, to be sure they are running on infra:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre>oc get pods -n openshift-ingress -o wide
+reviews-v3-666b89cfdf-8zv8w 1/1 Running 0 9m18s 10.130.2.22 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_create_dedicated_ingresscontroller"&gt;Create Dedicated IngressController&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;IngressController are responsible to bring the traffic into the cluster. OpenShift comes with one default controller, but it is possible to create more in order to use different domains and separate the incoming traffic to different nodes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Bind the default ingress controller to the infra labeled nodes, so we can be sure that the default router pods are executed only on these nodes:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch=&amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;nodePlacement&amp;#34;:{&amp;#34;nodeSelector&amp;#34;: {&amp;#34;matchLabels&amp;#34;:{&amp;#34;node-role.kubernetes.io/infra&amp;#34;:&amp;#34;&amp;#34;}}}}}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The pods will get restarted, to be sure they are running on infra:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre&gt;oc get pods -n openshift-ingress -o wide
 NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
 router-default-78f8dd6f69-dbtbv 0/1 ContainerCreating 0 2s &amp;lt;none&amp;gt; ip-10-0-149-168.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 router-default-78f8dd6f69-wwpgb 0/1 ContainerCreating 0 2s &amp;lt;none&amp;gt; ip-10-0-158-44.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 router-default-7bbbc8f9bd-vfh84 1/1 Running 0 22m 10.129.4.6 ip-10-0-158-44.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-router-default-7bbbc8f9bd-wggrx 1/1 Terminating 0 19m 10.128.2.8 ip-10-0-149-168.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Create the following IngressController objects for &lt;strong>worker-dev&lt;/strong> and &lt;strong>worker-test&lt;/strong>. Replace with the domain of your choice&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">apiVersion: operator.openshift.io/v1
+router-default-7bbbc8f9bd-wggrx 1/1 Terminating 0 19m 10.128.2.8 ip-10-0-149-168.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create the following IngressController objects for &lt;strong&gt;worker-dev&lt;/strong&gt; and &lt;strong&gt;worker-test&lt;/strong&gt;. Replace with the domain of your choice&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: operator.openshift.io/v1
 kind: IngressController
 metadata:
 name: ingress-worker-dev
 namespace: openshift-ingress-operator
 spec:
-domain: worker-dev.&amp;lt;yourdomain&amp;gt; &lt;i class="conum" data-value="1">&lt;/i>&lt;b>(1)&lt;/b>
+domain: worker-dev.&amp;lt;yourdomain&amp;gt; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 endpointPublishingStrategy:
 type: HostNetwork
 httpErrorCodePages:
 name: &amp;#39;&amp;#39;
 namespaceSelector:
 matchLabels:
-environment: worker-dev &lt;i class="conum" data-value="2">&lt;/i>&lt;b>(2)&lt;/b>
+environment: worker-dev &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 nodePlacement:
 nodeSelector:
 matchLabels:
-node-role.kubernetes.io/worker-dev: &amp;#39;&amp;#39; &lt;i class="conum" data-value="3">&lt;/i>&lt;b>(3)&lt;/b>
+node-role.kubernetes.io/worker-dev: &amp;#39;&amp;#39; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
 replicas: 3
 tuningOptions: {}
 unsupportedConfigOverrides: null
@@ -478,51 +478,51 @@ matchLabels:
 node-role.kubernetes.io/worker-test: &amp;#39;&amp;#39;
 replicas: 3
 tuningOptions: {}
-unsupportedConfigOverrides: null&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="colist arabic">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td>&lt;i class="conum" data-value="1">&lt;/i>&lt;b>1&lt;/b>&lt;/td>
-&lt;td>Domainname which is used by this Controller&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="2">&lt;/i>&lt;b>2&lt;/b>&lt;/td>
-&lt;td>Namespace selector …​ namespaces with such label will be handled by this IngressController&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>&lt;i class="conum" data-value="3">&lt;/i>&lt;b>3&lt;/b>&lt;/td>
-&lt;td>Node Placement …​ This Controller should run on nodes with this label/role&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will spin up additional router pods on the collect labelled nodes:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n openshift-ingress -o wide
+unsupportedConfigOverrides: null&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Domainname which is used by this Controller&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Namespace selector …​ namespaces with such label will be handled by this IngressController&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Node Placement …​ This Controller should run on nodes with this label/role&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will spin up additional router pods on the collect labelled nodes:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods -n openshift-ingress -o wide
 NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
 router-default-78f8dd6f69-dbtbv 1/1 Running 0 8m7s 10.128.2.11 ip-10-0-149-168.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 router-default-78f8dd6f69-wwpgb 1/1 Running 0 8m7s 10.129.4.10 ip-10-0-158-44.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 router-ingress-worker-dev-76b65cf558-mspvb 1/1 Running 0 113s 10.130.2.13 ip-10-0-199-235.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 router-ingress-worker-dev-76b65cf558-p2jpg 1/1 Running 0 113s 10.128.4.12 ip-10-0-195-201.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
 router-ingress-worker-test-6bbf9967f-4whfs 1/1 Running 0 113s 10.131.2.13 ip-10-0-191-9.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 113s 10.131.0.8 ip-10-0-188-198.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_verify_ingress_configuration">Verify Ingress Configuration&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>To test our new ingress router lets create a route object for our example application:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml">kind: Route
+router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 113s 10.131.0.8 ip-10-0-188-198.us-east-2.compute.internal &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_verify_ingress_configuration"&gt;Verify Ingress Configuration&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To test our new ingress router lets create a route object for our example application:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: Route
 apiVersion: route.openshift.io/v1
 metadata:
 name: productpage
@@ -550,153 +550,153 @@ name: productpage
 weight: 100
 port:
 targetPort: http
-wildcardPolicy: None&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock warning">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-warning" title="Warning">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+wildcardPolicy: None&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 Be sure that the name is resolvable and a load balancer is configured accordingly
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Verify that the router pod has the correct configuration in the file &lt;strong>haproxy.config&lt;/strong> :&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n openshift-ingress
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify that the router pod has the correct configuration in the file &lt;strong&gt;haproxy.config&lt;/strong&gt; :&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods -n openshift-ingress
 NAME READY STATUS RESTARTS AGE
 router-default-78f8dd6f69-dbtbv 1/1 Running 0 95m
 router-default-78f8dd6f69-wwpgb 1/1 Running 0 95m
 router-ingress-worker-dev-76b65cf558-mspvb 1/1 Running 0 88m
 router-ingress-worker-dev-76b65cf558-p2jpg 1/1 Running 0 88m
 router-ingress-worker-test-6bbf9967f-4whfs 1/1 Running 0 88m
-router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 88m&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Verify the content of the haproxy configuration for one of the &lt;code>worker-dev&lt;/code> router&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc rsh -n openshift-ingress router-ingress-worker-dev-76b65cf558-mspvb cat haproxy.config | grep productpage
+router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 88m&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify the content of the haproxy configuration for one of the &lt;code&gt;worker-dev&lt;/code&gt; router&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc rsh -n openshift-ingress router-ingress-worker-dev-76b65cf558-mspvb cat haproxy.config | grep productpage
 backend be_http:bookinfo:productpage
-server pod:productpage-v1-658849bb5-8gcl7:productpage:http:10.128.4.21:9080 10.128.4.21:9080 cookie 3758caf21badd7e4f729209173eece08 weight 256&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Compare with &lt;code>worker-test&lt;/code> router&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc rsh -n openshift-ingress router-ingress-worker-test-6bbf9967f-jht4w cat haproxy.config | grep productpage
---&amp;gt; Empty result, this router is not configured with that route.&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Compare with &lt;code>default&lt;/code> router:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">backend be_http:bookinfo:productpage
-server pod:productpage-v1-658849bb5-8gcl7:productpage:http:10.128.4.21:9080 10.128.4.21:9080 cookie 3758caf21badd7e4f729209173eece08 weight 256&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Why does this happen? Why are the default router and the router for worker-dev configured?
-This happens because it is the default router and we must explicitly tell it to ignore certain labels.&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Modify the default IngressController&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc edit ingresscontroller.operator default -n openshift-ingress-operator&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Add the following&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-yaml" data-lang="yaml"> namespaceSelector:
+server pod:productpage-v1-658849bb5-8gcl7:productpage:http:10.128.4.21:9080 10.128.4.21:9080 cookie 3758caf21badd7e4f729209173eece08 weight 256&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Compare with &lt;code&gt;worker-test&lt;/code&gt; router&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc rsh -n openshift-ingress router-ingress-worker-test-6bbf9967f-jht4w cat haproxy.config | grep productpage
+--&amp;gt; Empty result, this router is not configured with that route.&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Compare with &lt;code&gt;default&lt;/code&gt; router:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;backend be_http:bookinfo:productpage
+server pod:productpage-v1-658849bb5-8gcl7:productpage:http:10.128.4.21:9080 10.128.4.21:9080 cookie 3758caf21badd7e4f729209173eece08 weight 256&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Why does this happen? Why are the default router and the router for worker-dev configured?
+This happens because it is the default router and we must explicitly tell it to ignore certain labels.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Modify the default IngressController&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc edit ingresscontroller.operator default -n openshift-ingress-operator&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Add the following&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; namespaceSelector:
 matchExpressions:
 - key: environment
 operator: NotIn
 values:
 - worker-dev
-- worker-test&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>This will tell the default IngressController to ignore selectors on &lt;code>worker-dev&lt;/code> and &lt;code>worker-test&lt;/code>&lt;/p>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>Wait a few seconds until the route pods have been restarted:&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc get pods -n openshift-ingress
+- worker-test&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will tell the default IngressController to ignore selectors on &lt;code&gt;worker-dev&lt;/code&gt; and &lt;code&gt;worker-test&lt;/code&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Wait a few seconds until the route pods have been restarted:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods -n openshift-ingress
 NAME READY STATUS RESTARTS AGE
 router-default-744998df46-8lh4t 1/1 Running 0 2m32s
 router-default-744998df46-hztgf 1/1 Running 0 2m31s
 router-ingress-worker-dev-76b65cf558-mspvb 1/1 Running 0 96m
 router-ingress-worker-dev-76b65cf558-p2jpg 1/1 Running 0 96m
 router-ingress-worker-test-6bbf9967f-4whfs 1/1 Running 0 96m
-router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 96m&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="paragraph">
-&lt;p>And test again&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc rsh -n openshift-ingress router-default-744998df46-8lh4t cat haproxy.config | grep productpage
---&amp;gt; empty result&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="admonitionblock caution">
-&lt;table>
-&lt;tbody>&lt;tr>
-&lt;td class="icon">
-&lt;i class="fa icon-caution" title="Caution">&lt;/i>
-&lt;/td>
-&lt;td class="content">
+router-ingress-worker-test-6bbf9967f-jht4w 1/1 Running 0 96m&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;And test again&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc rsh -n openshift-ingress router-default-744998df46-8lh4t cat haproxy.config | grep productpage
+--&amp;gt; empty result&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
 At this point the new router feels responsible. Be sure to have a load balancer configured correctly.
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>&lt;/table>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect1">
-&lt;h2 id="_appendix">Appendix&lt;/h2>
-&lt;div class="sectionbody">
-&lt;div class="paragraph">
-&lt;p>Bind other infra-workload to infrastructure nodes:&lt;/p>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_internal_registry">Internal Registry&lt;/h3>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc patch configs.imageregistry.operator.openshift.io/cluster -n openshift-image-registry --type=merge --patch &amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;nodeSelector&amp;#34;:{&amp;#34;node-role.kubernetes.io/infra&amp;#34;:&amp;#34;&amp;#34;}}}&amp;#39;&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class="sect2">
-&lt;h3 id="_openshift_monitoring_workload">OpenShift Monitoring Workload&lt;/h3>
-&lt;div class="paragraph">
-&lt;p>Create the following file and apply it.&lt;/p>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; cluster-monitoring-config-cm.yaml
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_appendix"&gt;Appendix&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Bind other infra-workload to infrastructure nodes:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_internal_registry"&gt;Internal Registry&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc patch configs.imageregistry.operator.openshift.io/cluster -n openshift-image-registry --type=merge --patch &amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;nodeSelector&amp;#34;:{&amp;#34;node-role.kubernetes.io/infra&amp;#34;:&amp;#34;&amp;#34;}}}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_openshift_monitoring_workload"&gt;OpenShift Monitoring Workload&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create the following file and apply it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; &amp;gt; cluster-monitoring-config-cm.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -725,14 +725,14 @@ node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
 telemeterClient:
 nodeSelector:
 node-role.kubernetes.io/infra: &amp;#34;&amp;#34;
-EOF&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;div class="listingblock">
-&lt;div class="content">
-&lt;pre class="highlight">&lt;code class="language-bash" data-lang="bash">oc create -f cluster-monitoring-config-cm.yaml&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;/div></description></item></channel></rss>
+EOF&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc create -f cluster-monitoring-config-cm.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>
