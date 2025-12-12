@@ -1,4 +1,145 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Articles by Thomas Jungbauer on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/authors/thomas-jungbauer/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/authors/thomas-jungbauer/index.xml" rel="self" type="application/rss+xml"/><item><title>The Hitchhiker's Guide to Observability - Limit Read Access to Traces - Part 8</title><link>https://blog.stderr.at/day-2/observability/2025-12-06-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part8/</link><pubDate>Sat, 06 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/observability/2025-12-06-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part8/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Articles by Thomas Jungbauer on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/authors/thomas-jungbauer/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/authors/thomas-jungbauer/index.xml" rel="self" type="application/rss+xml"/><item><title>Helm Charts Repository Updates</title><link>https://blog.stderr.at/whats-new/0000-00-00-helm-charts-changelog/</link><pubDate>Tue, 31 Dec 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/0000-00-00-helm-charts-changelog/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;This page shows the &lt;strong&gt;latest updates&lt;/strong&gt; to the &lt;a href="https://blog.stderr.at/helm-charts"&gt;stderr.at Helm Charts Repository&lt;/a&gt;.
+The charts are designed for OpenShift and Kubernetes deployments, with a focus on GitOps workflows using Argo CD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The content below is dynamically loaded from the Helm repository and always shows the most recent changes.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;div id="helm-changelog-widget" class="helm-changelog"&gt;
+&lt;div class="helm-changelog-loading"&gt;
+&lt;i class="fa fa-spinner fa-spin"&gt;&lt;/i&gt; Loading latest Helm chart updates...
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+&lt;/style&gt;
+&lt;script&gt;
+(function() {
+const container = document.getElementById('helm-changelog-widget');
+const maxItems = "10";
+const cacheBuster = Math.floor(Date.now() / 60000);
+fetch(`https://charts.stderr.at/changelog.json?v=${cacheBuster}`)
+.then(response =&gt; {
+if (!response.ok) throw new Error('Failed to load changelog');
+return response.json();
+})
+.then(data =&gt; {
+if (!data.charts || data.charts.length === 0) {
+container.innerHTML = '&lt;p class="helm-changelog-error"&gt;No charts found&lt;/p&gt;';
+return;
+}
+const genDate = new Date(data.generated);
+const charts = data.charts
+.sort((a, b) =&gt; new Date(b.lastModified) - new Date(a.lastModified))
+.slice(0, maxItems);
+let html = `
+&lt;div class="helm-changelog-header"&gt;
+&lt;h3&gt;&lt;i class="fa fa-cubes"&gt;&lt;/i&gt; Latest Helm Chart Updates&lt;/h3&gt;
+&lt;span class="helm-changelog-generated"&gt;Updated: ${genDate.toLocaleDateString()}&lt;/span&gt;
+&lt;/div&gt;
+`;
+charts.forEach(chart =&gt; {
+const date = new Date(chart.lastModified);
+const dateStr = date.toLocaleDateString('en-US', {
+month: 'short', day: 'numeric', year: 'numeric'
+});
+const iconHtml = chart.icon
+? `&lt;img src="${chart.icon}" alt="" class="helm-chart-icon" data-webp-upgraded="true" onerror="this.outerHTML='&lt;i class=\\'fa fa-cube helm-chart-icon-fallback\\'&gt;&lt;/i&gt;'"&gt;`
+: '&lt;i class="fa fa-cube helm-chart-icon-fallback"&gt;&lt;/i&gt;';
+let changesHtml = '';
+if (chart.changes &amp;&amp; chart.changes.length &gt; 0) {
+changesHtml = '&lt;ul class="helm-changes-list"&gt;';
+chart.changes.slice(0, 4).forEach(change =&gt; {
+const kind = (change.kind || 'changed').toLowerCase();
+changesHtml += `&lt;li class="${kind}"&gt;&lt;span class="helm-change-badge ${kind}"&gt;${kind}&lt;/span&gt;${change.description}&lt;/li&gt;`;
+});
+if (chart.changes.length &gt; 4) {
+changesHtml += `&lt;li style="color:#888;border-left-color:#888;"&gt;... and ${chart.changes.length - 4} more changes&lt;/li&gt;`;
+}
+changesHtml += '&lt;/ul&gt;';
+}
+const chartUrl = chart.home || 'https://github.com/tjungbauer/helm-charts';
+html += `
+&lt;div class="helm-chart-item" data-href="${chartUrl}" onclick="window.open('${chartUrl}', '_blank')" role="link" tabindex="0"&gt;
+&lt;div class="helm-chart-header"&gt;
+${iconHtml}
+&lt;span class="helm-chart-name"&gt;${chart.name}&lt;/span&gt;
+&lt;span class="helm-chart-version"&gt;v${chart.version}&lt;/span&gt;
+&lt;span class="helm-chart-date"&gt;📅 ${dateStr}&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class="helm-chart-description"&gt;${chart.description}&lt;/div&gt;
+${changesHtml}
+&lt;/div&gt;
+`;
+});
+html += `
+&lt;div class="helm-changelog-footer"&gt;
+&lt;a href="https://github.com/tjungbauer/helm-charts" target="_blank"&gt;
+&lt;i class="fa fa-github"&gt;&lt;/i&gt; View all ${data.charts.length} charts on GitHub
+&lt;/a&gt;
+&amp;nbsp;|&amp;nbsp;
+&lt;a href="https://charts.stderr.at/" target="_blank"&gt;
+&lt;i class="fa fa-external-link"&gt;&lt;/i&gt; Helm Repository
+&lt;/a&gt;
+&lt;/div&gt;
+`;
+container.innerHTML = html;
+})
+.catch(error =&gt; {
+console.error('Helm changelog error:', error);
+container.innerHTML = `
+&lt;p class="helm-changelog-error"&gt;
+&lt;i class="fa fa-exclamation-triangle"&gt;&lt;/i&gt;
+Could not load Helm chart updates.
+&lt;a href="https://github.com/tjungbauer/helm-charts" target="_blank"&gt;View on GitHub&lt;/a&gt;
+&lt;/p&gt;
+`;
+});
+})();
+&lt;/script&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_quick_links"&gt;Quick Links&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 33.3333%;"/&gt;
+&lt;col style="width: 66.6667%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Resource&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Link&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Helm Repository&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://charts.stderr.at/" class="bare"&gt;https://charts.stderr.at/&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;GitHub Source&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://github.com/tjungbauer/helm-charts" class="bare"&gt;https://github.com/tjungbauer/helm-charts&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;ArtifactHub&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://artifacthub.io/packages/search?repo=tjungbauer" class="bare"&gt;https://artifacthub.io/packages/search?repo=tjungbauer&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Example GitOps Repo&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability - Limit Read Access to Traces - Part 8</title><link>https://blog.stderr.at/day-2/observability/2025-12-06-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part8/</link><pubDate>Sat, 06 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/observability/2025-12-06-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part8/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;In the previous articles, we deployed a distributed tracing infrastructure with TempoStack and OpenTelemetry Collector. We also deployed a Grafana instance to visualize the traces. The configuration was done in a way that allows everybody to read the traces. Every &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-24-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part2/#_step_3_configure_rbac_for_tempostack_trace_access_readwrite"&gt;&lt;strong&gt;system:authenticated&lt;/strong&gt;&lt;/a&gt; user is able to read &lt;strong&gt;ALL&lt;/strong&gt; traces.
 This is usually not what you want. You want to limit trace access to only the appropriate namespace.&lt;/p&gt;
 &lt;/div&gt;
@@ -5888,7 +6029,7 @@ exporters:
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>What's new in OpenShift, 4.20 Edition</title><link>https://blog.stderr.at/whatss-new/2025-11-10-whatsnew-420/</link><pubDate>Mon, 10 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whatss-new/2025-11-10-whatsnew-420/</guid><description>&lt;div class="paragraph"&gt;
+&lt;/div&gt;</description></item><item><title>What's new in OpenShift, 4.20 Edition</title><link>https://blog.stderr.at/whats-new/2025-11-10-whatsnew-420/</link><pubDate>Mon, 10 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/2025-11-10-whatsnew-420/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;This article covers news and updates in the OpenShift 4.20 release. We focus on points that got our attention, but this
 is &lt;strong&gt;not&lt;/strong&gt; a complete summary of the &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/release_notes/index"&gt;release notes&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
@@ -10898,342 +11039,6 @@ Disconnected environments can also use the &lt;strong&gt;image&lt;/strong&gt; se
 &lt;p&gt;References: &lt;a href="https://docs.openshift.com/container-platform/4.15/updating/understanding_updates/intro-to-updates.html" target="_blank" rel="noopener"&gt;Updating Clusters&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Multiple Sources for Applications in Argo CD</title><link>https://blog.stderr.at/gitopscollection/2024-06-02-multisources-for-application-in-argocd/</link><pubDate>Sun, 02 Jun 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-06-02-multisources-for-application-in-argocd/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Argo CD or OpenShift GitOps uses Applications or ApplicationSets to define the relationship between a source (Git) and a cluster. Typically, this is a 1:1 link, which means one Application is using one source to compare the cluster status. This can be a limitation. For example, if you are working with Helm Charts and a Helm repository, you do not want to re-build (or re-release) the whole chart just because you made a small change in the values file that is packaged into the repository. You want to separate the configuration of the chart with the Helm package.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The most common scenarios for multiple sources are (see: &lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/" target="_blank" rel="noopener"&gt;Argo CD documentation&lt;/a&gt;):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Your organization wants to use an external/public Helm chart&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;You want to override the Helm values with your own local values&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;You don’t want to clone the Helm chart locally as well because that would lead to duplication and you would need to monitor it manually for upstream changes.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This small article describes three different ways with a working example and tries to cover the advantages and disadvantages of each of them. They might be opinionated but some of them proved to be easier to use and manage.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_option_1_multisource_by_argo_cd"&gt;Option 1: Multisource by Argo CD&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Specifying multiple sources for an application is a &lt;strong&gt;beta feature&lt;/strong&gt;.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first option I would like to demonstrate is the &amp;#34;official way&amp;#34; by Argo CD. It was introduced in Argo CD version 2.6 and while this option is still in the Beta phase, it is one of the most requested features and was added to the release candidate of version 2.11. The &lt;a href="https://blog.argoproj.io/argo-cd-v2-11-release-candidate-b83ba3008ba5" target="_blank" rel="noopener"&gt;article by Argo CD&lt;/a&gt; gives more details of this release. The official documentation by Argo CD can be found &lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/" target="_blank" rel="noopener"&gt;here&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In my &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/base/init_app_of_apps/" target="_blank" rel="noopener"&gt;repository&lt;/a&gt; I am using this option as an example to create the App-of-Apps. The App-of-Apps created an Application, that uses multiple sources.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;The values files from &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/base/argocd-resources-manager/values.yaml" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/base/argocd-resources-manager/values.yaml&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The Helm Chart &lt;strong&gt;helper-argocd&lt;/strong&gt; from &lt;a href="https://charts.stderr.at/" class="bare"&gt;https://charts.stderr.at/&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s see the working example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-name: argocd-resources-manager
-namespace: openshift-gitops
-spec:
-destination:
-namespace: openshift-gitops
-server: &amp;#39;https://kubernetes.default.svc&amp;#39;
-info:
-- name: Description
-value: &amp;gt;-
-This is the starting point which will initialize all applicationsets or
-argocd applications
-project: default
-sources: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-- chart: helper-argocd &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-helm:
-valueFiles: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-- $values/base/argocd-resources-manager/values.yaml
-repoURL: &amp;#39;https://charts.stderr.at/&amp;#39; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-targetRevision: 2.0.28 &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-- ref: values &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
-targetRevision: main
-syncPolicy:
-automated:
-prune: true
-selfHeal: true&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Using &lt;strong&gt;sources&lt;/strong&gt; instead of singular source&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;I want to use the Helm Chart &lt;strong&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-argocd" target="_blank" rel="noopener"&gt;helper-argocd&lt;/a&gt;&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The chart will use the values file(s) from github.com/tjungbauer/openshift-clusterconfig-gitops/base/argocd-resources-manager/values.yaml. $value (can only be specified at the beginning of the path) resolves to the root of the values file repository&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The URL of the Helm Chart repository&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The version of the Helm chart helper-argocd&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The reference to the values file, defining the repository URL and target revision.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Argo CD does not currently support using another Helm chart as a source for value files.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With this option, it is possible to separate the values files from the Helm Chart itself. Whenever I want to change something in the configuration, I simply change the values file without being required to release a new Chart version.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Advantages&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Allows easily to define an Application with multiple sources, using Argo CD features.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;No additional tool (see other options below) is required&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Was added to the release candidate of Argo CD v2.11&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Disadvantages&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Currently a Beta feature and thus is not supported and has some limitations, such as lacking support of CLI and UI.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Does not allow using additional local specifications. At least as far as I know.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Can be complex to configure and manage&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_option_2_wrapper_helm_chart"&gt;Option 2: Wrapper Helm Chart&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With this option, which I extensively use, a wrapper Helm Chart is used to define local values files while calling additional (sub) Helm Charts as a dependency. This wrapper could simply define the values files and nothing else (being &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-25-installing-compliance-operator/#_why_empty_helm_charts/" target="_blank" rel="noopener"&gt;empty instead&lt;/a&gt;) or even define additional files, such as Sealed Secrets or things that are not provided by the sub-charts.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;An example of an empty chart would be: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/setup-acs" target="_blank" rel="noopener"&gt;setup-acs&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;An example of a chart that defines additional local files would be: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/generic-clusterconfig" target="_blank" rel="noopener"&gt;generic-clusterconfig&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first one is using sub-charts to build the required specifications:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;dependencies:
-- name: rhacs-setup
-version: ~1.0.0
-repository: https://charts.stderr.at/
-- name: helper-operator
-version: ~1.0.23
-repository: https://charts.stderr.at/
-- name: helper-status-checker
-version: ~4.0.0
-repository: https://charts.stderr.at/
-condition: helper-status-checker.enabled&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-acs/values.yaml" target="_blank" rel="noopener"&gt;values file&lt;/a&gt; specifies the configuration for these sub-charts.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The second example also uses sub-charts, but additionally defines local files such as a SealedSecret for htpasswd.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see throughout my &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster" target="_blank" rel="noopener"&gt;repository&lt;/a&gt; I am using this option almost all the time. It proved to be quite simple, especially if you prefer working with Helm Charts such as I do.
-However, you must take care of the settings in the values file. Specifications you would like to be presented in a sub-chart must be put into the correct place.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Everything underneath&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-operator:
-operators:
-rhacs-operator:
-[...]&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;will be used by the chart &lt;strong&gt;helper-operator&lt;/strong&gt;. While everything underneath:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-status-checker:
-enabled: true&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;will be used by the chart &lt;strong&gt;helper-status-checker&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Advantages&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Easy to use, at least for myself&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Allows defining additional, local files that are not provided by the sub-charts&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Disadvantages&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;A wrapper Chart must be created, that at least defines: Chart.yaml, templates folder and values.yaml&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The configuration must be done correctly and all settings for a sub-chart must be forwarded to the sub-chart.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_option_3_using_kustomize_with_helm_enabled"&gt;Option 3: Using Kustomize with Helm enabled&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The third option I would like to show is using Kustomize. This tool can be used to call a Helm Chart when the option &lt;strong&gt;--enable-helm&lt;/strong&gt; is activated in Argo CD. I am using one example for the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/ingresscontroller" target="_blank" rel="noopener"&gt;IngressController&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Here the values file is placed into the local folder and the Kustomize.yaml is configured as:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-helmCharts:
-- name: ingresscontroller
-repo: https://charts.stderr.at
-valuesFile: values.yaml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This simply defines the use of the chart &lt;strong&gt;ingresscontroller&lt;/strong&gt; from the Helm repository with the local values file.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Unlike Option #2 you do not need to take care about the settings for sub-charts and which settings are passed to which chart. Like Option #2 you can also define additional files that shall be rendered using out-of-the-box Kustomize possibilities.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Advantages&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Easy to use&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Allows defining additional, local files that are not provided by the sub-charts&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;No need to take care of sub-charts and correctly pass the settings to a sub-chart&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Disadvantages&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;combines two different tools, which might become confusing&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;requires specific option to be enabled &lt;strong&gt;--enable-helm&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As this short article demonstrates, there are multiple ways to work with multiple sources and therefore to separate the values file from the actual Helm Chart. There might be even more options, but these are the ones I was seeing at customers.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Which one do I use? When you look at my &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops" target="_blank" rel="noopener"&gt;repository&lt;/a&gt; you see that I mainly use Option #2. Actually, I completely moved from Option #3 to Option #2 a few months ago, because this proved to be clearer for customers, especially when they are new to Kustomize and Helm. That way, only one tool is used and must be managed. Option #3 proved to be more complex in such a case.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;What about Option #1? While I am using it to showcase this feature it is still in a TechPreview phase. However, I do not think that it will completely replace the other options, because it is more complex to configure.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;However, in the end, it is all about personal preferences. Use the tool that you feel most comfortable with :).&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>

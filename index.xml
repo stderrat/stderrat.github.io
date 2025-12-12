@@ -1,4 +1,145 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>YAUB Yet Another Useless Blog on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/index.xml" rel="self" type="application/rss+xml"/><item><title>The Hitchhiker's Guide to Observability - Limit Read Access to Traces - Part 8</title><link>https://blog.stderr.at/day-2/observability/2025-12-06-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part8/</link><pubDate>Sat, 06 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/observability/2025-12-06-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part8/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>YAUB Yet Another Useless Blog on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/index.xml" rel="self" type="application/rss+xml"/><item><title>Helm Charts Repository Updates</title><link>https://blog.stderr.at/whats-new/0000-00-00-helm-charts-changelog/</link><pubDate>Tue, 31 Dec 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/0000-00-00-helm-charts-changelog/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;This page shows the &lt;strong&gt;latest updates&lt;/strong&gt; to the &lt;a href="https://blog.stderr.at/helm-charts"&gt;stderr.at Helm Charts Repository&lt;/a&gt;.
+The charts are designed for OpenShift and Kubernetes deployments, with a focus on GitOps workflows using Argo CD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The content below is dynamically loaded from the Helm repository and always shows the most recent changes.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;div id="helm-changelog-widget" class="helm-changelog"&gt;
+&lt;div class="helm-changelog-loading"&gt;
+&lt;i class="fa fa-spinner fa-spin"&gt;&lt;/i&gt; Loading latest Helm chart updates...
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+&lt;/style&gt;
+&lt;script&gt;
+(function() {
+const container = document.getElementById('helm-changelog-widget');
+const maxItems = "10";
+const cacheBuster = Math.floor(Date.now() / 60000);
+fetch(`https://charts.stderr.at/changelog.json?v=${cacheBuster}`)
+.then(response =&gt; {
+if (!response.ok) throw new Error('Failed to load changelog');
+return response.json();
+})
+.then(data =&gt; {
+if (!data.charts || data.charts.length === 0) {
+container.innerHTML = '&lt;p class="helm-changelog-error"&gt;No charts found&lt;/p&gt;';
+return;
+}
+const genDate = new Date(data.generated);
+const charts = data.charts
+.sort((a, b) =&gt; new Date(b.lastModified) - new Date(a.lastModified))
+.slice(0, maxItems);
+let html = `
+&lt;div class="helm-changelog-header"&gt;
+&lt;h3&gt;&lt;i class="fa fa-cubes"&gt;&lt;/i&gt; Latest Helm Chart Updates&lt;/h3&gt;
+&lt;span class="helm-changelog-generated"&gt;Updated: ${genDate.toLocaleDateString()}&lt;/span&gt;
+&lt;/div&gt;
+`;
+charts.forEach(chart =&gt; {
+const date = new Date(chart.lastModified);
+const dateStr = date.toLocaleDateString('en-US', {
+month: 'short', day: 'numeric', year: 'numeric'
+});
+const iconHtml = chart.icon
+? `&lt;img src="${chart.icon}" alt="" class="helm-chart-icon" data-webp-upgraded="true" onerror="this.outerHTML='&lt;i class=\\'fa fa-cube helm-chart-icon-fallback\\'&gt;&lt;/i&gt;'"&gt;`
+: '&lt;i class="fa fa-cube helm-chart-icon-fallback"&gt;&lt;/i&gt;';
+let changesHtml = '';
+if (chart.changes &amp;&amp; chart.changes.length &gt; 0) {
+changesHtml = '&lt;ul class="helm-changes-list"&gt;';
+chart.changes.slice(0, 4).forEach(change =&gt; {
+const kind = (change.kind || 'changed').toLowerCase();
+changesHtml += `&lt;li class="${kind}"&gt;&lt;span class="helm-change-badge ${kind}"&gt;${kind}&lt;/span&gt;${change.description}&lt;/li&gt;`;
+});
+if (chart.changes.length &gt; 4) {
+changesHtml += `&lt;li style="color:#888;border-left-color:#888;"&gt;... and ${chart.changes.length - 4} more changes&lt;/li&gt;`;
+}
+changesHtml += '&lt;/ul&gt;';
+}
+const chartUrl = chart.home || 'https://github.com/tjungbauer/helm-charts';
+html += `
+&lt;div class="helm-chart-item" data-href="${chartUrl}" onclick="window.open('${chartUrl}', '_blank')" role="link" tabindex="0"&gt;
+&lt;div class="helm-chart-header"&gt;
+${iconHtml}
+&lt;span class="helm-chart-name"&gt;${chart.name}&lt;/span&gt;
+&lt;span class="helm-chart-version"&gt;v${chart.version}&lt;/span&gt;
+&lt;span class="helm-chart-date"&gt;📅 ${dateStr}&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class="helm-chart-description"&gt;${chart.description}&lt;/div&gt;
+${changesHtml}
+&lt;/div&gt;
+`;
+});
+html += `
+&lt;div class="helm-changelog-footer"&gt;
+&lt;a href="https://github.com/tjungbauer/helm-charts" target="_blank"&gt;
+&lt;i class="fa fa-github"&gt;&lt;/i&gt; View all ${data.charts.length} charts on GitHub
+&lt;/a&gt;
+&amp;nbsp;|&amp;nbsp;
+&lt;a href="https://charts.stderr.at/" target="_blank"&gt;
+&lt;i class="fa fa-external-link"&gt;&lt;/i&gt; Helm Repository
+&lt;/a&gt;
+&lt;/div&gt;
+`;
+container.innerHTML = html;
+})
+.catch(error =&gt; {
+console.error('Helm changelog error:', error);
+container.innerHTML = `
+&lt;p class="helm-changelog-error"&gt;
+&lt;i class="fa fa-exclamation-triangle"&gt;&lt;/i&gt;
+Could not load Helm chart updates.
+&lt;a href="https://github.com/tjungbauer/helm-charts" target="_blank"&gt;View on GitHub&lt;/a&gt;
+&lt;/p&gt;
+`;
+});
+})();
+&lt;/script&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_quick_links"&gt;Quick Links&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 33.3333%;"/&gt;
+&lt;col style="width: 66.6667%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Resource&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Link&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Helm Repository&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://charts.stderr.at/" class="bare"&gt;https://charts.stderr.at/&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;GitHub Source&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://github.com/tjungbauer/helm-charts" class="bare"&gt;https://github.com/tjungbauer/helm-charts&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;ArtifactHub&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://artifacthub.io/packages/search?repo=tjungbauer" class="bare"&gt;https://artifacthub.io/packages/search?repo=tjungbauer&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Example GitOps Repo&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability - Limit Read Access to Traces - Part 8</title><link>https://blog.stderr.at/day-2/observability/2025-12-06-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part8/</link><pubDate>Sat, 06 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/observability/2025-12-06-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part8/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;In the previous articles, we deployed a distributed tracing infrastructure with TempoStack and OpenTelemetry Collector. We also deployed a Grafana instance to visualize the traces. The configuration was done in a way that allows everybody to read the traces. Every &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-24-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part2/#_step_3_configure_rbac_for_tempostack_trace_access_readwrite"&gt;&lt;strong&gt;system:authenticated&lt;/strong&gt;&lt;/a&gt; user is able to read &lt;strong&gt;ALL&lt;/strong&gt; traces.
 This is usually not what you want. You want to limit trace access to only the appropriate namespace.&lt;/p&gt;
 &lt;/div&gt;
@@ -5888,7 +6029,7 @@ exporters:
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>What's new in OpenShift, 4.20 Edition</title><link>https://blog.stderr.at/whatss-new/2025-11-10-whatsnew-420/</link><pubDate>Mon, 10 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whatss-new/2025-11-10-whatsnew-420/</guid><description>&lt;div class="paragraph"&gt;
+&lt;/div&gt;</description></item><item><title>What's new in OpenShift, 4.20 Edition</title><link>https://blog.stderr.at/whats-new/2025-11-10-whatsnew-420/</link><pubDate>Mon, 10 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/2025-11-10-whatsnew-420/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;This article covers news and updates in the OpenShift 4.20 release. We focus on points that got our attention, but this
 is &lt;strong&gt;not&lt;/strong&gt; a complete summary of the &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/release_notes/index"&gt;release notes&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
@@ -11730,514 +11871,6 @@ name: my-route&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;G.Nunn’s tools image (Thanks for everything): &lt;a href="https://quay.io/repository/gnunn/tools" class="bare"&gt;https://quay.io/repository/gnunn/tools&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Managing Certificates using GitOps approach</title><link>https://blog.stderr.at/gitopscollection/2024-07-04-managing-certificates-with-gitops/</link><pubDate>Thu, 04 Jul 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-07-04-managing-certificates-with-gitops/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;The article &lt;a href="https://blog.stderr.at/openshift/2023/02/ssl-certificate-management-for-openshift-on-aws/"&gt;SSL Certificate Management for OpenShift on AWS&lt;/a&gt; explains how to use the &lt;strong&gt;Cert-Manager Operator&lt;/strong&gt; to request and install a new SSL Certificate.
-This time, I would like to leverage the GitOps approach using the Helm Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;cert-manager&lt;/a&gt; I have prepared to deploy the Operator and order new Certificates.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I will use an ACME Letsencrypt issuer with a DNS challenge. My domain is hosted at AWS Route 53.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;However, any other integration can be easily used.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_before_we_start"&gt;Before we start&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Before we start, be sure that Route 53 is configured correctly. The required settings and commands are described at &lt;a href="https://blog.stderr.at/openshift/2023/02/ssl-certificate-management-for-openshift-on-aws/#_configure_an_aws_user_for_accessing_route_53" target="_blank" rel="noopener"&gt;Configure an AWS User for Accessing Route 53&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_deploy_the_operator"&gt;Deploy the Operator&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first step is to deploy the Operator to our cluster. This is done using GitOps and the Helm Chart is located at my Helm repository: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/cert-manager" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/cert-manager&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The configuration looks like below. It takes care to:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Deploy the Operator &lt;strong&gt;cert-manager-operator&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Verify if the Operator has been deployed successfully&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configure Cert-Manager&lt;/p&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;Create a ClusterIssuer using route53 integration. (You can configure any other configuration too)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Patch the Operator with &amp;#34;overrideArgs&amp;#34;. This is required for AWS Route 53 where we need to define which DNS resolvers shall be used.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;All these settings are handed over to the appropriate sub-charts. Like &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" target="_blank" rel="noopener"&gt;helper-operator&lt;/a&gt;, &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" target="_blank" rel="noopener"&gt;helper-status-checker&lt;/a&gt; and &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;cert-manager&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# Install Operator Compliance Operator
-# Deploys Operator --&amp;gt; Subscription and Operatorgroup
-# Syncwave: 0
-helper-operator: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-operators:
-compliance-operator:
-enabled: true
-syncwave: &amp;#39;0&amp;#39;
-namespace:
-name: cert-manager-operator
-create: true
-subscription:
-channel: stable-v1
-approval: Automatic
-operatorName: openshift-cert-manager-operator
-source: redhat-operators
-sourceNamespace: openshift-marketplace
-operatorgroup:
-create: true
-notownnamespace: false
-helper-status-checker: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-enabled: true
-checks:
-- operatorName: cert-manager-operator
-namespace:
-name: cert-manager-operator
-serviceAccount:
-name: &amp;#34;status-checker-cert-manager&amp;#34;
-cert-manager: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-certManager:
-enable_patch: true
-overrideArgs: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- &amp;#39;--dns01-recursive-nameservers-only&amp;#39;
-- --dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53
-issuer: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-- name: letsencrypt-prod
-type: ClusterIssuer
-enabled: true
-syncwave: 20
-acme:
-email: tjungbau@redhat.com
-solvers:
-- dns01: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-route53:
-accessKeyIDSecretRef:
-key: access-key-id
-name: prod-route53-credentials-secret
-region: us-west-1
-secretAccessKeySecretRef:
-key: secret-access-key
-name: prod-route53-credentials-secret
-selector:
-dnsZones:
-- aws.ispworld.at&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Installing the Operator&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Verify if the Operator has been successfully deployed&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configure the Cert-Manager Operator&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Override the DNS resolver args&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configure the ClusterIssuer&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Use the solver dns01.route53.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Verify the README of the Helm Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;cert-manager&lt;/a&gt; for additional possibilities in the configuration.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;One additional piece is missing before we can finally start the deployment.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see in the values file above the &lt;strong&gt;accessKey&lt;/strong&gt; and &lt;strong&gt;secretAccessKey&lt;/strong&gt; are stored in the secret named &lt;em&gt;prod-route53-credentials-secret&lt;/em&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This means, that a secret is required with the keys that have been provided by AWS when you configured the Route 53 access:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: Secret
-apiVersion: v1
-metadata:
-name: prod-route53-credentials-secret
-namespace: cert-manager &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-data:
-access-key-id: &amp;lt;AccessKey&amp;gt;
-secret-access-key: &amp;lt;Secret Access Key&amp;gt;
-type: Opaque&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Namespace of the Secret, here the Operator is managing the Certificate Controller.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I stored this Secret as SealedSecret and put it into the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/cert-manager" target="_blank" rel="noopener"&gt;cluster configuration folder&lt;/a&gt;. From here, Argo CD will pick it up and deploy it.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Never, never ever store a Secret object directly in Git. Secret objects are not encrypted but encoded. Everybody could decode the data. With Sealed Secrets or any other Secret Management, you are able to prepare these objects and store or retrieve them.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally, with these settings, the Operator can be deployed. This is managed by OpenShift GitOps (Argo CD). As soon as the Operator is ready, we can start requesting certificates as we automatically created the &lt;strong&gt;ClusterIssuer&lt;/strong&gt; (letsencrypt-prod)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/cert-manager.png?width=640px" alt="Deploying and Configuring Cert-Manager Operator"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Deploying and Configuring Cert-Manager Operator&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Two certificates are of special interest :&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Default IngressController of OpenShift&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift’s API&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Therefore, let’s request and configure them.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_requesting_a_certificate"&gt;Requesting a Certificate&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;cert-manager&lt;/a&gt; can render a Certificate resource as well. I tried to support any possible setting. However, not everything, especially the non-stable ones, is available yet.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The official Cert-Manager documentation explains how to create such &lt;a href="https://cert-manager.io/docs/usage/certificate/" target="_blank" rel="noopener"&gt;Certificate Resource&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The chart &lt;a href="https://github.com/tjungbauer/helm-charts/blob/main/charts/cert-manager/values.yaml#L112-L269" target="_blank" rel="noopener"&gt;README&lt;/a&gt; explains which settings are supported by the chart.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Not every setting is required and some will set default values. The minimum parameters are: name, namespace, secretName, dnsNames and reference to an issuer.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_requesting_ingresscontroller_certificate"&gt;Requesting IngressController Certificate&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The default IngressController of OpenShift listens on the wildcard domain *.apps.clustername.basedomain. In my examples, you will see *.apps.ocp.aws.ispworld.at&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The IngressController configuration must be modified to reference the Secret object the cert-manager will generate once the Certificate has been successfully requested. The cluster configuration &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/ingresscontroller/values.yaml" target="_blank" rel="noopener"&gt;Ingresscontroller&lt;/a&gt; defines the required parameters:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;---
-# -- Define ingressControllers
-# Multiple might be defined.
-ingresscontrollers: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-# -- Name of the IngressController. OpenShift initial IngressController is called &amp;#39;default&amp;#39;.
-- name: default
-# -- Enable the configuration
-# @default -- false
-enabled: true
-# -- Number of replicas for this IngressController
-# @default -- 2
-replicas: 3
-# -- The name of the secret that stores the certificate information for the IngressController
-# @default -- N/A
-defaultCertificate: router-certificate &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-# -- Bind IngressController to specific nodes
-# Here as example for Infrastructure nodes.
-# @default -- empty
-#nodePlacement:
-# NodeSelector that shall be used.
-# nodeSelector: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-# key: node-role.kubernetes.io/infra
-# value: &amp;#39;&amp;#39;
-# # -- Tolerations, required if the nodes are tainted.
-# tolerations:
-# - effect: NoSchedule
-# key: node-role.kubernetes.io/infra
-# operator: Equal
-# value: reserved
-# - effect: NoExecute
-# key: node-role.kubernetes.io/infra
-# operator: Equal
-# value: reserved
-certificates:
-enabled: true
-# List of certificates
-certificate: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- name: router-certificate
-enabled: true
-namespace: openshift-ingress
-syncwave: &amp;#34;0&amp;#34;
-secretName: router-certificate &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-dnsNames: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-- apps.ocp.aws.ispworld.at
-- &amp;#39;*.apps.ocp.aws.ispworld.at&amp;#39;
-# Reference to the issuer that shall be used.
-issuerRef: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-name: letsencrypt-prod
-kind: ClusterIssuer&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configuration for the IngressController&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Reference to the Secret that will store the Certificate&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Optional tolerations that can be configured for the IngressController&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of Certificates to order&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of domainnames for the IngressController. Here 2 are used, the wildcard domain and the base domain of that wildcard.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Reference to the issuer (in this case ClusterIssuer)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will request the Certificate:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-name: router-certificate
-namespace: openshift-ingress
-spec:
-dnsNames:
-- apps.ocp.aws.ispworld.at
-- &amp;#39;*.apps.ocp.aws.ispworld.at&amp;#39;
-duration: 2160h0m0s
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-privateKey:
-algorithm: RSA
-encoding: PKCS1
-rotationPolicy: Always
-secretName: router-certificate&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-It may take a while until the Certificate request is approved.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The IngressController will update the reference to the secret and restart the ingress pods:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: operator.openshift.io/v1
-kind: IngressController
-metadata:
-name: default
-namespace: openshift-ingress-operator
-spec:
-[...]
-defaultCertificate:
-name: router-certificate&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Once all pods have been successfully restarted, open a new browser, or reload or open a private window to verify the certificate that is provided by the application.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_requesting_apiserver_certificate"&gt;Requesting APIServer Certificate&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Requesting the certificate for the OpenShift API follows the same rules as for the IngressController.
-The example can be found at: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/clusterconfig-apiserver/values.yaml" target="_blank" rel="noopener"&gt;Clusterconfig APIServer&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The values file may look like the following for example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-In this case, not only the Certificate is requested but the ETCD encryption is also enabled. The reason for that is, that both settings are done in the same Kubernetes resource (apiserver). If we split this up into 2 Argo CD Applications one of them will always show a warning that the same resource is managed by another Argo CD Application.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;---
-# -- Using subchart generic-cluster-config
-generic-cluster-config:
-apiserver: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-enabled: true
-# audit configuration
-audit:
-profile: Default
-# Configure a custom certificate for the API server
-custom_cert:
-enabled: true
-cert_names: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-- api.ocp.aws.ispworld.at
-secretname: api-certificate &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-etcd_encryption: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-enabled: true
-encryption_type: aesgcm &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-# -- Namespace where Job is executed that verifies the status of the encryption
-namespace: kube-system
-serviceAccount:
-create: true
-name: &amp;#34;etcd-encryption-checker&amp;#34; &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-cert-manager: &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-enabled: true
-certificates:
-enabled: true
-# List of certificates
-certificate:
-- name: api-certificate
-enabled: true
-namespace: openshift-config
-syncwave: &amp;#34;0&amp;#34;
-secretName: api-certificate
-dnsNames:
-- api.ocp.aws.ispworld.at
-# Reference to the issuer that shall be used.
-issuerRef:
-name: letsencrypt-prod
-kind: ClusterIssuer&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Settings for the APIServer object.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the domain the certificate will be responsible for.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Reference to the Secret that will store the Certificate&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Enable ETCD encryption&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Tpee of encryption&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Service Account that will be created and used by a Job that will verify when and if the encryption has been finished successfully.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Settings for the Certificate. Similar to the settings of the IngressController.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The configuration is more or less similar to the IngressController. Again the APIServer will restart and once done, the Certificate is used by the cluster.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With this, very short, article I have tried to easily explain how to deploy the Cert-Manager Operator and request Certificates. Different Helm Charts are used, but the main one is &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;cert-manager&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The cluster configuration repository &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops&lt;/a&gt; then use this chart to configure the required resources.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With the support of this Helm Chart anybody in the Cluster can request Certificates which are then managed by the Cert-Manager Operator.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>

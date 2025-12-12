@@ -1,4 +1,145 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Helm on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/helm/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 17 Jul 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/helm/index.xml" rel="self" type="application/rss+xml"/><item><title>Reusable Argo CD Application Helm Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Helm on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/helm/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 17 Jul 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/helm/index.xml" rel="self" type="application/rss+xml"/><item><title>Helm Charts Repository Updates</title><link>https://blog.stderr.at/whats-new/0000-00-00-helm-charts-changelog/</link><pubDate>Tue, 31 Dec 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/0000-00-00-helm-charts-changelog/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;This page shows the &lt;strong&gt;latest updates&lt;/strong&gt; to the &lt;a href="https://blog.stderr.at/helm-charts"&gt;stderr.at Helm Charts Repository&lt;/a&gt;.
+The charts are designed for OpenShift and Kubernetes deployments, with a focus on GitOps workflows using Argo CD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The content below is dynamically loaded from the Helm repository and always shows the most recent changes.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;div id="helm-changelog-widget" class="helm-changelog"&gt;
+&lt;div class="helm-changelog-loading"&gt;
+&lt;i class="fa fa-spinner fa-spin"&gt;&lt;/i&gt; Loading latest Helm chart updates...
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+&lt;/style&gt;
+&lt;script&gt;
+(function() {
+const container = document.getElementById('helm-changelog-widget');
+const maxItems = "10";
+const cacheBuster = Math.floor(Date.now() / 60000);
+fetch(`https://charts.stderr.at/changelog.json?v=${cacheBuster}`)
+.then(response =&gt; {
+if (!response.ok) throw new Error('Failed to load changelog');
+return response.json();
+})
+.then(data =&gt; {
+if (!data.charts || data.charts.length === 0) {
+container.innerHTML = '&lt;p class="helm-changelog-error"&gt;No charts found&lt;/p&gt;';
+return;
+}
+const genDate = new Date(data.generated);
+const charts = data.charts
+.sort((a, b) =&gt; new Date(b.lastModified) - new Date(a.lastModified))
+.slice(0, maxItems);
+let html = `
+&lt;div class="helm-changelog-header"&gt;
+&lt;h3&gt;&lt;i class="fa fa-cubes"&gt;&lt;/i&gt; Latest Helm Chart Updates&lt;/h3&gt;
+&lt;span class="helm-changelog-generated"&gt;Updated: ${genDate.toLocaleDateString()}&lt;/span&gt;
+&lt;/div&gt;
+`;
+charts.forEach(chart =&gt; {
+const date = new Date(chart.lastModified);
+const dateStr = date.toLocaleDateString('en-US', {
+month: 'short', day: 'numeric', year: 'numeric'
+});
+const iconHtml = chart.icon
+? `&lt;img src="${chart.icon}" alt="" class="helm-chart-icon" data-webp-upgraded="true" onerror="this.outerHTML='&lt;i class=\\'fa fa-cube helm-chart-icon-fallback\\'&gt;&lt;/i&gt;'"&gt;`
+: '&lt;i class="fa fa-cube helm-chart-icon-fallback"&gt;&lt;/i&gt;';
+let changesHtml = '';
+if (chart.changes &amp;&amp; chart.changes.length &gt; 0) {
+changesHtml = '&lt;ul class="helm-changes-list"&gt;';
+chart.changes.slice(0, 4).forEach(change =&gt; {
+const kind = (change.kind || 'changed').toLowerCase();
+changesHtml += `&lt;li class="${kind}"&gt;&lt;span class="helm-change-badge ${kind}"&gt;${kind}&lt;/span&gt;${change.description}&lt;/li&gt;`;
+});
+if (chart.changes.length &gt; 4) {
+changesHtml += `&lt;li style="color:#888;border-left-color:#888;"&gt;... and ${chart.changes.length - 4} more changes&lt;/li&gt;`;
+}
+changesHtml += '&lt;/ul&gt;';
+}
+const chartUrl = chart.home || 'https://github.com/tjungbauer/helm-charts';
+html += `
+&lt;div class="helm-chart-item" data-href="${chartUrl}" onclick="window.open('${chartUrl}', '_blank')" role="link" tabindex="0"&gt;
+&lt;div class="helm-chart-header"&gt;
+${iconHtml}
+&lt;span class="helm-chart-name"&gt;${chart.name}&lt;/span&gt;
+&lt;span class="helm-chart-version"&gt;v${chart.version}&lt;/span&gt;
+&lt;span class="helm-chart-date"&gt;📅 ${dateStr}&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class="helm-chart-description"&gt;${chart.description}&lt;/div&gt;
+${changesHtml}
+&lt;/div&gt;
+`;
+});
+html += `
+&lt;div class="helm-changelog-footer"&gt;
+&lt;a href="https://github.com/tjungbauer/helm-charts" target="_blank"&gt;
+&lt;i class="fa fa-github"&gt;&lt;/i&gt; View all ${data.charts.length} charts on GitHub
+&lt;/a&gt;
+&amp;nbsp;|&amp;nbsp;
+&lt;a href="https://charts.stderr.at/" target="_blank"&gt;
+&lt;i class="fa fa-external-link"&gt;&lt;/i&gt; Helm Repository
+&lt;/a&gt;
+&lt;/div&gt;
+`;
+container.innerHTML = html;
+})
+.catch(error =&gt; {
+console.error('Helm changelog error:', error);
+container.innerHTML = `
+&lt;p class="helm-changelog-error"&gt;
+&lt;i class="fa fa-exclamation-triangle"&gt;&lt;/i&gt;
+Could not load Helm chart updates.
+&lt;a href="https://github.com/tjungbauer/helm-charts" target="_blank"&gt;View on GitHub&lt;/a&gt;
+&lt;/p&gt;
+`;
+});
+})();
+&lt;/script&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_quick_links"&gt;Quick Links&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 33.3333%;"/&gt;
+&lt;col style="width: 66.6667%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Resource&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Link&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Helm Repository&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://charts.stderr.at/" class="bare"&gt;https://charts.stderr.at/&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;GitHub Source&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://github.com/tjungbauer/helm-charts" class="bare"&gt;https://github.com/tjungbauer/helm-charts&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;ArtifactHub&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://artifacthub.io/packages/search?repo=tjungbauer" class="bare"&gt;https://artifacthub.io/packages/search?repo=tjungbauer&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Example GitOps Repo&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;</description></item><item><title>Reusable Argo CD Application Helm Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;When working with Argo CD at scale, you often find yourself creating similar Application manifests repeatedly. Each application needs the same basic structure but with different configurations for source repositories, destinations, and sync policies. Additionally, managing namespace metadata becomes tricky when you need to conditionally control whether Argo CD should manage namespace metadata based on sync options.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;

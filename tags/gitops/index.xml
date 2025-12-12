@@ -1,4 +1,145 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>GitOps on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/gitops/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 17 Jul 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/gitops/index.xml" rel="self" type="application/rss+xml"/><item><title>What's New</title><link>https://blog.stderr.at/whatss-new/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whatss-new/</guid><description/></item><item><title>GitOps Episodes</title><link>https://blog.stderr.at/gitopscollection/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/</guid><description/></item><item><title>OpenShift</title><link>https://blog.stderr.at/openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/</guid><description/></item><item><title>Reusable Argo CD Application Helm Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>GitOps on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/gitops/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 17 Jul 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/gitops/index.xml" rel="self" type="application/rss+xml"/><item><title>Helm Charts Repository Updates</title><link>https://blog.stderr.at/whats-new/0000-00-00-helm-charts-changelog/</link><pubDate>Tue, 31 Dec 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/0000-00-00-helm-charts-changelog/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;This page shows the &lt;strong&gt;latest updates&lt;/strong&gt; to the &lt;a href="https://blog.stderr.at/helm-charts"&gt;stderr.at Helm Charts Repository&lt;/a&gt;.
+The charts are designed for OpenShift and Kubernetes deployments, with a focus on GitOps workflows using Argo CD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The content below is dynamically loaded from the Helm repository and always shows the most recent changes.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;div id="helm-changelog-widget" class="helm-changelog"&gt;
+&lt;div class="helm-changelog-loading"&gt;
+&lt;i class="fa fa-spinner fa-spin"&gt;&lt;/i&gt; Loading latest Helm chart updates...
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+&lt;/style&gt;
+&lt;script&gt;
+(function() {
+const container = document.getElementById('helm-changelog-widget');
+const maxItems = "10";
+const cacheBuster = Math.floor(Date.now() / 60000);
+fetch(`https://charts.stderr.at/changelog.json?v=${cacheBuster}`)
+.then(response =&gt; {
+if (!response.ok) throw new Error('Failed to load changelog');
+return response.json();
+})
+.then(data =&gt; {
+if (!data.charts || data.charts.length === 0) {
+container.innerHTML = '&lt;p class="helm-changelog-error"&gt;No charts found&lt;/p&gt;';
+return;
+}
+const genDate = new Date(data.generated);
+const charts = data.charts
+.sort((a, b) =&gt; new Date(b.lastModified) - new Date(a.lastModified))
+.slice(0, maxItems);
+let html = `
+&lt;div class="helm-changelog-header"&gt;
+&lt;h3&gt;&lt;i class="fa fa-cubes"&gt;&lt;/i&gt; Latest Helm Chart Updates&lt;/h3&gt;
+&lt;span class="helm-changelog-generated"&gt;Updated: ${genDate.toLocaleDateString()}&lt;/span&gt;
+&lt;/div&gt;
+`;
+charts.forEach(chart =&gt; {
+const date = new Date(chart.lastModified);
+const dateStr = date.toLocaleDateString('en-US', {
+month: 'short', day: 'numeric', year: 'numeric'
+});
+const iconHtml = chart.icon
+? `&lt;img src="${chart.icon}" alt="" class="helm-chart-icon" data-webp-upgraded="true" onerror="this.outerHTML='&lt;i class=\\'fa fa-cube helm-chart-icon-fallback\\'&gt;&lt;/i&gt;'"&gt;`
+: '&lt;i class="fa fa-cube helm-chart-icon-fallback"&gt;&lt;/i&gt;';
+let changesHtml = '';
+if (chart.changes &amp;&amp; chart.changes.length &gt; 0) {
+changesHtml = '&lt;ul class="helm-changes-list"&gt;';
+chart.changes.slice(0, 4).forEach(change =&gt; {
+const kind = (change.kind || 'changed').toLowerCase();
+changesHtml += `&lt;li class="${kind}"&gt;&lt;span class="helm-change-badge ${kind}"&gt;${kind}&lt;/span&gt;${change.description}&lt;/li&gt;`;
+});
+if (chart.changes.length &gt; 4) {
+changesHtml += `&lt;li style="color:#888;border-left-color:#888;"&gt;... and ${chart.changes.length - 4} more changes&lt;/li&gt;`;
+}
+changesHtml += '&lt;/ul&gt;';
+}
+const chartUrl = chart.home || 'https://github.com/tjungbauer/helm-charts';
+html += `
+&lt;div class="helm-chart-item" data-href="${chartUrl}" onclick="window.open('${chartUrl}', '_blank')" role="link" tabindex="0"&gt;
+&lt;div class="helm-chart-header"&gt;
+${iconHtml}
+&lt;span class="helm-chart-name"&gt;${chart.name}&lt;/span&gt;
+&lt;span class="helm-chart-version"&gt;v${chart.version}&lt;/span&gt;
+&lt;span class="helm-chart-date"&gt;📅 ${dateStr}&lt;/span&gt;
+&lt;/div&gt;
+&lt;div class="helm-chart-description"&gt;${chart.description}&lt;/div&gt;
+${changesHtml}
+&lt;/div&gt;
+`;
+});
+html += `
+&lt;div class="helm-changelog-footer"&gt;
+&lt;a href="https://github.com/tjungbauer/helm-charts" target="_blank"&gt;
+&lt;i class="fa fa-github"&gt;&lt;/i&gt; View all ${data.charts.length} charts on GitHub
+&lt;/a&gt;
+&amp;nbsp;|&amp;nbsp;
+&lt;a href="https://charts.stderr.at/" target="_blank"&gt;
+&lt;i class="fa fa-external-link"&gt;&lt;/i&gt; Helm Repository
+&lt;/a&gt;
+&lt;/div&gt;
+`;
+container.innerHTML = html;
+})
+.catch(error =&gt; {
+console.error('Helm changelog error:', error);
+container.innerHTML = `
+&lt;p class="helm-changelog-error"&gt;
+&lt;i class="fa fa-exclamation-triangle"&gt;&lt;/i&gt;
+Could not load Helm chart updates.
+&lt;a href="https://github.com/tjungbauer/helm-charts" target="_blank"&gt;View on GitHub&lt;/a&gt;
+&lt;/p&gt;
+`;
+});
+})();
+&lt;/script&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_quick_links"&gt;Quick Links&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 33.3333%;"/&gt;
+&lt;col style="width: 66.6667%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Resource&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Link&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Helm Repository&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://charts.stderr.at/" class="bare"&gt;https://charts.stderr.at/&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;GitHub Source&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://github.com/tjungbauer/helm-charts" class="bare"&gt;https://github.com/tjungbauer/helm-charts&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;ArtifactHub&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://artifacthub.io/packages/search?repo=tjungbauer" class="bare"&gt;https://artifacthub.io/packages/search?repo=tjungbauer&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Example GitOps Repo&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;</description></item><item><title>What's New</title><link>https://blog.stderr.at/whats-new/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/</guid><description/></item><item><title>GitOps Episodes</title><link>https://blog.stderr.at/gitopscollection/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/</guid><description/></item><item><title>OpenShift</title><link>https://blog.stderr.at/openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/</guid><description/></item><item><title>Reusable Argo CD Application Helm Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;When working with Argo CD at scale, you often find yourself creating similar Application manifests repeatedly. Each application needs the same basic structure but with different configurations for source repositories, destinations, and sync policies. Additionally, managing namespace metadata becomes tricky when you need to conditionally control whether Argo CD should manage namespace metadata based on sync options.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
@@ -7503,271 +7644,6 @@ scansetting: default&lt;/code&gt;&lt;/pre&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Using ServerSideApply with ArgoCD</title><link>https://blog.stderr.at/openshift/2022/11/using-serversideapply-with-argocd/</link><pubDate>Fri, 04 Nov 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2022/11/using-serversideapply-with-argocd/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;„&lt;em&gt;If it is not in GitOps, it does not exist&lt;/em&gt;“ - However, managing objects partially only by Gitops was always an issue, since ArgoCD would like to manage the whole object. For example, when you tried to work with node labels and would like to manage them via Gitops, you would need to put the whole node object into ArgoCD. This is impractical since the node object is very complex and typically managed by the cluster.
-There were 3rd party solutions (like the patch operator), that helped with this issue.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;However, with the Kubernetes feature &lt;strong&gt;Server-Side Apply&lt;/strong&gt; this problem is solved. Read further to see a working example of this feature.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_is_server_side_apply_ssa"&gt;What is Server-Side Apply (SSA)&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Quoting from &lt;a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/"&gt;Kuberneted Documentation&lt;/a&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;hr/&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;em&gt;Server-Side Apply helps users and controllers manage their resources through declarative configurations. Clients can create and modify their objects declaratively by sending their fully specified intent.&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;em&gt;A fully specified intent is a partial object that only includes the fields and values for which the user has an opinion. That intent either creates a new object or is combined, by the server, with the existing object.&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;hr/&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In other words: you can send a snippet of an object to the cluster and the cluster will eventually combine everything on the server and not validate on the client side first. All you need is a way to identify the object. Usually, the name and maybe the namespace too.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_ssa_and_argocd"&gt;SSA and ArgoCD&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When it comes to GitOps the implementation of SSA is quite new. However, it is important to note, that (managed field) conflicts are currently not handled by ArgoCD. Instead, ArgoCD forces a change and overrides everything, even if the field is managed by somebody else. This might be improved in the future. Nevertheless …​ let’s test the feature.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The support of the Server-Side Apply feature is currently available in the &lt;strong&gt;latest&lt;/strong&gt; version of ArgoCD. This means, that the channel of the openshift-gitops operator must be changed to &amp;#34;latest&amp;#34;, which will deploy openshift-gitops version &lt;strong&gt;1.6&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A new stable version will arrive soon. :)&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_node_labelling_chart"&gt;Node Labelling Chart&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this example, I would like to use a Helm chart that will try to set two different labels on 2 nodes. This is a very easy example to demonstrate the feature.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a Helm chart, I have prepared the following: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The values for this chart are straightforward: per node, a list of custom labels is defined.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-server-side-apply:
-nodes: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-- name: ip-10-0-233-237.us-west-1.compute.internal &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-enabled: true
-custom_labels: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-environment: &amp;#39;Production&amp;#39;
-gpu: false
-- name: ip-10-0-193-67.us-west-1.compute.internal
-enabled: true
-custom_labels:
-environment: &amp;#39;Test&amp;#39;
-gpu: true&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of nodes&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Node name as OpenShift knows the node (&lt;em&gt;oc get nodes&lt;/em&gt;)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of labels that should be added to the node: here environment and gpu&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The Chart is using a sub-chart called &lt;strong&gt;helper-server-side-apply&lt;/strong&gt;. The source can be found at the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-server-side-apply"&gt;Helm Repository&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The output of this Helm Chart will be the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
-kind: Node
-apiVersion: v1
-metadata:
-name: &amp;#34;ip-10-0-233-237.us-west-1.compute.internal&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-labels:
-gitops.ownedBy: openshift-gitops
-helm.sh/chart: helper-server-side-apply-1.0.3
-app.kubernetes.io/name: helper-server-side-apply
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/managed-by: Helm
-environment: &amp;#34;Production&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-gpu: &amp;#34;false&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
----
-# Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
-kind: Node
-apiVersion: v1
-metadata:
-name: &amp;#34;ip-10-0-193-67.us-west-1.compute.internal&amp;#34;
-labels:
-gitops.ownedBy: openshift-gitops
-helm.sh/chart: helper-server-side-apply-1.0.3
-app.kubernetes.io/name: helper-server-side-apply
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/managed-by: Helm
-environment: &amp;#34;Test&amp;#34;
-gpu: &amp;#34;true&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the node and our identifier&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The first label we set&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The second label we set&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-This is not a full definition of a Node object. The only things defined are the node name and the labels. (Besides the customer labels we would like to add, some default labels are added automatically.)
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_argocd_application"&gt;ArgoCD Application&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So we have a Helm chart in Git. Perfect, but to automate everything with Gitops we need to create the object &lt;strong&gt;Application&lt;/strong&gt;. For example the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-name: node-labelling
-namespace: openshift-gitops
-spec:
-destination:
-namespace: default
-server: &amp;#39;https://kubernetes.default.svc&amp;#39;
-info:
-- name: Description
-value: Deploy Node Labels
-project: default
-source:
-helm:
-valueFiles:
-- values.yaml
-path: clusters/management-cluster/node-configuration &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
-targetRevision: main
-syncPolicy:
-syncOptions:
-- ServerSideApply=true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-- Validate=false &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Path and URL of the node labelling Helm chart&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Must be set to &lt;strong&gt;true&lt;/strong&gt; to enable SSA&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Must be set to &lt;strong&gt;false&lt;/strong&gt; to skip schema validation&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The two &lt;strong&gt;syncOptions&lt;/strong&gt; are important to set. Since the yaml output might not pass the validation, the schema validation should be disabled.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will create the following application in ArgoCD:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/argocd2/argocd-app-nodelabelling.png?width=840px" alt="ApplicationSet"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Argo CD: Application&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_syncing_the_application"&gt;Syncing the Application&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When you now synchronize the ArgoCD application, ArgoCD will take the yaml and will tell Kubernetes (or OpenShift) to perform a Server-Side Apply. This will result in the following yaml for the node:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: Node
-apiVersion: v1
-metadata:
-name: ip-10-0-193-67.us-west-1.compute.internal
-labels:
-beta.kubernetes.io/os: linux
-app.kubernetes.io/instance: node-labelling
-[...]
-node-role.kubernetes.io/worker: &amp;#39;&amp;#39;
-gitops.ownedBy: openshift-gitops
-[...]
-environment: Test
-[...]&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;That’s it …​ all the magic is done.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
