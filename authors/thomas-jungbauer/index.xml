@@ -5307,6 +5307,83 @@ deployment.apps/mockbin 2/2 1 2 3m53s&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_argo_cd_stays_in_progressing_state"&gt;Argo CD Stays in Progressing State&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you have deployed the Mockbin Application and the OpenTelemetry Collector &lt;strong&gt;as a sidecar&lt;/strong&gt; deployment in the team-b namespace, you might notice that the Argo CD Application stays in the &lt;strong&gt;Progressing&lt;/strong&gt; state.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is because the OpenTelemetry Collector does not really return a state. The status is simply:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;status:
+version: 0.140.0&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Nothing else …​ thats too less for Argo CD to work with.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In order to fix this, we need to add a custom health check to the Argo CD instance.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD instance knows the following part:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+[...]
+resourceHealthChecks: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+- check: |
+hs = {}
+if obj.status ~= nil then
+if obj.status.version ~= nil and obj.status.version ~= &amp;#34;&amp;#34; then
+hs.status = &amp;#34;Healthy&amp;#34;
+hs.message = &amp;#34;Running version &amp;#34; .. obj.status.version
+else
+hs.status = &amp;#34;Progressing&amp;#34;
+hs.message = &amp;#34;Waiting for version report&amp;#34;
+end
+else
+hs.status = &amp;#34;Progressing&amp;#34;
+hs.message = &amp;#34;Status not available&amp;#34;
+end
+return hs
+group: opentelemetry.io
+kind: OpenTelemetryCollector
+[...]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Custom health check for the OpenTelemetry Collector.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Above will end up in a ConfigMap that is managed by the OpenShift GitOps operator.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will make Argo CD happy and the Application will be in the &lt;strong&gt;Progressing&lt;/strong&gt; state.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability - Understanding Traces - Part 5</title><link>https://blog.stderr.at/day-2/observability/2025-11-27-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part5/</link><pubDate>Thu, 27 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/day-2/observability/2025-11-27-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part5/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;With the &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/"&gt;architecture established&lt;/a&gt;, &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-24-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part2/"&gt;TempoStack deployed&lt;/a&gt;, &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-25-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part3/"&gt;the Central Collector configured&lt;/a&gt;, and &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-26-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part4/"&gt;applications generating traces&lt;/a&gt;, it’s time to take a step back and understand what we’re actually building. Before you deploy more applications and start troubleshooting performance issues, you need to &lt;strong&gt;understand how to read and interpret distributed traces&lt;/strong&gt;.&lt;/p&gt;
