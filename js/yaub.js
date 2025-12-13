@@ -26,6 +26,150 @@ if (isRtl) {
 // add animated scrollbar when hovering anchors in the TOC
 $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-highlight)').addClass('highlight');
 
+// ========================================
+// TOC Scroll Spy - Track active section
+// ========================================
+(function() {
+    'use strict';
+
+    function initTocScrollSpy() {
+        const toc = document.getElementById('TableOfContents');
+        if (!toc) return;
+
+        const tocLinks = toc.querySelectorAll('a');
+        if (tocLinks.length === 0) return;
+
+        // Get all headings that are linked in the TOC
+        const headingIds = Array.from(tocLinks).map(link => {
+            const href = link.getAttribute('href');
+            return href ? href.substring(1) : null; // Remove the # prefix
+        }).filter(id => id);
+
+        const headings = headingIds.map(id => document.getElementById(id)).filter(el => el);
+        
+        if (headings.length === 0) return;
+
+        // Track active heading
+        let activeId = null;
+
+        // Function to update active TOC item
+        function setActiveTocItem(id) {
+            if (activeId === id) return;
+            activeId = id;
+
+            // Remove active class from all items
+            tocLinks.forEach(link => {
+                const li = link.parentElement;
+                if (li) li.classList.remove('active');
+            });
+
+            // Add active class to current item
+            if (id) {
+                const activeLink = toc.querySelector('a[href="#' + id + '"]');
+                if (activeLink) {
+                    const li = activeLink.parentElement;
+                    if (li) li.classList.add('active');
+                }
+            }
+        }
+
+        // Use Intersection Observer for efficient scroll tracking
+        const observerOptions = {
+            root: null,
+            rootMargin: '-80px 0px -70% 0px', // Trigger when heading is near top
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            // Find the topmost visible heading
+            let topHeading = null;
+            let topPosition = Infinity;
+
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const rect = entry.boundingClientRect;
+                    if (rect.top < topPosition) {
+                        topPosition = rect.top;
+                        topHeading = entry.target;
+                    }
+                }
+            });
+
+            if (topHeading) {
+                setActiveTocItem(topHeading.id);
+            }
+        }, observerOptions);
+
+        // Observe all headings
+        headings.forEach(heading => observer.observe(heading));
+
+        // Also track scroll for cases where no heading is intersecting
+        let scrollTimeout;
+        window.addEventListener('scroll', function() {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(function() {
+                // Find the heading closest to the top of the viewport
+                let closestHeading = null;
+                let closestDistance = Infinity;
+
+                headings.forEach(heading => {
+                    const rect = heading.getBoundingClientRect();
+                    const distance = Math.abs(rect.top - 100); // 100px from top
+                    
+                    // Only consider headings that are above or near the viewport top
+                    if (rect.top <= 150 && distance < closestDistance) {
+                        closestDistance = distance;
+                        closestHeading = heading;
+                    }
+                });
+
+                // If we're at the very top, select the first heading
+                if (window.scrollY < 100 && headings.length > 0) {
+                    setActiveTocItem(headings[0].id);
+                } else if (closestHeading) {
+                    setActiveTocItem(closestHeading.id);
+                }
+            }, 50);
+        }, { passive: true });
+
+        // Smooth scroll when clicking TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                if (href && href.startsWith('#')) {
+                    const target = document.getElementById(href.substring(1));
+                    if (target) {
+                        e.preventDefault();
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                        // Update URL hash without jumping
+                        history.pushState(null, null, href);
+                    }
+                }
+            });
+        });
+
+        // Set initial active item based on URL hash or first heading
+        if (window.location.hash) {
+            const hashId = window.location.hash.substring(1);
+            if (headingIds.includes(hashId)) {
+                setActiveTocItem(hashId);
+            }
+        } else if (headings.length > 0) {
+            setActiveTocItem(headings[0].id);
+        }
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTocScrollSpy);
+    } else {
+        initTocScrollSpy();
+    }
+})();
+
 // triggers back to top button
 (function($) {
   // Note: .js class is now added inline in header.html for faster rendering
