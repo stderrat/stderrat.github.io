@@ -9,12 +9,24 @@
     const RECENT_SEARCHES_KEY = 'recentSearches';
     const MAX_RECENT_SEARCHES = 5;
 
+    // Define available sections for filtering
+    const SECTIONS = [
+        { id: 'all', label: 'All', icon: 'fas fa-globe' },
+        { id: 'gitopscollection', label: 'GitOps', icon: 'fas fa-code-branch' },
+        { id: 'openshift', label: 'OpenShift', icon: 'fab fa-redhat' },
+        { id: 'kubernetes', label: 'Kubernetes', icon: 'fas fa-dharmachakra' },
+        { id: 'ansible', label: 'Ansible', icon: 'fas fa-cogs' },
+        { id: 'day-2', label: 'Day 2', icon: 'fas fa-tools' }
+    ];
+
     let modal = null;
     let backdrop = null;
     let input = null;
     let isOpen = false;
     let pagefindAvailable = false;
     let recentSearchesContainer = null;
+    let activeFilter = 'all';
+    let pagefindInstance = null;
 
     /**
      * Initialize the search modal
@@ -41,7 +53,20 @@
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-label', 'Search');
         
+        // Generate filter pills HTML
+        const filterPillsHTML = SECTIONS.map(section => `
+            <button class="search-filter-pill${section.id === 'all' ? ' active' : ''}" 
+                    data-section="${section.id}" 
+                    type="button">
+                <i class="${section.icon}"></i>
+                <span>${section.label}</span>
+            </button>
+        `).join('');
+
         modal.innerHTML = `
+            <div class="search-modal-filters">
+                ${filterPillsHTML}
+            </div>
             <div class="search-modal-body">
                 <div id="search-modal-pagefind"></div>
                 <div class="recent-searches" style="display: none;">
@@ -109,6 +134,18 @@
                         setupSearchInputListeners();
                     }
                     setupRecentSearchesListeners();
+                    setupFilterListeners();
+                    
+                    // Watch for Pagefind results updates to apply filters
+                    const resultsArea = modal.querySelector('.pagefind-ui__results-area');
+                    if (resultsArea) {
+                        const observer = new MutationObserver(function() {
+                            if (activeFilter !== 'all') {
+                                filterResultsBySection();
+                            }
+                        });
+                        observer.observe(resultsArea, { childList: true, subtree: true });
+                    }
                 }, 100);
                 
                 return;
@@ -198,6 +235,130 @@
                 e.stopPropagation();
                 clearRecentSearches();
             });
+        }
+    }
+
+    /**
+     * Setup filter pill click handlers
+     */
+    function setupFilterListeners() {
+        const pills = modal.querySelectorAll('.search-filter-pill');
+        pills.forEach(function(pill) {
+            pill.addEventListener('click', function(e) {
+                e.preventDefault();
+                const section = this.getAttribute('data-section');
+                setActiveFilter(section);
+            });
+        });
+    }
+
+    /**
+     * Set active filter and re-run search
+     */
+    function setActiveFilter(section) {
+        activeFilter = section;
+        
+        // Update pill UI
+        const pills = modal.querySelectorAll('.search-filter-pill');
+        pills.forEach(function(pill) {
+            if (pill.getAttribute('data-section') === section) {
+                pill.classList.add('active');
+            } else {
+                pill.classList.remove('active');
+            }
+        });
+
+        // Re-trigger search with filter
+        if (input && input.value.trim().length > 0) {
+            applyFilter();
+        }
+    }
+
+    /**
+     * Apply the current filter to search results
+     */
+    function applyFilter() {
+        if (!pagefindAvailable || !input) return;
+
+        const query = input.value.trim();
+        if (query.length === 0) return;
+
+        // Get results container
+        const resultsArea = modal.querySelector('.pagefind-ui__results-area');
+        if (!resultsArea) return;
+
+        // Filter results by checking if they belong to the selected section
+        if (activeFilter !== 'all') {
+            // Use MutationObserver to filter results after Pagefind renders them
+            filterResultsBySection();
+        } else {
+            // Show all results
+            showAllResults();
+        }
+    }
+
+    /**
+     * Filter displayed results by section
+     */
+    function filterResultsBySection() {
+        const results = modal.querySelectorAll('.pagefind-ui__result');
+        let visibleCount = 0;
+        
+        results.forEach(function(result) {
+            const link = result.querySelector('.pagefind-ui__result-link');
+            if (link) {
+                const href = link.getAttribute('href') || '';
+                // Check if the href contains the section name
+                const matchesFilter = href.toLowerCase().includes('/' + activeFilter.toLowerCase() + '/');
+                
+                if (matchesFilter) {
+                    result.style.display = '';
+                    visibleCount++;
+                } else {
+                    result.style.display = 'none';
+                }
+            }
+        });
+
+        // Update message if no results match filter
+        updateFilteredMessage(visibleCount);
+    }
+
+    /**
+     * Show all results (remove filter)
+     */
+    function showAllResults() {
+        const results = modal.querySelectorAll('.pagefind-ui__result');
+        results.forEach(function(result) {
+            result.style.display = '';
+        });
+        
+        // Restore original message
+        const message = modal.querySelector('.pagefind-ui__message');
+        if (message && message.dataset.originalText) {
+            message.textContent = message.dataset.originalText;
+        }
+    }
+
+    /**
+     * Update the results message when filtering
+     */
+    function updateFilteredMessage(visibleCount) {
+        const message = modal.querySelector('.pagefind-ui__message');
+        if (message) {
+            // Store original text
+            if (!message.dataset.originalText) {
+                message.dataset.originalText = message.textContent;
+            }
+            
+            const sectionInfo = SECTIONS.find(s => s.id === activeFilter);
+            const sectionLabel = sectionInfo ? sectionInfo.label : activeFilter;
+            
+            if (visibleCount === 0) {
+                message.textContent = `No results in ${sectionLabel}`;
+            } else {
+                message.textContent = `${visibleCount} result${visibleCount !== 1 ? 's' : ''} in ${sectionLabel}`;
+            }
         }
     }
 
