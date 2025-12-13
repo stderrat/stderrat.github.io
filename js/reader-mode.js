@@ -90,6 +90,36 @@
         });
         document.body.appendChild(searchBtn);
 
+        // Reading progress indicator
+        const progressIndicator = document.createElement('div');
+        progressIndicator.className = 'reader-progress-indicator';
+        progressIndicator.innerHTML = `
+            <div class="reader-progress-ring">
+                <svg viewBox="0 0 36 36">
+                    <path class="reader-progress-bg"
+                        d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path class="reader-progress-bar"
+                        stroke-dasharray="0, 100"
+                        d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                </svg>
+                <span class="reader-progress-percent">0%</span>
+            </div>
+            <div class="reader-progress-info">
+                <span class="reader-progress-time"></span>
+                <span class="reader-progress-label">remaining</span>
+            </div>
+        `;
+        document.body.appendChild(progressIndicator);
+
+        // Calculate reading time
+        calculateReadingTime();
+
         // Keyboard hint
         const hint = document.createElement('div');
         hint.className = 'reader-mode-hint';
@@ -275,6 +305,100 @@
             clearTimeout(hintTimeout);
             hintTimeout = null;
         }
+    }
+
+    // Reading progress state
+    let totalReadingTime = 0;
+    let scrollHandler = null;
+
+    /**
+     * Calculate estimated reading time based on word count
+     */
+    function calculateReadingTime() {
+        const content = document.querySelector('#body-inner');
+        if (!content) return;
+
+        // Get text content and count words
+        const text = content.textContent || content.innerText;
+        const words = text.trim().split(/\s+/).length;
+        
+        // Average reading speed: 200-250 words per minute
+        const wordsPerMinute = 220;
+        totalReadingTime = Math.ceil(words / wordsPerMinute);
+
+        // Update the initial display
+        updateReadingProgress();
+
+        // Setup scroll listener for progress tracking
+        if (!scrollHandler) {
+            scrollHandler = throttle(updateReadingProgress, 100);
+            window.addEventListener('scroll', scrollHandler, { passive: true });
+        }
+    }
+
+    /**
+     * Update reading progress indicator
+     */
+    function updateReadingProgress() {
+        const progressBar = document.querySelector('.reader-progress-bar');
+        const progressPercent = document.querySelector('.reader-progress-percent');
+        const progressTime = document.querySelector('.reader-progress-time');
+        
+        if (!progressBar || !progressPercent || !progressTime) return;
+
+        // Calculate scroll progress
+        const content = document.querySelector('#body-inner');
+        if (!content) return;
+
+        const contentRect = content.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        const contentTop = window.scrollY + contentRect.top;
+        const contentHeight = contentRect.height;
+        
+        // Calculate how much of the content has been scrolled past
+        const scrolled = window.scrollY - contentTop + windowHeight;
+        const totalScrollable = contentHeight;
+        
+        let progress = Math.max(0, Math.min(100, (scrolled / totalScrollable) * 100));
+        
+        // Update circular progress bar
+        progressBar.setAttribute('stroke-dasharray', `${progress}, 100`);
+        
+        // Update percentage text
+        progressPercent.textContent = `${Math.round(progress)}%`;
+        
+        // Update remaining time
+        const remainingPercent = Math.max(0, 100 - progress);
+        const remainingTime = Math.ceil((remainingPercent / 100) * totalReadingTime);
+        
+        if (remainingTime <= 0) {
+            progressTime.textContent = 'Done!';
+            document.querySelector('.reader-progress-label').textContent = '';
+        } else if (remainingTime === 1) {
+            progressTime.textContent = '< 1 min';
+            document.querySelector('.reader-progress-label').textContent = 'remaining';
+        } else {
+            progressTime.textContent = `${remainingTime} min`;
+            document.querySelector('.reader-progress-label').textContent = 'remaining';
+        }
+    }
+
+    /**
+     * Throttle function to limit how often a function is called
+     */
+    function throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(function() {
+                    inThrottle = false;
+                }, limit);
+            }
+        };
     }
 
     /**
