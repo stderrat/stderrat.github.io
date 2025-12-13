@@ -34,6 +34,22 @@
     function init() {
         createModal();
         setupEventListeners();
+        setupNavSearchButton();
+    }
+
+    /**
+     * Setup search buttons with correct shortcut key
+     */
+    function setupNavSearchButton() {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0 || 
+                      navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+        const shortcutKey = isMac ? '⌘K' : 'Ctrl+K';
+        
+        // Update all search kbd elements (topnav and sidebar)
+        const kbdElements = document.querySelectorAll('.topnav-search-kbd, .sidebar-search-kbd');
+        kbdElements.forEach(function(kbd) {
+            kbd.textContent = shortcutKey;
+        });
     }
 
     /**
