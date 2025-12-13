@@ -127,6 +127,18 @@
         // Check if Pagefind is available
         if (typeof PagefindUI !== 'undefined') {
             try {
+                // Watch for Pagefind input creation to add id/name immediately
+                var inputObserver = new MutationObserver(function(mutations) {
+                    var pagefindInput = modal.querySelector('.pagefind-ui__search-input');
+                    if (pagefindInput && !pagefindInput.id) {
+                        // Add id and name attributes to fix browser autofill warning
+                        pagefindInput.id = 'search-modal-input';
+                        pagefindInput.name = 'search';
+                        inputObserver.disconnect();
+                    }
+                });
+                inputObserver.observe(container, { childList: true, subtree: true });
+                
                 new PagefindUI({
                     element: '#search-modal-pagefind',
                     showSubResults: true,
@@ -179,6 +191,7 @@
                         <i class="fas fa-search"></i>
                         <input 
                             type="text" 
+                            id="search-modal-fallback-input"
                             name="q" 
                             class="search-modal-fallback-input" 
                             placeholder="Search articles..."
