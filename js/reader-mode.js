@@ -75,6 +75,21 @@
             document.body.appendChild(nextNav);
         }
 
+        // Floating search button
+        const searchBtn = document.createElement('button');
+        searchBtn.className = 'reader-search-btn';
+        searchBtn.innerHTML = '<i class="fas fa-search"></i>';
+        searchBtn.title = 'Search (Cmd/Ctrl+K)';
+        searchBtn.setAttribute('aria-label', 'Open search');
+        searchBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Use the SearchModal API if available
+            if (window.SearchModal && typeof window.SearchModal.open === 'function') {
+                window.SearchModal.open();
+            }
+        });
+        document.body.appendChild(searchBtn);
+
         // Keyboard hint
         const hint = document.createElement('div');
         hint.className = 'reader-mode-hint';
