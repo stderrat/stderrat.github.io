@@ -185,6 +185,49 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
   });
 })(jQuery);
 
+/* ========================================
+   COPY TOAST NOTIFICATION SYSTEM
+======================================== */
+(function() {
+  'use strict';
+  
+  var toastContainer = null;
+  
+  // Create toast container if it doesn't exist
+  function getToastContainer() {
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className = 'copy-toast-container';
+      document.body.appendChild(toastContainer);
+    }
+    return toastContainer;
+  }
+  
+  // Show a toast notification
+  window.showCopyToast = function(message, type) {
+    message = message || 'Copied to clipboard!';
+    type = type || 'success';
+    
+    var container = getToastContainer();
+    var toast = document.createElement('div');
+    toast.className = 'copy-toast';
+    toast.innerHTML = '<span class="copy-toast-icon"><i class="fas fa-check"></i></span>' +
+                      '<span>' + message + '</span>';
+    
+    container.appendChild(toast);
+    
+    // Remove after 2.5 seconds
+    setTimeout(function() {
+      toast.classList.add('toast-exit');
+      setTimeout(function() {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 300);
+    }, 2500);
+  };
+})();
+
 /* add copy links to headers */
 /* default function by hugo-learn does not work with asciidoc ? */
 jQuery(document).ready(function() {
@@ -209,7 +252,11 @@ jQuery(document).ready(function() {
 
   clip.on('success', function(e) {
       e.clearSelection();
-      $(e.trigger).attr('aria-label', 'Link copied to clipboard!').addClass('tooltipped tooltipped-s');
+      $(e.trigger).attr('aria-label', 'Link copied!').addClass('tooltipped tooltipped-s');
+      // Show toast notification
+      if (window.showCopyToast) {
+        window.showCopyToast('Link copied to clipboard!');
+      }
   });
   // Convert code blocks to mermaid pre elements (for initMermaid to process)
   $('code.language-mermaid').each(function(index, element) {

@@ -275,6 +275,20 @@ jQuery(document).ready(function() {
                     $trigger.addClass('copied');
                     $trigger.attr('aria-label', 'Copied!').addClass('tooltipped tooltipped-' + (inPre ? 'w' : 's'));
                     
+                    // Add glow effect to code block
+                    if (inPre) {
+                        var $pre = $trigger.parent();
+                        $pre.addClass('copy-highlight');
+                        setTimeout(function() {
+                            $pre.removeClass('copy-highlight');
+                        }, 500);
+                    }
+                    
+                    // Show toast notification
+                    if (window.showCopyToast) {
+                        window.showCopyToast('Code copied to clipboard!');
+                    }
+                    
                     // Auto-remove success state after 2 seconds
                     setTimeout(function() {
                         $trigger.removeClass('copied');
