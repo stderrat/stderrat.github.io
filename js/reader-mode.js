@@ -8,10 +8,16 @@
 
     const STORAGE_KEY = 'readerModeEnabled';
     const HINT_SHOWN_KEY = 'readerModeHintShown';
+    const FONT_SIZE_KEY = 'readerFontSize';
+
+    // Font size settings
+    const FONT_SIZES = [80, 90, 100, 110, 120, 130, 140, 150];
+    const DEFAULT_FONT_SIZE = 100;
 
     // State
     let isReaderMode = false;
     let hintTimeout = null;
+    let currentFontSize = DEFAULT_FONT_SIZE;
 
     /**
      * Initialize reader mode
@@ -90,6 +96,26 @@
         });
         document.body.appendChild(searchBtn);
 
+        // Font size controls
+        const fontControls = document.createElement('div');
+        fontControls.className = 'reader-font-controls';
+        fontControls.innerHTML = `
+            <button class="reader-font-btn" data-action="decrease" title="Decrease font size" aria-label="Decrease font size">
+                <i class="fas fa-minus"></i>
+            </button>
+            <span class="reader-font-size">100%</span>
+            <button class="reader-font-btn" data-action="increase" title="Increase font size" aria-label="Increase font size">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button class="reader-font-btn reader-font-reset" data-action="reset" title="Reset font size" aria-label="Reset font size">
+                <i class="fas fa-undo"></i>
+            </button>
+        `;
+        document.body.appendChild(fontControls);
+        
+        // Setup font size controls
+        setupFontSizeControls(fontControls);
+
         // Reading progress indicator
         const progressIndicator = document.createElement('div');
         progressIndicator.className = 'reader-progress-indicator';
@@ -125,6 +151,94 @@
         hint.className = 'reader-mode-hint';
         hint.innerHTML = 'Press <kbd>Esc</kbd> or <kbd>R</kbd> to exit reader mode';
         document.body.appendChild(hint);
+    }
+
+    /**
+     * Setup font size controls
+     */
+    function setupFontSizeControls(container) {
+        const sizeDisplay = container.querySelector('.reader-font-size');
+        const buttons = container.querySelectorAll('.reader-font-btn');
+        
+        // Load saved font size
+        const savedSize = localStorage.getItem(FONT_SIZE_KEY);
+        if (savedSize) {
+            currentFontSize = parseInt(savedSize, 10);
+            if (!FONT_SIZES.includes(currentFontSize)) {
+                currentFontSize = DEFAULT_FONT_SIZE;
+            }
+        }
+        
+        // Apply initial font size
+        applyFontSize();
+        updateFontSizeDisplay(sizeDisplay);
+        
+        // Button click handlers
+        buttons.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const action = this.getAttribute('data-action');
+                
+                if (action === 'increase') {
+                    const nextIndex = FONT_SIZES.indexOf(currentFontSize) + 1;
+                    if (nextIndex < FONT_SIZES.length) {
+                        currentFontSize = FONT_SIZES[nextIndex];
+                    }
+                } else if (action === 'decrease') {
+                    const prevIndex = FONT_SIZES.indexOf(currentFontSize) - 1;
+                    if (prevIndex >= 0) {
+                        currentFontSize = FONT_SIZES[prevIndex];
+                    }
+                } else if (action === 'reset') {
+                    currentFontSize = DEFAULT_FONT_SIZE;
+                }
+                
+                applyFontSize();
+                updateFontSizeDisplay(sizeDisplay);
+                saveFontSize();
+            });
+        });
+    }
+
+    /**
+     * Apply current font size to content
+     */
+    function applyFontSize() {
+        const bodyInner = document.getElementById('body-inner');
+        if (bodyInner) {
+            bodyInner.style.fontSize = (currentFontSize / 100) * 1.08 + 'rem';
+        }
+    }
+
+    /**
+     * Update font size display
+     */
+    function updateFontSizeDisplay(element) {
+        if (element) {
+            element.textContent = currentFontSize + '%';
+        }
+        
+        // Update button states
+        const decreaseBtn = document.querySelector('.reader-font-btn[data-action="decrease"]');
+        const increaseBtn = document.querySelector('.reader-font-btn[data-action="increase"]');
+        
+        if (decreaseBtn) {
+            decreaseBtn.disabled = currentFontSize === FONT_SIZES[0];
+        }
+        if (increaseBtn) {
+            increaseBtn.disabled = currentFontSize === FONT_SIZES[FONT_SIZES.length - 1];
+        }
+    }
+
+    /**
+     * Save font size to localStorage
+     */
+    function saveFontSize() {
+        try {
+            localStorage.setItem(FONT_SIZE_KEY, currentFontSize.toString());
+        } catch (e) {
+            // localStorage not available
+        }
     }
 
     /**
