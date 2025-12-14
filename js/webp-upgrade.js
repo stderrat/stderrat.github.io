@@ -69,8 +69,6 @@
       // Replace img with picture
       img.parentNode.replaceChild(picture, img);
     });
-    
-    console.log('WebP upgrade complete: ' + images.length + ' images processed');
   }
 })();
 

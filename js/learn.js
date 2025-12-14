@@ -345,6 +345,15 @@ jQuery(document).ready(function() {
 
     $('#top-bar a:not(:has(img)):not(.btn):not(.no-highlight)').addClass('highlight');
     $('#body-inner a:not(:has(img)):not(.btn):not(a[rel="footnote"]):not(.no-highlight)').addClass('highlight');
+    // Add external link icon to links pointing outside the blog
+    $('#body-inner a[href^="http"]:not(:has(img)):not(.btn):not(a[rel="footnote"]):not(.no-highlight):not([href*="stderr.at"]):not([href*="localhost"])').each(function() {
+        if (!$(this).find('.external-link-icon').length) {
+            $(this).append('<i class="fas fa-arrow-up-right-from-square external-link-icon" aria-hidden="true"></i>');
+            if (!$(this).attr('title')) {
+                $(this).attr('title', 'Opens external site');
+            }
+        }
+    });
 
     var touchsupport = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)
     if (!touchsupport){ // browser doesn't support touch

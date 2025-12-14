@@ -278,8 +278,8 @@ jQuery(document).ready(function() {
     }, 100);
   }
 
-  // Sidebar toggle functionality
-  $('#sidebar-toggle').on('click', function() {
+  // Sidebar toggle functionality (target button by class to avoid duplicate ID issues)
+  $('.sidebar-toggle-btn').on('click', function() {
     var sidebar = $('#sidebar');
     var body = $('#body');
     
