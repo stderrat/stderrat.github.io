@@ -170,18 +170,65 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
     }
 })();
 
-// triggers back to top button
+// Smooth scroll to top function
+function scrollTopAnimated() {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+}
+
+// triggers back to top button with progress indicator
 (function($) {
   // Note: .js class is now added inline in header.html for faster rendering
-  // Run on page scroll.
-  $(window).scroll( function() {
-
-  // Toggle header class after threshold point.
-    if ( $(this).scrollTop() > 100 ) {
-      $(".top-btn").addClass('sticky');
-    } else {
-      $(".top-btn").removeClass('sticky');
+  
+  $(document).ready(function() {
+    // Create progress ring around button
+    var topBtn = document.getElementById('myBtn');
+    if (topBtn && !topBtn.querySelector('.top-btn-progress')) {
+      // Create SVG progress ring
+      var progressRing = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      progressRing.setAttribute('class', 'top-btn-progress');
+      progressRing.setAttribute('viewBox', '0 0 36 36');
+      
+      var bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      bgCircle.setAttribute('class', 'top-btn-progress-bg');
+      bgCircle.setAttribute('cx', '18');
+      bgCircle.setAttribute('cy', '18');
+      bgCircle.setAttribute('r', '16');
+      
+      var progressCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      progressCircle.setAttribute('class', 'top-btn-progress-bar');
+      progressCircle.setAttribute('cx', '18');
+      progressCircle.setAttribute('cy', '18');
+      progressCircle.setAttribute('r', '16');
+      
+      progressRing.appendChild(bgCircle);
+      progressRing.appendChild(progressCircle);
+      topBtn.appendChild(progressRing);
     }
+    
+    // Run on page scroll
+    $(window).scroll(function() {
+      var scrollTop = $(this).scrollTop();
+      var docHeight = $(document).height() - $(window).height();
+      var scrollPercent = (scrollTop / docHeight) * 100;
+      
+      // Toggle visibility after threshold
+      if (scrollTop > 100) {
+        $(".top-btn").addClass('sticky');
+      } else {
+        $(".top-btn").removeClass('sticky');
+      }
+      
+      // Update progress ring
+      var progressBar = document.querySelector('.top-btn-progress-bar');
+      if (progressBar) {
+        var circumference = 2 * Math.PI * 16; // r=16
+        var offset = circumference - (scrollPercent / 100) * circumference;
+        progressBar.style.strokeDashoffset = offset;
+      }
+    });
   });
 })(jQuery);
 
@@ -231,15 +278,21 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
 /* add copy links to headers */
 /* default function by hugo-learn does not work with asciidoc ? */
 jQuery(document).ready(function() {
-  // Add link button for every
+  // Add link button for every heading
   var text, clip = new ClipboardJS('.anchor');
   $("h2,h3,h4,h5,h6,archive").append(function(index, html){
     var element = $(this);
     var url = encodeURI(document.location.origin + document.location.pathname);
     var link = url + "#"+element[0].id;
+    // Get the heading text (without the anchor icon)
+    var headingText = element.clone().children('.anchor').remove().end().text().trim();
+    // Truncate long titles
+    if (headingText.length > 40) {
+      headingText = headingText.substring(0, 40) + '...';
+    }
 
     if (!(element[0].classList.contains('recentlist')) && (!(element[0].classList.contains('shortcut-title')))) {
-      return " <span class='anchor' data-clipboard-text='"+link+"'>" +
+      return " <span class='anchor' data-clipboard-text='"+link+"' data-section-title='"+headingText.replace(/'/g, "&#39;")+"' title='Copy link to section'>" +
         "<i class='fas fa-link fa-lg'></i>" +
         "</span>"
       ;
@@ -253,9 +306,14 @@ jQuery(document).ready(function() {
   clip.on('success', function(e) {
       e.clearSelection();
       $(e.trigger).attr('aria-label', 'Link copied!').addClass('tooltipped tooltipped-s');
-      // Show toast notification
+      // Show toast notification with section title
       if (window.showCopyToast) {
-        window.showCopyToast('Link copied to clipboard!');
+        var sectionTitle = $(e.trigger).data('section-title');
+        if (sectionTitle) {
+          window.showCopyToast('Copied link to "' + sectionTitle + '"');
+        } else {
+          window.showCopyToast('Link copied to clipboard!');
+        }
       }
   });
   // Convert code blocks to mermaid pre elements (for initMermaid to process)

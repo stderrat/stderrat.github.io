@@ -1,10 +1,16 @@
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 const BASE_CACHE_FILES = [
     '/',
     '/manifest.json',
     '/images/favicon.ico',
     '/css/theme-yaub-modular.css',
+    '/css/fontawesome-all.min.css',
+    // Critical fonts (woff2 for modern browsers, woff for fallback)
+    '/fonts/Work_Sans_300.woff2',
+    '/fonts/Work_Sans_500.woff2',
+    '/fonts/RedHatDisplay-Regular.woff',
+    '/fonts/RedHatText-Regular.woff',
 ];
 
 const OFFLINE_CACHE_FILES = [
@@ -385,7 +391,7 @@ self.addEventListener('message', (event) => {
                 precacheUrl(event.data.url);
                 break;
             default :
-                console.log('Unknown action: ' + event.data.action);
+                // Unknown action - silently ignore
                 break;
         }
     }

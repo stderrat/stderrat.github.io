@@ -1,4 +1,175 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OpenShift on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/openshift/index.xml" rel="self" type="application/rss+xml"/><item><title>A second look into the Kubernetes Gateway API on OpenShift</title><link>https://blog.stderr.at/openshift/2025/08/a-second-look-into-the-kubernetes-gateway-api-on-openshift/</link><pubDate>Sun, 31 Aug 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/08/a-second-look-into-the-kubernetes-gateway-api-on-openshift/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OpenShift on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/openshift/index.xml" rel="self" type="application/rss+xml"/><item><title>Hosted Control Planes behind a Proxy</title><link>https://blog.stderr.at/openshift/2025/12/hosted-control-planes-behind-a-proxy/</link><pubDate>Mon, 15 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/12/hosted-control-planes-behind-a-proxy/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Recently, I encountered a problem deploying a Hosted Control Plane (HCP) at a customer site. The installation started successfully—etcd came up fine—but then it just stopped. The virtual machines were created, but they never joined the cluster. No OVN or Multus pods ever started.
+The only meaningful message in the cluster-version-operator pod logs was:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-console" data-lang="console"&gt;I1204 08:22:35.473783 1 status.go:185] Synchronizing status errs=field.ErrorList(nil) status=&amp;amp;cvo.SyncWorkerStatus{Generation:1, Failure:(*payload.UpdateError)(0xc0006313b0), Done:575, Total:623,&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This message did appear over and over again.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_problem_summary"&gt;Problem Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;etcd started successfully, but the installation stalled&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;API server was running&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;VMs started but never joined the cluster&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;No OVN or Multus pods ever started&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The installation was stuck in a loop&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Troubleshooting was not straightforward. The cluster-version-operator logs provided the only clue.
+However, the VMs were already running, so we could log in to them—and there it was, the reason for the stalled installation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_connect_to_a_vm"&gt;Connect to a VM&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To connect to a VM, use the &lt;code&gt;virtctl&lt;/code&gt; command. This connects you to the machine as the &lt;code&gt;core&lt;/code&gt; user:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+You can download &lt;code&gt;virtctl&lt;/code&gt; from the OpenShift Downloads page in the OpenShift web console.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+You need the SSH key for the &lt;code&gt;core&lt;/code&gt; user.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;virtctl ssh -n clusters-my-hosted-cluster core@vmi/my-node-pool-dsj7z-sss8w &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Replace &lt;strong&gt;my-hosted-cluster&lt;/strong&gt; with the name of your hosted cluster and &lt;strong&gt;my-node-pool-dsj7z-sss8w&lt;/strong&gt; with the name of your VM.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_problem"&gt;Verify the Problem&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once logged in, check the &lt;code&gt;journalctl -xf&lt;/code&gt; output. In case of a proxy issue, you’ll see an error like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&amp;gt; Dec 10 06:23:09 my-node-pool2-gwvjh-rwtx8 sh[2143]: time=&amp;#34;2025-12-10T06:23:09Z&amp;#34; level=warning msg=&amp;#34;Failed, retrying in 1s ... (3/3). Error: initializing source docker://quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:500704de3ef374e61417cc14eda99585450c317d72f454dda0dadd5dda1ba57a: pinging container registry quay.io: Get \&amp;#34;https://quay.io/v2/\&amp;#34;: dial tcp 3.209.93.201:443: i/o timeout&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So we have a timeout when trying to pull the image from the container registry. This is a classic proxy issue. When you try &lt;code&gt;curl&lt;/code&gt; or manual pulls you will get the same message.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configuring_the_proxy_for_the_hosted_control_plane"&gt;Configuring the Proxy for the Hosted Control Plane&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The big question is: How do we configure the proxy for the Hosted Control Plane?&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is not well documented yet—in fact, it’s barely documented at all.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Hosted Control Plane is managed through a custom resource called &lt;code&gt;HostedCluster&lt;/code&gt;, and that’s exactly where we configure the proxy.
+The upstream documentation at &lt;a href="https://hypershift.pages.dev/how-to/configure-ocp-components/#overview" target="_blank" rel="noopener"&gt;HyperShift Documentation&lt;/a&gt; explains that you can add a &lt;code&gt;configuration&lt;/code&gt; section to the resource. Let’s do that:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Update the &lt;code&gt;HostedCluster&lt;/code&gt; resource with the following configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;spec:
+configuration:
+proxy:
+httpProxy: http://proxy.example.com:8080 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+httpsProxy: https://proxy.example.com:8080 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+noProxy: .cluster.local,.svc,10.128.0.0/14,127.0.0.1,localhost &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+trustedCA:
+name: user-ca-bundle &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;HTTP proxy URL&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;HTTPS proxy URL&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Comma-separated list of domains, IPs, or CIDRs to exclude from proxy routing&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;OPTIONAL: Name of a ConfigMap containing a custom CA certificate bundle&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you’re using a custom CA, create the ConfigMap beforehand or alongside the &lt;code&gt;HostedCluster&lt;/code&gt; resource. The ConfigMap must contain a key named &lt;code&gt;ca-bundle.crt&lt;/code&gt; with your CA certificate(s).
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;That’s actually everything you need for proxy configuration with Hosted Control Planes. Hopefully, the official OpenShift documentation will be updated soon to include this information.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>A second look into the Kubernetes Gateway API on OpenShift</title><link>https://blog.stderr.at/openshift/2025/08/a-second-look-into-the-kubernetes-gateway-api-on-openshift/</link><pubDate>Sun, 31 Aug 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2025/08/a-second-look-into-the-kubernetes-gateway-api-on-openshift/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;This is our second look into the Kubernetes Gateway API an it’s
 integration into OpenShift. This post covers TLS configuration.&lt;/p&gt;
 &lt;/div&gt;
@@ -9274,700 +9445,6 @@ postgresql-gogs-gogs-sample-bbc49b794-z84wt 1/1 Running 0 13m&lt;/code&gt;&lt;/p
 &lt;p&gt;&lt;a href="https://sdk.operatorframework.io/docs/"&gt;Operator SDK Documentation&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Thanos Querier vs Thanos Querier</title><link>https://blog.stderr.at/openshift/2020/12/thanos-querier-vs-thanos-querier/</link><pubDate>Thu, 10 Dec 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift/2020/12/thanos-querier-vs-thanos-querier/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;OpenShift comes per default with a static Grafana dashboard, which will present cluster metrics to cluster administrators. It is not possible to customize this Grafana instance.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;However, many customers would like to create their own dashboards, their own monitoring and their own alerting while leveraging the possibilities of OpenShift at the same time and without installing a completely separated monitoring stack.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So how can you create your own queries? How can you visualize them on custom dashboards, without the need to install Prometheus or Alertmanager a second time?&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The solution is simple: Since OpenShift 4.5 (as TechPreview) and since OpenShift 4.6 (as GA) the default monitoring stack of OpenShift has been extended to support monitoring of &lt;strong&gt;user-defined projects&lt;/strong&gt;. This additional configuration will help to observe your own projects.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this article we will see how to deploy the Grafana operator and what the possible issues can occur, when simply connecting Grafana to the OpenShift monitoring.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_overview"&gt;Overview&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a developer in OpenShift, you can create an application which provides your custom statistics of your application at the endpoint &lt;em&gt;/metrics&lt;/em&gt;. Here the example from the official OpenShift documentation:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-ini" data-lang="ini"&gt;# HELP http_requests_total Count of all HTTP requests
-# TYPE http_requests_total counter
-http_requests_total{code=&amp;#34;200&amp;#34;,method=&amp;#34;get&amp;#34;} 4
-http_requests_total{code=&amp;#34;404&amp;#34;,method=&amp;#34;get&amp;#34;} 2
-# HELP version Version information about this binary
-# TYPE version gauge
-version{version=&amp;#34;v0.1.0&amp;#34;} 1&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This metric can then be viewed inside OpenShift in the developer view under the menu &lt;strong&gt;Monitoring&lt;/strong&gt;. If you go to &amp;#34;Monitoring &amp;gt; Metrics&amp;#34; and select &amp;#34;Custom Query&amp;#34; from the drop down, you can enter, for example, the following PromQL query:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-sql" data-lang="sql"&gt;sum(rate(http_requests_total[2m]))&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following graph will be the result:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/custom-query.png?width=940px" alt="Custom Query"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Custom Query&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is great! But …​ what happens if a customer would like to see his very own super fancy Grafana dashboard? You cannot change the cluster dashboard. However, you can install your own Grafana instance and one way to do so is using the &lt;strong&gt;Custom Grafana Operator&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_before_we_begin"&gt;Before we begin&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before we start the following should be prepared already:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift 4.5+&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Enabled user-define workload monitoring&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;A project with user-defined workload monitoring. This is explained in the official documentation at &lt;a href="https://docs.openshift.com/container-platform/4.6/monitoring/enabling-monitoring-for-user-defined-projects.html" class="bare"&gt;https://docs.openshift.com/container-platform/4.6/monitoring/enabling-monitoring-for-user-defined-projects.html&lt;/a&gt;.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;During this blog, we will use the namespace &lt;strong&gt;ns1&lt;/strong&gt; with a custom metric&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_deploy_custom_grafana_operator"&gt;Deploy Custom Grafana Operator&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As for any community operator the following must be considered:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Community Operators are operators which have not been vetted or verified by Red Hat. Community Operators should be used with caution because their stability is unknown. Red Hat provides no support for Community Operators.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The community Grafana operator must be deployed to its own namespace, for example &lt;strong&gt;grafana&lt;/strong&gt;. Create this namespace first (oc new-project grafana) and search and intall the &lt;em&gt;Grafana Operator&lt;/em&gt; from the OperatorHub. You can use the default values, just be sure to select the wanted namespace.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a few minutes, the operator should be available:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/grafana-operator.png?width=940px" alt="Grafana Operator"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. Installed Community Grafana Operator&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_setup_grafana_operator"&gt;Setup Grafana Operator&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before we can use Grafana to draw beautiful images it must be configured. We need to create an instance of Grafana. Ideally, OpenShift OAuth is already leveraged, to avoid the need to creating user account manually, inside Grafana.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;OAuth requires some objects, which must be created before the actual Grafana instance. The following YAMLs are taken from the operator documentation. Create the following inside the Grafana namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Session secret for the proxy …​ change the password!!&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;a cluster role &lt;em&gt;grafana-proxy&lt;/em&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;a cluster role binding for the role&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;a config map injecting trusted CA bundles&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: v1
-data:
-session_secret: Y2hhbmdlIG1lCg==
-kind: Secret
-metadata:
-name: grafana-k8s-proxy
-type: Opaque
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-name: grafana-proxy
-rules:
-- apiGroups:
-- authentication.k8s.io
-resources:
-- tokenreviews
-verbs:
-- create
-- apiGroups:
-- authorization.k8s.io
-resources:
-- subjectaccessreviews
-verbs:
-- create
----
-apiVersion: authorization.openshift.io/v1
-kind: ClusterRoleBinding
-metadata:
-name: grafana-proxy
-roleRef:
-name: grafana-proxy
-subjects:
-- kind: ServiceAccount
-name: grafana-serviceaccount
-namespace: grafana
-userNames:
-- system:serviceaccount:grafana:grafana-serviceaccount
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-labels:
-config.openshift.io/inject-trusted-cabundle: &amp;#34;true&amp;#34;
-name: ocp-injected-certs&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now you can create the following instance under: &amp;#34;Installed Operators &amp;gt; Grafana Operator &amp;gt; Grafana &amp;gt; Create Grafana &amp;gt; YAML View&amp;#34; (or, as an alternative, via the CLI)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: integreatly.org/v1alpha1
-kind: Grafana
-metadata:
-name: grafana-oauth
-namespace: grafana
-spec:
-config: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-auth:
-disable_login_form: false
-disable_signout_menu: true
-auth.anonymous:
-enabled: false
-auth.basic:
-enabled: true
-log:
-level: warn
-mode: console
-security: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-admin_password: secret
-admin_user: root
-secrets:
-- grafana-k8s-tls
-- grafana-k8s-proxy
-client:
-preferService: true
-dataStorage: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-accessModes:
-- ReadWriteOnce
-class: managed-nfs-storage
-size: 10Gi
-containers: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- args:
-- &amp;#39;-provider=openshift&amp;#39;
-- &amp;#39;-pass-basic-auth=false&amp;#39;
-- &amp;#39;-https-address=:9091&amp;#39;
-- &amp;#39;-http-address=&amp;#39;
-- &amp;#39;-email-domain=*&amp;#39;
-- &amp;#39;-upstream=http://localhost:3000&amp;#39;
-- &amp;#39;-tls-cert=/etc/tls/private/tls.crt&amp;#39;
-- &amp;#39;-tls-key=/etc/tls/private/tls.key&amp;#39;
-- &amp;gt;-
--client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
-- &amp;#39;-cookie-secret-file=/etc/proxy/secrets/session_secret&amp;#39;
-- &amp;#39;-openshift-service-account=grafana-serviceaccount&amp;#39;
-- &amp;#39;-openshift-ca=/etc/pki/tls/cert.pem&amp;#39;
-- &amp;#39;-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt&amp;#39;
-- &amp;#39;-openshift-ca=/etc/grafana-configmaps/ocp-injected-certs/ca-bundle.crt&amp;#39;
-- &amp;#39;-skip-auth-regex=^/metrics&amp;#39;
-- &amp;gt;-
--openshift-sar={&amp;#34;namespace&amp;#34;: &amp;#34;grafana&amp;#34;, &amp;#34;resource&amp;#34;: &amp;#34;services&amp;#34;,
-&amp;#34;verb&amp;#34;: &amp;#34;get&amp;#34;}
-image: &amp;#39;quay.io/openshift/origin-oauth-proxy:4.8&amp;#39;
-name: grafana-proxy
-ports:
-- containerPort: 9091
-name: grafana-proxy
-resources: {}
-volumeMounts:
-- mountPath: /etc/tls/private
-name: secret-grafana-k8s-tls
-readOnly: false
-- mountPath: /etc/proxy/secrets
-name: secret-grafana-k8s-proxy
-readOnly: false
-ingress:
-enabled: true
-targetPort: grafana-proxy
-termination: reencrypt
-service:
-annotations:
-service.alpha.openshift.io/serving-cert-secret-name: grafana-k8s-tls
-ports:
-- name: grafana-proxy
-port: 9091
-protocol: TCP
-targetPort: grafana-proxy
-serviceAccount:
-annotations:
-serviceaccounts.openshift.io/oauth-redirectreference.primary: &amp;gt;-
-{&amp;#34;kind&amp;#34;:&amp;#34;OAuthRedirectReference&amp;#34;,&amp;#34;apiVersion&amp;#34;:&amp;#34;v1&amp;#34;,&amp;#34;reference&amp;#34;:{&amp;#34;kind&amp;#34;:&amp;#34;Route&amp;#34;,&amp;#34;name&amp;#34;:&amp;#34;grafana-route&amp;#34;}}
-configMaps:
-- ocp-injected-certs
-dashboardLabelSelector:
-- matchExpressions:
-- key: app
-operator: In
-values:
-- grafana&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Some default settings, which can be modified if required&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;A default administrative user&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;A datastore to use a persistent volume. Other options would be to use ephemeral storage, or another database. This might be especially important, if you would like HA for your Grafana.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Container arguments, most important the openshift-sar line which is important for the OAuth&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a few moments, the operator will pick up the change and creates a Grafana pod.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_adding_a_data_source"&gt;Adding a Data Source&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The next step is to connect your custom Grafana to Prometheus, or actually to the Thanos Querier. To do so, you will need to add a role to the Grafana service account and to create a CRD &lt;em&gt;GrafanaDataSource&lt;/em&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;At this moment, we will work with the cluster role &lt;em&gt;cluster-monitoring-view&lt;/em&gt;. The problem this might bring is discussed later.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Add the role to the Grafana serviceaccount&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc adm policy add-cluster-role-to-user cluster-monitoring-view -z grafana-serviceaccount&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Retrieve the token of the service account&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc serviceaccounts get-token grafana-serviceaccount -n grafana&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create the following Grafana Data Source, either via UI or via CLI. Be sure to change &amp;lt;TOKEN&amp;gt; with the token from step #2.&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;apiVersion: integreatly.org/v1alpha1
-kind: GrafanaDataSource
-metadata:
-name: prometheus-grafanadatasource
-namespace: grafana
-spec:
-datasources:
-- access: proxy
-editable: true
-isDefault: true
-jsonData:
-httpHeaderName1: Authorization
-timeInterval: 5s
-tlsSkipVerify: true
-name: Prometheus
-secureJsonData:
-httpHeaderValue1: &amp;gt;-
-Bearer &amp;lt;TOKEN&amp;gt; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-type: prometheus
-url: &amp;#39;https://thanos-querier.openshift-monitoring.svc.cluster.local:9091&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-name: prometheus-grafanadatasource.yaml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;enter token from step #2&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Thanos default querier URL…​. this might cause problems (see below)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The operator will now restart the Grafana pod to add the newest changes, which should not take more than a few seconds.
-Grafana can be used now. Dashboards can be created …​ but lets run some tests with PromQL queries instead.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_lets_test"&gt;Let’s Test&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Log in to your Grafana using OAuth and a cluster administrator.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-You could also use a non cluster administrator, if the user is able to GET the services of the Grafana namespace. The reason is the following line in the Grafana CRD: &lt;strong&gt;-openshift-sar={&amp;#34;namespace&amp;#34;: &amp;#34;grafana&amp;#34;, &amp;#34;resource&amp;#34;: &amp;#34;services&amp;#34;,&amp;#34;verb&amp;#34;: &amp;#34;get&amp;#34;}&lt;/strong&gt; which defines, that OAuth will work for everybody who can get the service. This might be changed according to personal needs, but for this test it is good enough.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Then use the credentials for the admin account, which have been defined while creating the Grafana instance.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You will be logged in now and since there are no Dashboards, lets go to &lt;em&gt;Explore&lt;/em&gt; to enter some custom PromQL queries, for instance our example from above:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-sql" data-lang="sql"&gt;sum(rate(http_requests_total[2m]))&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/query1.png?width=940px" alt="Query"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. First Query&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is looking good.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s give it another try and sort by namespaces.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-sql" data-lang="sql"&gt;sum(rate(http_requests_total[2m])) by (namespace)&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/query2.png?width=940px" alt="Query"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 4. Second Query - showing internal namespace&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;What is this? I see a namespace which is actually meant for the cluster (openshift-monitoring).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s try another query using a different metric:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-sql" data-lang="sql"&gt;sum(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate) by (namespace)&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/query3.png?width=940px" alt="Query"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 5. Third Query - shows even more namespaces&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Ok, so we have access to all namespaces on the cluster.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_why_do_i_see_all_namespaces"&gt;Why do I see all namespaces?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;What does this mean? Well, it means that we have access to all namespaces of the cluster. We see everything. This makes sense, since we assign the cluster role &amp;#34;cluster-monitoring-view&amp;#34; to the serviceaccount of Grafana.
-But what if we want to show only objects from a specific namespace? If we want, for example, give the developers the possibility to create their own dashboards, without having view access to the whole cluster.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first test might be to remove the cluster-monitoring-view privileges from the Grafana serviceaccount. This will lead to an error on Grafana itself, since it cannot access the Thanos Querier, which we configured with: &lt;a href="https://thanos-querier.openshift-monitoring.svc.cluster.local:9091" class="bare"&gt;https://thanos-querier.openshift-monitoring.svc.cluster.local:9091&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;How does the Openshift WebUI actually work, when you are a developer and would like to search one of the above queries. Let’s try that:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/query4.png?width=940px" alt="Query"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 6. Query using the OpenShift UI&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It works! It shows the namespace of the developer and only this namespace.
-When you inspect the actual network traffic, you will see that OpenShift automatically adds the URL parameter &lt;strong&gt;namespace=ns1&lt;/strong&gt; to the request URL:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-sql" data-lang="sql"&gt;https://your-cluster/api/prometheus-tenancy/api/v1/query?namespace=ns1&amp;amp;query=sum%28node_namespace_pod_container%3Acontainer_cpu_usage_seconds_total%3Asum_rate%29+by+%28namespace%29&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is good information, let’s try this using the Grafana Data Source.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-It is currently not possible to perform this configuration using the GrafanaDataSource CRD. Instead, it must be done directly at the Grafana Dashboard configuration. There is an open ticket at: &lt;a href="https://github.com/integr8ly/grafana-operator/issues/309" class="bare"&gt;https://github.com/integr8ly/grafana-operator/issues/309&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Login to Grafana as administrator and switch to &amp;#34;Configuration &amp;gt; Data Source &amp;gt; Prometheus &amp;gt;&amp;#34;. At the very bottom add &lt;strong&gt;namespace=ns1&lt;/strong&gt; to the &lt;strong&gt;Custom query parameters&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/config-datasource.png?width=940px" alt="Configure Data Source"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 7. Configure Grafana Data Source&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-At this point the Grafana serviceaccount has &lt;em&gt;cluster_monitoring_view&lt;/em&gt; privileges.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see in the following image, this configuration did not help.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/query5.png?width=940px" alt="Query"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 8. Query after Data Source has manually been modified&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_thanos_querier_vs_thanos_querier"&gt;Thanos Querier vs. Thanos Querier&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To summarize, in the OpenShift UI everything works, but when using the Grafana dashboard, we see all namespaces from the cluster. Let’s try to find out how OpenShift does this.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When we check the Thanos services we will see 3 ports:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; ports:
-- name: web
-protocol: TCP
-port: 9091
-targetPort: web
-- name: tenancy
-protocol: TCP
-port: 9092
-targetPort: tenancy
-- name: tenancy-rules
-protocol: TCP
-port: 9093
-targetPort: tenancy-rules&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Currently we configured port 9091, but there is another one, which is called &lt;strong&gt;tenancy&lt;/strong&gt;, maybe this is what we need? Let’s try it:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Change the CRD GrafanaDataSource to use port 9092 (instead of 9091). This will restart the pod and remove the custom query parameter we configured earlier.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Remove the cluster-role&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc adm policy remove-cluster-role-from-user cluster-monitoring-view -z grafana-serviceaccount&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The serviceaccount of Grafana, must be able to view the project we want to show in the dashboards. Therefore, allow the Grafana serviceaccount to view the project &lt;em&gt;ns1&lt;/em&gt;:&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc adm policy add-role-to-user view system:serviceaccount:grafana:grafana-serviceaccount -n ns1&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Log into Grafana as administrator and manually change the Data Source and add &lt;strong&gt;namespace=ns1&lt;/strong&gt; to the setting &lt;strong&gt;Custom query parameters&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Rerun the Query …​ as you see you will now see one namespace only.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/working-query.png?width=940px" alt="Query"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 9. Query with Thanos Querier on port 9092&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_happened"&gt;What happened?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So what actually happened here? We have two ports for our Thanos Querier which are important: 9091 and 9092.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When we check the Deployment of the Thanos Querier for these ports we will see:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For the port &lt;strong&gt;9091&lt;/strong&gt; it looks like the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;spec:
-[...]
-containers:
-[...]
-- resources:
-[...]
-ports:
-- name: web
-containerPort: 9091
-protocol: TCP
-[...]
-args:
-[...]
-- &amp;#39;-openshift-sar={&amp;#34;resource&amp;#34;: &amp;#34;namespaces&amp;#34;, &amp;#34;verb&amp;#34;: &amp;#34;get&amp;#34;}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;There is an OAuth setting which says: you have to have the privilege to GET the objects &amp;#34;namespace&amp;#34;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The only cluster role which has exactly this privilege and which is also mentioned by the official OpenShift documentation is &lt;strong&gt;cluster-monitoring-view&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt; - apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-name: cluster-monitoring-view
-rules:
-- apiGroups:
-- &amp;#34;&amp;#34;
-resources:
-- namespaces
-verbs:
-- get&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As we have seen above, this will show you all namespaces available on the cluster.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When you check port &lt;strong&gt;9092&lt;/strong&gt; there is no such OAuth configuration. This service is actually in front of the container &lt;strong&gt;kube-rbac-proxy&lt;/strong&gt;. It does not require OAuth, but instead the namespace URL parameter.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Details can be found at: &lt;a href="https://github.com/openshift/enhancements/blob/master/enhancements/monitoring/user-workload-monitoring.md" class="bare"&gt;https://github.com/openshift/enhancements/blob/master/enhancements/monitoring/user-workload-monitoring.md&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In short the whole setup looks like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift/images/grafana/thanos.png?width=640px" alt="Thanos"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 10. Thanos interconnecting containers&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;While port 9091 goes directly to Thanos it will require that you have the cluster-monitoring-view role. Port 9092 does not require this, but instead you &lt;strong&gt;MUST&lt;/strong&gt; send the URL parameter namespace=.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;While both options are valid, some considerations must be done when using the Grafana Operator.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Currently the URL parameter can be set in Grafana directly only. The operator will ignore it. The ticket in the project shall address this, but is not yet implemented: &lt;a href="https://github.com/integr8ly/grafana-operator/issues/309" class="bare"&gt;https://github.com/integr8ly/grafana-operator/issues/309&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The URL parameter setting will be gone, when the Grafana pods is restarted, which might lead to a problem.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;While the Grafana serviceaccount does not require cluster permissions, it will require permission to view the appropriate namespace&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;All above also means, that you actually would need to create a new DataSource for every project you want to monitor. I was not able to find a way, to send multiple namespaces in the URL parameter.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Is it useful to leverage the Grafana operator then at all? Probably yes, since Operators are the future and it is actively developed. Nevertheless, it is always possible to deploy Grafana manually.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
