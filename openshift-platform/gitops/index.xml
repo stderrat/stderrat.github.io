@@ -1,0 +1,1375 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>GitOps on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift-platform/gitops/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/openshift-platform/gitops/index.xml" rel="self" type="application/rss+xml"/><item><title>Quay Deployment and Configuration using GitOps</title><link>https://blog.stderr.at/openshift-platform/gitops/2023-11-03-quay-deployment-with-gitops/</link><pubDate>Fri, 03 Nov 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/gitops/2023-11-03-quay-deployment-with-gitops/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Installing and configuring Quay Enterprise using a GitOps approach is not as easy as it sounds.
+On the one hand, the operator is deployed easily, on the other hand, the configuration of Quay is quite tough to do in a declarative way and syntax rules must be strictly followed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this article, I am trying to explain how I solved this issue by using a Kubernetes Job and a Helm Chart.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_about_quay_configuration"&gt;What about Quay configuration?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Quay Enterprise is using a (quite big) Secrets object that defines tons of settings for the registry. The syntax must strictly be followed.
+For example, a Boolean must be &lt;code&gt;true&lt;/code&gt; or &lt;code&gt;false&lt;/code&gt;. Quay ignores if a string like &lt;strong&gt;&amp;#34;true&amp;#34;&lt;/strong&gt; or &lt;strong&gt;&amp;#34;false&amp;#34;&lt;/strong&gt; is provided.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This alone is already a hassle since working with Booleans in Helm is not as easy as you might think.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Secret combines &lt;strong&gt;non-sensitive data&lt;/strong&gt; (like &lt;em&gt;DEFAULT_TAG_EXPIRATION&lt;/em&gt;) with &lt;strong&gt;sensitive data&lt;/strong&gt; (like settings for the Object Store)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If there is any error in the configuration file, or if the Operator is configured to manage a specific component, but finds settings for this component in the Secret, the deployment will fail.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_solution"&gt;The solution?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I thought for a long time about how to solve this issue. One solution might be to create the whole Secret upfront and simply provide it
+during the deployment. This works and I have done this previously, but I wanted to generate the Secret during the deployment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Therefore, I am now trying to create a ConfigMap that holds a complete skeleton of the required Secret. This ConfigMap is used by a
+Kubernetes Job, which reads the required sensitive information out of other existing Secrets (such as S3 information) and generates a
+quay-secret by replacing the required fields.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Is this the perfect and optimal way to do that? Probably not, however, it works :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_let_us_see_that_in_action"&gt;Let us see that in action&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_prerequisites"&gt;Prerequisites&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First, we have some prerequisites.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Quay is very …​ very hungry for resources. Quay application pods require 8 CPU and 16GB Memory per pod and per default…​ and it tries to spin up 2 pods. The
+same goes for Clair and so on. Therefore, I will configure Quay to only use 1 replica for these services.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Quay requires node roles &lt;code&gt;infra&lt;/code&gt;. I am not sure if this is new or if I never saw that, but the nodeSelector, which it seems you cannot
+configure, is looking for the label infra. Therefore, the nodes that should host Quay must have the label: &lt;code&gt;node-role.kubernetes.io/infra: &amp;#39;&amp;#39;&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Currently, I am using a &lt;code&gt;BucketClaim&lt;/code&gt; object to create an S3-bucket
+and once created I read the required information of the bucket to
+replace the settings in the generated Quay configuration accordingly.
+The BucketClaim object comes from the &lt;strong&gt;OpenShift Data Foundation&lt;/strong&gt;. I
+installed the &lt;strong&gt;Multicloud Object Gateway&lt;/strong&gt; only, which allows me to
+provide Object Storage (S3). (Very useful to test other solutions too,
+like OpenShift Logging or Network Observability)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Meeting these requirements, allows us to deploy Quay. But first some theory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_deployment_workflow"&gt;Deployment Workflow&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The workflow of the deployment is as the following image demonstrates&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/quay-setup/quay-synwaves.png" alt="Argo CD Syncwaves"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Argo CD: Syncwaves&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Everything starts with the Helm Chart &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/setup-quay"&gt;setup-quay&lt;/a&gt;. This Chart itself provides the logic to create an S3-bucket, a Job to generate the configuration and the creation of a Secret, that provides the initial administrator credential.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;setup-quay&lt;/strong&gt; has multiple dependencies to other Helm charts, that can be found at my &lt;a href="https://charts.stderr.at"&gt;Helm repository&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/quay-registry-setup"&gt;quay-registry-setup&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator"&gt;helper-operator&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker"&gt;helper-status-checker&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configuration"&gt;Configuration&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All values for the Helm Charts can be found in the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-quay/values.yaml"&gt;values file&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since sub-charts are used the file is divided into 4 blocks:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;helper-operator: Here the sub-chart helper-operator is configured. All settings here are bypassed to the subchart. It defines the required settings to deploy the operator.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;helper-status-checker: Here settings for the status-checker Job are defined.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;quay-registry-setup: This defines the actual configuration of the QuayEnterprise object. It will spin up the Quay instance. Some components are set to &amp;#34;false&amp;#34; or &amp;#34;replica == 1&amp;#34; to minimize the required resources in my lab. For a production environment, additional replicas or components might be required.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;quay: These are the actual values for the configuration. It defines the bucketClaim as well as settings for the Quay configuration that might be overwritten.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_deploy_it"&gt;Deploy it&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Using for example the following Argo CD Application we can deploy everything.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: in-cluster-setup-quay
+namespace: openshift-gitops
+spec:
+destination:
+name: in-cluster &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: default
+ignoreDifferences: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+- jsonPointers:
+- /data/password
+kind: Secret
+name: init-user
+namespace: quay-enterprise
+info:
+- name: Description
+value: ApplicationSet that Deploys on Management Cluster (Matrix Generator)
+project: in-cluster
+source:
+path: clusters/management-cluster/setup-quay &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
+targetRevision: main&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The destination cluster. Here the &amp;#34;in-cluster&amp;#34; means the local cluster of Argo CD.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The initial credential for Quay is being generated and would change if the Argo CD application gets refreshed and therefore it would be out of sync. So, we are ignoring differences in the password field.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The source of the Helm Chart.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In Argo CD this Application will look like&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/quay-setup/quay-in-argocd.png?width=640px" alt="Quay in Argo CD"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. Quay in Argo CD&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Deployment means in GitOps approach: synchronizing the Argo CD Application.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will install the Operator and spin up all required Pods and Jobs. It will take several minutes until everything is up and running. During the deployment, some Pods may fail and will get restarted automatically. This happens because they are dependent on the Postgres DB which must be started first.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_quay_is_alive"&gt;Quay is Alive&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Congratulations, you have now a Quay instance. Use the auto-generated
+credentials, that are stored in the Secret &lt;code&gt;init-user&lt;/code&gt; to authenticate.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/quay-setup/quay-login.png?width=320px" alt="Quay Login"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. Quay Login&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_is_that_all_kind_of_summary"&gt;Is that All - Kind of Summary?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Several configurations are done here now. However, there are tons to follow. For example, log forwarding or additional certificates. Some
+settings will contain sensitive information some will not. All these settings can be added to the ConfigMap skeleton and be replaced
+accordingly with &amp;#34;little&amp;#34; effort.
+For me, it is simply not possible to test every setting and possibility. Maybe I will extend the
+Helm Chart during the journey. If you find this useful, feel free to re-use it and of course, if you find any issues feel free to create a GitHub issue.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Operator installation with Argo CD</title><link>https://blog.stderr.at/openshift-platform/gitops/2023-03-20-operator-installation-with-argocd/</link><pubDate>Mon, 20 Mar 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/gitops/2023-03-20-operator-installation-with-argocd/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;GitOps for application deployment and cluster configuration is a must-have I am trying to convince every customer to follow from the very beginning when starting the Kubernetes journey. For me, as more on the infrastructure side of things, I am more focused on the configuration of an environment.
+Meaning, configuring a cluster, installing an operator etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this article, I would like to share how I deal with cluster configuration when certain Kubernetes objects are dependent on each other and how to use Kubernetes but also Argo CD features to resolve these dependencies.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This article assumes that you have the &lt;strong&gt;openshift-gitops&lt;/strong&gt; Operator, which provides Argo CD, already installed, and configured. If you are new to GitOps check out this article: &lt;a href="https://blog.stderr.at/openshift/2020-08-06-argocd/"&gt;Argo CD&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_tldr"&gt;TL;DR&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you want to jump directly to the technical fun part, go here: &lt;a href="#source_1"&gt;Let’s start&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_idea"&gt;The Idea&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Everything should be seen as a code. Everything should be possible to be deployed in a repeatable way. With a GitOps approach, everything is stored naturally in Git and from there, a GitOps agent validates and synchronizes changes to one or more clusters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When it comes to OpenShift, Red Hat supports Argo CD using the Operator &lt;strong&gt;openshift-gitops&lt;/strong&gt;. This gives you everything you need to deploy an Argo CD instance. The only thing you need to take care of is a Git repository, no matter if it is GitHub, Gitlab, Bitbucket etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_problem"&gt;The Problem&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Sometimes Kubernetes objects depend on each other. This is especially true when you would like to install and configure Operators, where the configuration, based on a Customer Resource Definition (CRD), can only happen after the Operator has been installed and is ready.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Why is that? Well, when you want to deploy an Operator, you will store a “Subscription object” in Git. Argo CD will take this object and applies it to the cluster. However, for an Operator, the creation of the Subscription object is just the first step. A lot of other steps are required until the Operator gets ready. Unfortunately, Argo CD cannot verify if the installation is successful. All it sees is that the Subscription object has been created and then it immediately tries to deploy the CRD. The CRD which is not yet available on the system because the Operator is still installing it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Even if you use Argo CD features like Sync waves it would not wait until the Operator is successfully installed because for Argo CD the “success” is the creation of the Subscription object.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Subsequently, the Argo CD synchronisation process will fail.
+You could now try to automatically “Retry” the sync or use multiple Argo CD applications that you execute one after each other, but I was not fully happy with that and tried a different approach.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_my_solution"&gt;My Solution&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s say I would like to deploy and configure the &lt;strong&gt;Compliance Operator&lt;/strong&gt;. The steps would be:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Install the Operator.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Wait until the Operator is ready.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure Operator specific CRDs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This “Wait until the Operator is ready” is the tricky party for Argo CD. What I have done is the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Install the Operator, this is the first step and is done during Sync Wave 0.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a Kubernetes Job that verifies the status of the Operator. This Job additionally requires a ServiceAccount and a role with a binding. They are configured during Sync Wave is 1. Moreover, I use a &lt;strong&gt;Hook&lt;/strong&gt; (another Argo CD feature) with the deletion policy “HookSucceeded”. This makes sure that the Job, ServiceAccount, Role and RoleBinding are removed after the status has been verified.
+The verification is successful as soon as the Operator status says “Succeeded”. In fact, all the Job does is to execute some oc commands. For example,&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get clusterserviceversion openshift-gitops-operator.v1.8.0 -n openshift-gitops -o jsonpath={.status.phase}
+Succeeded&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Finally, during the next Sync Wave (2+) the CRD can be deployed. In this case, I deploy the object &lt;strong&gt;ScanSettingBinding&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In Argo CD everything is correctly synchronized, and the Operator and its configuration is in place.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you are new to the compliance operator, I recommend the following article: &lt;a href="https://blog.stderr.at/compliance/2021/07/compliance-operator/"&gt;Compliance Operator&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I use this approach for every Operator that I would like to install and configure at the same time. For example, I do the same for Advanced Cluster Security or Advanced Cluster Management where I use the Job to verify if everything is ready before I let Argo CD continue.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+More information about Sync Waves and Hooks can be found in the official Argo CD documentation: &lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/"&gt;Sync Phases and Waves&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="source_1"&gt;Let’s see this in Action&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Prerequisites&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift cluster 4.x&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;openshift-gitops is installed and ready to be used.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Access to GitHub (or to your own Repository)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I will be using my Helm Chart repository at &lt;a href="https://charts.stderr.at/" class="bare"&gt;https://charts.stderr.at/&lt;/a&gt; and from there the charts:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;compliance-operator-full-stack&lt;/p&gt;
+&lt;div class="olist loweralpha"&gt;
+&lt;ol class="loweralpha" type="a"&gt;
+&lt;li&gt;
+&lt;p&gt;helper-operator (sub chart): Responsible to install the Operators.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;helper-status-checker (sub chart): Responsible to check the status of the Operator.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Why do I use Helm charts?&lt;/strong&gt;
+There is no specific reason for that. I started with Helm for the cluster configuration and now it has evolved with a separate Chart repository and sub-charts and so on.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_argo_cd_application"&gt;Argo CD Application&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In Argo CD I have the following Application:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: in-cluster-install-compliance-scans
+namespace: openshift-gitops
+spec:
+destination:
+namespace: default
+server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+info:
+- name: Description
+value: Deploy and configure the Compliance Scan Operator
+project: in-cluster
+source:
+path: charts/compliance-operator-full-stack &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+repoURL: &amp;#39;https://github.com/tjungbauer/helm-charts&amp;#39;
+targetRevision: main&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Installing on the local cluster where Argo CD is installed.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Git configuration, including path and revision.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Actually, this Application is created out of an ApplicationSet, but I did not want to make it too complex :)
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Application would like to synchronize the objects:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Subscription&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OperatorGroup&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Namespace (openshift-compliance)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ScanSettingBinding&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-operator-installation.png" alt="Installing Compliance Operator"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Argo CD: Installing Compliance Operator&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;Where are the objects we need for the Job?&lt;/strong&gt; Since they are only available during the Sync-Hook they will not show up here. In fact, they will only show up during the time they are alive and will disappear again after the status of the operator has been verified.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_helm_chart_configuration"&gt;Helm Chart Configuration&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/compliance-operator-full-stack"&gt;Helm Chart&lt;/a&gt; gets its configuration from a values file. You can verify the whole file on GitHub.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The important pieces here are that some variables are handed over to the appropriate Sub Charts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_operator_configuration"&gt;Operator Configuration&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This part is handed over to the Chart “&lt;strong&gt;helper-operator&lt;/strong&gt;”.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-operator:
+operators:
+compliance-operator:
+enabled: true
+syncwave: &amp;#39;0&amp;#39;
+namespace:
+name: openshift-compliance
+create: true
+subscription:
+channel: release-0.1
+approval: Automatic
+operatorName: compliance-operator
+source: redhat-operators
+sourceNamespace: openshift-marketplace
+operatorgroup:
+create: true
+notownnamespace: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is executed during Sync Wave 0 and defines if a Namespace (openshift-compliance) shall be created (true) and the specification of the Operator which you need to know upfront:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;channel&lt;/strong&gt;: Defines which channel shall be used. Some operators offer different channels.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;approval&lt;/strong&gt;: Either Automatic or Manual … defines if the Operator shall be updated automatically or requires an approval.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;operatorName&lt;/strong&gt;: the actual name of the Operator (compliance-operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;source&lt;/strong&gt;: Where does this Operator come from (redhat-operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;sourceNamespace&lt;/strong&gt;: In this case openshift-marketplace&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can fetch these values by looking at the Packagemanifest:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get packagemanifest compliance-operator -o yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_status_checker_configuration"&gt;Status Checker Configuration&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This part is handed over to the Sub-Chart &amp;#34;&lt;strong&gt;helper-status-checker&lt;/strong&gt;&amp;#34;&amp;#34;. The main values here are the operatorName and the namespace where the Operator is installed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;What is not visible here is the Sync Wave, which is per default set to 1 inside the Helm Chart. If you need to overwrite it, it can be configured in this section as well.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-status-checker:
+enabled: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+# use the value of the currentCSV (packagemanifest) but WITHOUT the version !!
+operatorName: compliance-operator &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+# where operator is installed
+namespace:
+name: openshift-compliance &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+serviceAccount:
+create: true
+name: &amp;#34;sa-compliance&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Is the status checker enabled or is it not.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the operator as it is reported by the value currentCSV inside the packageManifest&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Operator has been installed.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the ServiceAccount that is created temporarily.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The operatorName is sometimes different than the Operator name required for helper-operator chart. Here it seems the value of the currentCSV must be used but without the version number. (The Job will look up the version itself)
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_operator_crd_configuration"&gt;Operator CRD configuration&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The final section of the values file manages the configuration for the Operator itself. This section does not use a Sub Chart. Instead, the variables are used in the Main-Chart. In this example, the &lt;strong&gt;ScanSettingBinding&lt;/strong&gt; will be configured during Sync Wave 3, which is all we need to basic functionality.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;compliance:
+scansettingbinding:
+enabled: true
+syncwave: &amp;#39;3&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+profiles: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+- name: ocp4-cis-node
+- name: ocp4-cis
+scansetting: default&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Define the Sync Wave. This value must be higher than the Sync Wave of the &lt;strong&gt;helper-status-checker&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;ScanSettingBinding configuration. Two profiles are used in this example.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_synchronizing_argo_cd"&gt;Synchronizing Argo CD&lt;/h3&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Basic Application in Argo CD before it is synced:&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-operator-installation.png?width=480" alt="argocd operator installation"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. Argo CD: Application&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Sync Wave 0: Synchronization has started. Namespace and Subscription are deployed.&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-starting-operator-installation.png?width=480" alt="argocd starting operator installation"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. Argo CD: Synchronization is started (Sync Wave 0)&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Sync Wave 1: Status Checker Job has started and tries to verify the Operator.&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-starting-job.png?width=480" alt="argocd starting job"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 4. Argo CD: Status Checker Job started (Sync Wave 1)&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The Log output of the Operator. You can see that the status switches from Pending to Installing to Succeeded.&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-status-checker-log.png?width=480" alt="argocd status checker log"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 5. Argo CD: Log of the Status Checker Pod&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;After Sync Wave 3, the whole Application has been synchronized and the Checker Job has been removed.&lt;/p&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-operator-installed.png?width=480" alt="argocd operator installed"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 6. Argo CD: Compliance Operator is fully deployed&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Using ServerSideApply with ArgoCD</title><link>https://blog.stderr.at/openshift-platform/gitops/2022-11-04-argocd-and-serversideapply/</link><pubDate>Fri, 04 Nov 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/gitops/2022-11-04-argocd-and-serversideapply/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;„&lt;em&gt;If it is not in GitOps, it does not exist&lt;/em&gt;“ - However, managing objects partially only by Gitops was always an issue, since ArgoCD would like to manage the whole object. For example, when you tried to work with node labels and would like to manage them via Gitops, you would need to put the whole node object into ArgoCD. This is impractical since the node object is very complex and typically managed by the cluster.
+There were 3rd party solutions (like the patch operator), that helped with this issue.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, with the Kubernetes feature &lt;strong&gt;Server-Side Apply&lt;/strong&gt; this problem is solved. Read further to see a working example of this feature.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_is_server_side_apply_ssa"&gt;What is Server-Side Apply (SSA)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Quoting from &lt;a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/"&gt;Kuberneted Documentation&lt;/a&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;Server-Side Apply helps users and controllers manage their resources through declarative configurations. Clients can create and modify their objects declaratively by sending their fully specified intent.&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;A fully specified intent is a partial object that only includes the fields and values for which the user has an opinion. That intent either creates a new object or is combined, by the server, with the existing object.&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In other words: you can send a snippet of an object to the cluster and the cluster will eventually combine everything on the server and not validate on the client side first. All you need is a way to identify the object. Usually, the name and maybe the namespace too.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ssa_and_argocd"&gt;SSA and ArgoCD&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When it comes to GitOps the implementation of SSA is quite new. However, it is important to note, that (managed field) conflicts are currently not handled by ArgoCD. Instead, ArgoCD forces a change and overrides everything, even if the field is managed by somebody else. This might be improved in the future. Nevertheless …​ let’s test the feature.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The support of the Server-Side Apply feature is currently available in the &lt;strong&gt;latest&lt;/strong&gt; version of ArgoCD. This means, that the channel of the openshift-gitops operator must be changed to &amp;#34;latest&amp;#34;, which will deploy openshift-gitops version &lt;strong&gt;1.6&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A new stable version will arrive soon. :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_node_labelling_chart"&gt;Node Labelling Chart&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this example, I would like to use a Helm chart that will try to set two different labels on 2 nodes. This is a very easy example to demonstrate the feature.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As a Helm chart, I have prepared the following: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration" class="bare"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The values for this chart are straightforward: per node, a list of custom labels is defined.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;helper-server-side-apply:
+nodes: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+- name: ip-10-0-233-237.us-west-1.compute.internal &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+enabled: true
+custom_labels: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+environment: &amp;#39;Production&amp;#39;
+gpu: false
+- name: ip-10-0-193-67.us-west-1.compute.internal
+enabled: true
+custom_labels:
+environment: &amp;#39;Test&amp;#39;
+gpu: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;List of nodes&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Node name as OpenShift knows the node (&lt;em&gt;oc get nodes&lt;/em&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;List of labels that should be added to the node: here environment and gpu&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The Chart is using a sub-chart called &lt;strong&gt;helper-server-side-apply&lt;/strong&gt;. The source can be found at the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-server-side-apply"&gt;Helm Repository&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The output of this Helm Chart will be the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;# Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
+kind: Node
+apiVersion: v1
+metadata:
+name: &amp;#34;ip-10-0-233-237.us-west-1.compute.internal&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+labels:
+gitops.ownedBy: openshift-gitops
+helm.sh/chart: helper-server-side-apply-1.0.3
+app.kubernetes.io/name: helper-server-side-apply
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/managed-by: Helm
+environment: &amp;#34;Production&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+gpu: &amp;#34;false&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+---
+# Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
+kind: Node
+apiVersion: v1
+metadata:
+name: &amp;#34;ip-10-0-193-67.us-west-1.compute.internal&amp;#34;
+labels:
+gitops.ownedBy: openshift-gitops
+helm.sh/chart: helper-server-side-apply-1.0.3
+app.kubernetes.io/name: helper-server-side-apply
+app.kubernetes.io/instance: release-name
+app.kubernetes.io/managed-by: Helm
+environment: &amp;#34;Test&amp;#34;
+gpu: &amp;#34;true&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the node and our identifier&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The first label we set&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The second label we set&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is not a full definition of a Node object. The only things defined are the node name and the labels. (Besides the customer labels we would like to add, some default labels are added automatically.)
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_argocd_application"&gt;ArgoCD Application&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So we have a Helm chart in Git. Perfect, but to automate everything with Gitops we need to create the object &lt;strong&gt;Application&lt;/strong&gt;. For example the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: node-labelling
+namespace: openshift-gitops
+spec:
+destination:
+namespace: default
+server: &amp;#39;https://kubernetes.default.svc&amp;#39;
+info:
+- name: Description
+value: Deploy Node Labels
+project: default
+source:
+helm:
+valueFiles:
+- values.yaml
+path: clusters/management-cluster/node-configuration &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
+targetRevision: main
+syncPolicy:
+syncOptions:
+- ServerSideApply=true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+- Validate=false &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path and URL of the node labelling Helm chart&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Must be set to &lt;strong&gt;true&lt;/strong&gt; to enable SSA&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Must be set to &lt;strong&gt;false&lt;/strong&gt; to skip schema validation&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The two &lt;strong&gt;syncOptions&lt;/strong&gt; are important to set. Since the yaml output might not pass the validation, the schema validation should be disabled.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the following application in ArgoCD:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-app-nodelabelling.png?width=840px" alt="ApplicationSet"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Argo CD: Application&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_syncing_the_application"&gt;Syncing the Application&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you now synchronize the ArgoCD application, ArgoCD will take the yaml and will tell Kubernetes (or OpenShift) to perform a Server-Side Apply. This will result in the following yaml for the node:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;kind: Node
+apiVersion: v1
+metadata:
+name: ip-10-0-193-67.us-west-1.compute.internal
+labels:
+beta.kubernetes.io/os: linux
+app.kubernetes.io/instance: node-labelling
+[...]
+node-role.kubernetes.io/worker: &amp;#39;&amp;#39;
+gitops.ownedBy: openshift-gitops
+[...]
+environment: Test
+[...]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;That’s it …​ all the magic is done.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>GitOps - Argo CD</title><link>https://blog.stderr.at/openshift-platform/gitops/2020-08-06-argocd/</link><pubDate>Thu, 06 Aug 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/gitops/2020-08-06-argocd/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://argoproj.github.io/argo-cd/"&gt;Argo CD&lt;/a&gt; &lt;em&gt;is a declarative, GitOps continuous delivery tool for Kubernetes. GitOps itself uses Git pull request to manager infrastructure and application configuration.&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s try to install and use a simple usecase in order to demonstrate the basic possibilities.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Without going into the very detail, typical GitOps usecases are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Apply configurations from Git&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Detect, (auto-)sync and notify configuration drifts&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Manage multiple clusters and keep the configuration equal&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;…​&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;and much more. Further information about the theory behind can be found at &lt;a href="https://www.openshift.com/blog/introduction-to-gitops-with-openshift" class="bare"&gt;https://www.openshift.com/blog/introduction-to-gitops-with-openshift&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;In short&lt;/strong&gt;: there is no reason why not to use GitOps and to leverage tools like Argo CD to manage configurations. In this tutorial, the Argo CD operator gets installed
+and a simple use case is shown to demonstrate the possibilities of this software.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As for architectural overview of Argo CD, please read the official documentation: &lt;a href="https://argoproj.github.io/argo-cd/operator-manual/architecture/" class="bare"&gt;https://argoproj.github.io/argo-cd/operator-manual/architecture/&lt;/a&gt;, which explains very well the
+core components. No need to rewrite it here.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You need an Openshift 4 cluster. :)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Watch the video at: &lt;a href="https://demo.openshift.com/en/latest/argocd/" class="bare"&gt;https://demo.openshift.com/en/latest/argocd/&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_install_argo_cd_operator"&gt;Install Argo CD operator&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before you begin, create a new project:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc new-project argocd&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this project the operator will be deployed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Look for the Operatorhub in the OpenShift WebUI and &amp;#34;&lt;em&gt;argocd&lt;/em&gt;&amp;#34; and select the &amp;#34;Argo CD Community&amp;#34; operator. Subscribe to this operator. Just be sure that the newly created project is selected. Other settings can stay as default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-operator-install.png?width=940px" alt="Operator Install"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Argo CD: Operator&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will install the operator. You can monitor this process by clicking &amp;#34;Installed Operators&amp;#34;. After a while it should switch from &amp;#34;Installing&amp;#34; to &amp;#34;Succeeded&amp;#34;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_deploy_argocd_instance"&gt;Deploy ArgoCD instance&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Select the installed operator &amp;#34;Argo CD&amp;#34;, select the tab &amp;#34;ArgoCD&amp;#34; and hit the button &amp;#34;&lt;em&gt;Create ArgoCD&amp;#34;&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Enter the following yaml:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: argocd
+namespace: argocd
+spec:
+dex:
+image: quay.io/redhat-cop/dex
+openShiftOAuth: true
+version: v2.22.0-openshift
+rbac:
+policy: |
+g, argocdadmins, role:admin
+scopes: &amp;#39;[groups]&amp;#39;
+server:
+route:
+enabled: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This yaml extends the default example by:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;using OpenShift authentication&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Allow all users from the group &amp;#34;argocdadmins&amp;#34; admin permissions inside Argo CD&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;create a route to access argocd web interface&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once this configuration is created, the operator will automatically start to roll out the different pods, which are required.
+No worries, it will take quite long until everything is up and running.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_create_a_new_group_and_assign_a_user_to_it"&gt;Create a new group and assign a user to it&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the ArgoCD resource we have defined the group &lt;em&gt;argocdadmins&lt;/em&gt; and all users in this group will get administrator privileges in Argo CD.
+This group must be created and in addition we assign the user &lt;em&gt;admin&lt;/em&gt; to it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example with the following commands:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc adm groups new argocdadmins
+oc adm groups add-users argocdadmins admin&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_login_to_argo_cd"&gt;Login to Argo CD&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now it is time to login to Argo CD. Just fetch the route which was created by the operator (for example with: &lt;code&gt;oc get routes -n argocd&lt;/code&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On the login page select &amp;#34;&lt;strong&gt;Login via OpenShift&lt;/strong&gt;&amp;#34; and enter the credentials of the user you would like to use. (well, the one which you can admin permissions in the step above).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-login.png?width=300px" alt="ArgoCD Login"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. Argo CD: Login Screen&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will open the Argo CD Interface.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_first_test_with_argo_cd"&gt;First test with Argo CD&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s create an application in Argo CD to demonstrate the possibilities about application management with GitOps.
+We will use a simple application which draws a blue (or green) box in your browser.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Click on the button &amp;#34;Create App&amp;#34; and enter the following parameters:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Name: bgd&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Project: default (This is the project inside Argo CD, not OpenShift)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Sync Policy: Can stay at manual for now&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Repository URL: &lt;a href="https://github.com/tjungbauer/gitops-examples" class="bare"&gt;https://github.com/tjungbauer/gitops-examples&lt;/a&gt; (This is a fork of &lt;a href="https://github.com/christianh814/gitops-examples"&gt;christianh814/gitops-examples&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Revision: master&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Path: bgd/&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Cluster: &lt;a href="https://kubernetes.devault.svc" class="bare"&gt;https://kubernetes.devault.svc&lt;/a&gt; (This is the local default cluster Argo CD created. Other Clusters may be defined)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Namespace: bgd (This is the OpenShift namespace which will be created)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At the end, it should look like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-createapp.png?width=940px" alt="ArgoCD Create App" width="940"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. Argo CD: Create an Application&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Press the &amp;#34;Create&amp;#34; button and your application is ready to be synchronized. Since no synchronization happens yet, Argo CD will complain that the application is out of sync.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_sync_application"&gt;Sync application&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since we set the Sync Policy to manual, the synchronization process must be started, guess what, manually. Click on the &amp;#34;Sync&amp;#34; button and Argo CD will open a side panel, which shows the resources are out of sync and other options.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-sync-app.png?width=440px" alt="ArgoCD Sync App" width="440"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 4. Argo CD: Sync an Application&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One notable option is the &amp;#34;Prune&amp;#34; setting. By selecting this, changes which have been done directly on OpenShift, are removed and replaced by the ones which are stored at Git.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock tip"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-tip" title="Tip"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is a very good option, to force everyone to follow the GitOps process :)
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Press the &amp;#34;Synchronize&amp;#34; button and select the application. As you see the sync process has started and after a while, all resources are synced to OpenShift.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-app-syncing.png?width=940px" alt="ArgoCD App Syncing"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 5. Argo CD: Application Syncing&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-app-synced.png?width=940px" alt="ArgoCD App Synced"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 6. Argo CD: Application Synced&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_verifying_objects"&gt;Verifying objects&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now that Argo CD says that the application has been synchronized, we should check the objects, which have been created in OpenShift.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As you can see in the Git repository, there are 4 objects which should exist now:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;a namespace (bgd)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;a deployment&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;a service&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;a route&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-example-repo.png?width=240px" alt="ArgoCD Git Repo" width="240"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 7. Argo CD: Git Repo&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To verify the existence either check via the WebUI or simply try:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get all -n bgd
+NAME READY STATUS RESTARTS AGE
+pod/bgd-6b9b64d94d-5fqdg 1/1 Running 0 6m2s
+NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
+service/bgd ClusterIP 172.30.233.30 &amp;lt;none&amp;gt; 8080/TCP 6m7s
+NAME READY UP-TO-DATE AVAILABLE AGE
+deployment.apps/bgd 1/1 1 1 6m4s
+NAME DESIRED CURRENT READY AGE
+replicaset.apps/bgd-6b9b64d94d 1 1 1 6m3s
+NAME HOST/PORT PATH SERVICES PORT TERMINATION WILDCARD
+route.route.openshift.io/bgd bgd-bgd.apps.ocp.example.test bgd 8080 None&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Obviously, the namespace exists and with it also the other objects, which hae been synchronized.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you now open the route &lt;a href="http://bgd-bgd.apps.ocp.example.test" class="bare"&gt;http://bgd-bgd.apps.ocp.example.test&lt;/a&gt; in your browser, you will see a nice blue box.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-bluebox.png" alt="ArgoCD Blue Box"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 8. Argo CD: The Blue Box&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As you can see all objects have been synchronized and the application has been deployed correctly. The source of truth is in Git and all changes should be done there.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_i_want_a_green_box"&gt;I want a green box&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So you want a green box? Maybe you think of doing this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Modify the &lt;em&gt;Deployment&lt;/em&gt; and change the environment COLOR from blue to green:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;...
+spec:
+containers:
+- name: bgd
+image: &amp;#39;quay.io/redhatworkshops/bgd:latest&amp;#39;
+env:
+- name: COLOR
+value: green # change from blue to green
+...&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will trigger a re-deployment and …​ fine …​ you have a green box:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-green.png" alt="ArgoCD Green Box"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 9. Argo CD: The Green Box&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But is this the correct way to do that? &lt;strong&gt;NO&lt;/strong&gt;, it is not. Argo CD will immediately complain that the application is out of sync.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-outofsync.png" alt="ArgoCD Out of Sync"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 10. Argo CD: Out of Sync&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you sync the application it will end up with a blue box again.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-bluebox.png" alt="ArgoCD Blue Box"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 11. Argo CD: The Blue Box&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But you really really want a green box? Fair enough, the correct way would be to change the deployment configuration on Git.
+Simply change the file &lt;strong&gt;bgd/bgd-deployment.yaml&lt;/strong&gt; and set the COLOR to green:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;...
+spec:
+containers:
+- image: quay.io/redhatworkshops/bgd:latest
+name: bgd
+env:
+- name: COLOR
+value: &amp;#34;green&amp;#34;
+resources: {}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Again Argo CD will complain that it is out of sync.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-outofsync-gitupdate.png" alt="ArgoCD Git Update"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 12. Argo CD: Git Update&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By synchronizing the changes, it will deploy the latest version found at Git and …​ yes, you have a green box now (When deployment on OpenShift side has finished).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-green.png" alt="ArgoCD Green Box"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 13. Argo CD: The Green Box&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

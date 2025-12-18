@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Fundamentals on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift-platform/day-2/fundamentals/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/openshift-platform/day-2/fundamentals/index.xml" rel="self" type="application/rss+xml"/><item><title>How to force a MachineConfig rollout</title><link>https://blog.stderr.at/openshift-platform/day-2/fundamentals/2023-10-18-force-machineconfig-rollout/</link><pubDate>Wed, 18 Oct 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/day-2/fundamentals/2023-10-18-force-machineconfig-rollout/</guid><description>&lt;p&gt;
+While playing around with &lt;a href="https://falco.org/"&gt;Falco&lt;/a&gt; (worth another post) I had to force a
+MachineConfig update even so the actual configuration of the machine
+did not change.&lt;/p&gt;
+&lt;p&gt;
+This posts documents the steps taken.&lt;/p&gt;
+&lt;p&gt;
+As this seems to be not clearly documented here it comes&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Get the list of current MachineConfigs&lt;/p&gt;
+&lt;div class="src src-shell"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;$ oc get mc
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;NAME GENERATEDBYCONTROLLER IGNITIONVERSION AGE
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;00-master 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;00-worker 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;01-master-container-runtime 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;01-master-kubelet 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;01-worker-container-runtime 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;01-worker-kubelet 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;99-kernel-devel-extensions 25h
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;99-master-generated-registries 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;99-master-ssh 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;99-worker-generated-registries 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;99-worker-ssh 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rendered-master-b8a2011b0b09e36088acf47e225b0ed2 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 5h49m
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rendered-master-ce464ff45cc049fce3e8a63e36a4ee9e 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rendered-worker-5baefb5bb7ad1d69cd7a0c3dc52ef2f3 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 25h
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rendered-worker-a0f8f0d915ef01ba4a1ab3047b6c863d 7101fb0720d05771bdc174af918b64deb4efa604 3.2.0 8d&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;We want to force the rollout of a worker node, so remember the name of an old worker config, in our case &lt;code&gt;rendered-worker-5baefb5bb7ad1d69cd7a0c3dc52ef2f3&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Currently the desiredConfig and the currentConfig should have the same value&lt;/p&gt;
+&lt;div class="src src-shell"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;$oc get node node1 -o jsonpath&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;{.metadata.annotations.machineconfiguration\.openshift\.io/desiredConfig}{&amp;#34;\n&amp;#34;}&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rendered-worker-a0f8f0d915ef01ba4a1ab3047b6c863d
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;$ oc get node node1 -o jsonpath&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#39;{.metadata.annotations.machineconfiguration\.openshift\.io/currentConfig}{&amp;#34;\n&amp;#34;}&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;rendered-worker-a0f8f0d915ef01ba4a1ab3047b6c863d&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Touch a file called 4 touch /run/machine-config-daemon-force&lt;/p&gt;
+&lt;div class="src src-shell"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;oc debug node/node1 -- touch /host/run/machine-config-daemon-force&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;patch the node and set the annotation &lt;code&gt;machineconfiguration.openshift.io/currentConfig&lt;/code&gt; to the &lt;strong&gt;old&lt;/strong&gt; rendered config rendered-worker-5baefb5bb7ad1d69cd7a0c3dc52ef2f3&lt;/p&gt;
+&lt;div class="src src-shell"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;oc patch node ip-10-0-182-18.eu-central-1.compute.internal --patch &lt;span style="color:#e6db74"&gt;&amp;#39;{ &amp;#34;metadata&amp;#34;: { &amp;#34;annotations&amp;#34;: { &amp;#34;machineconfiguration.openshift.io/currentConfig&amp;#34;: &amp;#34;rendered-worker-5baefb5bb7ad1d69cd7a0c3dc52ef2f3&amp;#34; } } }&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Watch the MachineConfigPool&lt;/p&gt;
+&lt;div class="src src-shell"&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;$ oc get mcp&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Wait for the config rollout to complete.&lt;/p&gt;</description></item><item><title>Helpful oc / kubectl commands</title><link>https://blog.stderr.at/openshift-platform/day-2/fundamentals/2020-04-01-oc-commands/</link><pubDate>Wed, 01 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/day-2/fundamentals/2020-04-01-oc-commands/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;This is a list of useful oc and/or kubectl commands so they won’t be forgotton. No this is not a joke…​&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_list_all_pods_in_state_running"&gt;List all pods in state &lt;em&gt;Running&lt;/em&gt;&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods --field-selector=status.phase=Running&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_list_all_pods_in_state_running_and_show_there_resource_usage"&gt;List all pods in state &lt;em&gt;Running&lt;/em&gt; and show there resource usage&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc get pods --field-selector=status.phase=Running -o json|jq &amp;#34;.items[] | {name: .metada
+ta.name, res: .spec.containers[].resources}&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_list_events_sort_by_time_created"&gt;List events sort by time created&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt; oc get events --sort-by=&amp;#39;.lastTimestamp&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_explain_objects_while_specifing_the_api_version"&gt;Explain objects while specifing the api version&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Sometimes when you run &lt;code&gt;oc explain&lt;/code&gt; you get a message in DESCRIPTION that this particular version is deprecated, e.g. you are running &lt;code&gt;oc explain deployment&lt;/code&gt; and get&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;DESCRIPTION:
+DEPRECATED - This group version of Deployment is deprecated by
+apps/v1/Deployment. See the release notes for more information. Deployment
+enables declarative updates for Pods and ReplicaSets.&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Note the DEPRECTATED message above
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;if you want to see the documentation for the object that has not been deprecated you can use&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc explain deployment --api-version=apps/v1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_magic_with_oc_set"&gt;Magic with oc set&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;oc set&lt;/code&gt; is actually a very versatile command. Studying &lt;code&gt;oc set -h&lt;/code&gt; is a good idea, here are some examples&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_set_route_weights_when_alternatebackends_in_a_route_are_defined"&gt;Set route weights when alternateBackends in a route are defined&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc set route-backends bluegreen blue=1 green=9&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_set_resources_on_the_command_line"&gt;Set resources on the command line&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-bash" data-lang="bash"&gt;oc set resources dc cakephp-mysql-example --limits=memory=1Gi,cpu=200m&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>

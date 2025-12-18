@@ -148,7 +148,8 @@ jQuery(document).ready(function() {
     // while clicking the chevron toggles expand/collapse
     // (The chevron click handler is in yaub.js)
 
-    var sidebarStatus = searchStatus = 'open';
+    var sidebarStatus = 'open';
+    var searchStatus = 'open';
     $('#sidebar .highlightable').perfectScrollbar();
     setMenuHeight();
 

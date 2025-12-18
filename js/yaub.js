@@ -377,6 +377,23 @@ jQuery(document).ready(function() {
     // Simply toggle the expanded class - CSS handles visibility
     $li.toggleClass('menu-expanded');
   });
+
+  // Handle click on menu link - expand if collapsed and already on this page
+  $('#sidebar ul.topics').on('click', 'a.has-children', function(e) {
+    var $li = $(this).closest('li.dd-item');
+    
+    // If this is the active page and menu is collapsed, expand it instead of navigating
+    if ($li.hasClass('active') && !$li.hasClass('menu-expanded')) {
+      e.preventDefault();
+      $li.addClass('menu-expanded');
+      return false;
+    }
+    
+    // If menu is collapsed, expand it (navigation will still happen)
+    if (!$li.hasClass('menu-expanded')) {
+      $li.addClass('menu-expanded');
+    }
+  });
 });
 
 function initMermaid(update, attrs) {

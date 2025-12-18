@@ -61,10 +61,15 @@
         img.loading = 'lazy';
       }
       
+      // Clone img and mark to skip animation (already animated once)
+      var newImg = img.cloneNode(true);
+      newImg.setAttribute('data-webp-upgraded', 'true');
+      newImg.classList.add('no-animate');
+      
       // Build picture element
       picture.appendChild(sourceWebP);
       picture.appendChild(sourceFallback);
-      picture.appendChild(img.cloneNode(true));
+      picture.appendChild(newImg);
       
       // Replace img with picture
       img.parentNode.replaceChild(picture, img);
