@@ -52,25 +52,39 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
         // Track active heading
         let activeId = null;
 
-        // Function to update active TOC item
-        function setActiveTocItem(id) {
+        // Debounce timer for smooth transitions
+        let updateTimeout = null;
+        
+        // Function to update active TOC item with debouncing
+        function setActiveTocItem(id, immediate) {
             if (activeId === id) return;
-            activeId = id;
-
-            // Remove active class from all items
-            tocLinks.forEach(link => {
-                const li = link.parentElement;
-                if (li) li.classList.remove('active');
-            });
-
-            // Add active class to current item
-            if (id) {
-                const activeLink = toc.querySelector('a[href="#' + id + '"]');
-                if (activeLink) {
-                    const li = activeLink.parentElement;
-                    if (li) li.classList.add('active');
-                }
+            
+            // Clear any pending update
+            if (updateTimeout) {
+                clearTimeout(updateTimeout);
             }
+            
+            // Use slight delay for smooth transitions (unless immediate)
+            const delay = immediate ? 0 : 100;
+            
+            updateTimeout = setTimeout(function() {
+                activeId = id;
+
+                // Remove active class from all items
+                tocLinks.forEach(link => {
+                    const li = link.parentElement;
+                    if (li) li.classList.remove('active');
+                });
+
+                // Add active class to current item
+                if (id) {
+                    const activeLink = toc.querySelector('a[href="#' + id + '"]');
+                    if (activeLink) {
+                        const li = activeLink.parentElement;
+                        if (li) li.classList.add('active');
+                    }
+                }
+            }, delay);
         }
 
         // Use Intersection Observer for efficient scroll tracking
@@ -140,6 +154,8 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
                     const target = document.getElementById(href.substring(1));
                     if (target) {
                         e.preventDefault();
+                        // Immediately highlight the clicked item
+                        setActiveTocItem(href.substring(1), true);
                         target.scrollIntoView({
                             behavior: 'smooth',
                             block: 'start'
@@ -155,10 +171,10 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
         if (window.location.hash) {
             const hashId = window.location.hash.substring(1);
             if (headingIds.includes(hashId)) {
-                setActiveTocItem(hashId);
+                setActiveTocItem(hashId, true);
             }
         } else if (headings.length > 0) {
-            setActiveTocItem(headings[0].id);
+            setActiveTocItem(headings[0].id, true);
         }
     }
 
