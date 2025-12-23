@@ -1,0 +1,608 @@
+/**
+ * GitOps Application Catalog
+ * 
+ * Styles for the GitOps catalog visualization component.
+ * Displays Helm charts and ArgoCD applications from openshift-clusterconfig-gitops
+ * with filtering, search, and category organization.
+ * 
+ * Dependencies: variables.css (CSS custom properties)
+ */
+
+/* ========================================
+   GITOPS APPLICATION CATALOG
+   Visualization for openshift-clusterconfig-gitops
+======================================== */
+
+.gitops-catalog {
+    --gitops-bg: var(--MAIN-BG-color, #282a36);
+    --gitops-tag-bg: var(--MENU-TAG-BG-color, #282a36);
+    --gitops-card-bg: var(--BOX-BG-color, #1e1f29);
+    --gitops-border: var(--MENU-SECTIONS-BG-color, #3a3d4d);
+    --gitops-text: var(--MAIN-TEXT-color, #f8f8f2); 
+    --gitops-text-muted: var(--MAIN-TEXT-color-DARK, #8b8fa3);
+    --gitops-accent: var(--MAIN-LINK-color, #4a90e2);
+    --gitops-success: #28a745;
+    --gitops-radius: 12px;
+    --gitops-transition: 0.3s ease;
+    
+    padding: 1rem 0;
+}
+
+/* Header Section */
+.gitops-catalog-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--gitops-border);
+}
+
+.gitops-catalog-header h2 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+}
+
+.gitops-catalog-subtitle {
+    font-size: 1rem;
+    color: var(--gitops-text-muted);
+    margin: 0.5rem 0;
+}
+
+.gitops-catalog-subtitle a {
+    color: var(--gitops-accent);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--gitops-accent);
+    transition: border-color var(--gitops-transition);
+}
+
+.gitops-catalog-subtitle a:hover {
+    border-bottom-style: solid;
+}
+
+.gitops-catalog-updated {
+    font-size: 0.85rem;
+    color: var(--gitops-text-muted);
+    margin: 0.75rem 0 0 0;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.gitops-catalog-updated i {
+    margin-right: 0.4rem;
+    opacity: 0.7;
+}
+
+.gitops-app-count {
+    background: var(--gitops-card-bg);
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+/* Filter Section */
+.gitops-filter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.gitops-search-box {
+    position: relative;
+    max-width: 400px;
+}
+
+.gitops-search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gitops-text-muted);
+    pointer-events: none;
+}
+
+.gitops-search-box input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.75rem;
+    border: 2px solid var(--gitops-border);
+    border-radius: 8px;
+    background: var(--gitops-card-bg);
+    color: var(--gitops-text);
+    font-size: 0.95rem;
+    transition: border-color var(--gitops-transition), box-shadow var(--gitops-transition);
+}
+
+.gitops-search-box input:focus {
+    outline: none;
+    border-color: var(--gitops-accent);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+}
+
+.gitops-search-box input::placeholder {
+    color: var(--gitops-text-muted);
+}
+
+.gitops-category-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.gitops-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--gitops-border);
+    border-radius: 25px;
+    background: var(--gitops-card-bg);
+    color: var(--gitops-text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--gitops-transition);
+}
+
+.gitops-filter-btn:hover {
+    border-color: var(--cat-color, var(--gitops-accent));
+    color: var(--gitops-text);
+}
+
+.gitops-filter-btn.active {
+    background: var(--MENU-SECTION-ACTIVE-CATEGORY-BGcolor);
+    border-color: var(--cat-color, var(--gitops-accent));
+    color: white;
+}
+
+.gitops-filter-btn i {
+    font-size: 0.9em;
+}
+
+/* Applications Grid */
+.gitops-apps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Application Card */
+.gitops-app-card {
+    background: var(--gitops-card-bg);
+    border-radius: var(--gitops-radius);
+    border: 1px solid var(--gitops-border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform var(--gitops-transition), box-shadow var(--gitops-transition), border-color var(--gitops-transition);
+}
+
+.gitops-app-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    border-color: var(--cat-color, var(--gitops-accent));
+}
+
+/* Card Header */
+.gitops-app-card-header {
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, 
+        color-mix(in srgb, var(--cat-color, var(--gitops-accent)) 15%, transparent),
+        transparent 60%
+    );
+    border-bottom: 1px solid var(--gitops-border);
+}
+
+.gitops-app-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: var(--cat-color, var(--gitops-accent));
+    color: white;
+    font-size: 1.4rem;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--cat-color, var(--gitops-accent)) 40%, transparent);
+}
+
+.gitops-app-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+}
+
+.gitops-app-category {
+    font-size: 0.75rem;
+    color: var(--cat-color, var(--gitops-accent));
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.gitops-app-version {
+    font-size: 0.7rem;
+    color: var(--gitops-text-muted);
+    background: var(--gitops-bg);
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-family: 'Inconsolata', monospace;
+}
+
+/* Card Body */
+.gitops-app-card-body {
+    padding: 1.25rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.gitops-app-name {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0;
+   /* color: var(--gitops-text); */
+    line-height: 1.3;
+}
+
+.gitops-app-description {
+    font-size: 0.9rem;
+    color: var(--gitops-text-muted);
+    line-height: 1.5;
+    margin: 0;
+    flex: 1;
+}
+
+.gitops-app-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+}
+
+.gitops-app-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--gitops-text-muted);
+}
+
+.gitops-app-detail i {
+    width: 16px;
+    text-align: center;
+    opacity: 0.6;
+}
+
+.gitops-app-detail code {
+    font-family: 'Inconsolata', monospace;
+    font-size: 0.8rem;
+    background: var(--gitops-bg);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    color: var(--gitops-accent);
+}
+
+.gitops-app-path code {
+    word-break: break-all;
+}
+
+/* Tags */
+.gitops-app-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+}
+
+.gitops-tag {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    background: var(--gitops-tag-bg);
+    border-radius: 4px;
+    color: var(--gitops-text-muted);
+    font-weight: 500;
+    text-transform: lowercase;
+}
+
+/* Card Footer */
+.gitops-app-card-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--gitops-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    background: color-mix(in srgb, var(--gitops-bg) 50%, transparent);
+}
+
+.gitops-app-deps {
+    font-size: 0.8rem;
+    color: var(--gitops-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.gitops-app-deps i {
+    opacity: 0.6;
+}
+
+.gitops-app-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Buttons - styled like Save/Print buttons */
+.gitops-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(79, 122, 164, 0.08);
+    border: 1px solid rgba(79, 122, 164, 0.25);
+    color: var(--MAIN-TEXT-color-DARK, #dedede);
+}
+
+.gitops-btn:hover {
+    background: rgba(79, 122, 164, 0.15);
+    border-color: var(--BTN-BG-color-DARK, #1e90ff);
+    color: var(--MAIN-LINK-color, #1e90ff);
+    transform: translateY(-1px);
+}
+
+.gitops-btn-blog {
+    /* Same as base .gitops-btn */
+}
+
+.gitops-btn-github {
+    /* Same as base .gitops-btn */
+}
+
+/* No Results */
+.gitops-no-results {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--gitops-text-muted);
+    background: var(--gitops-card-bg);
+    border-radius: var(--gitops-radius);
+    border: 2px dashed var(--gitops-border);
+}
+
+.gitops-no-results i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+}
+
+.gitops-no-results p {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Card Animation */
+.gitops-app-card {
+    animation: gitops-card-fade-in 0.4s ease-out;
+}
+
+@keyframes gitops-card-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   DEPENDENCIES DISPLAY
+======================================== */
+.gitops-dependencies-section {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.gitops-dependencies-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gitops-text-muted, #aaa);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 0.25rem;
+}
+
+.gitops-dependencies-header i {
+    font-size: 0.9rem;
+    color: var(--MAIN-LINK-color, #20c997);
+}
+
+.gitops-app-deps {
+    padding: 0.5rem 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+.gitops-deps-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--gitops-text-muted, #888);
+    margin-bottom: 0.4rem;
+    font-weight: 500;
+}
+
+.gitops-deps-header i {
+    font-size: 0.85rem;
+}
+
+.gitops-helm-deps .gitops-deps-header {
+    color: #1e90ff;
+}
+
+.gitops-app-app-deps .gitops-deps-header {
+    color: #20c997;
+}
+
+.gitops-deps-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.gitops-dep-link {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.gitops-dep-helm {
+    background: rgba(30, 144, 255, 0.15);
+    color: #1e90ff;
+    border: 1px solid rgba(30, 144, 255, 0.3);
+}
+
+.gitops-dep-helm:hover {
+    background: rgba(30, 144, 255, 0.25);
+    color: #4da6ff;
+    transform: translateY(-1px);
+}
+
+.gitops-dep-app {
+    background: rgba(32, 201, 151, 0.15);
+    color: #20c997;
+    border: 1px solid rgba(32, 201, 151, 0.3);
+    cursor: pointer;
+}
+
+.gitops-dep-app:hover {
+    background: rgba(32, 201, 151, 0.25);
+    color: #3dd9ad;
+    transform: translateY(-1px);
+}
+
+/* Highlight animation when scrolling to a dependency */
+.gitops-card-highlight {
+    animation: gitops-highlight-pulse 0.5s ease-out 3;
+    box-shadow: 0 0 0 3px var(--MAIN-LINK-color, #20c997), 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+}
+
+@keyframes gitops-highlight-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 3px var(--MAIN-LINK-color, #20c997), 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(32, 201, 151, 0.5), 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .gitops-apps-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .gitops-catalog-header h2 {
+        font-size: 1.4rem;
+    }
+    
+    .gitops-category-filters {
+        justify-content: flex-start;
+    }
+    
+    .gitops-filter-btn {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    .gitops-app-card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .gitops-app-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .gitops-search-box {
+        max-width: 100%;
+    }
+    
+    .gitops-app-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+    
+    .gitops-app-name {
+        font-size: 1rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .gitops-filter-container {
+        display: none;
+    }
+    
+    .gitops-app-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    
+    .gitops-apps-grid {
+        display: block;
+    }
+    
+    .gitops-app-card {
+        margin-bottom: 1rem;
+        border: 1px solid #ccc;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .gitops-app-card,
+    .gitops-filter-btn,
+    .gitops-btn,
+    .gitops-search-box input {
+        transition: none !important;
+        animation: none !important;
+    }
+    
+    .gitops-app-card:hover {
+        transform: none;
+    }
+}
+
+
