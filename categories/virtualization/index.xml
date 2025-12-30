@@ -1,0 +1,637 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Virtualization on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/virtualization/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 29 Dec 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/virtualization/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Virtualization Networking - The Overview</title><link>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</link><pubDate>Mon, 29 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;It’s time to dig into OpenShift Virtualization. You read that right, OpenShift Virtualization, based on &lt;strong&gt;kubevirt&lt;/strong&gt; allows you to run Virtual Machines on top of OpenShift, next to Pods.
+If you come from a pure Kubernetes background, OpenShift Virtualization can feel like stumbling into a different dimension. In the world of Pods, we rarely care about Layer 2, MAC addresses, or VLANs. The SDN (Software Defined Network) handles the magic and we are happy.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But Virtual Machines are different…​.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;They are needy creatures. They often refuse to live in the bubble of the default Pod network. They want to talk to the external Oracle database on the bare metal server next door, they need a static IP from the corporate range, or they need to be reachable via a specific VLAN.
+Networking is a key part of the Virtualization story and we need to master it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To achieve this, we need to understand two tools: &lt;strong&gt;NMState Operator&lt;/strong&gt; and &lt;strong&gt;Multus&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this guide, I will try to discuss some of the basics for &amp;#34;Multihomed Nodes&amp;#34; and look at the three main ways to connect your VMs to the outside world.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_who_does_what_nmstate_vs_multus"&gt;Who does what: NMState vs. Multus&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we look at YAML, we need to clear up a common confusion. Who does what?&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Think of your OpenShift Node as a house.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;NMState (The Electrician)&lt;/strong&gt;: This operator works on the Node (Host) level. It drills holes in the walls, lays the physical cables, and installs the wall sockets. In technical terms: It configures Bridges, Bonds, and VLANs on the Linux OS of the worker nodes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Multus (The Extension Cord)&lt;/strong&gt;: This CNI plugin works on the VM/Pod level. It plugs the VM into the socket that NMState created. It allows a VM to have more than one network interface (eth0, eth1, etc.).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You usually need both. First, NMState builds the bridge. Then, Multus connects the VM to it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/virtualization/images/network-overview/nmstate_and_multus.png" alt="NMState and Multus in action"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_nmstate_operator_installation"&gt;NMState Operator Installation&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While Multus is installed by default, NMState is not. You need to install the Operator first.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To install the NMState Operator, you can use the Web UI or the CLI. For the Web UI, you can use the following steps:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;In the OpenShift Web Console, navigate to Operators → OperatorHub (or Ecosystem → Software Catalog in version 4.20+).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;In the OperatorHub, search for &lt;strong&gt;NMState&lt;/strong&gt; and select the Operator from the list.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Click on the &lt;strong&gt;NMState&lt;/strong&gt; Operator and click on the &lt;strong&gt;Install&lt;/strong&gt; button.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select the &lt;strong&gt;Install&lt;/strong&gt; button to install the Operator.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;After the Operator is installed, you can check the status of the Operator in the &lt;strong&gt;Installed Operators&lt;/strong&gt; view.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/virtualization/images/network-overview/nmState-Operator.png" alt="NMState Operator Installation"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once done you will need to create an instance of the NMState Operator. Simply create the following resource:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: nmstate.io/v1
+kind: NMState
+metadata:
+name: nmstate
+spec:
+probeConfiguration:
+dns:
+host: root-servers.net&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_nmstate_operator_resource_types"&gt;NMState Operator Resource Types&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The NMState Operator provides the three custom resource types to manage the node networking:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;NodeNetworkState (NNS)&lt;/strong&gt; → The &amp;#34;As-Is&amp;#34; State:&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;This is an automatically generated report of the current status. It effectively tells you: &amp;#34;On Server 1, I currently see Network Card A and B, and IP address X is configured.&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Purpose: To verify the current reality on the ground before you make changes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;NodeNetworkConfigurationPolicy (NNCP)&lt;/strong&gt; → The &amp;#34;To-Be&amp;#34; State (The Blueprint):&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;This is the most critical resource. This resource is used to configure the network on the node. Here you tell the cluster that &amp;#34;I want a bridge named br1 to exist on all servers, and it must be connected to port ens4.&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The operator will try to configure this configuration across your nodes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;NodeNetworkConfigurationEnactment (NNCE)&lt;/strong&gt; → The Result report:&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;This resource is created autoamtically after the NNCP (the blueprint) has been created.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;It resports back: This resource is used to enact the network configuration on the node.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;It reports back on the execution: &amp;#34;Success! The bridge has been built,&amp;#34; or &amp;#34;Failure! Cable not found.&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With NMState in place, we can now start to configure the network on the node.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_part_1_building_the_bridge_nmstate"&gt;Part 1: Building the Bridge (NMState)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By default, Virtual Machines (VMs) are connected to the default pod network of the cluster as any other Pod. Using this network, the VM can communicate with other resources inside the cluster, or any resources that are reachable through the node network. Sometimes the VM needs a connection to a different network. In such a case you must connect the VM to an additional network. The VM will be configured with an additional network interface and is considered as multihomed VM.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To connect a VM to the physical network, we first need a bridge on the worker nodes. A bridge forwards packets between connected interfaces, similar to a network switch. We have two choices: Linux Bridge or OVS (Open vSwitch) Bridge.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Linux Bridge&lt;/strong&gt;: The sturdy, wooden bridge. Simple, robust, standard Linux kernel tech. Use this for 90% of your use cases (Static IPs, simple VLAN access).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;OVS Bridge&lt;/strong&gt;: The magical, floating bridge. Complex, programmable, supports SDN logic. Use this only if you need advanced tunneling or integration with OVN policies on the physical interface.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s create a standard Linux Bridge called &lt;strong&gt;br1&lt;/strong&gt; on all our worker nodes, attached to physical interface &lt;strong&gt;ens4&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We do this by applying a NodeNetworkConfigurationPolicy (NNCP).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+name: br1-policy
+spec:
+nodeSelector:
+node-role.kubernetes.io/worker: &amp;#34;&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+desiredState:
+interfaces:
+- name: br1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+description: Linux bridge linked to ens4 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+type: linux-bridge &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+state: up &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+ipv4:
+dhcp: true &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+enabled: true
+bridge: &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+options:
+stp:
+enabled: false
+port: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+- name: ens4&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Apply to all worker nodes. If omitted, the policy will be applied to all nodes.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the bridge&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Description of the bridge&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Type of the bridge (linux-bridge)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;State of the bridge (up)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;DHCP is enabled for the bridge (true)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Options for the bridge&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Port of the bridge (ens4)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Setting an interface to absent or deleting an NNCP resource does not restore the previous configuration. A cluster administrator must define a policy with the previous configuration to restore settings.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_part_2_defining_the_networkattachmentdefinition_nad"&gt;Part 2: Defining the NetworkAttachmentDefinition (NAD)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now that the bridge br1 exists on the nodes, we need to tell OpenShift how to use it. We do this with a NetworkAttachmentDefinition (NAD).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;There are three distinct &amp;#34;Types&amp;#34; of networks you can define in a NAD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_1_the_linux_bridge_cni_plugin"&gt;1. The Linux Bridge (CNI-Plugin)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Linux bridges and OVS bridges both connect VMs to additional networks. A Linux bridge offers a simple, stable and sturdy solution and is well established. The OVS bridge on the other hand provides an advanced feature set for software-defined networks and is more challenging to troubleshoot.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use Case: Direct Layer 2 connection to the physical network.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Behavior: The VM is practically &amp;#34;on the wire&amp;#34; of your datacenter. It can do DHCP with your corporate router.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+name: bridge-network
+namespace: my-vm-namespace
+spec:
+config: &amp;#39;{
+&amp;#34;cniVersion&amp;#34;: &amp;#34;0.3.1&amp;#34;,
+&amp;#34;name&amp;#34;: &amp;#34;bridge-network&amp;#34;,
+&amp;#34;type&amp;#34;: &amp;#34;bridge&amp;#34;, &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+&amp;#34;bridge&amp;#34;: &amp;#34;br1&amp;#34;, &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+&amp;#34;ipam&amp;#34;: {
+&amp;#34;type&amp;#34;: &amp;#34;dhcp&amp;#34;
+}
+}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Type of the network (bridge)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the bridge (br1)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+type: &amp;#34;bridge&amp;#34; refers to the CNI plugin that utilizes the Linux Bridge we created earlier.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_a_note_on_ipam_ip_address_management"&gt;A note on IPAM (IP Address Management)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You might have noticed the &amp;#34;ipam&amp;#34; section in the NAD examples. You have three main choices there:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;dhcp&lt;/strong&gt;: Passes DHCP requests to the physical network (requires an external DHCP server).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;static&lt;/strong&gt;: You manually define IPs in the VM config (hard work).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;whereabouts&lt;/strong&gt;: A &amp;#34;Cluster-wide DHCP&amp;#34; for private networks. Perfect for the OVN L2 Overlay scenario where no external DHCP exists.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_2_ovn_kubernetes_l2_overlay"&gt;2. OVN Kubernetes L2 Overlay&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A switched (layer 2) topology network interconnects workloads through a cluster-wide logical switch.
+This configuration allows East-West traffic only (packets between Pods within a cluster).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use Case: You need a private network between your VMs (East-West traffic only), but you don’t want them to talk to the physical network.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Behavior: It creates a Geneve tunnel (like VXLAN) over the network.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+name: private-overlay
+namespace: my-vm-namespace
+spec:
+config: &amp;#39;{
+&amp;#34;cniVersion&amp;#34;: &amp;#34;0.4.0&amp;#34;,
+&amp;#34;name&amp;#34;: &amp;#34;private-overlay&amp;#34;,
+&amp;#34;type&amp;#34;: &amp;#34;ovn-k8s-cni-overlay&amp;#34;,
+&amp;#34;topology&amp;#34;: &amp;#34;layer2&amp;#34;, &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+&amp;#34;netAttachDefName&amp;#34;: &amp;#34;my-vm-namespace/private-overlay&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Topology of the network (layer2)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;NetworkAttachmentDefinition name (my-vm-namespace/private-overlay)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A pod with the annotation &lt;code&gt;k8s.v1.cni.cncf.io/networks: private-overlay&lt;/code&gt; will be connected to the private-overlay network.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_3_ovn_kubernetes_secondary_localnet"&gt;3. OVN Kubernetes Secondary Localnet&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OVN-Kubernetes also supports a &lt;strong&gt;localnet&lt;/strong&gt; topology for secondary networks. This type creates a connection between a secondary network and a physical network, allowing VMs to communicate with destinations that are outside of the cluster.
+You must map the secondary network to the OVS bridge on the node. This is done by using a NodeNetworkConfigurationPolicy resource.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use Case: You want to connect to the physical network (like the Linux Bridge), but you want to leverage OVN features (like NetworkPolicies) on that traffic.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Behavior: Uses Open vSwitch mapping to connect the OVN logic to the physical port.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s create the bridge mapping by applying the following NodeNetworkConfigurationPolicy resource:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+name: br0-ovs
+spec:
+nodeSelector:
+node-role.kubernetes.io/worker: &amp;#34;&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+desiredState:
+interfaces:
+- name: br0-ovs &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+description: OVS bridge with ens4 as a port
+type: ovs-bridge &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+state: up
+ipv4:
+dhcp: true
+enabled: true
+bridge:
+options:
+stp: true
+port:
+- name: ens4 &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+ovn:
+bridge-mappings:
+- localnet: br0-network &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+bridge: br0-ovs &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+state: present&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Apply to all worker nodes. If omitted, the policy will be applied to all nodes.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the bridge&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Type of the bridge (ovs-bridge)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Port of the bridge (ens4)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Localnet network name (br0-network)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;OVS bridge name (br0-ovs)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now let’s create the NetworkAttachmentDefinition for the localnet network so that VMs can connect to it.
+This NAD is created in the namespace of the VM.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If the NAD is created in the &lt;strong&gt;default&lt;/strong&gt; namespace, the configuration will be available to all namespaces.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+name: ovn-localnet
+namespace: my-vm-namespace
+spec:
+config: &amp;#39;{
+&amp;#34;cniVersion&amp;#34;: &amp;#34;0.4.0&amp;#34;,
+&amp;#34;name&amp;#34;: &amp;#34;ovn-localnet&amp;#34;, &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+&amp;#34;type&amp;#34;: &amp;#34;ovn-k8s-cni-overlay&amp;#34;, &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+&amp;#34;topology&amp;#34;: &amp;#34;localnet&amp;#34;, &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+&amp;#34;netAttachDefName&amp;#34;: &amp;#34;my-vm-namespace/br0-network&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the network (ovn-localnet)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Type of the network (ovn-k8s-cni-overlay)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Topology of the network (localnet)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Reference to the localnet mapping name defined in the NNCP (my-vm-namespace/br0-network)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_part_3_connecting_the_vm"&gt;Part 3: Connecting the VM&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, we have our &amp;#34;socket&amp;#34; (the NAD). Let’s plug the VM in. In your VirtualMachine manifest, you add the network to the spec.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This can be done via the Web Console or via the CLI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Via the Web Console:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;In the OpenShift Web Console, navigate to Virtualization → VirtualMachines.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Click on the VM you want to connect to the network.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select the &amp;#34;Configuration&amp;#34; tab&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Select &amp;#34;Network&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/virtualization/images/network-overview/VM-config.png?width=520px" alt="VM Configuration"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Click &amp;#34;Add network interface&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;In the Popup enter a name for the interface&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Model keep as &amp;#34;virtio&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;On the &amp;#34;Network&amp;#34; select the NAD you created in the previous step.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/virtualization/images/network-overview/VM-additional-nic.png?width=520px" alt="VM Configure additional network interface"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Click &amp;#34;Save&amp;#34;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The VM will now have a Pending state. This is because the VM is waiting for a migration to activate the new network interface.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/virtualization/images/network-overview/VM-Pending.png?width=640px" alt="VM Pending Configuration"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the action menu you can select &amp;#34;Migrate&amp;#34; &amp;gt; &amp;#34;Compute&amp;#34; to start the migration process. After a while the new NIC will be active.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/virtualization/images/network-overview/VM-migrated.png?width=640px" alt="VM Migrated"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Via the CLI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here is a VM connected to the Linux Bridge NAD we created in step 1:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlight"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+name: helloworld-vm
+namespace: my-vm-namespace
+spec:
+template:
+spec:
+domain:
+devices:
+interfaces:
+- name: default
+masquerade: {} &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+- name: br0-network
+bridge: {} &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+networks:
+- name: default
+pod: {}
+- name: br0-network &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+multus:
+networkName: br0-network &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The standard Pod Network&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Our new connection&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The NAD name&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The NAD name&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>
