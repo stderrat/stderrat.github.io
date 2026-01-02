@@ -174,12 +174,6 @@ jQuery(document).ready(function() {
         return false;
     });
 
-
-    jQuery('[data-clear-history-toggle]').on('click', function() {
-        sessionStorage.clear();
-        location.reload();
-        return false;
-    });
     jQuery('[data-search-toggle]').on('click', function() {
         if (sidebarStatus == 'closed') {
             jQuery('[data-sidebar-toggle]').trigger('click');
@@ -315,46 +309,7 @@ jQuery(document).ready(function() {
         }
     });
 
-    // allow keyboard control for prev/next links
-    jQuery(function() {
-        jQuery('.nav-prev').click(function(){
-            location.href = jQuery(this).attr('href');
-        });
-        jQuery('.nav-next').click(function() {
-            location.href = jQuery(this).attr('href');
-        });
-    });
-
-    jQuery('input, textarea').keydown(function (e) {
-         //  left and right arrow keys
-         if (e.which == '37' || e.which == '39') {
-             e.stopPropagation();
-         }
-     });
-
-    jQuery(document).keydown(function(e) {
-      // prev links - left arrow key
-      if(e.which == '37') {
-        jQuery('.nav.nav-prev').click();
-      }
-
-      // next links - right arrow key
-      if(e.which == '39') {
-        jQuery('.nav.nav-next').click();
-      }
-    });
-
-    $('#top-bar a:not(:has(img)):not(.btn):not(.no-highlight)').addClass('highlight');
-    $('#body-inner a:not(:has(img)):not(.btn):not(a[rel="footnote"]):not(.no-highlight)').addClass('highlight');
-    // Add external link icon to links pointing outside the blog
-    $('#body-inner a[href^="http"]:not(:has(img)):not(.btn):not(a[rel="footnote"]):not(.no-highlight):not([href*="stderr.at"]):not([href*="localhost"])').each(function() {
-        if (!$(this).find('.external-link-icon').length) {
-            $(this).append('<i class="fas fa-arrow-up-right-from-square external-link-icon" aria-hidden="true"></i>');
-            if (!$(this).attr('title')) {
-                $(this).attr('title', 'Opens external site');
-            }
-        }
-    });
+    // NOTE: Keyboard navigation and external link icons moved to yaub.js
 
     var touchsupport = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)
     if (!touchsupport){ // browser doesn't support touch
@@ -461,15 +416,6 @@ jQuery(document).ready(function() {
 });
 
 jQuery(window).on('load', function() {
-    // store this page in session
-    sessionStorage.setItem(jQuery('body').data('url'), 1);
-
-    // loop through the sessionStorage and see if something should be marked as visited
-    for (var url in sessionStorage) {
-        if (sessionStorage.getItem(url) == 1) jQuery('[data-nav-id="' + url + '"]').addClass('visited');
-    }
-
-
     $(".highlightable").highlight(sessionStorage.getItem('search-value'), { element: 'mark' });
 });
 
