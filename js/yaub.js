@@ -834,7 +834,8 @@ jQuery(document).ready(function() {
   // ------------------------------------------------------------------------
   // Image Featherlight & URL Parameter Styling
   // ------------------------------------------------------------------------
-  var images = $("div#body-inner img").not(".inline");
+  // Exclude: .inline images, related article images, and images already in links
+  var images = $("div#body-inner img").not(".inline").not(".related-card-image img");
   
   // Wrap images in featherlight lightbox links
   images.wrap(function() {
@@ -843,7 +844,8 @@ jQuery(document).ready(function() {
     var f = o['featherlight'];
     
     if (f != 'false') {
-      if (!image.parent("a").length) {
+      // Use .closest("a") to check for ANY ancestor link, not just direct parent
+      if (!image.closest("a").length) {
         return "<a href='" + image[0].src + "' data-featherlight='image'></a>";
       }
     }
