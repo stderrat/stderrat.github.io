@@ -13,6 +13,16 @@
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const modKey = isMac ? '⌘' : 'Ctrl';
 
+    // Check if theme toggle is enabled
+    const themeToggleEnabled = !!document.getElementById('theme-toggle-btn');
+    
+    // Build general items based on what's enabled
+    const generalItems = [];
+    if (themeToggleEnabled) {
+        generalItems.push({ keys: 'T', description: 'Toggle dark/light theme' });
+    }
+    generalItems.push({ keys: '?', description: 'Show this help' });
+
     const shortcuts = [
         {
             category: 'Navigation',
@@ -39,9 +49,7 @@
         },
         {
             category: 'General',
-            items: [
-                { keys: '?', description: 'Show this help' }
-            ]
+            items: generalItems
         }
     ];
 
