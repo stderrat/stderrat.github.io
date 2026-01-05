@@ -1,3 +1,4 @@
+/* 
 // Scrollbar Width function
 function getScrollBarWidth() {
     var inner = document.createElement('p');
@@ -23,7 +24,7 @@ function getScrollBarWidth() {
     document.body.removeChild(outer);
 
     return (w1 - w2);
-};
+}; */
 
 function setMenuHeight() {
     $('#sidebar .highlightable').height($('#sidebar').innerHeight() - $('#header-wrapper').height() - 40);
@@ -103,6 +104,7 @@ $(window).resize(function() {
     setMenuHeight();
 });
 
+/*
 // debouncing function from John Hann
 // http://unscriptable.com/index.php/2009/03/20/debouncing-javascript-methods/
 (function($, sr) {
@@ -131,16 +133,18 @@ $(window).resize(function() {
     jQuery.fn[sr] = function(fn) { return fn ? this.bind('resize', debounce(fn)) : this.trigger(sr); };
 
 })(jQuery, 'smartresize');
-
+*/
 
 jQuery(document).ready(function() {
     restoreTabSelections();
 
+    /*
     jQuery('#sidebar .category-icon').on('click', function() {
         $( this ).toggleClass("fa-angle-down fa-angle-right") ;
         $( this ).parent().parent().children('ul').toggle() ;
         return false;
     });
+    */
 
     // Menu toggle functionality for expanding/collapsing submenus
     // Only the chevron arrow should toggle the submenu, not the entire link
@@ -149,7 +153,7 @@ jQuery(document).ready(function() {
     // (The chevron click handler is in yaub.js)
 
     var sidebarStatus = 'open';
-    var searchStatus = 'open';
+    /* var searchStatus = 'open'; */
     $('#sidebar .highlightable').perfectScrollbar();
     setMenuHeight();
 
@@ -167,6 +171,7 @@ jQuery(document).ready(function() {
         return false;
     });
 
+    /*
     jQuery('[data-topbar-toggle]').on('click', function() {
         jQuery(document.body).toggleClass('topbar-hidden');
         sidebarStatus = (jQuery(document.body).hasClass('topbar-hidden') ? 'closed' : 'open');
@@ -234,7 +239,7 @@ jQuery(document).ready(function() {
                 window.scroll(0, scrolledY - 125);
             }
         }
-    }
+    } */
 
     // clipboard
     var clipInit = false;
@@ -415,9 +420,9 @@ jQuery(document).ready(function() {
 
 });
 
-jQuery(window).on('load', function() {
+/* jQuery(window).on('load', function() {
     $(".highlightable").highlight(sessionStorage.getItem('search-value'), { element: 'mark' });
-});
+}); */
 
 $(function() {
     $('a[rel="lightbox"]').featherlight({
@@ -425,7 +430,7 @@ $(function() {
     });
 });
 
-jQuery.extend({
+/* jQuery.extend({
     highlight: function(node, re, nodeName, className) {
         if (node.nodeType === 3) {
             var match = node.data.match(re);
@@ -497,4 +502,4 @@ jQuery.fn.highlight = function(words, options) {
     return this.each(function() {
         jQuery.highlight(this, re, settings.element, settings.className);
     });
-};
+}; */
