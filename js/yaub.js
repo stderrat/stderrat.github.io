@@ -967,6 +967,26 @@ jQuery(document).ready(function() {
   }
 
   // ------------------------------------------------------------------------
+  // Right Sidebar Toggle (mirrors left sidebar behavior)
+  // ------------------------------------------------------------------------
+  $('#right-sidebar-toggle-btn').on('click', function() {
+    var rightSidebar = $('#right-sidebar');
+    
+    if (rightSidebar.hasClass('collapsed')) {
+      rightSidebar.removeClass('collapsed');
+      localStorage.setItem('rightSidebarCollapsed', 'false');
+    } else {
+      rightSidebar.addClass('collapsed');
+      localStorage.setItem('rightSidebarCollapsed', 'true');
+    }
+  });
+
+  // Restore right sidebar state from localStorage
+  if (localStorage.getItem('rightSidebarCollapsed') === 'true') {
+    $('#right-sidebar').addClass('collapsed');
+  }
+
+  // ------------------------------------------------------------------------
   // Menu Expand/Collapse
   // ------------------------------------------------------------------------
   // Auto-expand menus for current page ancestors
