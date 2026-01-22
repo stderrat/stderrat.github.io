@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>GitOps on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/gitops/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 22 Dec 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/gitops/index.xml" rel="self" type="application/rss+xml"/><item><title>GitOps Catalog</title><link>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</link><pubDate>Mon, 22 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>GitOps on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/gitops/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 14 Jan 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/gitops/index.xml" rel="self" type="application/rss+xml"/><item><title>GitOps Catalog</title><link>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</link><pubDate>Mon, 22 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;The &lt;a href="https://blog.stderr.at/gitops-catalog/"&gt;GitOps Catalog&lt;/a&gt; page provides an interactive visualization of all available ArgoCD applications from the openshift-clusterconfig-gitops repository. Check out the page &lt;strong&gt;&lt;a href="https://blog.stderr.at/gitops-catalog/"&gt;GitOps Catalog&lt;/a&gt;&lt;/strong&gt; for more details.&lt;/p&gt;
 &lt;/div&gt;</description></item><item><title>GitOps Catalog</title><link>https://blog.stderr.at/gitops-catalog/</link><pubDate>Mon, 22 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitops-catalog/</guid><description>
 &lt;div class="paragraph"&gt;
@@ -1931,6 +1931,1248 @@ Could not load Helm chart updates.
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>[Ep.15] OpenShift GitOps - Argo CD Agent</title><link>https://blog.stderr.at/gitopscollection/2026-01-14-argocd-agent/</link><pubDate>Wed, 14 Jan 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2026-01-14-argocd-agent/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenShift GitOps based on Argo CD is a powerful tool to manage the infrastructure and applications on an OpenShift cluster. Initially, there were two ways of deployment: centralized and decentralized (or distributed). Both methods had their own advantages and disadvantages. The choice was mainly between scalability and centralization.
+With OpenShift GitOps v1.19, the Argo CD Agent was finally generally available. This agent tries to solve this problem by bringing the best of both worlds together. In this quite long article, I will show you how to install and configure the Argo CD Agent with OpenShift GitOps using hub and spoke architecture.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_classic_deployment_models"&gt;Classic Deployment Models:&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Prior to the Argo CD Agent, there were two classic and often used deployment models: &lt;strong&gt;centralized&lt;/strong&gt; and &lt;strong&gt;decentralized&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_centralized_model"&gt;Centralized Model&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In a centralized deployment, all changes are applied to a single, central Argo CD instance, often installed on a management cluster. This is the traditional way of deploying Argo CD, at least in my opinion. With this model, you have a single pane of glass to manage all your clusters. You have a single UI and will see all your clusters in one place, which makes this model very convenient when you have multiple clusters. However, the scalability of this model is limited. Organizations with a huge number of clusters or Argo CD applications would hit some boundaries at some point. A sharding configuration would help, but only to a certain extent. The performance would degrade significantly. In addition, this model creates a Single Point of Failure. If this instance is down, the company loses the ability to manage their clusters through Argo CD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+I often saw or used this model for the cluster configuration.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_decentralized_model"&gt;Decentralized Model&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In a decentralized deployment, multiple instances of Argo CD, often one for each cluster, are installed. With this approach, the issue with scalability is solved. Moreover, the Single Point of Failure is eliminated as well, since a broken instance will not affect the other instances. However, the disadvantages of this model are that the complexity for the operational teams will increase, since they need to manage multiple instances now. Also, the single pane of glass for management is lost, as there are multiple UIs to manage.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+I often saw or used this model for the application deployment.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_not_so_secret_argo_cd_agent"&gt;The - not so secret - Argo CD Agent&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;Argo CD Agent&lt;/strong&gt;, released as generally available in OpenShift GitOps v1.19, is a new way to use Argo CD. It tries to solve the challenges of the classic deployment models by combining the best of both worlds. The Agent allows you to have a single UI in a central control plane, while the application controller is distributed across the fleet of clusters. Agents on the different clusters will communicate with the central Argo CD instance.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Agent model introduces a hub and spoke architecture:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Control plane cluster (hub) - The control plane cluster is the central cluster that manages the configuration for multiple spokes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Workload cluster (spoke) - The workload cluster is the cluster that runs the application workloads deployed by Argo CD.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Each Argo CD Agent on a cluster manages the local Argo CD instance and ensures that applications, AppProjects, and secrets remain synchronized with their source of truth.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The official documentation describes a comparison between the classic deployment models and the Argo CD Agent: &lt;a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/1.19/html/argo_cd_agent_architecture/argocd-agent-architecture#gitops-architecture-argocd-agent-comparison_argocd-agent-architecture-overview" target="_blank" rel="noopener"&gt;GitOps Architecture - Argo CD Agent Comparison&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_argo_cd_agent_modes"&gt;Argo CD Agent Modes&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD Agent supports two modes of operation: Managed and Autonomous.
+The mode determines where the authoritative source of truth for the Application .spec field resides.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Managed mode — the control plane/hub defines Argo CD applications and their specifications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Autonomous mode — each workload cluster/spoke defines its own Argo CD applications and their specifications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+A mixed mode is also possible.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_managed_mode"&gt;Managed Mode&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Using the managed mode means that the control plane is the source of truth and is responsible for the Argo CD application resources and their distribution across the different workload clusters.
+Any change on the hub cluster will be propagated to the spoke clusters. Any changes made on the spoke/workload cluster will be reverted to match the control plane configuration.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_autonomous_mode"&gt;Autonomous Mode&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Using this mode, the Argo CD applications are defined on the workload clusters, which serve as their own source of truth. The applications are synchronized back to the control plane for observability.
+Changes made on the workload cluster are not reverted, but will appear on the control plane. On the other hand, you cannot modify applications directly from the control plane.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_security"&gt;Security&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD Agent uses mTLS certificates to communicate between the hub and the spoke clusters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The certificate must be created and managed by the user.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_argo_cd_agent_installation"&gt;Argo CD Agent Installation&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The agent consists of two components that are responsible to synchronize the Argo CD applications between the hub and the spoke clusters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Principal - Deployed on the control plane cluster together with Argo CD. Here the central UI (and API) can be found.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Agent - Deployed on the workload clusters to synchronize the Argo CD applications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The installation of both is done differently. But before we dive into the installation, let’s have a look at the terminology to understand the different components and their roles.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is a quote from the official documentation (&lt;a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/1.19/html/argo_cd_agent_installation/argocd-agent-installation#gitops-argocd-agent-terminologiest_argocd-agent-installation" target="_blank" rel="noopener"&gt;Argo CD Agent Terminologies&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Principal namespace&lt;/strong&gt; - Specifies the namespace where you install the Principal component. This namespace is not created by default, you must create it before adding the resources in this namespace. In Argo CD Agent CLI commands, this value is provided using the --principal-namespace flag.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent namespace&lt;/strong&gt; - Specifies the namespace hosting the Agent component. This namespace is not created by default, you must create it before adding the resources in this namespace. In Argo CD Agent CLI commands, this value is provided using the --agent-namespace flag.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Context&lt;/strong&gt; - A context refers to a named configuration in the oc CLI that allows you to switch between different clusters. You must be logged in to all clusters and assign distinct context names for the hub and spoke clusters. Examples for cluster names include principal-cluster, hub-cluster, managed-agent-cluster, or autonomous-agent-cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Principal context&lt;/strong&gt; - The context name you provide for the hub (control plane) cluster. For example, if you log in to the hub cluster and rename its context to principal-cluster, you specify it in Argo CD Agent CLI commands as --principal-context principal-cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent context&lt;/strong&gt; - The context name you provide for the spoke (workload) cluster. For example, if you log in to a spoke cluster and rename its context to autonomous-agent-cluster, you specify it in Argo CD Agent CLI commands as --agent-context autonomous-agent-cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_a_word_about_the_setup"&gt;A Word about the Setup&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create some kind of real customer scenario, I have created two clusters:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;The cluster where we installed the Principal component. This will be the Hub/Management/Principal cluster (We have too many words for this…​)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A separate cluster that will be the Agent cluster. This will be the Spoke/Workload cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first one I have installed on AWS, and the second one is a Bare Metal Single node cluster. Both can reach each other via the Internet.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+We are using different contexts for the different clusters for the command line. The &lt;strong&gt;argocd-agentctl&lt;/strong&gt; tool knows the flags &lt;strong&gt;--principal-context&lt;/strong&gt; and &lt;strong&gt;--agent-context&lt;/strong&gt; to switch between the different clusters. Be sure to create the resources on the correct cluster.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_prerequisites"&gt;Prerequisites&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start with the installation of the Principal or Agent component, we need to ensure that the following prerequisites are met:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;We have two OpenShift test clusters.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Both clusters can reach each other&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift GitOps Operator is already installed (possible configuration modifications are described in the following sections)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Because of my main focus on OpenShift GitOps, we will try to deploy cluster configurations and not just workload. Therefore, the example Argo CD applications will configure cluster settings. (A banner on the top and bottom of the UI)
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_openshift_gitops_subscription_on_the_hub_cluster"&gt;Configure OpenShift GitOps Subscription on the Hub Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The OpenShift GitOps Operator installs by default an Argo CD instance. In this test we will disable this, as we do not need that instance. Moreover and even more important, we need to tell the Operator for which namespaces it should feel responsible for. In this case, we will tell the Operator to be responsible for all namespaces on the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We need to modify the Subscription &lt;strong&gt;openshift-gitops-operator&lt;/strong&gt; and add the following environment variables:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+config:
+env:
+- name: DISABLE_DEFAULT_ARGOCD_INSTANCE &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+value: &amp;#39;true&amp;#39;
+- name: ARGOCD_CLUSTER_CONFIG_NAMESPACES &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+value: &amp;#39;*&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Optional: Disable the default Argo CD instance.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Tell the Operator for which namespaces it should feel responsible for. In this case, all Namespaces. This is important for a namespace-scoped Argo CD instance, which we will install in the next step.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_activate_the_principal_component"&gt;Activate the Principal Component&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To activate the Principal components we first need a cluster (the Hub) where OpenShift GitOps is installed. On this cluster, there might be a running instance of Argo CD already.
+However, at this time an existing Argo CD &lt;strong&gt;cannot&lt;/strong&gt; be used. Instead, a new Argo CD instance must be created. (This is because the controller must not be activated)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In my case, I will install the Principal component in the namespace &lt;strong&gt;argocd-principal&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create an Argo CD instance we need to create the following configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+At this very stage, the principal component must be installed in a separate Argo CD instance, since the controller must not be activated. Therefore we create a new Argo CD instance in a new namespace.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+name: hub-argocd
+namespace: argocd-principal
+spec:
+controller:
+enabled: false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+argoCDAgent:
+principal:
+enabled: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+auth: &amp;#34;mtls:CN=([^,]+)&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+logLevel: &amp;#34;info&amp;#34;
+namespace:
+allowedNamespaces: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+- &amp;#34;*&amp;#34;
+tls:
+insecureGenerate: false &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+jwt:
+insecureGenerate: false
+sourceNamespaces: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+- &amp;#34;argocd-agent-bm01&amp;#34;
+server:
+route:
+enabled: true &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Disable the controller component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the Principal component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Authentication method for the Principal component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Allowed namespaces for the Principal component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Insecure generation of the TLS certificate.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Specifies the sourceNamespaces configuration. (Such a list might already exist)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the Route for the Principal component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will start a Pod called &lt;strong&gt;hub-gitops-agent-principal&lt;/strong&gt; in the namespace &lt;strong&gt;argocd-principal&lt;/strong&gt;. However, this pod will &lt;strong&gt;fail&lt;/strong&gt; at this moment and that is fine.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Pod hub-gitops-agent-principal is failing with:
+{&amp;#34;level&amp;#34;:&amp;#34;info&amp;#34;,&amp;#34;msg&amp;#34;:&amp;#34;Setting loglevel to info&amp;#34;,&amp;#34;time&amp;#34;:&amp;#34;2026-01-19T13:45:57Z&amp;#34;}
+time=&amp;#34;2026-01-19T13:45:57Z&amp;#34; level=info msg=&amp;#34;Loading gRPC TLS certificate from secret argocd-principal/argocd-agent-principal-tls&amp;#34;
+time=&amp;#34;2026-01-19T13:45:57Z&amp;#34; level=info msg=&amp;#34;Loading root CA certificate from secret argocd-principal/argocd-agent-ca&amp;#34;
+time=&amp;#34;2026-01-19T13:45:57Z&amp;#34; level=info msg=&amp;#34;Loading resource proxy TLS certificate from secrets argocd-principal/argocd-agent-resource-proxy-tls and argocd-principal/argocd-agent-ca&amp;#34;
+[FATAL]: Error reading TLS config for resource proxy: error getting proxy certificate: could not read TLS secret argocd-principal/argocd-agent-resource-proxy-tls: secrets &amp;#34;argocd-agent-resource-proxy-tls&amp;#34; not found &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The secret is not yet available.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The Pod is failing at the moment because the different secrets for authentication, are not yet available. The Secrets are created in a later step, because some settings, such as the principal hostname and resource proxy service names, are available only after the Red Hat OpenShift GitOps Operator enables the principal component.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At this point the Operator created the Route object already:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Route: hub-gitops-agent-principal
+Hostname: https://hub-gitops-agent-principal-argocd-principal.apps.ocp.aws.ispworld.at
+Service: hub-gitops-agent-principal&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_the_appproject"&gt;Configure the AppProject&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you configured the AppProject with sourceNamespaces, you need to add the following to the AppProject (for example to the &lt;strong&gt;default&lt;/strong&gt; AppProject). This must match exactly the namespaces you have created for the Agent.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+sourceNamespaces:
+- &amp;#34;argocd-agent-bm01&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can also use this patch command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc patch appproject default -n argocd-principal --type=&amp;#39;merge&amp;#39; \
+-p &amp;#39;{&amp;#34;spec&amp;#34;: {&amp;#34;sourceNamespaces&amp;#34;: [&amp;#34;argocd-agent-bm01&amp;#34;]}}&amp;#39; --context aws&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Restart the Argo CD Pods to apply the changes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_download_argocd_agentctl"&gt;Download argocd-agentctl&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create the required secrets, we need to download the &lt;strong&gt;argocd-agentctl&lt;/strong&gt; tool.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This can be found at: &lt;a href="https://developers.redhat.com/content-gateway/rest/browse/pub/cgw/openshift-gitops/" class="bare"&gt;https://developers.redhat.com/content-gateway/rest/browse/pub/cgw/openshift-gitops/&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Download and install it for your platform.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_required_secrets"&gt;Create Required Secrets&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following steps will create the required secrets for the Principal component. In this example, we will create our own CA and certificates. This is suitable for development and testing purposes. For production environments, you should use certificates issued by your organization’s PKI or a trusted certificate authority.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Use your company’s CA and certificates for production environments.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_initialize_the_certificate_authority_ca"&gt;Initialize the Certificate Authority (CA)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create a certificate authority (CA) that signs other certificates, we need to run the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki init \
+--principal-namespace argocd-principal \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+--principal-context aws&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Principal component is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will initialize the CA and store it in the secret &lt;strong&gt;argocd-principal/argocd-agent-ca&lt;/strong&gt;. The certificate looks like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;&amp;#34;Certificate Information:
+Common Name: argocd-agent-ca
+Subject Alternative Names:
+Organization: DO NOT USE IN PRODUCTION
+Organization Unit:
+Locality:
+State:
+Country:
+Valid From: January 15, 2026
+Valid To: January 15, 2036
+Issuer: argocd-agent-ca, DO NOT USE IN PRODUCTION
+Serial Number: 1 (0x1)&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_generate_service_certificate_for_the_principal"&gt;Generate Service Certificate for the Principal&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To generate the server certificate for the Principal’s gRPC service, run the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki issue principal \
+--principal-namespace argocd-principal \
+--principal-context aws \
+--dns &amp;#34;&amp;lt;YOUR PRINCIPAL HOSTNAME&amp;gt;&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The hostname of the Principal service. This must match with the hostname of the Principal’s route (spec.host) or, in case a LoadBalancer Service is used, with .status.loadBalancer.ingress.hostname.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_generate_the_resource_proxy_certificate"&gt;Generate the Resource Proxy Certificate&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The resource proxy service requires a certificate as well. Since the proxy will run on the same cluster as the Principal, we can use the service name directly.
+This is generated by the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki issue resource-proxy \
+--principal-namespace argocd-principal \
+--principal-context aws \
+--dns hub-argocd-agent-principal-resource-proxy &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The service name for the resource-proxy. This must match with the service name of the Resource Proxy service.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_generate_the_jwt_signing_key"&gt;Generate the JWT Signing Key&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Generate the RSA private key for the JWT signing key by running the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl jwt create-key \
+--principal-namespace argocd-principal \
+--principal-context aws&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will generate the RSA private key and store it in the secret &lt;strong&gt;argocd-principal/argocd-agent-jwt&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_principal_component"&gt;Verify the Principal Component&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now the principal pod should be running successfully.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If the Pod still shows an error, wait a few moments or restart the Pod.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the logs you should see the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;{&amp;#34;level&amp;#34;:&amp;#34;info&amp;#34;,&amp;#34;msg&amp;#34;:&amp;#34;Setting loglevel to info&amp;#34;,&amp;#34;time&amp;#34;:&amp;#34;2026-01-19T14:09:31Z&amp;#34;}
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Loading gRPC TLS certificate from secret argocd-principal/argocd-agent-principal-tls&amp;#34;
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Loading root CA certificate from secret argocd-principal/argocd-agent-ca&amp;#34;
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Loading resource proxy TLS certificate from secrets argocd-principal/argocd-agent-resource-proxy-tls and argocd-principal/argocd-agent-ca&amp;#34;
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Loading JWT signing key from secret argocd-principal/argocd-agent-jwt&amp;#34;
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Starting argocd-agent (server) v99.9.9-unreleased (ns=argocd-principal, allowed_namespaces=[*])&amp;#34; module=server&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This concludes the configuration of the Principal component. There are a lot of steps to create the required secrets, but this is only done once. A GitOps-friendly way to achieve this might be done using a Kubernetes Job (if you consider this as GitOps-friendly…​ which I do).&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_activate_the_agent_component"&gt;Activate the Agent Component&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After the Principal component is configured, you can activate one or more Agents (spoke or workload clusters) and connect them with the Hub.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The prerequisites are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The Principal component is configured and running.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You have access to both the Principal and Agent clusters.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The argocd-agentctl CLI tool is installed and accessible from your environment.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The helm CLI is installed and configured. Ensure that the helm CLI version is later than v3.8.0.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift GitOps Operator is installed and configured on the Agent cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Yes, a separate Helm Chart will be used to install the Agent component on the target cluster. This time it is not a Chart that I created, but one provided by Red Hat. :)
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_agent_secret_on_principal_cluster"&gt;Create Agent Secret on Principal Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We first need to create an agent on the Principal cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl agent create &amp;#34;argocd-agent-bm01&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+--principal-context &amp;#34;aws&amp;#34; \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+--principal-namespace &amp;#34;argocd-principal&amp;#34; \ &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+--resource-proxy-server &amp;#34;hub-argocd-agent-principal-resource-proxy:9090&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A (unique) name for the Agent.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The context name for the Principal cluster. In my case it is &amp;#34;aws&amp;#34;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Principal component is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The resource proxy server URL. This is the URL of the Principal’s resource proxy service including the port (9090).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the secret &lt;strong&gt;cluster-argocd-agent-bm01&lt;/strong&gt; with the label &lt;strong&gt;argocd.argoproj.io/secret-type: cluster&lt;/strong&gt; in the Argo CD namespace.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_the_agent_namespace_on_the_agent_cluster"&gt;Create the Agent Namespace on the Agent Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Be sure that the target namespace on the agent or workload cluster exists. If not, create it first.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc create namespace argocd-agent-bm01 --context bm &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the namespace.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_propagate_the_principal_ca_to_the_agent_cluster"&gt;Propagate the Principal CA to the Agent Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To copy the CA certificate from the principal to the agent cluster the following command is used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki propagate \
+--agent-context bm \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+--principal-context aws \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+--principal-namespace argocd-principal \ &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+--agent-namespace argocd-agent-bm01 &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The context name for the Agent cluster.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The context name for the Principal cluster.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Principal component is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Agent component is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will copy the CA certificate from the Principal cluster to the Agent cluster into the namespace and secret &lt;strong&gt;argocd-agent-bm01/argocd-agent-ca&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Only the certificate is copied. The private key is not copied.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_generate_a_client_certificate_for_the_agent"&gt;Generate a client certificate for the Agent&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we need to create, based on the imported CA, a client certificate for the Agent. This is done by the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki issue agent &amp;#34;argocd-agent-bm01&amp;#34; \
+--principal-context &amp;#34;aws&amp;#34; \
+--agent-context &amp;#34;bm&amp;#34; \
+--agent-namespace &amp;#34;argocd-agent-bm01&amp;#34; \
+--principal-namespace &amp;#34;argocd-principal&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the secret &lt;strong&gt;argocd-agent-client-tls&lt;/strong&gt; on the workload cluster, containing a certificate and a key, signed by the CA certificate imported from the Principal cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_openshift_gitops_subscription_on_the_spoke_cluster"&gt;Configure OpenShift GitOps Subscription on the Spoke Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The OpenShift GitOps Operator installs by default an Argo CD instance. In this test we will disable this, as we do not need that instance. Moreover and even more important, we need to tell the Operator for which namespaces it should feel responsible for. In this case, we will tell the Operator to be responsible for all namespaces on the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We need to modify the Subscription &lt;strong&gt;openshift-gitops-operator&lt;/strong&gt; and add the following environment variables:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+config:
+env:
+- name: DISABLE_DEFAULT_ARGOCD_INSTANCE &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+value: &amp;#39;true&amp;#39;
+- name: ARGOCD_CLUSTER_CONFIG_NAMESPACES &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+value: &amp;#39;*&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Disable the default Argo CD instance.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Tell the Operator for which namespaces it should feel responsible for. In this case, all Namespaces.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_argo_cd_instance_on_the_agent_cluster"&gt;Create Argo CD Instance on the Agent Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create a minimalistic Argo CD instance on the Agent cluster, we can use the following Argo CD configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+name: agent-argocd
+namespace: argocd-agent-bm01 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+server:
+enabled: false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Argo CD instance is running. This is also the name of the Agent we have created earlier on the principal cluster.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create a lightweight Argo CD instance in the namespace &lt;strong&gt;argocd-agent-bm01&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pod -n argocd-agent-bm01 --context bm
+NAME READY STATUS RESTARTS AGE
+agent-argocd-application-controller-0 1/1 Running 0 2m49s
+agent-argocd-redis-5f6759f6fb-2fdnt 1/1 Running 0 2m49s
+agent-argocd-repo-server-7949d97dfd-dsk6b 1/1 Running 0 2m49s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_installing_the_agent"&gt;Installing the Agent&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To install the agent we will use a Helm Chart provided by Red Hat. This will install the Agent component on the target cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As a reminder, we have two modes of operation for the Agent:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Managed mode&lt;/strong&gt; — the control plane/hub defines Argo CD applications and their specifications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Autonomous mode&lt;/strong&gt; — each workload cluster/spoke defines its own Argo CD applications and their specifications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_required_network_policy"&gt;Create Required Network Policy&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start with the actual installation of the Agent, we need to ensure that the Redis instance on the spoke cluster is accessible for the Agent. We need to create a NetworkPolicy accordingly:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+name: argocd-agent-bm01-redis-network-policy
+spec:
+podSelector:
+matchLabels:
+app.kubernetes.io/name: agent-argocd-redis &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+ingress:
+- ports:
+- protocol: TCP
+port: 6379
+from:
+- podSelector:
+matchLabels:
+app.kubernetes.io/name: argocd-agent-agent
+policyTypes:
+- Ingress&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the Redis instance. The label is based on &amp;lt;instance name&amp;gt;-redis.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the NetworkPolicy to the spoke cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f network-policy.yaml -n argocd-agent-bm01 --context bm&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_add_the_helm_chart_repository"&gt;Add the Helm Chart Repository&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Add the Helm repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm repo add openshift-helm-charts https://charts.openshift.io/
+helm repo update&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_install_a_managed_agent_with_the_helm_chart"&gt;Install a managed Agent with the Helm Chart&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Install the agent in the &lt;strong&gt;managed&lt;/strong&gt; mode using the Helm Chart. The following parameters are used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;namespaceOverride&lt;/strong&gt; - The namespace where the Agent is running.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;agentMode&lt;/strong&gt; - The mode of the Agent.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;server&lt;/strong&gt; - The server URL of the Principal component. This is the spec.host setting of the Principal’s route.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argoCdRedisSecretName&lt;/strong&gt; - The name of the Redis secret.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argoCdRedisPasswordKey&lt;/strong&gt; - The key of the Redis password.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;redisAddress&lt;/strong&gt; - The address of the Redis instance.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm install redhat-argocd-agent openshift-helm-charts/redhat-argocd-agent \
+--set namespaceOverride=argocd-agent-bm01 \
+--set agentMode=&amp;#34;managed&amp;#34; \
+--set server=&amp;#34;serverURL of principal route&amp;#34; \
+--set argoCdRedisSecretName=&amp;#34;agent-argocd-redis-initial-password&amp;#34; \
+--set argoCdRedisPasswordKey=&amp;#34;admin.password&amp;#34; \
+--set redisAddress=&amp;#34;agent-argocd-redis:6379&amp;#34; \
+--kube-context &amp;#34;bm&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With this chart a pod on the &lt;strong&gt;spoke&lt;/strong&gt; cluster will be created and will start to synchronize the Argo CD applications between the hub and the spoke cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_managed_agent"&gt;Verify the Managed Agent&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To verify the Agent in &lt;strong&gt;managed&lt;/strong&gt; mode we need to create an Argo CD Application on the &lt;strong&gt;hub&lt;/strong&gt; cluster. We can try the following Application. The Application is taken from the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops" target="_blank" rel="noopener"&gt;openshift-clusterconfig-gitops&lt;/a&gt; repository and simply adds a banner to the top of the OpenShift UI. I typically use this as a quick test if GitOps is working.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: branding
+namespace: argocd-agent-bm01 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+destination:
+namespace: default
+server: &amp;#39;https://hub-argocd-agent-principal-resource-proxy:9090?agentName=argocd-agent-bm01&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+project: default
+source:
+path: clusters/management-cluster/branding
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
+targetRevision: main
+syncPolicy:
+automated:
+prune: true
+selfHeal: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace of the agent&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The server URL of the Principal component. This is the URL plus the port and the agentName. As an alternative you can also use &lt;strong&gt;name: argocd-agent-bm01&lt;/strong&gt; which is the name of the cluster and might be easier to read.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the Application to the &lt;strong&gt;hub&lt;/strong&gt; cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f application.yaml -n argocd-agent-bm01 --context aws&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since the application will try to automatically synchronize the configuration, the status will change to &lt;strong&gt;Synced&lt;/strong&gt; after a few seconds:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;status:
+resources:
+- group: console.openshift.io
+kind: ConsoleNotification
+name: topbanner
+status: Synced
+version: v1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;and the (top) banner will be visible on the UI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/agent/banner-top.png" alt="Banner on the top of the UI"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Banner on the top of the UI&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On the &lt;strong&gt;hub&lt;/strong&gt; cluster, the Argo CD Application will be Synced:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get applications --context aws -A
+NAMESPACE NAME SYNC STATUS HEALTH STATUS
+argocd-agent-bm01 branding-banner Synced Healthy&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_install_an_autonomous_agent_with_the_helm_chart"&gt;Install an autonomous Agent with the Helm Chart&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s cleanup the first installation of the Chart (managed agent) in order to not have any conflicts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm uninstall redhat-argocd-agent --kube-context &amp;#34;bm&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Install the agent in the &lt;strong&gt;autonomous&lt;/strong&gt; mode using the Helm Chart. The following parameters are used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;namespaceOverride&lt;/strong&gt; - The namespace where the Agent is running.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;agentMode&lt;/strong&gt; - The mode of the Agent.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;server&lt;/strong&gt; - The server URL of the Principal component. This is the spec.host setting of the Principal’s route.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argoCdRedisSecretName&lt;/strong&gt; - The name of the Redis secret.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argoCdRedisPasswordKey&lt;/strong&gt; - The key of the Redis password.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;redisAddress&lt;/strong&gt; - The address of the Redis instance.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The only difference to the managed mode is the &lt;strong&gt;agentMode&lt;/strong&gt; parameter.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm install redhat-argocd-agent-autonomous openshift-helm-charts/redhat-argocd-agent \
+--set namespaceOverride=argocd-agent-bm01 \
+--set agentMode=&amp;#34;autonomous&amp;#34; \
+--set server=&amp;#34;serverURL of principal route&amp;#34; \
+--set argoCdRedisSecretName=&amp;#34;agent-argocd-redis-initial-password&amp;#34; \
+--set argoCdRedisPasswordKey=&amp;#34;admin.password&amp;#34; \
+--set redisAddress=&amp;#34;agent-argocd-redis:6379&amp;#34; \
+--kube-context &amp;#34;bm&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With this chart a pod on the &lt;strong&gt;spoke&lt;/strong&gt; cluster will be created and will start to synchronize the Argo CD applications between the hub and the spoke cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_autonomous_agent"&gt;Verify the Autonomous Agent&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To verify the Agent in &lt;strong&gt;autonomous&lt;/strong&gt; mode we need to create an Argo CD Application on the &lt;strong&gt;spoke&lt;/strong&gt; cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can try the following Application. It is basically the same as we used for the test for the managed mode, except that this time we will add a banner on the bottom of the UI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: branding-bottom-banner
+namespace: argocd-agent-bm01 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+destination:
+namespace: default
+server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+project: default
+source:
+path: clusters/management-cluster/branding-bottom
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
+targetRevision: main
+syncPolicy:
+automated:
+prune: true
+selfHeal: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace of the agent&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The server URL of the local cluster, since in autonomous mode the application is managed locally.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the Application to the &lt;strong&gt;spoke&lt;/strong&gt; cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f application.yaml -n argocd-agent-bm01 --context bm&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Like the managed mode, the status will change to &lt;strong&gt;Synced&lt;/strong&gt; after a few seconds and the (this time) bottom banner will be visible on the UI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/agent/banner-bottom.png" alt="Banner on the bottom of the UI"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. Banner on the bottom of the UI&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Moreover, the Argo CD Application will appear on the &lt;strong&gt;hub&lt;/strong&gt; cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get applications --context aws -A
+NAMESPACE NAME SYNC STATUS HEALTH STATUS
+argocd-agent-bm01 branding-bottom-banner Synced Healthy
+argocd-agent-bm01 branding-banner Synced Healthy&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;During the installation and configuration of the Argo CD Agent, you might encounter some issues. Here are some issues I encountered during the tests:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_principal_pod_fails_to_start"&gt;Principal Pod Fails to Start&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the Principal pod fails to start with errors about missing secrets, verify that all required secrets have been created:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get secrets -n argocd-principal | grep argocd-agent&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You should see the following secrets:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argocd-agent-ca&lt;/strong&gt; - The CA certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argocd-agent-principal-tls&lt;/strong&gt; - The Principal’s TLS certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argocd-agent-resource-proxy-tls&lt;/strong&gt; - The Resource Proxy’s TLS certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argocd-agent-jwt&lt;/strong&gt; - The JWT signing key&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If any of these are missing, re-run the corresponding &lt;code&gt;argocd-agentctl&lt;/code&gt; command to create them.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_redis_errors_in_the_principal_pod"&gt;Redis Errors in the Principal Pod&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you see errors like the following in the logs of the Principal pod, ensure that the Argo CD instance does not have the controller enabled in that namespace (set &lt;code&gt;spec.controller.enabled: false&lt;/code&gt;). Hopefully, this will change in the future.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;time=&amp;#34;2026-01-20T04:57:10Z&amp;#34; level=error msg=&amp;#34;unexpected lack of &amp;#39;_&amp;#39; namespace/name separate: &amp;#39;app|managed-resources|branding|1.8.3&amp;#39;&amp;#34; connUUID=3c13b30b-9f84-4af6-93d8-e1c03c4c7898 function=redisFxn module=redisProxy&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_limitations"&gt;Limitations&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While the Argo CD Agent brings significant improvements, there are some limitations to be aware of:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_separate_argo_cd_instance_required"&gt;Separate Argo CD Instance Required&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Currently, the Principal component &lt;strong&gt;cannot&lt;/strong&gt; be installed alongside an existing Argo CD instance where the application controller is enabled. You must create a separate Argo CD instance with the controller disabled (&lt;code&gt;spec.controller.enabled: false&lt;/code&gt;). To me, this is one of the biggest limitations. However, this will be addressed in the future and is tracked in the issue: &lt;a href="https://github.com/argoproj-labs/argocd-agent/issues/708" class="bare"&gt;https://github.com/argoproj-labs/argocd-agent/issues/708&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_manual_certificate_management"&gt;Manual Certificate Management&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The mTLS certificates must be created and managed manually by the user. There is no automatic certificate rotation or renewal. For production environments, you should integrate with your organization’s PKI infrastructure and implement a certificate rotation strategy.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD Agent provides a powerful solution for managing multiple clusters with Argo CD. By combining the benefits of centralized management with distributed application controllers, it addresses the scalability and single point of failure challenges of traditional deployment models.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While the initial setup requires several steps, especially around certificate management, the resulting architecture offers a robust foundation for GitOps at scale.&lt;/p&gt;
+&lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>[Ep.14] Reusable Argo CD Application Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;When working with Argo CD at scale, you often find yourself creating similar Application manifests repeatedly. Each application needs the same basic structure but with different configurations for source repositories, destinations, and sync policies. Additionally, managing namespace metadata becomes tricky when you need to conditionally control whether Argo CD should manage namespace metadata based on sync options.&lt;/p&gt;
@@ -9237,417 +10479,6 @@ environment: Test
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;That’s it …​ all the magic is done.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>GitOps - Argo CD</title><link>https://blog.stderr.at/openshift-platform/gitops/2020-08-06-argocd/</link><pubDate>Thu, 06 Aug 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/gitops/2020-08-06-argocd/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://argoproj.github.io/argo-cd/"&gt;Argo CD&lt;/a&gt; &lt;em&gt;is a declarative, GitOps continuous delivery tool for Kubernetes. GitOps itself uses Git pull request to manager infrastructure and application configuration.&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s try to install and use a simple usecase in order to demonstrate the basic possibilities.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Without going into the very detail, typical GitOps usecases are:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Apply configurations from Git&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Detect, (auto-)sync and notify configuration drifts&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Manage multiple clusters and keep the configuration equal&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;…​&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;and much more. Further information about the theory behind can be found at &lt;a href="https://www.openshift.com/blog/introduction-to-gitops-with-openshift" class="bare"&gt;https://www.openshift.com/blog/introduction-to-gitops-with-openshift&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;In short&lt;/strong&gt;: there is no reason why not to use GitOps and to leverage tools like Argo CD to manage configurations. In this tutorial, the Argo CD operator gets installed
-and a simple use case is shown to demonstrate the possibilities of this software.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As for architectural overview of Argo CD, please read the official documentation: &lt;a href="https://argoproj.github.io/argo-cd/operator-manual/architecture/" class="bare"&gt;https://argoproj.github.io/argo-cd/operator-manual/architecture/&lt;/a&gt;, which explains very well the
-core components. No need to rewrite it here.&lt;/p&gt;
-&lt;/div&gt;
-&lt;hr/&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You need an Openshift 4 cluster. :)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Watch the video at: &lt;a href="https://demo.openshift.com/en/latest/argocd/" class="bare"&gt;https://demo.openshift.com/en/latest/argocd/&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_install_argo_cd_operator"&gt;Install Argo CD operator&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before you begin, create a new project:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc new-project argocd&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this project the operator will be deployed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Look for the Operatorhub in the OpenShift WebUI and &amp;#34;&lt;em&gt;argocd&lt;/em&gt;&amp;#34; and select the &amp;#34;Argo CD Community&amp;#34; operator. Subscribe to this operator. Just be sure that the newly created project is selected. Other settings can stay as default.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-operator-install.png?width=940px" alt="Operator Install"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Argo CD: Operator&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will install the operator. You can monitor this process by clicking &amp;#34;Installed Operators&amp;#34;. After a while it should switch from &amp;#34;Installing&amp;#34; to &amp;#34;Succeeded&amp;#34;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_deploy_argocd_instance"&gt;Deploy ArgoCD instance&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Select the installed operator &amp;#34;Argo CD&amp;#34;, select the tab &amp;#34;ArgoCD&amp;#34; and hit the button &amp;#34;&lt;em&gt;Create ArgoCD&amp;#34;&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Enter the following yaml:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
-kind: ArgoCD
-metadata:
-name: argocd
-namespace: argocd
-spec:
-dex:
-image: quay.io/redhat-cop/dex
-openShiftOAuth: true
-version: v2.22.0-openshift
-rbac:
-policy: |
-g, argocdadmins, role:admin
-scopes: &amp;#39;[groups]&amp;#39;
-server:
-route:
-enabled: true&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This yaml extends the default example by:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;using OpenShift authentication&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Allow all users from the group &amp;#34;argocdadmins&amp;#34; admin permissions inside Argo CD&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;create a route to access argocd web interface&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Once this configuration is created, the operator will automatically start to roll out the different pods, which are required.
-No worries, it will take quite long until everything is up and running.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_create_a_new_group_and_assign_a_user_to_it"&gt;Create a new group and assign a user to it&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In the ArgoCD resource we have defined the group &lt;em&gt;argocdadmins&lt;/em&gt; and all users in this group will get administrator privileges in Argo CD.
-This group must be created and in addition we assign the user &lt;em&gt;admin&lt;/em&gt; to it.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For example with the following commands:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc adm groups new argocdadmins
-oc adm groups add-users argocdadmins admin&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_login_to_argo_cd"&gt;Login to Argo CD&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now it is time to login to Argo CD. Just fetch the route which was created by the operator (for example with: &lt;code&gt;oc get routes -n argocd&lt;/code&gt;).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;On the login page select &amp;#34;&lt;strong&gt;Login via OpenShift&lt;/strong&gt;&amp;#34; and enter the credentials of the user you would like to use. (well, the one which you can admin permissions in the step above).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-login.png?width=300px" alt="ArgoCD Login"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. Argo CD: Login Screen&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will open the Argo CD Interface.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_first_test_with_argo_cd"&gt;First test with Argo CD&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s create an application in Argo CD to demonstrate the possibilities about application management with GitOps.
-We will use a simple application which draws a blue (or green) box in your browser.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Click on the button &amp;#34;Create App&amp;#34; and enter the following parameters:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Name: bgd&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Project: default (This is the project inside Argo CD, not OpenShift)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Sync Policy: Can stay at manual for now&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Repository URL: &lt;a href="https://github.com/tjungbauer/gitops-examples" class="bare"&gt;https://github.com/tjungbauer/gitops-examples&lt;/a&gt; (This is a fork of &lt;a href="https://github.com/christianh814/gitops-examples"&gt;christianh814/gitops-examples&lt;/a&gt;)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Revision: master&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Path: bgd/&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Cluster: &lt;a href="https://kubernetes.devault.svc" class="bare"&gt;https://kubernetes.devault.svc&lt;/a&gt; (This is the local default cluster Argo CD created. Other Clusters may be defined)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Namespace: bgd (This is the OpenShift namespace which will be created)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;At the end, it should look like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-createapp.png?width=940px" alt="ArgoCD Create App" width="940"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. Argo CD: Create an Application&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Press the &amp;#34;Create&amp;#34; button and your application is ready to be synchronized. Since no synchronization happens yet, Argo CD will complain that the application is out of sync.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_sync_application"&gt;Sync application&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Since we set the Sync Policy to manual, the synchronization process must be started, guess what, manually. Click on the &amp;#34;Sync&amp;#34; button and Argo CD will open a side panel, which shows the resources are out of sync and other options.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-sync-app.png?width=440px" alt="ArgoCD Sync App" width="440"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 4. Argo CD: Sync an Application&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;One notable option is the &amp;#34;Prune&amp;#34; setting. By selecting this, changes which have been done directly on OpenShift, are removed and replaced by the ones which are stored at Git.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock tip"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-tip" title="Tip"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-This is a very good option, to force everyone to follow the GitOps process :)
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Press the &amp;#34;Synchronize&amp;#34; button and select the application. As you see the sync process has started and after a while, all resources are synced to OpenShift.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-app-syncing.png?width=940px" alt="ArgoCD App Syncing"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 5. Argo CD: Application Syncing&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-app-synced.png?width=940px" alt="ArgoCD App Synced"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 6. Argo CD: Application Synced&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_verifying_objects"&gt;Verifying objects&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now that Argo CD says that the application has been synchronized, we should check the objects, which have been created in OpenShift.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see in the Git repository, there are 4 objects which should exist now:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;a namespace (bgd)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;a deployment&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;a service&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;a route&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-example-repo.png?width=240px" alt="ArgoCD Git Repo" width="240"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 7. Argo CD: Git Repo&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To verify the existence either check via the WebUI or simply try:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get all -n bgd
-NAME READY STATUS RESTARTS AGE
-pod/bgd-6b9b64d94d-5fqdg 1/1 Running 0 6m2s
-NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
-service/bgd ClusterIP 172.30.233.30 &amp;lt;none&amp;gt; 8080/TCP 6m7s
-NAME READY UP-TO-DATE AVAILABLE AGE
-deployment.apps/bgd 1/1 1 1 6m4s
-NAME DESIRED CURRENT READY AGE
-replicaset.apps/bgd-6b9b64d94d 1 1 1 6m3s
-NAME HOST/PORT PATH SERVICES PORT TERMINATION WILDCARD
-route.route.openshift.io/bgd bgd-bgd.apps.ocp.example.test bgd 8080 None&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Obviously, the namespace exists and with it also the other objects, which hae been synchronized.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When you now open the route &lt;a href="http://bgd-bgd.apps.ocp.example.test" class="bare"&gt;http://bgd-bgd.apps.ocp.example.test&lt;/a&gt; in your browser, you will see a nice blue box.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-bluebox.png" alt="ArgoCD Blue Box"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 8. Argo CD: The Blue Box&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see all objects have been synchronized and the application has been deployed correctly. The source of truth is in Git and all changes should be done there.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_i_want_a_green_box"&gt;I want a green box&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So you want a green box? Maybe you think of doing this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Modify the &lt;em&gt;Deployment&lt;/em&gt; and change the environment COLOR from blue to green:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;...
-spec:
-containers:
-- name: bgd
-image: &amp;#39;quay.io/redhatworkshops/bgd:latest&amp;#39;
-env:
-- name: COLOR
-value: green # change from blue to green
-...&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will trigger a re-deployment and …​ fine …​ you have a green box:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-green.png" alt="ArgoCD Green Box"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 9. Argo CD: The Green Box&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;But is this the correct way to do that? &lt;strong&gt;NO&lt;/strong&gt;, it is not. Argo CD will immediately complain that the application is out of sync.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-outofsync.png" alt="ArgoCD Out of Sync"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 10. Argo CD: Out of Sync&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When you sync the application it will end up with a blue box again.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-bluebox.png" alt="ArgoCD Blue Box"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 11. Argo CD: The Blue Box&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;But you really really want a green box? Fair enough, the correct way would be to change the deployment configuration on Git.
-Simply change the file &lt;strong&gt;bgd/bgd-deployment.yaml&lt;/strong&gt; and set the COLOR to green:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;...
-spec:
-containers:
-- image: quay.io/redhatworkshops/bgd:latest
-name: bgd
-env:
-- name: COLOR
-value: &amp;#34;green&amp;#34;
-resources: {}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Again Argo CD will complain that it is out of sync.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-outofsync-gitupdate.png" alt="ArgoCD Git Update"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 12. Argo CD: Git Update&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;By synchronizing the changes, it will deploy the latest version found at Git and …​ yes, you have a green box now (When deployment on OpenShift side has finished).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd/argocd-green.png" alt="ArgoCD Green Box"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 13. Argo CD: The Green Box&lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>

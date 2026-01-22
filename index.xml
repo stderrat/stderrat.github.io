@@ -1306,6 +1306,1248 @@ The user will still see the list of tenants. Hopefully, this will be fixed in a 
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>[Ep.15] OpenShift GitOps - Argo CD Agent</title><link>https://blog.stderr.at/gitopscollection/2026-01-14-argocd-agent/</link><pubDate>Wed, 14 Jan 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2026-01-14-argocd-agent/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenShift GitOps based on Argo CD is a powerful tool to manage the infrastructure and applications on an OpenShift cluster. Initially, there were two ways of deployment: centralized and decentralized (or distributed). Both methods had their own advantages and disadvantages. The choice was mainly between scalability and centralization.
+With OpenShift GitOps v1.19, the Argo CD Agent was finally generally available. This agent tries to solve this problem by bringing the best of both worlds together. In this quite long article, I will show you how to install and configure the Argo CD Agent with OpenShift GitOps using hub and spoke architecture.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_classic_deployment_models"&gt;Classic Deployment Models:&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Prior to the Argo CD Agent, there were two classic and often used deployment models: &lt;strong&gt;centralized&lt;/strong&gt; and &lt;strong&gt;decentralized&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_centralized_model"&gt;Centralized Model&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In a centralized deployment, all changes are applied to a single, central Argo CD instance, often installed on a management cluster. This is the traditional way of deploying Argo CD, at least in my opinion. With this model, you have a single pane of glass to manage all your clusters. You have a single UI and will see all your clusters in one place, which makes this model very convenient when you have multiple clusters. However, the scalability of this model is limited. Organizations with a huge number of clusters or Argo CD applications would hit some boundaries at some point. A sharding configuration would help, but only to a certain extent. The performance would degrade significantly. In addition, this model creates a Single Point of Failure. If this instance is down, the company loses the ability to manage their clusters through Argo CD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+I often saw or used this model for the cluster configuration.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_decentralized_model"&gt;Decentralized Model&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In a decentralized deployment, multiple instances of Argo CD, often one for each cluster, are installed. With this approach, the issue with scalability is solved. Moreover, the Single Point of Failure is eliminated as well, since a broken instance will not affect the other instances. However, the disadvantages of this model are that the complexity for the operational teams will increase, since they need to manage multiple instances now. Also, the single pane of glass for management is lost, as there are multiple UIs to manage.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+I often saw or used this model for the application deployment.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_not_so_secret_argo_cd_agent"&gt;The - not so secret - Argo CD Agent&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;Argo CD Agent&lt;/strong&gt;, released as generally available in OpenShift GitOps v1.19, is a new way to use Argo CD. It tries to solve the challenges of the classic deployment models by combining the best of both worlds. The Agent allows you to have a single UI in a central control plane, while the application controller is distributed across the fleet of clusters. Agents on the different clusters will communicate with the central Argo CD instance.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Agent model introduces a hub and spoke architecture:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Control plane cluster (hub) - The control plane cluster is the central cluster that manages the configuration for multiple spokes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Workload cluster (spoke) - The workload cluster is the cluster that runs the application workloads deployed by Argo CD.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Each Argo CD Agent on a cluster manages the local Argo CD instance and ensures that applications, AppProjects, and secrets remain synchronized with their source of truth.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The official documentation describes a comparison between the classic deployment models and the Argo CD Agent: &lt;a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/1.19/html/argo_cd_agent_architecture/argocd-agent-architecture#gitops-architecture-argocd-agent-comparison_argocd-agent-architecture-overview" target="_blank" rel="noopener"&gt;GitOps Architecture - Argo CD Agent Comparison&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_argo_cd_agent_modes"&gt;Argo CD Agent Modes&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD Agent supports two modes of operation: Managed and Autonomous.
+The mode determines where the authoritative source of truth for the Application .spec field resides.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Managed mode — the control plane/hub defines Argo CD applications and their specifications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Autonomous mode — each workload cluster/spoke defines its own Argo CD applications and their specifications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+A mixed mode is also possible.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_managed_mode"&gt;Managed Mode&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Using the managed mode means that the control plane is the source of truth and is responsible for the Argo CD application resources and their distribution across the different workload clusters.
+Any change on the hub cluster will be propagated to the spoke clusters. Any changes made on the spoke/workload cluster will be reverted to match the control plane configuration.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_autonomous_mode"&gt;Autonomous Mode&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Using this mode, the Argo CD applications are defined on the workload clusters, which serve as their own source of truth. The applications are synchronized back to the control plane for observability.
+Changes made on the workload cluster are not reverted, but will appear on the control plane. On the other hand, you cannot modify applications directly from the control plane.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_security"&gt;Security&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD Agent uses mTLS certificates to communicate between the hub and the spoke clusters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The certificate must be created and managed by the user.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_argo_cd_agent_installation"&gt;Argo CD Agent Installation&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The agent consists of two components that are responsible to synchronize the Argo CD applications between the hub and the spoke clusters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Principal - Deployed on the control plane cluster together with Argo CD. Here the central UI (and API) can be found.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Agent - Deployed on the workload clusters to synchronize the Argo CD applications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The installation of both is done differently. But before we dive into the installation, let’s have a look at the terminology to understand the different components and their roles.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is a quote from the official documentation (&lt;a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/1.19/html/argo_cd_agent_installation/argocd-agent-installation#gitops-argocd-agent-terminologiest_argocd-agent-installation" target="_blank" rel="noopener"&gt;Argo CD Agent Terminologies&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Principal namespace&lt;/strong&gt; - Specifies the namespace where you install the Principal component. This namespace is not created by default, you must create it before adding the resources in this namespace. In Argo CD Agent CLI commands, this value is provided using the --principal-namespace flag.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent namespace&lt;/strong&gt; - Specifies the namespace hosting the Agent component. This namespace is not created by default, you must create it before adding the resources in this namespace. In Argo CD Agent CLI commands, this value is provided using the --agent-namespace flag.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Context&lt;/strong&gt; - A context refers to a named configuration in the oc CLI that allows you to switch between different clusters. You must be logged in to all clusters and assign distinct context names for the hub and spoke clusters. Examples for cluster names include principal-cluster, hub-cluster, managed-agent-cluster, or autonomous-agent-cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Principal context&lt;/strong&gt; - The context name you provide for the hub (control plane) cluster. For example, if you log in to the hub cluster and rename its context to principal-cluster, you specify it in Argo CD Agent CLI commands as --principal-context principal-cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent context&lt;/strong&gt; - The context name you provide for the spoke (workload) cluster. For example, if you log in to a spoke cluster and rename its context to autonomous-agent-cluster, you specify it in Argo CD Agent CLI commands as --agent-context autonomous-agent-cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_a_word_about_the_setup"&gt;A Word about the Setup&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create some kind of real customer scenario, I have created two clusters:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;The cluster where we installed the Principal component. This will be the Hub/Management/Principal cluster (We have too many words for this…​)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A separate cluster that will be the Agent cluster. This will be the Spoke/Workload cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first one I have installed on AWS, and the second one is a Bare Metal Single node cluster. Both can reach each other via the Internet.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+We are using different contexts for the different clusters for the command line. The &lt;strong&gt;argocd-agentctl&lt;/strong&gt; tool knows the flags &lt;strong&gt;--principal-context&lt;/strong&gt; and &lt;strong&gt;--agent-context&lt;/strong&gt; to switch between the different clusters. Be sure to create the resources on the correct cluster.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_prerequisites"&gt;Prerequisites&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start with the installation of the Principal or Agent component, we need to ensure that the following prerequisites are met:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;We have two OpenShift test clusters.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Both clusters can reach each other&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift GitOps Operator is already installed (possible configuration modifications are described in the following sections)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Because of my main focus on OpenShift GitOps, we will try to deploy cluster configurations and not just workload. Therefore, the example Argo CD applications will configure cluster settings. (A banner on the top and bottom of the UI)
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_openshift_gitops_subscription_on_the_hub_cluster"&gt;Configure OpenShift GitOps Subscription on the Hub Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The OpenShift GitOps Operator installs by default an Argo CD instance. In this test we will disable this, as we do not need that instance. Moreover and even more important, we need to tell the Operator for which namespaces it should feel responsible for. In this case, we will tell the Operator to be responsible for all namespaces on the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We need to modify the Subscription &lt;strong&gt;openshift-gitops-operator&lt;/strong&gt; and add the following environment variables:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+config:
+env:
+- name: DISABLE_DEFAULT_ARGOCD_INSTANCE &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+value: &amp;#39;true&amp;#39;
+- name: ARGOCD_CLUSTER_CONFIG_NAMESPACES &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+value: &amp;#39;*&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Optional: Disable the default Argo CD instance.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Tell the Operator for which namespaces it should feel responsible for. In this case, all Namespaces. This is important for a namespace-scoped Argo CD instance, which we will install in the next step.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_activate_the_principal_component"&gt;Activate the Principal Component&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To activate the Principal components we first need a cluster (the Hub) where OpenShift GitOps is installed. On this cluster, there might be a running instance of Argo CD already.
+However, at this time an existing Argo CD &lt;strong&gt;cannot&lt;/strong&gt; be used. Instead, a new Argo CD instance must be created. (This is because the controller must not be activated)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In my case, I will install the Principal component in the namespace &lt;strong&gt;argocd-principal&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create an Argo CD instance we need to create the following configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+At this very stage, the principal component must be installed in a separate Argo CD instance, since the controller must not be activated. Therefore we create a new Argo CD instance in a new namespace.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+name: hub-argocd
+namespace: argocd-principal
+spec:
+controller:
+enabled: false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+argoCDAgent:
+principal:
+enabled: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+auth: &amp;#34;mtls:CN=([^,]+)&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+logLevel: &amp;#34;info&amp;#34;
+namespace:
+allowedNamespaces: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+- &amp;#34;*&amp;#34;
+tls:
+insecureGenerate: false &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+jwt:
+insecureGenerate: false
+sourceNamespaces: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+- &amp;#34;argocd-agent-bm01&amp;#34;
+server:
+route:
+enabled: true &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Disable the controller component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the Principal component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Authentication method for the Principal component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Allowed namespaces for the Principal component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Insecure generation of the TLS certificate.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Specifies the sourceNamespaces configuration. (Such a list might already exist)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the Route for the Principal component.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will start a Pod called &lt;strong&gt;hub-gitops-agent-principal&lt;/strong&gt; in the namespace &lt;strong&gt;argocd-principal&lt;/strong&gt;. However, this pod will &lt;strong&gt;fail&lt;/strong&gt; at this moment and that is fine.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Pod hub-gitops-agent-principal is failing with:
+{&amp;#34;level&amp;#34;:&amp;#34;info&amp;#34;,&amp;#34;msg&amp;#34;:&amp;#34;Setting loglevel to info&amp;#34;,&amp;#34;time&amp;#34;:&amp;#34;2026-01-19T13:45:57Z&amp;#34;}
+time=&amp;#34;2026-01-19T13:45:57Z&amp;#34; level=info msg=&amp;#34;Loading gRPC TLS certificate from secret argocd-principal/argocd-agent-principal-tls&amp;#34;
+time=&amp;#34;2026-01-19T13:45:57Z&amp;#34; level=info msg=&amp;#34;Loading root CA certificate from secret argocd-principal/argocd-agent-ca&amp;#34;
+time=&amp;#34;2026-01-19T13:45:57Z&amp;#34; level=info msg=&amp;#34;Loading resource proxy TLS certificate from secrets argocd-principal/argocd-agent-resource-proxy-tls and argocd-principal/argocd-agent-ca&amp;#34;
+[FATAL]: Error reading TLS config for resource proxy: error getting proxy certificate: could not read TLS secret argocd-principal/argocd-agent-resource-proxy-tls: secrets &amp;#34;argocd-agent-resource-proxy-tls&amp;#34; not found &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The secret is not yet available.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The Pod is failing at the moment because the different secrets for authentication, are not yet available. The Secrets are created in a later step, because some settings, such as the principal hostname and resource proxy service names, are available only after the Red Hat OpenShift GitOps Operator enables the principal component.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At this point the Operator created the Route object already:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Route: hub-gitops-agent-principal
+Hostname: https://hub-gitops-agent-principal-argocd-principal.apps.ocp.aws.ispworld.at
+Service: hub-gitops-agent-principal&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_the_appproject"&gt;Configure the AppProject&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you configured the AppProject with sourceNamespaces, you need to add the following to the AppProject (for example to the &lt;strong&gt;default&lt;/strong&gt; AppProject). This must match exactly the namespaces you have created for the Agent.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+sourceNamespaces:
+- &amp;#34;argocd-agent-bm01&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can also use this patch command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc patch appproject default -n argocd-principal --type=&amp;#39;merge&amp;#39; \
+-p &amp;#39;{&amp;#34;spec&amp;#34;: {&amp;#34;sourceNamespaces&amp;#34;: [&amp;#34;argocd-agent-bm01&amp;#34;]}}&amp;#39; --context aws&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Restart the Argo CD Pods to apply the changes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_download_argocd_agentctl"&gt;Download argocd-agentctl&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create the required secrets, we need to download the &lt;strong&gt;argocd-agentctl&lt;/strong&gt; tool.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This can be found at: &lt;a href="https://developers.redhat.com/content-gateway/rest/browse/pub/cgw/openshift-gitops/" class="bare"&gt;https://developers.redhat.com/content-gateway/rest/browse/pub/cgw/openshift-gitops/&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Download and install it for your platform.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_required_secrets"&gt;Create Required Secrets&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following steps will create the required secrets for the Principal component. In this example, we will create our own CA and certificates. This is suitable for development and testing purposes. For production environments, you should use certificates issued by your organization’s PKI or a trusted certificate authority.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Use your company’s CA and certificates for production environments.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_initialize_the_certificate_authority_ca"&gt;Initialize the Certificate Authority (CA)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create a certificate authority (CA) that signs other certificates, we need to run the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki init \
+--principal-namespace argocd-principal \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+--principal-context aws&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Principal component is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will initialize the CA and store it in the secret &lt;strong&gt;argocd-principal/argocd-agent-ca&lt;/strong&gt;. The certificate looks like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;&amp;#34;Certificate Information:
+Common Name: argocd-agent-ca
+Subject Alternative Names:
+Organization: DO NOT USE IN PRODUCTION
+Organization Unit:
+Locality:
+State:
+Country:
+Valid From: January 15, 2026
+Valid To: January 15, 2036
+Issuer: argocd-agent-ca, DO NOT USE IN PRODUCTION
+Serial Number: 1 (0x1)&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_generate_service_certificate_for_the_principal"&gt;Generate Service Certificate for the Principal&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To generate the server certificate for the Principal’s gRPC service, run the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki issue principal \
+--principal-namespace argocd-principal \
+--principal-context aws \
+--dns &amp;#34;&amp;lt;YOUR PRINCIPAL HOSTNAME&amp;gt;&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The hostname of the Principal service. This must match with the hostname of the Principal’s route (spec.host) or, in case a LoadBalancer Service is used, with .status.loadBalancer.ingress.hostname.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_generate_the_resource_proxy_certificate"&gt;Generate the Resource Proxy Certificate&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The resource proxy service requires a certificate as well. Since the proxy will run on the same cluster as the Principal, we can use the service name directly.
+This is generated by the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki issue resource-proxy \
+--principal-namespace argocd-principal \
+--principal-context aws \
+--dns hub-argocd-agent-principal-resource-proxy &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The service name for the resource-proxy. This must match with the service name of the Resource Proxy service.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_generate_the_jwt_signing_key"&gt;Generate the JWT Signing Key&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Generate the RSA private key for the JWT signing key by running the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl jwt create-key \
+--principal-namespace argocd-principal \
+--principal-context aws&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will generate the RSA private key and store it in the secret &lt;strong&gt;argocd-principal/argocd-agent-jwt&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_principal_component"&gt;Verify the Principal Component&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now the principal pod should be running successfully.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If the Pod still shows an error, wait a few moments or restart the Pod.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the logs you should see the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;{&amp;#34;level&amp;#34;:&amp;#34;info&amp;#34;,&amp;#34;msg&amp;#34;:&amp;#34;Setting loglevel to info&amp;#34;,&amp;#34;time&amp;#34;:&amp;#34;2026-01-19T14:09:31Z&amp;#34;}
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Loading gRPC TLS certificate from secret argocd-principal/argocd-agent-principal-tls&amp;#34;
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Loading root CA certificate from secret argocd-principal/argocd-agent-ca&amp;#34;
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Loading resource proxy TLS certificate from secrets argocd-principal/argocd-agent-resource-proxy-tls and argocd-principal/argocd-agent-ca&amp;#34;
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Loading JWT signing key from secret argocd-principal/argocd-agent-jwt&amp;#34;
+time=&amp;#34;2026-01-19T14:09:31Z&amp;#34; level=info msg=&amp;#34;Starting argocd-agent (server) v99.9.9-unreleased (ns=argocd-principal, allowed_namespaces=[*])&amp;#34; module=server&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This concludes the configuration of the Principal component. There are a lot of steps to create the required secrets, but this is only done once. A GitOps-friendly way to achieve this might be done using a Kubernetes Job (if you consider this as GitOps-friendly…​ which I do).&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_activate_the_agent_component"&gt;Activate the Agent Component&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After the Principal component is configured, you can activate one or more Agents (spoke or workload clusters) and connect them with the Hub.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The prerequisites are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The Principal component is configured and running.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You have access to both the Principal and Agent clusters.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The argocd-agentctl CLI tool is installed and accessible from your environment.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The helm CLI is installed and configured. Ensure that the helm CLI version is later than v3.8.0.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift GitOps Operator is installed and configured on the Agent cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Yes, a separate Helm Chart will be used to install the Agent component on the target cluster. This time it is not a Chart that I created, but one provided by Red Hat. :)
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_agent_secret_on_principal_cluster"&gt;Create Agent Secret on Principal Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We first need to create an agent on the Principal cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl agent create &amp;#34;argocd-agent-bm01&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+--principal-context &amp;#34;aws&amp;#34; \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+--principal-namespace &amp;#34;argocd-principal&amp;#34; \ &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+--resource-proxy-server &amp;#34;hub-argocd-agent-principal-resource-proxy:9090&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A (unique) name for the Agent.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The context name for the Principal cluster. In my case it is &amp;#34;aws&amp;#34;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Principal component is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The resource proxy server URL. This is the URL of the Principal’s resource proxy service including the port (9090).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the secret &lt;strong&gt;cluster-argocd-agent-bm01&lt;/strong&gt; with the label &lt;strong&gt;argocd.argoproj.io/secret-type: cluster&lt;/strong&gt; in the Argo CD namespace.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_the_agent_namespace_on_the_agent_cluster"&gt;Create the Agent Namespace on the Agent Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Be sure that the target namespace on the agent or workload cluster exists. If not, create it first.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc create namespace argocd-agent-bm01 --context bm &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the namespace.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_propagate_the_principal_ca_to_the_agent_cluster"&gt;Propagate the Principal CA to the Agent Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To copy the CA certificate from the principal to the agent cluster the following command is used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki propagate \
+--agent-context bm \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+--principal-context aws \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+--principal-namespace argocd-principal \ &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+--agent-namespace argocd-agent-bm01 &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The context name for the Agent cluster.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The context name for the Principal cluster.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Principal component is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Agent component is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will copy the CA certificate from the Principal cluster to the Agent cluster into the namespace and secret &lt;strong&gt;argocd-agent-bm01/argocd-agent-ca&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Only the certificate is copied. The private key is not copied.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_generate_a_client_certificate_for_the_agent"&gt;Generate a client certificate for the Agent&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we need to create, based on the imported CA, a client certificate for the Agent. This is done by the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;argocd-agentctl pki issue agent &amp;#34;argocd-agent-bm01&amp;#34; \
+--principal-context &amp;#34;aws&amp;#34; \
+--agent-context &amp;#34;bm&amp;#34; \
+--agent-namespace &amp;#34;argocd-agent-bm01&amp;#34; \
+--principal-namespace &amp;#34;argocd-principal&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the secret &lt;strong&gt;argocd-agent-client-tls&lt;/strong&gt; on the workload cluster, containing a certificate and a key, signed by the CA certificate imported from the Principal cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_openshift_gitops_subscription_on_the_spoke_cluster"&gt;Configure OpenShift GitOps Subscription on the Spoke Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The OpenShift GitOps Operator installs by default an Argo CD instance. In this test we will disable this, as we do not need that instance. Moreover and even more important, we need to tell the Operator for which namespaces it should feel responsible for. In this case, we will tell the Operator to be responsible for all namespaces on the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We need to modify the Subscription &lt;strong&gt;openshift-gitops-operator&lt;/strong&gt; and add the following environment variables:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+config:
+env:
+- name: DISABLE_DEFAULT_ARGOCD_INSTANCE &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+value: &amp;#39;true&amp;#39;
+- name: ARGOCD_CLUSTER_CONFIG_NAMESPACES &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+value: &amp;#39;*&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Disable the default Argo CD instance.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Tell the Operator for which namespaces it should feel responsible for. In this case, all Namespaces.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_argo_cd_instance_on_the_agent_cluster"&gt;Create Argo CD Instance on the Agent Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create a minimalistic Argo CD instance on the Agent cluster, we can use the following Argo CD configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+name: agent-argocd
+namespace: argocd-agent-bm01 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+server:
+enabled: false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the Argo CD instance is running. This is also the name of the Agent we have created earlier on the principal cluster.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create a lightweight Argo CD instance in the namespace &lt;strong&gt;argocd-agent-bm01&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pod -n argocd-agent-bm01 --context bm
+NAME READY STATUS RESTARTS AGE
+agent-argocd-application-controller-0 1/1 Running 0 2m49s
+agent-argocd-redis-5f6759f6fb-2fdnt 1/1 Running 0 2m49s
+agent-argocd-repo-server-7949d97dfd-dsk6b 1/1 Running 0 2m49s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_installing_the_agent"&gt;Installing the Agent&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To install the agent we will use a Helm Chart provided by Red Hat. This will install the Agent component on the target cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As a reminder, we have two modes of operation for the Agent:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Managed mode&lt;/strong&gt; — the control plane/hub defines Argo CD applications and their specifications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Autonomous mode&lt;/strong&gt; — each workload cluster/spoke defines its own Argo CD applications and their specifications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_required_network_policy"&gt;Create Required Network Policy&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start with the actual installation of the Agent, we need to ensure that the Redis instance on the spoke cluster is accessible for the Agent. We need to create a NetworkPolicy accordingly:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+name: argocd-agent-bm01-redis-network-policy
+spec:
+podSelector:
+matchLabels:
+app.kubernetes.io/name: agent-argocd-redis &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+ingress:
+- ports:
+- protocol: TCP
+port: 6379
+from:
+- podSelector:
+matchLabels:
+app.kubernetes.io/name: argocd-agent-agent
+policyTypes:
+- Ingress&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the Redis instance. The label is based on &amp;lt;instance name&amp;gt;-redis.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the NetworkPolicy to the spoke cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f network-policy.yaml -n argocd-agent-bm01 --context bm&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_add_the_helm_chart_repository"&gt;Add the Helm Chart Repository&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Add the Helm repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm repo add openshift-helm-charts https://charts.openshift.io/
+helm repo update&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_install_a_managed_agent_with_the_helm_chart"&gt;Install a managed Agent with the Helm Chart&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Install the agent in the &lt;strong&gt;managed&lt;/strong&gt; mode using the Helm Chart. The following parameters are used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;namespaceOverride&lt;/strong&gt; - The namespace where the Agent is running.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;agentMode&lt;/strong&gt; - The mode of the Agent.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;server&lt;/strong&gt; - The server URL of the Principal component. This is the spec.host setting of the Principal’s route.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argoCdRedisSecretName&lt;/strong&gt; - The name of the Redis secret.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argoCdRedisPasswordKey&lt;/strong&gt; - The key of the Redis password.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;redisAddress&lt;/strong&gt; - The address of the Redis instance.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm install redhat-argocd-agent openshift-helm-charts/redhat-argocd-agent \
+--set namespaceOverride=argocd-agent-bm01 \
+--set agentMode=&amp;#34;managed&amp;#34; \
+--set server=&amp;#34;serverURL of principal route&amp;#34; \
+--set argoCdRedisSecretName=&amp;#34;agent-argocd-redis-initial-password&amp;#34; \
+--set argoCdRedisPasswordKey=&amp;#34;admin.password&amp;#34; \
+--set redisAddress=&amp;#34;agent-argocd-redis:6379&amp;#34; \
+--kube-context &amp;#34;bm&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With this chart a pod on the &lt;strong&gt;spoke&lt;/strong&gt; cluster will be created and will start to synchronize the Argo CD applications between the hub and the spoke cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_managed_agent"&gt;Verify the Managed Agent&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To verify the Agent in &lt;strong&gt;managed&lt;/strong&gt; mode we need to create an Argo CD Application on the &lt;strong&gt;hub&lt;/strong&gt; cluster. We can try the following Application. The Application is taken from the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops" target="_blank" rel="noopener"&gt;openshift-clusterconfig-gitops&lt;/a&gt; repository and simply adds a banner to the top of the OpenShift UI. I typically use this as a quick test if GitOps is working.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: branding
+namespace: argocd-agent-bm01 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+destination:
+namespace: default
+server: &amp;#39;https://hub-argocd-agent-principal-resource-proxy:9090?agentName=argocd-agent-bm01&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+project: default
+source:
+path: clusters/management-cluster/branding
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
+targetRevision: main
+syncPolicy:
+automated:
+prune: true
+selfHeal: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace of the agent&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The server URL of the Principal component. This is the URL plus the port and the agentName. As an alternative you can also use &lt;strong&gt;name: argocd-agent-bm01&lt;/strong&gt; which is the name of the cluster and might be easier to read.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the Application to the &lt;strong&gt;hub&lt;/strong&gt; cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f application.yaml -n argocd-agent-bm01 --context aws&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since the application will try to automatically synchronize the configuration, the status will change to &lt;strong&gt;Synced&lt;/strong&gt; after a few seconds:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;status:
+resources:
+- group: console.openshift.io
+kind: ConsoleNotification
+name: topbanner
+status: Synced
+version: v1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;and the (top) banner will be visible on the UI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/agent/banner-top.png" alt="Banner on the top of the UI"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Banner on the top of the UI&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On the &lt;strong&gt;hub&lt;/strong&gt; cluster, the Argo CD Application will be Synced:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get applications --context aws -A
+NAMESPACE NAME SYNC STATUS HEALTH STATUS
+argocd-agent-bm01 branding-banner Synced Healthy&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_install_an_autonomous_agent_with_the_helm_chart"&gt;Install an autonomous Agent with the Helm Chart&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s cleanup the first installation of the Chart (managed agent) in order to not have any conflicts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm uninstall redhat-argocd-agent --kube-context &amp;#34;bm&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Install the agent in the &lt;strong&gt;autonomous&lt;/strong&gt; mode using the Helm Chart. The following parameters are used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;namespaceOverride&lt;/strong&gt; - The namespace where the Agent is running.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;agentMode&lt;/strong&gt; - The mode of the Agent.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;server&lt;/strong&gt; - The server URL of the Principal component. This is the spec.host setting of the Principal’s route.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argoCdRedisSecretName&lt;/strong&gt; - The name of the Redis secret.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argoCdRedisPasswordKey&lt;/strong&gt; - The key of the Redis password.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;redisAddress&lt;/strong&gt; - The address of the Redis instance.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The only difference to the managed mode is the &lt;strong&gt;agentMode&lt;/strong&gt; parameter.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm install redhat-argocd-agent-autonomous openshift-helm-charts/redhat-argocd-agent \
+--set namespaceOverride=argocd-agent-bm01 \
+--set agentMode=&amp;#34;autonomous&amp;#34; \
+--set server=&amp;#34;serverURL of principal route&amp;#34; \
+--set argoCdRedisSecretName=&amp;#34;agent-argocd-redis-initial-password&amp;#34; \
+--set argoCdRedisPasswordKey=&amp;#34;admin.password&amp;#34; \
+--set redisAddress=&amp;#34;agent-argocd-redis:6379&amp;#34; \
+--kube-context &amp;#34;bm&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With this chart a pod on the &lt;strong&gt;spoke&lt;/strong&gt; cluster will be created and will start to synchronize the Argo CD applications between the hub and the spoke cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_autonomous_agent"&gt;Verify the Autonomous Agent&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To verify the Agent in &lt;strong&gt;autonomous&lt;/strong&gt; mode we need to create an Argo CD Application on the &lt;strong&gt;spoke&lt;/strong&gt; cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can try the following Application. It is basically the same as we used for the test for the managed mode, except that this time we will add a banner on the bottom of the UI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: branding-bottom-banner
+namespace: argocd-agent-bm01 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+destination:
+namespace: default
+server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+project: default
+source:
+path: clusters/management-cluster/branding-bottom
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
+targetRevision: main
+syncPolicy:
+automated:
+prune: true
+selfHeal: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace of the agent&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The server URL of the local cluster, since in autonomous mode the application is managed locally.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the Application to the &lt;strong&gt;spoke&lt;/strong&gt; cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f application.yaml -n argocd-agent-bm01 --context bm&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Like the managed mode, the status will change to &lt;strong&gt;Synced&lt;/strong&gt; after a few seconds and the (this time) bottom banner will be visible on the UI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/agent/banner-bottom.png" alt="Banner on the bottom of the UI"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. Banner on the bottom of the UI&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Moreover, the Argo CD Application will appear on the &lt;strong&gt;hub&lt;/strong&gt; cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get applications --context aws -A
+NAMESPACE NAME SYNC STATUS HEALTH STATUS
+argocd-agent-bm01 branding-bottom-banner Synced Healthy
+argocd-agent-bm01 branding-banner Synced Healthy&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;During the installation and configuration of the Argo CD Agent, you might encounter some issues. Here are some issues I encountered during the tests:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_principal_pod_fails_to_start"&gt;Principal Pod Fails to Start&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the Principal pod fails to start with errors about missing secrets, verify that all required secrets have been created:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get secrets -n argocd-principal | grep argocd-agent&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You should see the following secrets:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argocd-agent-ca&lt;/strong&gt; - The CA certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argocd-agent-principal-tls&lt;/strong&gt; - The Principal’s TLS certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argocd-agent-resource-proxy-tls&lt;/strong&gt; - The Resource Proxy’s TLS certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;argocd-agent-jwt&lt;/strong&gt; - The JWT signing key&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If any of these are missing, re-run the corresponding &lt;code&gt;argocd-agentctl&lt;/code&gt; command to create them.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_redis_errors_in_the_principal_pod"&gt;Redis Errors in the Principal Pod&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you see errors like the following in the logs of the Principal pod, ensure that the Argo CD instance does not have the controller enabled in that namespace (set &lt;code&gt;spec.controller.enabled: false&lt;/code&gt;). Hopefully, this will change in the future.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;time=&amp;#34;2026-01-20T04:57:10Z&amp;#34; level=error msg=&amp;#34;unexpected lack of &amp;#39;_&amp;#39; namespace/name separate: &amp;#39;app|managed-resources|branding|1.8.3&amp;#39;&amp;#34; connUUID=3c13b30b-9f84-4af6-93d8-e1c03c4c7898 function=redisFxn module=redisProxy&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_limitations"&gt;Limitations&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While the Argo CD Agent brings significant improvements, there are some limitations to be aware of:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_separate_argo_cd_instance_required"&gt;Separate Argo CD Instance Required&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Currently, the Principal component &lt;strong&gt;cannot&lt;/strong&gt; be installed alongside an existing Argo CD instance where the application controller is enabled. You must create a separate Argo CD instance with the controller disabled (&lt;code&gt;spec.controller.enabled: false&lt;/code&gt;). To me, this is one of the biggest limitations. However, this will be addressed in the future and is tracked in the issue: &lt;a href="https://github.com/argoproj-labs/argocd-agent/issues/708" class="bare"&gt;https://github.com/argoproj-labs/argocd-agent/issues/708&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_manual_certificate_management"&gt;Manual Certificate Management&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The mTLS certificates must be created and managed manually by the user. There is no automatic certificate rotation or renewal. For production environments, you should integrate with your organization’s PKI infrastructure and implement a certificate rotation strategy.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD Agent provides a powerful solution for managing multiple clusters with Argo CD. By combining the benefits of centralized management with distributed application controllers, it addresses the scalability and single point of failure challenges of traditional deployment models.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While the initial setup requires several steps, especially around certificate management, the resulting architecture offers a robust foundation for GitOps at scale.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability - Here Comes Grafana - Part 7</title><link>https://blog.stderr.at/openshift-platform/observability/observability/2025-12-04-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part7/</link><pubDate>Thu, 04 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/observability/observability/2025-12-04-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part7/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;While we have been using the integrated tracing UI in OpenShift, it is time to summon &lt;strong&gt;Grafana&lt;/strong&gt;. Grafana is a visualization powerhouse that allows teams to build custom dashboards, correlate traces with logs and metrics, and gain deep insights into their applications. In this article, we’ll deploy a dedicated Grafana instance for &lt;strong&gt;team-a&lt;/strong&gt; in their namespace, configure a Tempo datasource, and create a dashboard to explore distributed traces.&lt;/p&gt;
 &lt;/div&gt;
@@ -10537,825 +11779,6 @@ logoutRedirect: &amp;#39;https://&amp;lt;keycloakURL&amp;gt;/realms/&amp;lt;real
 &lt;div class="sectionbody"&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;As promised, this was a short article about how to configure Keycloak and OpenShift for Single Log Out. This is a beneficial feature if you want to ensure that users are logged out from all applications when they log out from Keycloak. It is also a good security practice to ensure that users are logged out from all applications when they are done using them.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Step by Step - Using Keycloak Authentication in OpenShift</title><link>https://blog.stderr.at/openshift-platform/security/authentication/2025-05-17-step-by-step-keycloak-and-openshift/</link><pubDate>Sat, 17 May 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/authentication/2025-05-17-step-by-step-keycloak-and-openshift/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;I was recently asked about how to use Keycloak as an authentication provider for OpenShift. How to install Keycloak using the Operator and how to configure Keycloak and OpenShift so that users can log in to OpenShift using OpenID.
-I have to admit that the exact steps are not easy to find, so I decided to write a blog post about it, describing each step in detail.
-This time I will not use GitOps, but the OpenShift and Keycloak Web Console to show the steps, because before we put it into GitOps, we need to understand what is actually happening.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This article tries to explain every step required so that a user can authenticate to OpenShift using Keycloak as an Identity Provider (IDP) and that Groups from Keycloak are imported into OpenShift. This article does not cover a production grade installation of Keycloak, but only a test installation, so you can see how it works. For production, you might want to consider a proper database (maybe external, but at least with a backup), high availability, etc.).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following prerequisites are required to follow this article:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift 4.16 or higher with cluster-admin privileges&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_installing_keycloak_operator"&gt;Installing Keycloak Operator&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The very first step is to install the Keycloak Operator. This can be done using the OpenShift Web Console or the CLI or GitOps. I will show the steps using the OpenShift Web Console.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Installing the Keycloak Operator via GitOps can be seen in this &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/setup-rh-build-of-keycloak" target="_blank" rel="noopener"&gt;GitHub repository&lt;/a&gt;. By the time you read this article, this repository will install and configure a Keycloak instance automatically using a local &lt;strong&gt;EXAMPLE&lt;/strong&gt; Postgres database. It does not yet import any Realm or additional configuration, but I will try to add this in the future when time allows. Oh, and it is just a demo and not production ready, so please do not use it in production.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Log in to the OpenShift Web Console as a user with cluster-admin privileges.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;In the OpenShift Web Console, navigate to the Operators → OperatorHub.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;In the OperatorHub, search for &lt;strong&gt;Red Hat build of Keycloak&lt;/strong&gt; and select the Operator from the list.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/search-operator.png?width=320" alt="Search Keycloak Operator"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Install the latest version of the Keycloak Operator.&lt;/p&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-You can keep the default settings for the installation, but I recommend using a specific namespace. In this example, I will use the namespace &lt;code&gt;keycloak&lt;/code&gt; for the installation.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/install-operator.png?width=840" alt="Install Keycloak Operator"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Press the &lt;strong&gt;Install&lt;/strong&gt; button to install the Keycloak Operator. After a few minutes, the Keycloak Operator should be installed and running in the OpenShift cluster. You can check the status of the Operator in the &lt;strong&gt;Installed Operators&lt;/strong&gt; view.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/installed-operator.png" alt="Installed Keycloak Operator"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_create_a_local_example_postgres_database"&gt;Create a local example Postgres Database&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Demo only! This is not production ready and should not be used in production.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a next step, we need to create a local Postgres database for Keycloak. Secrets are used to store the database credentials, and a simple StatefulSet is used to create the database. The database will be created in the same namespace as the Keycloak Operator.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;First, let’s create a Secret for the database credentials. In OpenShift select the &lt;strong&gt;keycloak&lt;/strong&gt; namespace and navigate to the &lt;strong&gt;Secrets&lt;/strong&gt; view. Create a new Secret with the following test configuration:&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Secret
-apiVersion: v1
-metadata:
-name: keycloak-db-secret
-namespace: keycloak
-stringData:
-password: thisisonly4testingNOT4prod &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-username: testuser
-type: Opaque&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The password for the database. This is just a test password and should not be used in production.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Next, we need to create a StatefulSet for the Postgres database, again in the &lt;strong&gt;keycloak&lt;/strong&gt; namespace.
-Again, as I cannot mention that enough, this is just a test configuration and should not be used in production.&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-name: postgresql-db
-namespace: keycloak
-spec:
-serviceName: postgresql-db-service
-selector:
-matchLabels:
-app: postgresql-db
-replicas: 1 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-template:
-metadata:
-labels:
-app: postgresql-db
-spec:
-containers:
-- name: postgresql-db
-image: postgres:15 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-volumeMounts:
-- mountPath: /data
-name: psql
-env: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-- name: POSTGRES_USER
-value: testuser
-- name: POSTGRES_PASSWORD
-value: thisisonly4testingNOT4prod
-- name: PGDATA
-value: /data/pgdata
-- name: POSTGRES_DB
-value: keycloak
-volumeClaimTemplates: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- metadata:
-name: psql
-spec:
-accessModes: [ &amp;#34;ReadWriteOnce&amp;#34; ]
-storageClassName: &amp;#34;gp3-csi&amp;#34;
-resources:
-requests:
-storage: 10Gi&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The number of replicas for the database. In this example, we are using a single replica.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The image for the database, postgres version 15 in this example.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The environment variables for the database. The username and password are the same as in the Secret we created before, and &lt;strong&gt;clear text&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The volume for the database. In this example, the StatefulSet uses a volume claim template to create a volume with the size of 10 GB for the database. The volume is created using the &lt;code&gt;gp3-csi&lt;/code&gt; storage class. You can use any other storage class that is available in your OpenShift cluster or even remove this line and use the default class instead.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Finally, we need to create a Service for the database so that the Keycloak Operator can access the database. Again, in the &lt;strong&gt;keycloak&lt;/strong&gt; namespace.&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
-kind: Service
-metadata:
-name: postgres-db
-namespace: keycloak
-spec:
-selector:
-app: postgresql-db &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-type: LoadBalancer
-ports:
-- port: 5432
-targetPort: 5432&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The selector for the Service. This must match the label of the StatefulSet we created before.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_creating_a_keycloak_instance"&gt;Creating a Keycloak Instance&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now that the Keycloak Operator is installed and our example database is running, we can create a Keycloak instance.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;In the OpenShift Web Console, navigate to the &lt;strong&gt;Installed Operators&lt;/strong&gt; view and select the Keycloak Operator. (Maybe you need to select the keycloak namespace first.)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;In the Keycloak Operator view, create a new instance of &lt;strong&gt;Keycloak&lt;/strong&gt; and switch to the &lt;strong&gt;YAML&lt;/strong&gt; view.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/create-keycloak-instance.png?width=550" alt="Create Keycloak Instance"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The fun part here is that the YAML example the Operator provides is actually &lt;strong&gt;wrong and does not work&lt;/strong&gt;. Something that kept me busy for a while.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Replace the YAML with the following configuration:&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: k8s.keycloak.org/v2alpha1
-kind: Keycloak
-metadata:
-name: keycloak &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: keycloak
-labels:
-app: sso
-spec:
-db: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-host: postgres-db
-passwordSecret:
-key: password
-name: keycloak-db-secret
-usernameSecret:
-key: username
-name: keycloak-db-secret
-vendor: postgres
-hostname: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-hostname: sso.apps.ocp.aws.ispworld.at
-http: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-tlsSecret: keycloak-certificate
-instances: 1 &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name and the namespace of the Keycloak instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The database configuration. In this example, we are using a local Postgres database. You can also use an external database, but you need to configure the connection string accordingly.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Hostname of our Keycloak instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The TLS secret for the Keycloak instance. You need to create a TLS secret with the certificate and key for the hostname. This is where the example YAML is wrong. It tries to put &lt;em&gt;tlsSecret&lt;/em&gt; under &lt;em&gt;spec&lt;/em&gt;, but it should be under &lt;em&gt;http&lt;/em&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The number of instances of Keycloak. In this example, we are using a single instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_what_about_the_ssl_certificate"&gt;What about the SSL Certificate?&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Keycloak Operator does not create a certificate for the Keycloak instance. You need to create a certificate manually and store it in a secret. The Operator will use this secret to create the TLS certificate for the Keycloak instance.
-In the example above we are referencing a secret called &lt;code&gt;keycloak-certificate&lt;/code&gt; in the &lt;code&gt;keycloak&lt;/code&gt; namespace. This secret was created using the &lt;strong&gt;Cert Manager Operator&lt;/strong&gt;. For example, you can use the following configuration to create a certificate for the Keycloak instance.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-name: keycloak-certificate
-namespace: keycloak
-spec:
-dnsNames:
-- sso.apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-duration: 2160h0m0s
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-privateKey:
-algorithm: RSA
-encoding: PKCS1
-rotationPolicy: Always
-secretName: keycloak-certificate &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The DNS name the Certificate is valid for. This should be the same as the hostname in the Keycloak instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The issuer for the certificate. In this example, we are using the &lt;strong&gt;LetsEncrypt&lt;/strong&gt; ClusterIssuer.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the secret where the certificate is stored. This should be the same as the TLS secret in the Keycloak instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I strongly recommend using the &lt;strong&gt;Cert Manager Operator&lt;/strong&gt; to automatically request and approve the certificate. However, if you do not have this automation in place, you can use a self-signed certificate. This certificate must be created manually and stored as a secret.
-For example, you can use the following command to create a self-signed certificate and store it in a secret:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj &amp;#34;/CN=test.keycloak.org/O=Test Keycloak./C=US&amp;#34;
-oc create secret -n keycloak tls keycloak-certificate2 --cert=tls.crt --key=tls.key&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_login_in_to_keycloak"&gt;Login in to Keycloak&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Once the Keycloak instance is created and all Pods (1) are running, you can log in to the Keycloak Admin Console using the following URL: &lt;a href="https://sso.apps.ocp.aws.ispworld.at" class="bare"&gt;https://sso.apps.ocp.aws.ispworld.at&lt;/a&gt;
-This is the hostname we configured in the keycloak instance.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To authenticate, you need to fetch the initial password for the admin user. This password is stored in a secret called &lt;strong&gt;keycloak-initial-admin&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can use the following command to fetch the password:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc extract secret/keycloak-initial-admin -n keycloak --to=-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;or you can use the OpenShift Web Console to view the secret.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Once authenticated, you should see the Keycloak Admin Console:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/keycloak-initial-login.png" alt="Keycloak Admin Console"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The first thing you should do is to change the password for the admin user. I trust you know how to do this :)
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_keycloak_to_be_used_by_openshift"&gt;Configure Keycloak to be used by OpenShift&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The next steps are to configure Keycloak to be used as an Identity Provider (IDP) for OpenShift. This is done by creating a new Realm and a new Client in Keycloak. The following steps will show you the minimum configuration required to use Keycloak as an IDP for OpenShift. It does not cover all the options and features of Keycloak (and there are a lot), but it should be enough to get you started.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The full documentation for Keycloak can be found at &lt;a href="https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/" target="_blank" rel="noopener"&gt;Keycloak Documentation&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_create_a_new_realm_and_client"&gt;Create a new Realm and Client&lt;/h3&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;In the Realm Dropdown (upper left corner) select &lt;strong&gt;Create new Realm&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/create-new-realm.png?width=420" alt="Create new Realm"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a new Realm called &lt;strong&gt;openshift&lt;/strong&gt; (Enabled, of course) and press &lt;strong&gt;Create&lt;/strong&gt;.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/create-new-realm-openshift.png?width=1024" alt="Create new Realm OpenShift"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Now, inside the Realm &lt;strong&gt;openshift&lt;/strong&gt;, select &lt;strong&gt;Clients&lt;/strong&gt; and press the &lt;strong&gt;Create client&lt;/strong&gt; button.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/create-new-client.png?width=1024" alt="Create new Client"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a new Client with the following configuration. Name it, for example, &lt;strong&gt;openshift&lt;/strong&gt;.&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Be sure the &lt;strong&gt;Client type&lt;/strong&gt; is set to &lt;strong&gt;OpenID Connect&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/new-client-screen-1.png?width=1024" alt="Create new Client"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Enable &lt;strong&gt;Client authentication&lt;/strong&gt;. The rest can be left as default.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/new-client-screen-2.png?width=1024" alt="Create new Client"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Add the following redirect URL and Web origin and press &lt;strong&gt;Save&lt;/strong&gt;.:&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Redirect URL: &lt;a href="https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;/oauth2callback/*" class="bare"&gt;https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;/oauth2callback/*&lt;/a&gt; …​ redirecting everything under oauth2callback&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Web origin: &lt;a href="https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;" class="bare"&gt;https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;&lt;/a&gt;;&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/new-client-screen-3.png?width=1024" alt="Create new Client"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_create_a_new_user_and_a_group"&gt;Create a new User and a Group&lt;/h3&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;In the &lt;strong&gt;openshift&lt;/strong&gt; Realm, select &lt;strong&gt;Groups&lt;/strong&gt;, press the &lt;strong&gt;Create group&lt;/strong&gt; button and create a group called, for example, &lt;strong&gt;openshift-users&lt;/strong&gt;.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;In the &lt;strong&gt;openshift&lt;/strong&gt; Realm, select &lt;strong&gt;Users&lt;/strong&gt; and press the &lt;strong&gt;Add user&lt;/strong&gt; button. Be sure to join the group &lt;strong&gt;openshift-users&lt;/strong&gt;.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/new-user.png?width=1024" alt="Create new User"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;No more configuration is needed for the (test) user at this point.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Set the password for the user. Select the user we have just created, select the &lt;strong&gt;Credentials&lt;/strong&gt; tab and press &lt;strong&gt;Set password&lt;/strong&gt;. Set the password to &lt;strong&gt;Temporary&lt;/strong&gt; to force the user to change the password on the first login.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/new-user-password.png?width=1024" alt="Set password for new User"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_configure_a_group_mapper"&gt;Configure a Group Mapper&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above configuration is enough to log in to OpenShift using Keycloak as an IDP (except that we need to configure OpenShift itself). However, we also want to import the groups from Keycloak into OpenShift. This configuration was not easy to find, and is done by creating a Group Mapper in Keycloak.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;In the &lt;strong&gt;openshift&lt;/strong&gt; Realm, select &lt;strong&gt;Clients scopes&lt;/strong&gt; and select the &lt;strong&gt;profile&lt;/strong&gt; scope:&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/client-scopes.png?width=1024" alt="Client Scopes"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Select the &lt;strong&gt;Mappers&lt;/strong&gt; tab and Add a mapper &lt;strong&gt;By configuration&lt;/strong&gt;:&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/client-scopes-mappers.png?width=1024" alt="Client Scopes Mappers"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Select the &lt;strong&gt;Group Membership&lt;/strong&gt; mapper.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/client-scopes-new-mapper.png?width=1024" alt="Client Scopes Create Group Membership Mapper"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configure the mapper with the following settings:&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Mapper Type: &lt;strong&gt;Group Membership&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Name: &lt;strong&gt;openshift-groups&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Token Claim Name: &lt;strong&gt;groups&lt;/strong&gt; → This is the name of the claim that will be used to map the groups from Keycloak to OpenShift.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Full group path: &lt;strong&gt;OFF&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Add to ID token: &lt;strong&gt;ON&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Add to access token: &lt;strong&gt;ON&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Add to userinfo: &lt;strong&gt;ON&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Disable the &lt;strong&gt;Full groupo path&lt;/strong&gt; option, otherwise the group name will be prefixed with a &lt;strong&gt;/&lt;/strong&gt;. Moreover, be sure that you set the &lt;strong&gt;Token Claim Name&lt;/strong&gt; correctly to the claim we will configure in OpenShift (groups).
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/client-scopes-new-mapper-2.png?width=1024" alt="Client Scopes Create Group Membership Mapper"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_openshift_to_use_keycloak_as_an_idp"&gt;Configure OpenShift to use Keycloak as an IDP&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now that Keycloak is configured, we need to configure OpenShift to use Keycloak as an IDP. This is done by creating a new Identity Provider in OpenShift.
-Before we do this, we need to create a new OAuth client secret for OpenShift in the Namespace &lt;strong&gt;openshift-config&lt;/strong&gt; The secret will be used to authenticate OpenShift with Keycloak.
-When we created the keycloak client, we enabled the &lt;strong&gt;Client authentication&lt;/strong&gt; option. This created a client secret we need to use in OpenShift.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;In Keycloak, select the &lt;strong&gt;openshift&lt;/strong&gt; client and select the &lt;strong&gt;Credentials&lt;/strong&gt; tab and copy the &lt;strong&gt;Client secret&lt;/strong&gt;.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/keycloak-client-secret.png?width=1024" alt="Keycloak Client Secret"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Back in OpenShift, navigate to the &lt;strong&gt;openshift-config&lt;/strong&gt; namespace and select the &lt;strong&gt;Secrets&lt;/strong&gt; view. Create a new secret with the following configuration:&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Secret
-apiVersion: v1
-metadata:
-name: openid-client-secret
-namespace: openshift-config
-stringData:
-clientSecret: &amp;lt;you client secret from Keycloak&amp;gt; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-type: Opaque&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The client secret we copied from Keycloak. This is the secret we will use to authenticate OpenShift with Keycloak.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Now we need to create a new Identity Provider in OpenShift. In the OpenShift Web Console, navigate to the &lt;strong&gt;Administration&lt;/strong&gt; → &lt;strong&gt;Cluster Settings&lt;/strong&gt; → &lt;strong&gt;Configuration&lt;/strong&gt; search for &lt;strong&gt;OAuth&lt;/strong&gt; and select the YAML view.
-Here the following must be created or added to an existing OAuth configuration:&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;[...]
-spec:
-identityProviders:
-- mappingMethod: claim
-name: rhsso &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-openID:
-claims: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-email:
-- email
-groups:
-- groups
-name:
-- name
-preferredUsername:
-- preferred_username
-clientID: openshift &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-clientSecret:
-name: openid-client-secret &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-extraScopes: []
-issuer: &amp;#39;https://sso.apps.ocp.aws.ispworld.at/realms/openshift&amp;#39; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-type: OpenID &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the Identity Provider. This is the name that will be displayed in the OpenShift login screen.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The claims that will be used to map the user to OpenShift. In this example, we are using the email, groups, name and preferred_username claims from Keycloak.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The client ID we created in Keycloak. This is the client ID that will be used to authenticate OpenShift with Keycloak.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the secret we created in the &lt;strong&gt;openshift-config&lt;/strong&gt; namespace.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The issuer URL for Keycloak. It is &amp;lt;hostname of keycloak&amp;gt;/realms/&amp;lt;realm name&amp;gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The type of the Identity Provider. In this example, we are using OpenID Connect.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above configuration will trigger a restart of the authentication Pods in OpenShift. Wait until all Pods have been restarted and the Operator is running again.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/restart-oauth.png" alt="OpenShift OAuth Restart"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_test_the_configuration"&gt;Test the configuration&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now it is time to test the configuration. Open a new browser window (or incognito window), navigate to the OpenShift login page and try to log in using Keycloak as an IDP &lt;strong&gt;rhsso&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-If you have multiple IDPs configured, it is important to select the correct IDP. &lt;strong&gt;rhsso&lt;/strong&gt; in this example.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;By selecting the &lt;strong&gt;rhsso&lt;/strong&gt; Identity Provider, you should be redirected to the Keycloak login page.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/openshift-keycloak-login.png?width=1024" alt="OpenShift Login Page"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-If you selected &lt;strong&gt;Temporary&lt;/strong&gt; for the password, you will now be asked to change the password on the first login.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;After a successful login, you should see the OpenShift Web Console, and you should be logged in as the user you created in Keycloak.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/openshift-web-console.png?width=1024" alt="OpenShift Web Console"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;In OpenShift you will see the user created. In the Identities column you will see that it starts with &lt;strong&gt;rhsso&lt;/strong&gt;, indicating that the user was authenticated using the &lt;strong&gt;rhsso&lt;/strong&gt; Identity Provider.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/openshift-user.png" alt="OpenShift User"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;And finally, if you navigate to &lt;strong&gt;User Management&lt;/strong&gt; → &lt;strong&gt;Groups&lt;/strong&gt;, you should see the group &lt;strong&gt;openshift-users&lt;/strong&gt; that was created in Keycloak.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/openshift-groups.png" alt="OpenShift Group"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this article, I have shown how to install and configure Keycloak in OpenShift for authentication. I have also shown how to configure Keycloak to be used as an Identity Provider for OpenShift and how to import groups from Keycloak into OpenShift.
-The biggest two challenges were to find the correct callback URL and to configure the Group Mapper in Keycloak. The rest was pretty straightforward.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;What’s next? With the groups now mapped into OpenShift, you can now create RoleBindings and ClusterRoleBindings to assign the appropriate roles to the users in Keycloak. This is quite nice, as I do not need to create Users manually in OpenShift anymore (previously used HTPasswd) but instead use Keycloak as the single source of truth for users and groups. All I need to configure is the RoleBindings and ClusterRoleBindings in OpenShift.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I hope this article was helpful and you learned something new. Remember, this is just a test configuration. In production you should use a proper database and keycloak setup (high Availability, backup, etc.).
-If you have any questions or comments, please feel free to reach out to me on LinkedIn, Email or via GitHub issues.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_references"&gt;References&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/" target="_blank" rel="noopener"&gt;Keycloak Documentation&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://blog.badgerops.net/keycloak-open-shift/" target="_blank" rel="noopener"&gt;Keycloak &amp;amp; Open Shift&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/setup-rh-build-of-keycloak" target="_blank" rel="noopener"&gt;Set up Keycloak using GitOps (No Realm/Client configuration yet)&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
