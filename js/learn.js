@@ -253,8 +253,15 @@ jQuery(document).ready(function() {
                     text: function(trigger) {
                         text = $(trigger).prev('code').text();
 
-                        // Removing callouts, like (1) from the code
-                        text = text.replace(/\([\d]\)/g," ");
+                        // Removing callouts, like (1) or (12) from the code
+                        // Also removes any preceding space
+                        text = text.replace(/ ?\(\d+\)/g, '');
+                        
+                        // Trim trailing whitespace from each line
+                        // (important for bash line continuations with backslash)
+                        text = text.split('\n').map(function(line) { 
+                            return line.replace(/\s+$/, ''); 
+                        }).join('\n');
 
                         // Remove leading # if they exist.
                         if (text.slice(0,2) === "# ") {
