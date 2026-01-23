@@ -931,8 +931,14 @@ container.innerHTML = '&lt;p class="helm-changelog-error"&gt;No charts found&lt;
 return;
 }
 const genDate = new Date(data.generated);
+const parseDate = (dateStr) =&gt; {
+if (!dateStr) return new Date(0);
+const d = new Date(dateStr);
+return isNaN(d.getTime()) ? new Date(0) : d;
+};
 const charts = data.charts
-.sort((a, b) =&gt; new Date(b.lastModified) - new Date(a.lastModified))
+.filter(c =&gt; c.lastModified)
+.sort((a, b) =&gt; parseDate(b.lastModified).getTime() - parseDate(a.lastModified).getTime())
 .slice(0, maxItems);
 let html = `
 &lt;div class="helm-changelog-header"&gt;
@@ -950,13 +956,14 @@ const iconHtml = chart.icon
 : '&lt;i class="fa fa-cube helm-chart-icon-fallback"&gt;&lt;/i&gt;';
 let changesHtml = '';
 if (chart.changes &amp;&amp; chart.changes.length &gt; 0) {
+const sortedChanges = [...chart.changes].reverse();
 changesHtml = '&lt;ul class="helm-changes-list"&gt;';
-chart.changes.slice(0, 4).forEach(change =&gt; {
+sortedChanges.slice(0, 4).forEach(change =&gt; {
 const kind = (change.kind || 'changed').toLowerCase();
 changesHtml += `&lt;li class="${kind}"&gt;&lt;span class="helm-change-badge ${kind}"&gt;${kind}&lt;/span&gt;${change.description}&lt;/li&gt;`;
 });
-if (chart.changes.length &gt; 4) {
-changesHtml += `&lt;li style="color:#888;border-left-color:#888;"&gt;... and ${chart.changes.length - 4} more changes&lt;/li&gt;`;
+if (sortedChanges.length &gt; 4) {
+changesHtml += `&lt;li style="color:#888;border-left-color:#888;"&gt;... and ${sortedChanges.length - 4} more changes&lt;/li&gt;`;
 }
 changesHtml += '&lt;/ul&gt;';
 }
