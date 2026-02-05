@@ -1,0 +1,643 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>High Availability on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/high-availability/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 05 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/high-availability/index.xml" rel="self" type="application/rss+xml"/><item><title>Advanced br-ex Configuration with Bonding on OpenShift</title><link>https://blog.stderr.at/openshift-platform/networking/2026-02-05-advanced-br-ex-with-bonding/</link><pubDate>Thu, 05 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/networking/2026-02-05-advanced-br-ex-with-bonding/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;In standard OpenShift Container Platform (OCP) installations, the cluster networking operator relies on default scripts to configure the external bridge, &lt;strong&gt;br-ex&lt;/strong&gt;. While these defaults work for simple setups, production environments frequently demand robust and redundant setups, such as LACP bonding or active-backup configurations that the default scripts cannot guess.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this article, we explore advanced configurations for the &lt;strong&gt;br-ex&lt;/strong&gt; bridge on OpenShift. We will configure a worker node with a high-availability active-backup bond, attach it to an OVS bridge (br-ex), and ensure the node maintains connectivity.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;br-ex&lt;/strong&gt; (external bridge) is a critical component in OpenShift’s OVN-Kubernetes network architecture. It handles external traffic flowing in and out of the cluster. By default, br-ex is attached to a single network interface, but in production environments, you often need:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;High Availability&lt;/strong&gt;: If one network link fails, traffic continues through the remaining links&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Increased Bandwidth&lt;/strong&gt;: Aggregate bandwidth from multiple interfaces&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Load Balancing&lt;/strong&gt;: Distribute traffic across multiple physical connections&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you already have a cluster running, you can migrate your br-ex bridge to NMState. In this article, I have summarized the process step by step.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The official documentation can be found at &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/installing_on_bare_metal/index#migrating-br-ex-bridge-nmstate_bare-metal-postinstallation-configuration"&gt;Migrating a configured br-ex bridge to NMState&lt;/a&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_why_customization_is_necessary"&gt;Why Customization is Necessary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By default, OVN-Kubernetes expects a bridge named br-ex to handle traffic exiting the cluster. If you need this bridge to sit on top of a specific bond (like bond-public) rather than a single physical interface, or if you need to enforce specific MAC address policies, you must intervene before the node boots into the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This method allows you to:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Migrate br-ex bridge to NMState and make postinstallation changes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Define complex topologies (Bonds, VLANs, Bridges) declaratively.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Persist configuration across reboots and upgrades via the Machine Config Operator.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Decouple networking from the OS installation process.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before configuring bonding with br-ex, ensure you have:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift 4.x cluster with OVN-Kubernetes CNI&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OPTIONAL: NMState Operator installed (helps to verify and visualize the configuration on the node)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Multiple network interfaces (interface1 and interface2) available on your nodes&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Understanding of your network topology and switch configuration&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_understanding_bonding_modes"&gt;Understanding Bonding Modes&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Linux supports several bonding modes. The most common ones for OpenShift deployments and supported by OpenShift Virtualization are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 16.6666%;"/&gt;
+&lt;col style="width: 33.3333%;"/&gt;
+&lt;col style="width: 50.0001%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Mode&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Name&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Description&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;1&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;active-backup&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Only one interface active at a time. Failover when active fails. No switch configuration required.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;2&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;balance-xor&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;XOR-based load balancing. Requires switch configuration.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;4&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;802.3ad (LACP)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Dynamic link aggregation. Requires switch support for LACP.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Mode LACP is recommended for production environments &lt;strong&gt;when switch support is available&lt;/strong&gt;, as it provides both redundancy and load balancing.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_technical_setup"&gt;The Technical Setup&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will implement the following network topology:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Physical Interfaces: &lt;strong&gt;interface1&lt;/strong&gt; and &lt;strong&gt;interface2&lt;/strong&gt; (configured as secondary).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Bond Interface: &lt;strong&gt;bond-public&lt;/strong&gt; in active-backup mode.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OVS Bridge: &lt;strong&gt;br-ex&lt;/strong&gt; (the standard OVN external bridge) using &lt;strong&gt;bond-public&lt;/strong&gt; as a port.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Host Networking: The node’s IP address will be assigned to the &lt;strong&gt;br-ex&lt;/strong&gt; OVS interface (internal port), effectively moving the management IP from the physical NIC to the bridge.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_migration_process"&gt;Migration Process&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The migration process is quite simple. We will use the MachineConfig Operator to apply the configuration to the node.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This means we will:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create the NMState configuration file&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Encode it as base64&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a MachineConfig object for the required nodes&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Apply the MachineConfig object to the required nodes aka reboot the node&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_the_nmstate_configuration_file"&gt;Create the NMState configuration file&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First, we need to create the NMState configuration file. This file will be used to configure the network on the node.
+We will define two interfaces &lt;strong&gt;interface1&lt;/strong&gt; and &lt;strong&gt;interface2&lt;/strong&gt; and a bond interface &lt;strong&gt;bond-public&lt;/strong&gt; in active-backup mode. The &lt;strong&gt;br-ex&lt;/strong&gt; bridge will be configured to use the &lt;strong&gt;bond-public&lt;/strong&gt; interface.
+The MAC address from &lt;strong&gt;interface2&lt;/strong&gt; will be copied to the &lt;strong&gt;bond-public&lt;/strong&gt; and &lt;strong&gt;br-ex&lt;/strong&gt; interfaces. This ensures consistent MAC addressing for ARP/DHCP and prevents IP conflicts during failover.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is the crucial step in the migration process.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;interfaces:
+########################################################
+# Interface 1
+########################################################
+- name: interface1 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+type: ethernet
+state: up
+ipv4:
+enabled: false
+ipv6:
+enabled: false
+########################################################
+# Interface 2
+########################################################
+- name: interface2 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+type: ethernet
+state: up
+ipv4:
+enabled: false
+ipv6:
+enabled: false
+########################################################
+# Bond interface
+########################################################
+- description: Bond interface for public LAN interfaces
+ipv4:
+enabled: false
+link-aggregation:
+mode: active-backup &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+port: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+- interface1
+- interface2
+name: bond-public &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+state: up
+type: bond
+copy-mac-from: interface2 &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+########################################################
+# OVS Bridge
+########################################################
+- name: br-ex &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+type: ovs-bridge &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+state: up
+ipv4:
+enabled: false
+dhcp: false
+ipv6:
+enabled: false
+dhcp: false
+bridge:
+options:
+mcast-snooping-enable: true
+port: &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
+- name: bond-public
+- name: br-ex
+########################################################
+# OVS Interface
+########################################################
+- name: br-ex
+type: ovs-interface
+state: up
+copy-mac-from: interface2 &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
+ipv4:
+enabled: true
+dhcp: true
+auto-route-metric: 48 &lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;(11)&lt;/b&gt;
+ipv6:
+enabled: false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Specification of interface1&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Specification of interface2&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Bonding mode: &lt;strong&gt;active-backup&lt;/strong&gt; in this example&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Port of the bond interface (interface1 and interface2)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the bond interface&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Copy the MAC address from the interface2 to the bond interface&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Specification of the bridge (ovs-bridge)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Type of the bridge (ovs-bridge)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Port of the bridge (bond-public and br-ex)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Copy the MAC address from the interface2 to the interface&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;11&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Auto-route metric - Set the parameter to 48 to ensure the br-ex default route always has the highest precedence (lowest metric). This configuration prevents routing conflicts with any other interfaces that are automatically configured by the NetworkManager service.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With this configuration we can now create a MachineConfig object and roll out the changes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_encode_the_configuration_as_base64"&gt;Encode the Configuration as base64&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We need to encode the configuration as base64. This is required by the MachineConfig Operator.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Assuming you have the command line tool &lt;code&gt;base64&lt;/code&gt; installed and stored the configuration in a file called &lt;code&gt;br-ex-public.yaml&lt;/code&gt;, you can encode the configuration as follows.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;cat br-ex-public.yaml | base64 -w 0&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The result will be a long string of characters. This is the base64 encoded configuration, that we will use in the next step.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_the_machineconfig_object"&gt;Create the MachineConfig object&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To apply this during installation (or via the Machine Config Operator after the deployment), we wrap the NMState YAML above into a MachineConfig object.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We need the base64 encoded string and will place it in a specific path: &lt;strong&gt;/etc/nmstate/openshift/&amp;lt;filename&amp;gt;.yml&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;From the official documentation:
+&amp;#34;For each node in your cluster, specify the hostname path to your node and the base-64 encoded Ignition configuration file data for the machine type. The worker role is the default role for nodes in your cluster. You must use the .yml (not yaml !) extension for configuration files, such as $(hostname -s).yml when specifying the short hostname path for each node or all nodes in the MachineConfig manifest file.&amp;#34;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In short: For each node, create a file named &lt;code&gt;&amp;lt;hostname&amp;gt;.yml&lt;/code&gt; containing the base64-encoded NMState configuration. Note that you must use the &lt;code&gt;.yml&lt;/code&gt; extension (not &lt;code&gt;.yaml&lt;/code&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you have one single configuration for ALL nodes, you can create one configuration file called cluster.yml. However, I personally do not recommend this approach, as over time new nodes might have different hardware and therefore different network configurations.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the configuration below, we are targeting a specific worker named wrk01.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+labels:
+machineconfiguration.openshift.io/role: worker &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+name: 10-br-ex-wrk01 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+spec:
+config:
+ignition:
+version: 3.2.0
+storage:
+files:
+- contents:
+# This source is the Base64 encoded version of the NMState YAML above
+source: data:text/plain;charset=utf-8;base64,&amp;lt;BASE64_ENCODED_STRING&amp;gt; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+mode: 0644
+overwrite: true
+# The path determines which node picks up the config.
+# Use &amp;#39;cluster.yml&amp;#39; to apply to all nodes in this MachineConfig pool.
+path: /etc/nmstate/openshift/wrk01.yml &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Valid for node with the role worker&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the MachineConfig object&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Base64 encoded configuration&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path to the configuration file. This configuration is valid for the node with the hostname wrk01.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_apply_the_machineconfig_object"&gt;Apply the MachineConfig Object&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The above MachineConfig object must now be applied to the cluster. There are two scenarios to do this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_scenario_a_post_installation_migration_of_existing_nodes"&gt;Scenario A: Post-Installation / Migration of existing nodes&lt;/h4&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Save the YAML to 10-br-ex-wrk01.yaml.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Run &lt;strong&gt;oc apply -f 10-br-ex-wrk01.yaml&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Reboot the applicable nodes to apply the configuration. You can either do this manually or use the MachineConfigPool to reboot the nodes.
+The following example forces a reboot on all nodes with the role worker.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+labels:
+machineconfiguration.openshift.io/role: worker
+name: 10-force-reboot-worker
+spec:
+config:
+ignition:
+version: 3.2.0
+storage:
+files:
+- contents:
+source: data:text/plain;charset=utf-8;base64,
+mode: 0644
+overwrite: true
+path: /etc/force-reboot&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_scenario_b_during_installation"&gt;Scenario B: During Installation&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here the configuration will be applied during the installation process.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Run &lt;strong&gt;openshift-install create manifests&lt;/strong&gt; to create the manifest files.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Copy the YAML file above into the openshift/ directory.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Run openshift-install create ignition-configs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Deploy your nodes. The configuration will be applied on the very first boot.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_verifying_the_configuration"&gt;Verifying the Configuration&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once the node is online, it is crucial to verify that the interfaces came up correctly and that traffic is flowing through the bond.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check bond status
+oc debug node/&amp;lt;node-name&amp;gt; -- chroot /host cat /proc/net/bonding/bond-public
+# Check the state of the specific interfaces
+nmstatectl show br-ex bond-public
+# Look for state: up on both interfaces and ensure bond-public lists the correct ports (interface1 and interface2).
+# Verify br-ex bridge
+oc debug node/&amp;lt;node-name&amp;gt; -- chroot /host ovs-vsctl show
+#Expected Output:
+#
+#Plaintext
+# Bridge br-ex
+# Port br-ex
+# Interface br-ex
+# type: internal
+# Port bond-public
+# Interface bond-public
+# type: bond&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_test_failover"&gt;Test Failover&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To test the active-backup bonding:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Start a continuous ping to an external IP, for example: &lt;code&gt;ping 8.8.8.8&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Physically disconnect (or administratively down) the active interface (e.g., interface1).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Observe the ping. You should see minimal packet loss (usually just 1 or 2 packets) as traffic fails over to interface2.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_common_issues"&gt;Common Issues&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Bond not forming:&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Verify both interfaces are physically connected&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Check switch port configuration matches bonding mode&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Review NMState logs: &lt;code&gt;oc logs -n openshift-nmstate deployment/nmstate-handler&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Traffic not flowing:&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Verify br-ex is properly attached to the bond&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Check OVN-Kubernetes pods are running&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Review node network configuration: &lt;code&gt;oc debug node/&amp;lt;node-name&amp;gt; — chroot /host nmcli connection show&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_rollback_procedure"&gt;Rollback Procedure&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the configuration fails and the node becomes unreachable:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Boot the node into single-user mode or use console access&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Remove the NMState configuration file: &lt;code&gt;rm /etc/nmstate/openshift/&amp;lt;hostname&amp;gt;.yml&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Restart NetworkManager: &lt;code&gt;systemctl restart NetworkManager&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The node should revert to the default network configuration&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Alternatively, delete the MachineConfig from the cluster (from a working node):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc delete machineconfig 10-br-ex-wrk01&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will trigger a rollback on the affected nodes during the next reboot.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By using MachineConfig to inject an NMState policy at /etc/nmstate/openshift/, we successfully bypassed the default network scripts. We created a robust OVS bridge (br-ex) backed by an active-backup bond (bond-public), ensuring that our OpenShift worker node (wrk01) is both redundant and compliant with OVN-Kubernetes networking requirements.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Configuring br-ex with bonding provides essential redundancy and can improve network throughput for your OpenShift cluster. Choose the appropriate bonding mode based on your switch capabilities and requirements:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Use &lt;strong&gt;active-backup&lt;/strong&gt; for simple failover without switch configuration&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use &lt;strong&gt;802.3ad (LACP)&lt;/strong&gt; for optimal redundancy and load balancing when switches support it&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use &lt;strong&gt;balance-alb&lt;/strong&gt; when you need load balancing but lack switch support&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Always test your configuration in a non-production environment before applying to production clusters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>
