@@ -1,1 +1,240 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Single Node on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/single-node/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/tags/single-node/index.xml" rel="self" type="application/rss+xml"/><item><title>Virtualization</title><link>https://blog.stderr.at/openshift-platform/infrastructure/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/infrastructure/</guid><description/></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Single Node on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/single-node/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 09 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/single-node/index.xml" rel="self" type="application/rss+xml"/><item><title>Virtualization</title><link>https://blog.stderr.at/openshift-platform/infrastructure/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/infrastructure/</guid><description/></item><item><title>OKD Single node installation in a disconnected environment</title><link>https://blog.stderr.at/openshift-platform/infrastructure/2026-02-09-okd-sno-disconnected/</link><pubDate>Mon, 09 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/infrastructure/2026-02-09-okd-sno-disconnected/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Because of reasons we had to setup a disconnected single node OKD &amp;#34;cluster&amp;#34;. This is our brain dump as the
+OKD documentation sometimes refers to OpenShift image locations, we had to read multiple sections to get it working and we
+also consulted the OpenShift documentation at &lt;a href="https://docs.redhat.com" class="bare"&gt;https://docs.redhat.com&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First we need to download the &lt;em&gt;oc&lt;/em&gt; command in the version we would like to install. OKD provides them in their release page:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://github.com/okd-project/okd/releases/download/4.21.0-okd-scos.3/openshift-client-linux-amd64-rhel9-4.21.0-okd-scos.3.tar.gz" class="bare"&gt;https://github.com/okd-project/okd/releases/download/4.21.0-okd-scos.3/openshift-client-linux-amd64-rhel9-4.21.0-okd-scos.3.tar.gz&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To get an overview of releases available for OKD see &lt;a href="https://amd64.origin.releases.ci.openshift.org/" class="bare"&gt;https://amd64.origin.releases.ci.openshift.org/&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Another option is to extract the &lt;em&gt;oc&lt;/em&gt; command from the release image, if you have a version of &lt;em&gt;oc&lt;/em&gt; already installed:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;oc adm release extract --tools quay.io/okd/scos-release:4.21.0-okd-scos.3&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will also extract the &lt;em&gt;openshift-install&lt;/em&gt; tar.gz which we need later to generate the installation manifests and ignition configs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Next we need the &lt;em&gt;oc-mirror&lt;/em&gt; plugin, which is used to mirror the release content to our local registry. We were only able to find the plugin on &lt;em&gt;console.redhat.com&lt;/em&gt;. Another option might be to compile the plugin from source code (&lt;a href="https://github.com/openshift/oc-mirror/" class="bare"&gt;https://github.com/openshift/oc-mirror/&lt;/a&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We copied the &lt;em&gt;oc&lt;/em&gt; command and the &lt;em&gt;oc-mirror&lt;/em&gt; plugin to /usr/local/bin/ and made them executable. After that we ran &lt;em&gt;oc mirror --v2 --help&lt;/em&gt; to test the installation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The upstream &lt;a href="https://github.com/openshift/oc-mirror/blob/main/docs/okd-mirror.md"&gt;oc-mirror&lt;/a&gt; plugin documentation was also helpful.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As our private registry required authentication, we created a .dockerconfigjson file with the registry credentials:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;auths&amp;#34;: {
+&amp;#34;internal.registry&amp;#34;: {
+&amp;#34;auth&amp;#34;: &amp;#34;&amp;lt;credentials base64 encoded&amp;gt;&amp;#34;,
+&amp;#34;email&amp;#34;: &amp;#34;you@example.com&amp;#34;
+}
+}
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can encode the credentials with:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;echo -n &amp;#34;username:password&amp;#34; | base64 -w0&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For mirroring all required OKD images to our private registry we created a &lt;em&gt;ImageSetConfiguration&lt;/em&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: ImageSetConfiguration
+apiVersion: mirror.openshift.io/v2alpha1
+mirror:
+platform:
+channels:
+- name: 4-scos-stable
+minVersion: 4.21.0-okd-scos.3
+maxVersion: 4.21.0-okd-scos.3
+graph: false
+operators:
+- registry: quay.io/okderators/catalog-index:testing-4.20 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+packages:
+- name: aws-load-balancer-operator
+- name: 3scale-operator
+- name: node-observability-operator
+additionalImages:
+- name: registry.redhat.io/ubi8/ubi:latest
+- name: registry.redhat.io/ubi9/ubi@sha256:20f695d2a91352d4eaa25107535126727b5945bff38ed36a3e59590f495046f0&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We are not sure if OKD provides a working operator catalog.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We used a minimal configuration without operators and additional images, because downloading additional images did not work for us:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: ImageSetConfiguration
+apiVersion: mirror.openshift.io/v2alpha1
+mirror:
+platform:
+channels:
+- name: 4-scos-stable
+type: okd
+minVersion: 4.21.0-okd-scos.3
+maxVersion: 4.21.0-okd-scos.3
+graph: false
+operators: []
+additionalImages: []&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Our private registry is based on &lt;a href="https://goharbor.io"&gt;Harbor&lt;/a&gt; for our experiments, but any Docker v2 compatible registry should work. Then only thing required is a project
+within Harbor called &lt;em&gt;openshift&lt;/em&gt; and a user/password for pulling/pushing images to this project. The project name might
+be configurable with &lt;em&gt;oc mirror&lt;/em&gt;, but this requires further investigation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;oc mirror&lt;/em&gt; wants to verify signatures so we had to download a public key and provide the &lt;em&gt;OCP_SIGNATURE_URL&lt;/em&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;curl -LO https://raw.githubusercontent.com/openshift/cluster-update-keys/master/keys/verifier-public-key-openshift-ci-4
+export OCP_SIGNATURE_URL=&amp;#34;https://storage.googleapis.com/openshift-ci-release/releases/signatures/openshift/release/&amp;#34;
+export OCP_SIGNATURE_VERIFICATION_PK=&amp;#34;verifier-public-key-openshift-ci-4&amp;#34;
+# for debugging add --log-level debug, but we intermittent errors this options.
+# after removing --log-level debug oc mirror ran without problems
+oc mirror -c ImageSetConfiguration.yaml --authfile docker-auth.json --workspace file:///workspace docker://internal.registry --v2&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the &lt;em&gt;ImageDigestMirrorSource&lt;/em&gt; in &lt;em&gt;/workspace/working-dir/cluster-resoruces/idms-oc-mirror.yaml&lt;/em&gt; and &lt;em&gt;ImageTagMirrorSource&lt;/em&gt; custom resources in &lt;em&gt;/workspace/working-dir/cluster-resources/itms-oc-mirror.yaml&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The content &lt;em&gt;ImageDigestMirrorSource&lt;/em&gt; will be reused in
+the &lt;em&gt;install-config.yaml&lt;/em&gt;. This is required to redirect image pulls done by the node from &lt;em&gt;quay.io&lt;/em&gt; to our private registry.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Next we need DNS records for our cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;api.sno.internal&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;api-int.sno.internal&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;*.apps.sno.internal (wildcard DNS entry for applications deployed on the cluster)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we prepared the required &lt;em&gt;install-config.yaml&lt;/em&gt; file to trigger the &lt;em&gt;openshift-install&lt;/em&gt; command.
+We basically followed &lt;a href="https://docs.okd.io/latest/installing/installing_sno/install-sno-installing-sno.html(Installing" class="bare"&gt;https://docs.okd.io/latest/installing/installing_sno/install-sno-installing-sno.html(Installing&lt;/a&gt; a Single Node OpenShift Cluster).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+baseDomain: internal
+compute:
+- hyperthreading: Enabled
+name: worker
+replicas: 0
+controlPlane:
+hyperthreading: Enabled
+name: master
+replicas: 3
+metadata:
+name: sno
+networking:
+clusterNetwork:
+- cidr: 10.128.0.0/14
+hostPrefix: 23
+networkType: OVNKubernetes
+serviceNetwork:
+- 172.30.0.0/16
+platform:
+none: {}
+fips: false
+pullSecret: |
+{
+&amp;#34;auths&amp;#34;: {
+&amp;#34;internal.registry&amp;#34;: {
+&amp;#34;auth&amp;#34;: &amp;#34;&amp;lt;credentials base64 encoded&amp;gt;&amp;#34;,
+&amp;#34;email&amp;#34;: &amp;#34;you@example.com&amp;#34;
+}
+}
+}
+sshKey: &amp;#39;ssh-ed25519 AAAA...&amp;#39;
+additionalTrustBundle: |
+-----BEGIN CERTIFICATE-----
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+-----END CERTIFICATE-----
+ImageDigestSources:
+- mirrors:
+- registry.internal/openshift/release
+source: quay.io/okd/scos-content
+- mirrors:
+- registry.internal/openshift/release-images
+source: quay.io/okd/scos-release&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It’s time to create the installation manifests and ignition configs. We created a directory &lt;em&gt;install&lt;/em&gt;, copied the &lt;em&gt;install-config.yaml&lt;/em&gt; into this directory and triggered the &lt;em&gt;openshift-install&lt;/em&gt; command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;---
+$ mkdir install
+$ cp install-config.yaml install/
+$ openshift-install create manifests --dir=install
+$ openshift-install create ignition-configs --dir=install
+---&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We are not ready to download the installation ISO and to embed our ignition config into it. We also want
+to set kernel boot arguments to configure the network interface with a static IP address.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;curl -L $( ./openshift-install coreos print-stream-json |jq -r &amp;#34;.architectures.x86_64.artifacts.metal.formats.iso.disk.location&amp;#34; ) -o fhcos-live.iso&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The next step is to modify the ISO. We basically followed the instructions in the OKD documentation:
+&lt;a href="https://docs.okd.io/4.14/installing/installing_sno/install-sno-installing-sno.html#generating-the-install-iso-manually_install-sno-installing-sno-with-the-assisted-installer" class="bare"&gt;https://docs.okd.io/4.14/installing/installing_sno/install-sno-installing-sno.html#generating-the-install-iso-manually_install-sno-installing-sno-with-the-assisted-installer&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;alias coreos-installer=&amp;#39;podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release&amp;#39;
+coreos-installer iso ignition embed -fi install/bootstrap.ign fcos-live.iso
+coreos-installer iso kargs modify --append &amp;#39;ip=10.0.0.99::10.0.0.1:255.255.255.0:sno.internal:ens33:none:10.0.0.255&amp;#39; fcos-live.iso&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For understanding the kernel boot arguments see &lt;a href="https://access.redhat.com/solutions/5499911" class="bare"&gt;https://access.redhat.com/solutions/5499911&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The final step is to boot the modified ISO on the target machine and wait for the installation to complete.&lt;/p&gt;
+&lt;/div&gt;</description></item></channel></rss>
