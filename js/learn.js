@@ -263,11 +263,6 @@ jQuery(document).ready(function() {
                             return line.replace(/\s+$/, ''); 
                         }).join('\n');
 
-                        // Remove leading # if they exist.
-                        if (text.slice(0,2) === "# ") {
-                            text = text.substr(2);
-                        }
-
                         return text.replace(/^\$\s/gm, '');
                     }
                 });
