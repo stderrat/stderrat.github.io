@@ -3150,6 +3150,1030 @@ The user will still see the list of tenants. Hopefully, this will be fixed in a 
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Standalone Installation - Part 2</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</link><pubDate>Thu, 12 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;In the previous article, we introduced OpenBao and its core concepts. Now it is time to get our hands dirty with a standalone installation. This approach is useful for testing, development environments, edge deployments, or scenarios where Kubernetes is not available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While OpenBao shines in Kubernetes environments, understanding the standalone installation helps you grasp the fundamentals. This knowledge is valuable whether you are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Learning OpenBao before deploying to production&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Running OpenBao outside of Kubernetes (edge, legacy systems)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Debugging issues in containerized deployments&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Setting up a development environment&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_installation_methods_overview"&gt;Installation Methods Overview&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao can be installed through multiple methods:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Method&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Best For&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Complexity&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Package managers (apt, dnf, brew)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Production Linux/macOS systems&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Container images (Podman/Docker)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Quick testing, isolated environments&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Binary download&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Air-gapped environments&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Source compilation&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Custom builds, development&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Medium&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For this article, we will focus on macOS for local testing with binary and container image (using Podman) and Red Hat Enterprise Linux to set up an example production-ready server.
+The deployment on the Kubernetes environment will be discussed in the next article.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_method_1_package_manager_installation"&gt;Method 1: Package Manager Installation&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_rhelfedoracentos"&gt;RHEL/Fedora/CentOS&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On RHEL or CentOS, before you can install OpenBao you need to install the EPEL repository. To do so, you first need to enable the Code Ready Repository. The following commands will do the trick. Be sure that your system is registered, in case of RHEL.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you get the error &amp;#34;Repositories disabled by configuration.&amp;#34; you need to tell the subscription manager that you want to manage the repositories. This can be done permanently or temporarily. You can use the command: &lt;strong&gt;sudo subscription-manager config --rhsm.manage_repos=1&lt;/strong&gt; to do so.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_rhel"&gt;RHEL&lt;/h4&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Enable Code Ready Repository&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install EPEL Repository&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install OpenBao&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_centos"&gt;CentOS&lt;/h4&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Enable Code Ready Repository on CentOS&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf config-manager --set-enabled crb&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install EPEL Repository&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install epel-release epel-next-release&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install OpenBao&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_macos_homebrew"&gt;macOS (Homebrew)&lt;/h3&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Install OpenBao&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;brew install openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_installation"&gt;Verify Installation&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After installation, verify OpenBao is available:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao version
+# Output:
+OpenBao v2.5.0 (bcbb6036ec2b747bceb98c7706ce9b974faa1b23), built 2026-02-04T15:57:17Z (cgo)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The OpenBao CLI command is &lt;code&gt;bao&lt;/code&gt;, not &lt;code&gt;vault&lt;/code&gt;. This distinguishes it from HashiCorp Vault.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_start_development_server"&gt;Start Development Server&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To start a development environment, you can use the following command.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is NOT suitable for production, it is just a test to evaluate the basic concepts of OpenBao.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao server -dev -dev-root-token-id=&amp;#34;dev-only-token&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will start the server. The UI is accessible at &lt;a href="http://localhost:8200" class="bare"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_method_2_container_image"&gt;Method 2: Container Image&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For quick testing or isolated environments, container images are ideal. Luckily, OpenBao offers several types of containers suitable for any environment. We will use the image hosted on &lt;strong&gt;quay.io&lt;/strong&gt;, which is based on &lt;strong&gt;RHEL UBI&lt;/strong&gt; and can be found at: &lt;a href="https://quay.io/openbao/openbao-ubi" target="_blank" rel="noopener"&gt;quay.io/openbao/openbao-ubi&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_using_podman"&gt;Using Podman&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following command will fetch the image and start the container.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is NOT suitable for production, it is just a test to evaluate the basic concepts of OpenBao.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Run in dev mode (for testing only!)
+podman run --rm -d \
+--name openbao-dev \
+-p 8200:8200 \
+-e &amp;#39;BAO_DEV_ROOT_TOKEN_ID=dev-only-token&amp;#39; \
+-e &amp;#39;BAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200&amp;#39; \
+quay.io/openbao/openbao-ubi:latest server -dev&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Verify it is running
+podman logs -f openbao-dev&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will start the server. The UI is accessible at &lt;a href="http://localhost:8200" class="bare"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you prefer to use Docker, simply replace &lt;code&gt;podman&lt;/code&gt; with &lt;code&gt;docker&lt;/code&gt; in the commands.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_dev_mode_quick_start_for_testing"&gt;Dev Mode: Quick Start for Testing&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Dev mode is the fastest way to start using OpenBao for learning and testing.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The characteristics in this mode are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;In-memory storage (data lost on restart)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Automatically initialized and unsealed&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Root token printed to stdout&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;TLS disabled&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Single server (no HA)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s create an example secret and try to retrieve it again.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Authenticate against OpenBao&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export VAULT_TOKEN=&amp;#34;dev-only-token&amp;#34;
+export BAO_ADDR=&amp;#39;http://127.0.0.1:8200&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create Secret&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl \
+--header &amp;#34;X-Vault-Token: $VAULT_TOKEN&amp;#34; \
+--header &amp;#34;Content-Type: application/json&amp;#34; \
+--request POST \
+--data &amp;#39;{&amp;#34;data&amp;#34;: {&amp;#34;password&amp;#34;: &amp;#34;OpenBao123&amp;#34;}}&amp;#39; \
+$BAO_ADDR/v1/secret/data/my-secret-password &amp;amp;&amp;amp;
+echo &amp;#34;Secret written successfully.&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Retrieve Secret&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl --header &amp;#34;X-Vault-Token: $VAULT_TOKEN&amp;#34; \
+$BAO_ADDR/v1/secret/data/my-secret-password | jq &amp;#39;.data.data&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You should see the password that was created before:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;password&amp;#34;: &amp;#34;OpenBao123&amp;#34;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_check_status_of_openbao_server"&gt;Check Status of OpenBao Server&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will give you the status of your running OpenBao instance.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
+--- -----
+Seal Type shamir
+Initialized true
+Sealed false
+Total Shares 1
+Threshold 1
+Version 2.5.0
+Build Date 2026-02-04T15:57:17Z
+Storage Type inmem
+Cluster Name vault-cluster-421b2431
+Cluster ID 6d42dcd2-e399-211e-999a-49b1874cc8ce
+HA Enabled false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_hardening_your_system"&gt;Hardening your System&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao does a good job to secure your secrets, however, memory paging (or swap) can undermine the protection. Your OS should either have swap disabled completely or encrypt the swap space.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As I am testing on macOS, the swap space is encrypted out of the box.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, OpenBao has documented what must be done for various operating systems at &lt;a href="https://openbao.org/docs/install/#post-installation-hardening" target="_blank" rel="noopener"&gt;Post-installation hardening&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_production_standalone_setup"&gt;Production Standalone Setup&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a proper standalone installation, follow these steps:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_1_create_configuration_file"&gt;Step 1: Create Configuration File&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create &lt;code&gt;/etc/openbao.d/openbao.hcl&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;# Full configuration for standalone OpenBao server
+# Cluster name for identification
+cluster_name = &amp;#34;openbao-standalone&amp;#34;
+# Storage backend using integrated Raft
+storage &amp;#34;raft&amp;#34; {
+path = &amp;#34;/var/lib/openbao/data&amp;#34;
+node_id = &amp;#34;node1&amp;#34;
+}
+# HTTP listener (for internal communication)
+listener &amp;#34;tcp&amp;#34; {
+address = &amp;#34;0.0.0.0:8200&amp;#34;
+cluster_address = &amp;#34;0.0.0.0:8201&amp;#34;
+tls_disable = false
+tls_cert_file = &amp;#34;/etc/openbao.d/tls/tls.crt&amp;#34;
+tls_key_file = &amp;#34;/etc/openbao.d/tls/tls.key&amp;#34;
+}
+# API address for clients
+api_addr = &amp;#34;https://openbao.example.com:8200&amp;#34;
+# Cluster address for raft communication
+cluster_addr = &amp;#34;https://openbao.example.com:8201&amp;#34;
+# UI enabled
+ui = true
+# Logging
+log_level = &amp;#34;info&amp;#34;
+log_file = &amp;#34;/var/log/openbao/openbao.log&amp;#34;
+# Disable memory locking (enable in production if possible)
+disable_mlock = true
+# Telemetry (optional)
+telemetry {
+prometheus_retention_time = &amp;#34;30s&amp;#34;
+disable_hostname = true
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_2_generate_tls_certificates"&gt;Step 2: Generate TLS Certificates&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For production, you should use proper certificates. For testing, create self-signed ones:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is only for testing purposes. In production, you should use proper certificates.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;First, prepare the TLS directory if it does not exist&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo mkdir -p /etc/openbao.d/tls&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Then create a configuration file for the TLS certificates:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Create TLS config
+cat &amp;lt;&amp;lt;EOF &amp;gt; openbao.cnf
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+[req_distinguished_name]
+CN = openbao.example.com
+[v3_req]
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = openbao.example.com
+IP.1 = 127.0.0.1 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+EOF&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The IP address of the server. In this case we are using localhost, but you can add your IPs here.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Then generate the certificate:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Generate private key
+sudo openssl genrsa -out /etc/openbao.d/tls/tls.key 4096
+# Generate certificate signing request
+sudo openssl req -new -key /etc/openbao.d/tls/tls.key -out /etc/openbao.d/tls/tls.csr -subj &amp;#34;/CN=openbao.example.com&amp;#34;
+# Generate self-signed certificate
+sudo openssl x509 -req -days 365 -in /etc/openbao.d/tls/tls.csr -signkey /etc/openbao.d/tls/tls.key -out /etc/openbao.d/tls/tls.crt -extfile openbao.cnf -extensions v3_req
+# Set permissions
+sudo chown -R openbao:openbao /etc/openbao.d/tls
+sudo chmod 600 /etc/openbao.d/tls/tls.key
+sudo chmod 755 /etc/openbao.d/tls&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_3_create_systemd_service"&gt;Step 3: Create Systemd Service&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create &lt;code&gt;/etc/systemd/system/openbao.service&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;[Unit]
+Description=OpenBao Secret Management
+Documentation=https://openbao.org/docs
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/openbao.d/openbao.hcl
+[Service]
+User=openbao
+Group=openbao
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+SecureBits=keep-caps
+AmbientCapabilities=CAP_IPC_LOCK
+CapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK
+NoNewPrivileges=yes
+ExecStart=/usr/bin/bao server -config=/etc/openbao.d/openbao.hcl
+ExecReload=/bin/kill --signal HUP $MAINPID
+KillMode=process
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+LimitNOFILE=65536
+LimitMEMLOCK=infinity
+[Install]
+WantedBy=multi-user.target&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_4_start_the_service"&gt;Step 4: Start the Service&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Reload systemd
+sudo systemctl daemon-reload
+# Enable and start OpenBao
+sudo systemctl enable openbao
+sudo systemctl start openbao
+# Check status
+sudo systemctl status openbao
+# View logs
+sudo journalctl -u openbao -f&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_initialize_and_unseal_openbao"&gt;Initialize and Unseal OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After starting OpenBao for the first time, it needs to be initialized and unsealed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_set_environment_variables"&gt;Set Environment Variables&lt;/h3&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+We will do the following commands as root user.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Be sure that the hostname is resolvable. In this case I am using the test domain: openbao.example.com.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Set the OpenBao address
+export BAO_ADDR=&amp;#39;https://openbao.example.com:8200&amp;#39;
+# If using self-signed certificates
+export BAO_CACERT=&amp;#39;/etc/openbao.d/tls/tls.crt&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_check_status"&gt;Check Status&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You will see that OpenBao is running but not yet initialized. This will be the next step.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status
+Key Value
+--- -----
+Seal Type shamir
+Initialized false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Sealed true
+Total Shares 0
+Threshold 0
+Unseal Progress 0/0
+Unseal Nonce n/a
+Version 2.4.4-1.el9
+Build Date 2025-11-24
+Storage Type file
+HA Enabled false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Not yet initialized&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_initialize_openbao"&gt;Initialize OpenBao&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we use OpenBao, we need to initialize it. This will create the unseal keys and the root token. The unseal keys are used to … well, unseal the OpenBao service.
+The root token is used as a master key to authenticate against the OpenBao service. This token has access to ALL secrets. &lt;strong&gt;Treat this root token with care.&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will initialize OpenBao with default options of 5 key shares and a threshold of 3. This means that we need 3 different unseal keys to unseal the OpenBao service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao operator init -key-shares=5 -key-threshold=3 -format=json &amp;gt; /root/openbao-init.json&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Store the unseal keys and root token securely! Anyone with these can access all secrets.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The output looks like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;unseal_keys_b64&amp;#34;: [
+&amp;#34;key1...&amp;#34;,
+&amp;#34;key2...&amp;#34;,
+&amp;#34;key3...&amp;#34;,
+&amp;#34;key4...&amp;#34;,
+&amp;#34;key5...&amp;#34;
+],
+&amp;#34;unseal_keys_hex&amp;#34;: [...],
+&amp;#34;unseal_shares&amp;#34;: 5,
+&amp;#34;unseal_threshold&amp;#34;: 3,
+&amp;#34;recovery_keys_b64&amp;#34;: [],
+&amp;#34;recovery_keys_hex&amp;#34;: [],
+&amp;#34;root_token&amp;#34;: &amp;#34;sbr.xxxxxxxxxxxx&amp;#34;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_unseal_openbao"&gt;Unseal OpenBao&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now everything is set up and we can use the unseal keys to unseal the OpenBao service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You need to provide 3 (threshold) different unseal keys:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# First key
+bao operator unseal
+# Enter first unseal key
+# Second key
+bao operator unseal
+# Enter second unseal key
+# Third key
+bao operator unseal
+# Enter third unseal key&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After providing enough keys:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status
+Key Value
+--- -----
+Seal Type shamir
+Initialized true
+Sealed false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Total Shares 5
+Threshold 3
+Version 2.4.4-1.el9
+Build Date 2025-11-24
+Storage Type file
+Cluster Name openbao-standalone
+Cluster ID d07874ef-df52-e45f-1723-ade333c6d609
+HA Enabled false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Now unsealed and ready&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we can login with the root token to the OpenBao service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_login_with_root_token"&gt;Login with Root Token&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since we have not created any users yet, we will use the root token to authenticate.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Enter the root token from initialization
+bao login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_basic_verification"&gt;Basic Verification&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let us verify the installation works:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;List enabled secrets engines&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets list&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This lists the enabled secrets engines.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description
+---- ---- -------- -----------
+cubbyhole/ cubbyhole cubbyhole_84c3d2a5 per-token private secret storage
+identity/ identity identity_61809171 identity store
+sys/ system system_034ae772 system endpoints used for control, policy and debugging&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;List enabled auth methods&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao auth list&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This lists the enabled authentication methods.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description Version
+---- ---- -------- ----------- -------
+token/ token auth_token_c7feca17 token based credentials n/a&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a test secret&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets enable -path=secret kv-v2&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This enables the KV (key/value) secrets engine at the path &lt;code&gt;secret&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao kv put secret/test message=&amp;#34;Hello from OpenBao&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This creates a test secret at the path &lt;code&gt;secret/test&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao kv get secret/test&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This retrieves the test secret from the path &lt;code&gt;secret/test&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;That’s it for the basic verification. You can now start to use OpenBao in your production environment. Let’s see what we can do in the UI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_visiting_the_ui"&gt;Visiting the UI&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you watched the previous commands closely, you will have noticed that the UI has been enabled in the configuration file:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;# UI enabled
+ui = true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The UI is accessible at &lt;a href="http://openbao.example.com:8200" class="bare"&gt;http://openbao.example.com:8200&lt;/a&gt;. You can login with the root token from the initialization.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_openbao_login_form.png?width=480px" alt="OpenBao Login Form"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. OpenBao Login Form&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here you will see several options to explore. For now we are interested in the Secrets Engine section.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_openbao_secrets_engine.png?width=480px" alt="OpenBao Secrets Engine"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. OpenBao Secrets Engine&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We have created the path &amp;#34;secret&amp;#34; and inside it a secret called &amp;#34;test&amp;#34;.
+We can retrieve it now:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_test_secret_retrieval.png?width=480px" alt="OpenBao Secret Retrieval"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. OpenBao Secret Retrieval&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_security_hardening_checklist"&gt;Security Hardening Checklist&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before using OpenBao in production you should always consider the following checklist:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 25%;"/&gt;
+&lt;col style="width: 75%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Item&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Recommendation&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;TLS&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Always enable TLS with valid certificates&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Root Token&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Revoke root token after initial setup and create admin users instead&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Unseal Keys&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Distribute to different people/locations, consider auto-unseal&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Network&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Restrict access with firewall rules&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Audit&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enable audit logging&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Backups&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Regular Raft snapshots&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Updates&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Keep OpenBao updated&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_is_coming_next"&gt;What is Coming Next?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In Part 3, we will deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This provides:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;High availability out of the box&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Kubernetes-native management&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Integration with OpenShift security features&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Persistent storage via PVCs&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You now have a working standalone OpenBao installation. This forms the foundation for understanding how OpenBao operates. While standalone mode is useful for testing and edge cases, most production deployments will use Kubernetes, which we will cover next.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Key takeaways:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao can run standalone or in containers&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Dev mode is for testing only&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Production requires proper TLS, initialization, and security hardening&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Unseal keys must be stored securely&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/install" target="_blank" rel="noopener"&gt;OpenBao Installation Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration" target="_blank" rel="noopener"&gt;OpenBao Configuration Reference&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/commands" target="_blank" rel="noopener"&gt;OpenBao CLI Reference&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>[Ep.15] OpenShift GitOps - Argo CD Agent</title><link>https://blog.stderr.at/gitopscollection/2026-01-14-argocd-agent/</link><pubDate>Wed, 14 Jan 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2026-01-14-argocd-agent/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;OpenShift GitOps based on Argo CD is a powerful tool to manage the infrastructure and applications on an OpenShift cluster. Initially, there were two ways of deployment: centralized and decentralized (or distributed). Both methods had their own advantages and disadvantages. The choice was mainly between scalability and centralization.
 With OpenShift GitOps v1.19, the Argo CD Agent was finally generally available. This agent tries to solve this problem by bringing the best of both worlds together. In this quite long article, I will show you how to install and configure the Argo CD Agent with OpenShift GitOps using hub and spoke architecture.&lt;/p&gt;
@@ -5408,6 +6432,578 @@ Maybe I will cover some of these things in a future article.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;Happy tracing! 🚀&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Introduction - Part 1</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</link><pubDate>Wed, 11 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;I finally had some time to dig into Secret Management. For my demo environments, SealedSecrets is usually enough to quickly test something. But if you want to deploy a real application with Secret Management, you need to think of a more permanent solution.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article is the first of a series of articles about &lt;strong&gt;OpenBao&lt;/strong&gt;, a HashiCorp Vault fork. Today, we will explore what OpenBao is, why it was created, and when you should consider using it for your secret management needs. If you are familiar with HashiCorp Vault, you will find many similarities, but also some important differences that we will discuss.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In general, sensitive information in any system should be stored in a secure way. When it comes to OpenShift or Kubernetes, this is especially true, since the secrets are stored in the etcd database. Even if etcd is encrypted at rest, anybody can decode a given base64 string which is stored in the Secret.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Base64 is not an encryption format. It is an encoding format.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, the string &lt;code&gt;Thomas&lt;/code&gt; encoded as base64 is &lt;code&gt;VGhvbWFzCg==&lt;/code&gt;. This is simply masked plain text and it is not secure to share these values, especially not on Git. To make your CI/CD pipelines or GitOps process secure, you need to think of a secure way to manage your Secrets.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is where OpenBao comes in.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_is_openbao"&gt;What is OpenBao?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://openbao.org" target="_blank" rel="noopener"&gt;OpenBao&lt;/a&gt; is an identity-based secrets and encryption management system. It is an open-source, community driven fork of HashiCorp Vault and provides secure storage, fine-grained access control, and lifecycle management for secrets such as API or SSH keys, passwords, certificates, and encryption keys.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The core OpenBao workflow consists of four stages:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Authentication&lt;/strong&gt;: Verifying the identity of the client to determine if they are who they say they are. Once authenticated, a token is created and associated with a so-called policy.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Validation&lt;/strong&gt;: Checking if the client has the required permissions&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Authorization&lt;/strong&gt;: Granting access based on policies that provide or deny access to certain paths and operations in OpenBao.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Access&lt;/strong&gt;: Limiting what the client can do with the secret&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At its core, OpenBao:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Stores and encrypts sensitive information at rest and in transit&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Provides fine-grained access controls (ACL)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Supports dynamic secret generation&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Offers a comprehensive audit trail (must be enabled)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Enables encryption as a service&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_history_why_openbao_exists"&gt;The History: Why OpenBao Exists&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao is a community-driven, open-source fork of HashiCorp Vault. But why was it created?&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In August 2023, HashiCorp announced a significant change to the licensing of their products, including Vault. They moved from the Mozilla Public License 2.0 (MPL 2.0) to the Business Source License 1.1 (BSL 1.1).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The BSL 1.1 license includes restrictions on competitive use:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Competitors could no longer use Vault’s code to offer competing services&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Cloud providers and managed service providers faced restrictions&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The open-source community lost the freedom to fork and commercialize&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_the_fork"&gt;The Fork&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In response to this license change, the Linux Foundation announced the OpenBao project in December 2023. OpenBao is:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;A fork of HashiCorp Vault (from version 1.14.x)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Licensed under the OSI-approved Mozilla Public License 2.0&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Governed by a community-driven model&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Maintained independently of HashiCorp&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Continues to enable innovation without license restrictions&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_openbao_vs_hashicorp_vault_key_differences"&gt;OpenBao vs. HashiCorp Vault: Key Differences&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While OpenBao shares its heritage with Vault, there are several important differences:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_licensing"&gt;Licensing&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Aspect&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;OpenBao&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;HashiCorp Vault&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;License&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;MPL 2.0 (OSI-approved open source)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;BSL 1.1 (with staged conversion)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Governance&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Community-driven (Linux Foundation)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;HashiCorp/IBM controlled&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Commercial restrictions&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;None&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Restrictions on competitive use&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enterprise Features&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Community-driven additions&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Paid Enterprise tier&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Support&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Community support&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Paid support available&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Branding&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;bao CLI, OpenBao naming&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault CLI, Vault naming&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_technical_differences"&gt;Technical Differences&lt;/h3&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Token Format&lt;/strong&gt; - OpenBao uses shorter tokens in the format &lt;code&gt;sbr.&lt;a href="#random"&gt;[random]&lt;/a&gt;&lt;/code&gt;, while Vault uses longer tokens (&lt;code&gt;hvs.&lt;/code&gt;, &lt;code&gt;hvb.&lt;/code&gt;, &lt;code&gt;hvr.&lt;/code&gt; prefixes followed by long random strings). Old Vault tokens are still accepted according to their TTLs, but newly issued tokens follow the OpenBao format.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Plugin Ecosystem&lt;/strong&gt; - OpenBao comes with fewer built-in plugins by default, focusing on OSI-licensed integrations. Proprietary cloud vendor plugins have been moved to external repositories.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Storage Backend&lt;/strong&gt; - OpenBao has simplified its storage options, primarily supporting Raft as the recommended backend.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;API Compatibility&lt;/strong&gt; - OpenBao’s API is designed to be compatible with Vault, meaning existing clients and integrations should work without modification. However, some edge cases may require updates.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_core_concepts"&gt;Core Concepts&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before diving into installation and configuration in the next articles, it is essential to understand the fundamental concepts of OpenBao:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_secrets_engines"&gt;Secrets Engines&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Secrets engines are components that store, generate, or encrypt data. OpenBao supports multiple types:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;KV (Key-Value)&lt;/strong&gt;: Simple static secret storage with optional versioning&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;PKI&lt;/strong&gt;: Certificate Authority for generating TLS certificates&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Database&lt;/strong&gt;: Dynamic credential generation for databases&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Transit&lt;/strong&gt;: Encryption as a Service (EaaS)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;SSH&lt;/strong&gt;: SSH key signing and OTP generation&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_authentication_methods"&gt;Authentication Methods&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Authentication methods verify client identity before granting access:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Kubernetes&lt;/strong&gt;: Uses Kubernetes service account tokens. Essential for Kubernetes/OpenShift deployments.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;OIDC&lt;/strong&gt;: OpenID Connect for user authentication, like Keycloak, Okta, or Azure AD.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;LDAP&lt;/strong&gt;: Directory service authentication, like Active Directory, OpenLDAP, or Microsoft AD.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;AppRole&lt;/strong&gt;: Machine-oriented authentication for applications. Ideal for CI/CD pipelines.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Token&lt;/strong&gt;: Direct token-based authentication. The root token is created during initialization.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_storage_backend"&gt;Storage Backend&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao encrypts all data before writing to storage. Supported backends include:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Integrated Raft&lt;/strong&gt; (recommended): Built-in distributed storage&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Consul&lt;/strong&gt;: HashiCorp’s service discovery and KV store (less common with OpenBao)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;File&lt;/strong&gt;: Single-node deployments only&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;PostgreSQL/MySQL&lt;/strong&gt;: Database-backed storage&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_policies"&gt;Policies&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Policies define what a client can do after authentication. They use path-based access control (deny-by-default mode):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-hcl hljs" data-lang="hcl"&gt;path &amp;#34;secret/data/myapp/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+path &amp;#34;pki/issue/my-role&amp;#34; {
+capabilities = [&amp;#34;create&amp;#34;, &amp;#34;update&amp;#34;]
+}
+path &amp;#34;database/creds/myapp-role&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_tokens"&gt;Tokens&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tokens are the primary authentication credential in OpenBao. After successful authentication, clients receive a token that:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Has a TTL (Time To Live)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Is associated with one or more policies&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Can be renewed (if renewable)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Can create child tokens&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_sealunseal"&gt;Seal/Unseal&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao starts in a &lt;strong&gt;sealed&lt;/strong&gt; state where it cannot access encrypted data. The unseal process requires multiple key shares (using Shamir’s Secret Sharing) or auto-unseal mechanisms to decrypt the master key.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_leases"&gt;Leases&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Most secrets in OpenBao have an associated lease - a duration after which the secret expires. This enables:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Automatic secret rotation&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Revocation of compromised credentials&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Audit trail of secret usage&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_use_cases"&gt;Use Cases&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_dynamic_database_credentials"&gt;Dynamic Database Credentials&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of storing static database passwords:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Application authenticates to OpenBao&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Requests database credentials&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao creates a temporary database user&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Returns credentials with a short TTL&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Credentials automatically expire&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Benefits: No long-lived credentials, automatic rotation, per-application isolation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_certificate_management_with_pki"&gt;Certificate Management with PKI&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of manually managing TLS certificates:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Configure OpenBao as an intermediate CA&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications request certificates on demand&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Short-lived certificates (hours/days instead of years)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Automatic renewal before expiration&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Benefits: No certificate sprawl, automated rotation, reduced attack surface.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_encryption_as_a_service"&gt;Encryption as a Service&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of implementing encryption in each application:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Applications send plaintext to OpenBao’s Transit engine&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao encrypts with managed keys&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications store ciphertext&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Decryption requests go through OpenBao&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Benefits: Centralized key management, separation of duties, key rotation without re-encryption.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_kubernetes_secret_injection"&gt;Kubernetes Secret Injection&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of storing secrets in Kubernetes Secrets:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Deploy OpenBao with Kubernetes auth&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure injector or External Secrets Operator&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Pods automatically receive secrets at startup&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Secrets never stored in etcd&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Benefits: Secrets not in cluster, dynamic injection, centralized management.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_when_to_use_openbao"&gt;When to Use OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao is an excellent choice when you need:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Centralized Secret Management&lt;/strong&gt; - If you have secrets scattered across configuration files, environment variables, and various secret stores, OpenBao provides a single source of truth.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Dynamic Secrets&lt;/strong&gt; - For use cases where you need short-lived, automatically rotated credentials (e.g., database passwords), OpenBao can generate them on-demand.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Encryption as a Service&lt;/strong&gt; - If applications need encryption capabilities without managing encryption keys, OpenBao’s Transit engine provides this functionality.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Certificate Management&lt;/strong&gt; - OpenBao’s PKI engine can act as a Certificate Authority, issuing and managing TLS certificates.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compliance Requirements&lt;/strong&gt; - For environments with strict audit requirements, OpenBao provides comprehensive audit logging of all secret access.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_when_not_to_use_openbao"&gt;When NOT to Use OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao might be overkill for:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Simple, Static Secrets&lt;/strong&gt; - If you only have a few static secrets that rarely change, simpler solutions like Sealed Secrets or External Secrets Operator with a basic backend might suffice.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Small Teams with Limited Resources&lt;/strong&gt; - OpenBao requires operational expertise to maintain. If you do not have the resources to operate it properly, consider managed alternatives.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Single-Application Deployments&lt;/strong&gt; - If you have a single application with minimal secret requirements, the complexity of OpenBao may not be justified.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_architecture_overview"&gt;Architecture Overview&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A typical OpenBao deployment consists of:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part1_openbao_architecture.png" alt="Architecture Overview"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Architecture Overview&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Multiple Nodes&lt;/strong&gt;: For high availability (HA), OpenBao runs as a cluster&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Raft Consensus&lt;/strong&gt;: Leader election and data replication&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Persistent Storage&lt;/strong&gt;: Encrypted data stored on persistent volumes&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Load Balancer&lt;/strong&gt;: Distributes client requests&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao provides a powerful, open-source solution for secret management that addresses the challenges of modern cloud-native environments. Its fork from HashiCorp Vault means it benefits from years of development while remaining truly open source.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the next article, we will start with a standalone installation to understand the fundamentals before moving to Kubernetes deployments.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org" target="_blank" rel="noopener"&gt;OpenBao Official Website&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs" target="_blank" rel="noopener"&gt;OpenBao Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/openbao/openbao" target="_blank" rel="noopener"&gt;OpenBao GitHub Repository&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://www.linuxfoundation.org/press/linux-foundation-launches-openbao" target="_blank" rel="noopener"&gt;Linux Foundation OpenBao Announcement&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability Introduction - Part 1</title><link>https://blog.stderr.at/openshift-platform/observability/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/</link><pubDate>Sun, 23 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/observability/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/</guid><description>&lt;div class="paragraph"&gt;
@@ -11771,886 +13367,6 @@ namespace: &amp;#34;default&amp;#34;&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;Whether you’re managing a few applications or hundreds, this template pattern will help you maintain consistency, reduce errors, and improve your team’s GitOps experience.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Cert-Manager Policy Approver in OpenShift</title><link>https://blog.stderr.at/openshift-platform/security/certificates/2025-06-03-cert-manager-approver-policy/</link><pubDate>Tue, 03 Jun 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/certificates/2025-06-03-cert-manager-approver-policy/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;One of the most commonly deployed operators in OpenShift environments is the &lt;strong&gt;Cert-Manager Operator&lt;/strong&gt;. It automates the management of TLS certificates for applications running within the cluster, including their issuance and renewal.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The tool supports a variety of certificate issuers by default, including ACME, Vault, and self-signed certificates. Whenever a certificate is needed, Cert-Manager will automatically create a CertificateRequest resource that contains the details of the certificate. This resource is then processed by the appropriate issuer to generate the actual TLS certificate. The approval process in this case is usually fully automated, meaning that the certificate is issued without any manual intervention.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;But what if you want to have more control? What if certificate issuance must follow strict organizational policies, such as requiring a specifc country code or organization name?
-This is where the &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; resource, a resource provided by the Approver Policy, comes into play.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This article walks through configuring the &lt;strong&gt;Cert-Manager Approver Policy&lt;/strong&gt; in OpenShift to enforce granular policies on certificate requests.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before you begin, ensure you have the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift 4.16 or higher with cluster-admin access&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Cert-Manager Operator installed&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The installation of Cert-Manager itself is discussed in the article: &lt;a href="https://blog.stderr.at/gitopscollection/2024-07-04-managing-certificates-with-gitops/"&gt;Managing Certificates using GitOps approach&lt;/a&gt;.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The Cert-Manager Operator does not currently support the Approver Policy by default. You need to install the Approver Policy manually using a Helm Chart. There is a feature request to include the Approver Policy in the Cert-Manager Operator in the future.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_adding_approver_policy_chart_as_a_dependency"&gt;Adding Approver Policy Chart as a dependency&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Source: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Deployment&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above Chart contains the necessary resources to deploy the Cert-Manager itself and Cert-Manager Approver Policy in OpenShift.
-To deploy the Approver Policy alongside Cert-Manager, add it as a dependency in your &lt;strong&gt;Chart.yaml&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;[...]
-- name: cert-manager-approver-policy
-version: v0.19.0
-repository: https://charts.jetstack.io
-[...]&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is the official Helm Chart for the Cert-Manager Approver Policy tool provided by Jetstack. The version used in this example is v0.19.0, but you can use a newer version if available.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configuration_of_the_helm_chart"&gt;Configuration of the Helm Chart&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The initial &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/cert-manager/values.yaml" target="_blank" rel="noopener"&gt;values.yaml&lt;/a&gt; file was extended to:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;include the configuration for the Approver Policy Chart&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;the configuration for a &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; object&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;with some specific modifications to the CertManager resource itself&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_disabling_cert_managers_auto_approver"&gt;Disabling Cert-Manager’s Auto-Approver&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first step we need to do is to disable the auto-approver of the Cert-Manager. If this is not done, there will be a race condition between the auto-approver and the Approver Policy, which will lead to unexpected results.
-These changes are done by:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;cert-manager:
-certManager:
-enable_patch: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-unsupportedConfigOverrides:
-controller:
-args:
-- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This enables the patching of the CertManager resource, which tells the chart to overwrite (patch) the automatically generated CertManager resource with the custom configuration.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This disables the auto-approver Controller of the Cert-Manager.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-As the name suggests, this is currently an unsupported configuration, but it is necessary to disable the auto-approver for the Cert-Manager. In the future versions of the Cert-Manager, this might change, and the auto-approver might be supported out of the box.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In my case, the full CertManager resource looks like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: operator.openshift.io/v1alpha1
-kind: CertManager
-metadata:
-annotations:
-name: cluster
-spec:
-controllerConfig:
-overrideArgs: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-- &amp;#39;--dns01-recursive-nameservers-only&amp;#39;
-- &amp;#39;--dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53&amp;#39;
-logLevel: Normal
-managementState: Managed
-operatorLogLevel: Normal
-unsupportedConfigOverrides: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-controller:
-args:
-- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Settings to support AWS Nameservers for DNS01 challenges.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This disables the auto-approver Controller of the Cert-Manager.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_configuration_of_the_approver_policy"&gt;Configuration of the Approver Policy&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The second step is to configure the Approver Policy chart. This chart will deploy the necessary resources, most importantly a Deployment that will start the Pods which will process the CertificateRequestPolicy resources later on.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;My configuration for that chart looks like this (some default values are omitted for brevity):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;cert-manager-approver-policy:
-crds: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-# This option decides if the CRDs should be installed
-# as part of the Helm installation.
-enabled: true
-# This option makes it so that the &amp;#34;helm.sh/resource-policy&amp;#34;: keep
-# annotation is added to the CRD. This will prevent Helm from uninstalling
-# the CRD when the Helm release is uninstalled.
-# WARNING: when the CRDs are removed, all cert-manager-approver-policy custom resources
-# (CertificateRequestPolicy) will be removed too by the garbage collector.
-keep: true
-# Number of replicas of approver-policy to run.
-replicaCount: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-image: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-# Target image repository.
-repository: quay.io/jetstack/cert-manager-approver-policy
-# Kubernetes imagePullPolicy on Deployment.
-pullPolicy: IfNotPresent
-tag: v0.19.0
-app:
-# List of signer names that approver-policy will be given permission to
-# approve and deny. CertificateRequests referencing these signer names can be
-# processed by approver-policy. Defaults to an empty array, allowing approval
-# for all signers.
-approveSignerNames: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- &amp;#39;issuers.cert-manager.io/*&amp;#39;
-- &amp;#39;clusterissuers.cert-manager.io/*&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This enables the installation of the CRDs that are required for the Approver Policy.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The number of replicas of the Approver Policy Deployment. In most cases, one replica is enough.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The image configuration for the Approver Policy. The image is pulled from the Jetstack Quay.io repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The list of signer names that the Approver Policy will be allowed to approve. In this case, it is configured to allow all issuers and clusterissuers.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The approveSignerNames are, if configured, an important setting, especially if you want to add custom (cluster)issuers. In such a case, you need to add the name of the custom issuer to this list. Otherwise the Approver Policy will not be able to approve the CertificateRequests for that issuer.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_creating_a_certificaterequestpolicy_and_rolebinding"&gt;Creating a CertificateRequestPolicy and Role(Binding)&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The final step in our configuration is to define a &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; resource that will define the policy for the certificate requests. This resource will be processed by the Approver Policy and will determine if a certificate request is approved or denied based on the defined criteria.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following example shows a CertificateRequestPolicy that will:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Allow certificate requests with any common name, DNS names, IP addresses, URIs, and email addresses.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Require DNS names to be set.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Require the subject to contain a specific organization (MyOrganization) and country code (AT).&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Allow usages for server auth and client auth.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Set constraints for the certificate duration (1h-24h) and private key algorithm (RSA) and size (2048-4096).&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Allow all issuers by using an empty selector.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;role: cert-manager-policy:global-approver &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-serviceAccount: cert-manager &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-cert_manager_Namespace: cert-manager &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-policies:
-- name: my-approver-policy
-enabled: true
-allowed:
-commonName:
-required: false
-value: &amp;#34;*&amp;#34;
-validations: []
-dnsNames: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-required: true
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-ipAddresses:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-uris:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-emailAddresses:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-# isCA: false
-subject:
-organizations: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-required: true
-values:
-- &amp;#34;MyOrganization&amp;#34;
-validations:
-- rule: self.matches(&amp;#34;MyOrganization&amp;#34;)
-message: Organization must be MyOrganization
-countries:
-required: true
-values:
-- AT
-validations:
-- rule: self.matches(&amp;#34;AT&amp;#34;)
-message: Country code must be AT
-usages:
-- &amp;#34;server auth&amp;#34;
-- &amp;#34;client auth&amp;#34;
-constraints: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-minDuration: 1h
-maxDuration: 24h
-privateKey:
-algorithm: RSA
-minSize: 2048
-maxSize: 4096
-selector:
-issuerRef: {} &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The role that is used to approve the certificate requests. This role must be created in the OpenShift cluster and must have the necessary permissions to approve certificate requests.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The service account that is used by the Approver Policy to process the certificate requests. This service account must have the necessary permissions to access the CertificateRequest resources.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The namespace where the Cert-Manager is deployed. This is usually the &lt;code&gt;cert-manager&lt;/code&gt; namespace, but you can change it if you have a different namespace.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The DNS names are required to be set for the certificate request.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The subject must contain the organization MyOrganization and the country code AT.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The constraints for the certificate request, such as the minimum and maximum duration, private key algorithm, and size.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The selector is empty, which means that the policy applies to all issuers. If you want to limit the policy to specific issuers, you can specify the issuerRef here.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_rendered_certificaterequestpolicy_and_rolebinding"&gt;Rendered CertificateRequestPolicy and Role(Binding)&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above configuration will create a CertificateRequestPolicy resource that looks like this:
-&lt;div class="expand"&gt;
-&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});"&gt;
-&lt;i style="font-size:x-small;" class="fas fa-chevron-right"&gt;&lt;/i&gt;
-&lt;span&gt;
-&lt;a&gt;Expand me...&lt;/a&gt;
-&lt;/span&gt;
-&lt;/div&gt;
-&lt;div class="expand-content" style="display: none;"&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-# Source: cert-manager/templates/ClusterRole-Approver-Policy-approving.yaml
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-name: &amp;#34;cert-manager-policy:global-approver&amp;#34;
-labels:
-helm.sh/chart: cert-manager-2.0.0
-app.kubernetes.io/name: cert-manager
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/managed-by: Helm
-rules:
-- verbs:
-- use
-apiGroups:
-- policy.cert-manager.io
-resources:
-- certificaterequestpolicies
-resourceNames:
-- my-approver-policy
----
-# Source: cert-manager/charts/cert-manager-approver-policy/templates/clusterrolebinding.yaml
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-labels:
-app.kubernetes.io/name: cert-manager-approver-policy
-helm.sh/chart: cert-manager-approver-policy-v0.19.0
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/version: &amp;#34;v0.19.0&amp;#34;
-app.kubernetes.io/managed-by: Helm
-name: cert-manager-approver-policy
-roleRef:
-apiGroup: rbac.authorization.k8s.io
-kind: ClusterRole
-name: cert-manager-approver-policy
-subjects:
-- kind: ServiceAccount
-name: cert-manager-approver-policy
-namespace: default
----
-# Source: cert-manager/templates/CertificateRequestPolicy.yaml
-apiVersion: policy.cert-manager.io/v1alpha1
-kind: CertificateRequestPolicy
-metadata:
-name: my-approver-policy
-annotations:
-argocd.argoproj.io/sync-wave: &amp;#34;10&amp;#34;
-labels:
-helm.sh/chart: cert-manager-2.0.0
-app.kubernetes.io/name: cert-manager
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/managed-by: Helm
-spec:
-allowed:
-commonName:
-required: false
-value: &amp;#34;*&amp;#34;
-validations: []
-dnsNames:
-required: true
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-emailAddresses:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-ipAddresses:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-uris:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-isCA: false
-subject:
-organizations:
-required: true
-values:
-- &amp;#34;MyOrganization&amp;#34;
-validations:
-- rule: &amp;#34;self.matches(\&amp;#34;MyOrganization\&amp;#34;)&amp;#34;
-message: &amp;#34;Organization must be MyOrganization&amp;#34;
-countries:
-required: true
-values:
-- &amp;#34;AT&amp;#34;
-validations:
-- rule: &amp;#34;self.matches(\&amp;#34;AT\&amp;#34;)&amp;#34;
-message: &amp;#34;Country code must be AT&amp;#34;
-organizationalUnits:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-localities:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-provinces:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-streetAddresses:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-postalCodes:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-serialNumber:
-required: false
-value: &amp;#34;*&amp;#34;
-validations: []
-usages:
-- &amp;#34;server auth&amp;#34;
-- &amp;#34;client auth&amp;#34;
-constraints:
-minDuration: 1h
-maxDuration: 24h
-privateKey:
-algorithm: RSA
-minSize: 2048
-maxSize: 4096
-selector:
-issuerRef: {}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;One important note is about the ClusterRole and ClusterRoleBinding that are created by the Helm Chart. The role looks like the following and is required to allow the Approver Policy to approve certificate requests. This small bit, puzzled me for a while:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;rules:
-- verbs:
-- use
-apiGroups:
-- policy.cert-manager.io
-resources:
-- certificaterequestpolicies
-resourceNames:
-- my-approver-policy&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With the above configuration we are good to go. The Helm Chart can be deployed to the OpenShift cluster (for example, using Argo CD), and the CertificateRequestPolicy will be created automatically.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A new Pod is running in the &lt;strong&gt;cert-manager&lt;/strong&gt; namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;❯ oc get pods -n cert-manager | grep approver
-NAME READY STATUS RESTARTS AGE
-cert-manager-approver-policy-xxxxx 1/1 Running 0 XXm &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The Pod &lt;code&gt;cert-manager-approver-policy-xxxxx&lt;/code&gt; is the Pod that is responsible for processing the CertificateRequestPolicy resources.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_testing_the_policy"&gt;Testing the Policy&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_test_1_valid_certificate_request"&gt;Test 1 - Valid Certificate Request&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now it is time to test the policy. We need to create a Certificate and monitor the output of our approval pod.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a reminder, the policy we created requires the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;The subject must contain the organization MyOrganization&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The subject must contain the country code AT.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The keysize must be at least 2048 bits. (max 4096 bits)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The duration must be between 1 hour and 24 hours.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The usage must be server auth or client auth.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s create this example Certificate in the &lt;code&gt;myproject&lt;/code&gt; namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-name: test-certificate1
-namespace: myproject
-spec:
-dnsNames:
-- test1.apps.ocp.aws.ispworld.at
-duration: 24h
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-privateKey:
-algorithm: RSA
-encoding: PKCS1
-rotationPolicy: Always
-secretName: test1
-subject:
-organizations:
-- MyOrganization
-countries:
-- AT
-usages:
-- server auth&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In the log of the Approver Policy Pod, we should see the following output:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;time=2025-06-03T16:07:58.656Z level=DEBUG+3 msg=&amp;#34;Approved by CertificateRequestPolicy: \&amp;#34;my-approver-policy\&amp;#34;&amp;#34; logger=controller-manager/events type=Normal object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate1-1 [...]}&amp;#34; reason=Approved&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This indicates that the CertificateRequest was approved by the Approver Policy. The policy was able to validate the subject, keysize, duration, and usage of the certificate request and approved it accordingly.
-The certificate has been created successfully in the &lt;strong&gt;myproject&lt;/strong&gt; namespace, and the secret &lt;strong&gt;test1&lt;/strong&gt; contains the TLS certificate and private key.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;❯ oc get secret test1 -n myproject -o yaml
-apiVersion: v1
-data:
-tls.crt: ...
-tls.key: ...
-kind: Secret
-metadata:
-labels:
-controller.cert-manager.io/fao: &amp;#34;true&amp;#34;
-name: test1
-namespace: myproject
-type: kubernetes.io/tls&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_test_2_invalid_certificate_request"&gt;Test 2 - Invalid Certificate Request&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;That was easy, but what happens if we create a CertificateRequest that does not meet the policy requirements? Let’s try to create a Certificate without the required organization or a wrong country code:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-name: test-certificate2
-namespace: myproject
-spec:
-dnsNames:
-- test2.apps.ocp.aws.ispworld.at
-duration: 24h
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-privateKey:
-algorithm: RSA
-encoding: PKCS1
-rotationPolicy: Always
-secretName: test2
-subject: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-countries:
-- XX
-usages:
-- server auth&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The subject does not contain the required organization MyOrganization and the country code is set to XX, which is not allowed by the policy.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will lead to the following error in the log of the Approver Policy Pod:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;time=2025-06-03T16:16:02.233Z level=DEBUG+3 msg=&amp;#34;No policy approved this request: [my-approver-policy: [spec.allowed.subject.organizations.required: Required value: true, spec.allowed.subject.countries.values: Invalid value: []string{\&amp;#34;XX\&amp;#34;}: AT, spec.allowed.subject.countries.validations[0]: Invalid value: \&amp;#34;XX\&amp;#34;: Country code must be AT]]&amp;#34; logger=controller-manager/events type=Warning object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate2-1 ...&amp;#34; reason=Denied&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It complains that the subject does not meet the policy requirements and therefore the CertificateRequest was denied.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_ok_we_have_a_policy_but_whats_next"&gt;Ok we have a policy, but whats next?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above example shows how the Cert-Manager Approver Policy can be configured and deployed, even if it is not yet supported by the Cert-Manager Operator. However, we only scratched the surface of what is possible with the Approver Policy.
-You can create more complex policies that include additional validations, such as checking the validity of the DNS names, IP addresses, or URIs. You can also create policies that require specific email addresses or organizational units in the subject.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can even create fine-grained policies that apply to specific issuers or namespaces by using the &lt;code&gt;selector&lt;/code&gt; field in the CertificateRequestPolicy resource. This allows you to create policies that are tailored to your specific requirements and use cases.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The best references can be found here:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Official documentation: &lt;a href="https://cert-manager.io/docs/policy/approval/approver-policy/" target="_blank" rel="noopener"&gt;Cert-Manager Approver Policy&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Example Policies: &lt;a href="https://github.com/cert-manager/approver-policy/tree/main/docs/examples" target="_blank" rel="noopener"&gt;Cert-Manager Approver Policy Examples&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Cert-Manager Approver Policy is a powerful tool that allows you to implement custom policies for certificate requests in OpenShift. It provides a way to control the issuance of TLS certificates based on specific criteria, such as the subject, key size, duration, and usage of the certificate.
-While not yet officially supported by the Cert-Manager Operator, it can be easily integrated into your OpenShift environment using a Helm Chart. Future support is currently being discussed, and it is expected that the Approver Policy will be included in the Cert-Manager Operator in the future.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Single log out from Keycloak and OpenShift</title><link>https://blog.stderr.at/openshift-platform/security/authentication/2025-05-22-keycloak-openshift-singlelogout/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/authentication/2025-05-22-keycloak-openshift-singlelogout/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;The following 1-minute article is a follow-up to my &lt;a href="https://blog.stderr.at/openshift/2025/05/step-by-step-using-keycloak-authentication-in-openshift/"&gt;previous article&lt;/a&gt; about how to use Keycloak as an authentication provider for OpenShift. In this article, I will show you how to configure Keycloak and OpenShift for Single Log Out (SLO). This means that when you log out from Keycloak, you will also be logged out from OpenShift automatically. This requires some additional configuration in Keycloak and OpenShift, but it is not too complicated.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following prerequisites are required to follow this article:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift 4.16 or higher with cluster-admin privileges&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Keycloak installed and configured, as described in the &lt;a href="https://blog.stderr.at/openshift/2025/05/step-by-step-using-keycloak-authentication-in-openshift/"&gt;Step by Step - Using Keycloak Authentication in OpenShift&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_keycloak_configuration"&gt;Keycloak Configuration&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Configure the logout URL in Keycloak. This is done by adding a new &lt;strong&gt;Valid post logout redirect URIs&lt;/strong&gt; to the Keycloak client configuration. In this case, we want to call the OpenShift logout URL.
-Which is: &lt;strong&gt;&lt;a href="https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;/logout" class="bare"&gt;https://oauth-openshift.apps.&amp;lt;your-cluster-name&amp;gt;/logout&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is done in the client settings:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/set-logout-url.png" alt="Set Logout URL"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_openshift_configuration"&gt;OpenShift Configuration&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we need to configure OpenShift to use the logout URL. This is done by adding a new &lt;strong&gt;Post Logout Redirect URI&lt;/strong&gt; to the OpenShift Console configuration.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Modify the existing Console resource named cluster and add the logoutRedirect parameter to the authentication section.
-The important pieces of the logout URL are the &lt;strong&gt;client_id&lt;/strong&gt; and the &lt;strong&gt;post_logout_redirect_uri&lt;/strong&gt;. The client ID must be the same as the Keycloak client ID, and the post logout redirect URI must be the OpenShift logout URL.
-(Also change the &amp;lt;keycloakURL&amp;gt; and &amp;lt;realm&amp;gt; to your Keycloak URL and realm name.)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Actually, instead of &lt;strong&gt;client_id&lt;/strong&gt;, the &lt;strong&gt;id_token_hint&lt;/strong&gt; should be used. But OpenShift does not store the token, so we are using the client ID instead.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: config.openshift.io/v1
-kind: Console
-metadata:
-name: cluster
-spec:
-authentication:
-logoutRedirect: &amp;#39;https://&amp;lt;keycloakURL&amp;gt;/realms/&amp;lt;realm&amp;gt;/protocol/openid-connect/logout?client_id=&amp;lt;realm&amp;gt;&amp;amp;post_logout_redirect_uri=https://console-openshift-console.apps.ocp.aws.ispworld.at&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The logout URL for OpenShift. This is the URL that will be called when you log out from Keycloak. The URL must contain the client ID and the post logout redirect URI (console of OpenShift).&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Wait a few moments until the OpenShift Console Operator applies the new configuration.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_testing_the_configuration"&gt;Testing the configuration&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now that the configuration is done, we can test the Single Log Out functionality.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;We are logged into OpenShift already as user &lt;strong&gt;testuser&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/logged-in.png" alt="Logged in to OpenShift"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Now we log out from OpenShift using the &lt;strong&gt;Log out&lt;/strong&gt; button in the upper right corner.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/logging-out.png" alt="Log out from OpenShift"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;This will redirect us to the Keycloak logout page where we need to confirm the logout.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/keycloak-logout.png?width=420" alt="Keycloak Logout"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;This will log us out from Keycloak and redirect us back to the OpenShift logout page.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/authentication/images/keycloak/logged-out.png?width=420" alt="Logged out from OpenShift"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is it. You are now logged out from both Keycloak and OpenShift. You can also check the Sessions in Keycloak to see that the session for the user is terminated.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As promised, this was a short article about how to configure Keycloak and OpenShift for Single Log Out. This is a beneficial feature if you want to ensure that users are logged out from all applications when they log out from Keycloak. It is also a good security practice to ensure that users are logged out from all applications when they are done using them.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>

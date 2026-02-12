@@ -1562,6 +1562,1030 @@ The user will still see the list of tenants. Hopefully, this will be fixed in a 
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Standalone Installation - Part 2</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</link><pubDate>Thu, 12 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;In the previous article, we introduced OpenBao and its core concepts. Now it is time to get our hands dirty with a standalone installation. This approach is useful for testing, development environments, edge deployments, or scenarios where Kubernetes is not available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While OpenBao shines in Kubernetes environments, understanding the standalone installation helps you grasp the fundamentals. This knowledge is valuable whether you are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Learning OpenBao before deploying to production&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Running OpenBao outside of Kubernetes (edge, legacy systems)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Debugging issues in containerized deployments&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Setting up a development environment&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_installation_methods_overview"&gt;Installation Methods Overview&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao can be installed through multiple methods:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Method&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Best For&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Complexity&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Package managers (apt, dnf, brew)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Production Linux/macOS systems&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Container images (Podman/Docker)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Quick testing, isolated environments&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Binary download&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Air-gapped environments&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Source compilation&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Custom builds, development&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Medium&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For this article, we will focus on macOS for local testing with binary and container image (using Podman) and Red Hat Enterprise Linux to set up an example production-ready server.
+The deployment on the Kubernetes environment will be discussed in the next article.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_method_1_package_manager_installation"&gt;Method 1: Package Manager Installation&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_rhelfedoracentos"&gt;RHEL/Fedora/CentOS&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On RHEL or CentOS, before you can install OpenBao you need to install the EPEL repository. To do so, you first need to enable the Code Ready Repository. The following commands will do the trick. Be sure that your system is registered, in case of RHEL.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you get the error &amp;#34;Repositories disabled by configuration.&amp;#34; you need to tell the subscription manager that you want to manage the repositories. This can be done permanently or temporarily. You can use the command: &lt;strong&gt;sudo subscription-manager config --rhsm.manage_repos=1&lt;/strong&gt; to do so.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_rhel"&gt;RHEL&lt;/h4&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Enable Code Ready Repository&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install EPEL Repository&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install OpenBao&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_centos"&gt;CentOS&lt;/h4&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Enable Code Ready Repository on CentOS&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf config-manager --set-enabled crb&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install EPEL Repository&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install epel-release epel-next-release&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install OpenBao&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_macos_homebrew"&gt;macOS (Homebrew)&lt;/h3&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Install OpenBao&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;brew install openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_installation"&gt;Verify Installation&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After installation, verify OpenBao is available:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao version
+# Output:
+OpenBao v2.5.0 (bcbb6036ec2b747bceb98c7706ce9b974faa1b23), built 2026-02-04T15:57:17Z (cgo)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The OpenBao CLI command is &lt;code&gt;bao&lt;/code&gt;, not &lt;code&gt;vault&lt;/code&gt;. This distinguishes it from HashiCorp Vault.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_start_development_server"&gt;Start Development Server&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To start a development environment, you can use the following command.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is NOT suitable for production, it is just a test to evaluate the basic concepts of OpenBao.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao server -dev -dev-root-token-id=&amp;#34;dev-only-token&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will start the server. The UI is accessible at &lt;a href="http://localhost:8200" class="bare"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_method_2_container_image"&gt;Method 2: Container Image&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For quick testing or isolated environments, container images are ideal. Luckily, OpenBao offers several types of containers suitable for any environment. We will use the image hosted on &lt;strong&gt;quay.io&lt;/strong&gt;, which is based on &lt;strong&gt;RHEL UBI&lt;/strong&gt; and can be found at: &lt;a href="https://quay.io/openbao/openbao-ubi" target="_blank" rel="noopener"&gt;quay.io/openbao/openbao-ubi&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_using_podman"&gt;Using Podman&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following command will fetch the image and start the container.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is NOT suitable for production, it is just a test to evaluate the basic concepts of OpenBao.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Run in dev mode (for testing only!)
+podman run --rm -d \
+--name openbao-dev \
+-p 8200:8200 \
+-e &amp;#39;BAO_DEV_ROOT_TOKEN_ID=dev-only-token&amp;#39; \
+-e &amp;#39;BAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200&amp;#39; \
+quay.io/openbao/openbao-ubi:latest server -dev&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Verify it is running
+podman logs -f openbao-dev&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will start the server. The UI is accessible at &lt;a href="http://localhost:8200" class="bare"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you prefer to use Docker, simply replace &lt;code&gt;podman&lt;/code&gt; with &lt;code&gt;docker&lt;/code&gt; in the commands.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_dev_mode_quick_start_for_testing"&gt;Dev Mode: Quick Start for Testing&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Dev mode is the fastest way to start using OpenBao for learning and testing.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The characteristics in this mode are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;In-memory storage (data lost on restart)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Automatically initialized and unsealed&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Root token printed to stdout&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;TLS disabled&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Single server (no HA)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s create an example secret and try to retrieve it again.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Authenticate against OpenBao&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export VAULT_TOKEN=&amp;#34;dev-only-token&amp;#34;
+export BAO_ADDR=&amp;#39;http://127.0.0.1:8200&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create Secret&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl \
+--header &amp;#34;X-Vault-Token: $VAULT_TOKEN&amp;#34; \
+--header &amp;#34;Content-Type: application/json&amp;#34; \
+--request POST \
+--data &amp;#39;{&amp;#34;data&amp;#34;: {&amp;#34;password&amp;#34;: &amp;#34;OpenBao123&amp;#34;}}&amp;#39; \
+$BAO_ADDR/v1/secret/data/my-secret-password &amp;amp;&amp;amp;
+echo &amp;#34;Secret written successfully.&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Retrieve Secret&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl --header &amp;#34;X-Vault-Token: $VAULT_TOKEN&amp;#34; \
+$BAO_ADDR/v1/secret/data/my-secret-password | jq &amp;#39;.data.data&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You should see the password that was created before:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;password&amp;#34;: &amp;#34;OpenBao123&amp;#34;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_check_status_of_openbao_server"&gt;Check Status of OpenBao Server&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will give you the status of your running OpenBao instance.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
+--- -----
+Seal Type shamir
+Initialized true
+Sealed false
+Total Shares 1
+Threshold 1
+Version 2.5.0
+Build Date 2026-02-04T15:57:17Z
+Storage Type inmem
+Cluster Name vault-cluster-421b2431
+Cluster ID 6d42dcd2-e399-211e-999a-49b1874cc8ce
+HA Enabled false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_hardening_your_system"&gt;Hardening your System&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao does a good job to secure your secrets, however, memory paging (or swap) can undermine the protection. Your OS should either have swap disabled completely or encrypt the swap space.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As I am testing on macOS, the swap space is encrypted out of the box.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, OpenBao has documented what must be done for various operating systems at &lt;a href="https://openbao.org/docs/install/#post-installation-hardening" target="_blank" rel="noopener"&gt;Post-installation hardening&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_production_standalone_setup"&gt;Production Standalone Setup&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a proper standalone installation, follow these steps:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_1_create_configuration_file"&gt;Step 1: Create Configuration File&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create &lt;code&gt;/etc/openbao.d/openbao.hcl&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;# Full configuration for standalone OpenBao server
+# Cluster name for identification
+cluster_name = &amp;#34;openbao-standalone&amp;#34;
+# Storage backend using integrated Raft
+storage &amp;#34;raft&amp;#34; {
+path = &amp;#34;/var/lib/openbao/data&amp;#34;
+node_id = &amp;#34;node1&amp;#34;
+}
+# HTTP listener (for internal communication)
+listener &amp;#34;tcp&amp;#34; {
+address = &amp;#34;0.0.0.0:8200&amp;#34;
+cluster_address = &amp;#34;0.0.0.0:8201&amp;#34;
+tls_disable = false
+tls_cert_file = &amp;#34;/etc/openbao.d/tls/tls.crt&amp;#34;
+tls_key_file = &amp;#34;/etc/openbao.d/tls/tls.key&amp;#34;
+}
+# API address for clients
+api_addr = &amp;#34;https://openbao.example.com:8200&amp;#34;
+# Cluster address for raft communication
+cluster_addr = &amp;#34;https://openbao.example.com:8201&amp;#34;
+# UI enabled
+ui = true
+# Logging
+log_level = &amp;#34;info&amp;#34;
+log_file = &amp;#34;/var/log/openbao/openbao.log&amp;#34;
+# Disable memory locking (enable in production if possible)
+disable_mlock = true
+# Telemetry (optional)
+telemetry {
+prometheus_retention_time = &amp;#34;30s&amp;#34;
+disable_hostname = true
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_2_generate_tls_certificates"&gt;Step 2: Generate TLS Certificates&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For production, you should use proper certificates. For testing, create self-signed ones:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is only for testing purposes. In production, you should use proper certificates.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;First, prepare the TLS directory if it does not exist&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo mkdir -p /etc/openbao.d/tls&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Then create a configuration file for the TLS certificates:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Create TLS config
+cat &amp;lt;&amp;lt;EOF &amp;gt; openbao.cnf
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+[req_distinguished_name]
+CN = openbao.example.com
+[v3_req]
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = openbao.example.com
+IP.1 = 127.0.0.1 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+EOF&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The IP address of the server. In this case we are using localhost, but you can add your IPs here.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Then generate the certificate:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Generate private key
+sudo openssl genrsa -out /etc/openbao.d/tls/tls.key 4096
+# Generate certificate signing request
+sudo openssl req -new -key /etc/openbao.d/tls/tls.key -out /etc/openbao.d/tls/tls.csr -subj &amp;#34;/CN=openbao.example.com&amp;#34;
+# Generate self-signed certificate
+sudo openssl x509 -req -days 365 -in /etc/openbao.d/tls/tls.csr -signkey /etc/openbao.d/tls/tls.key -out /etc/openbao.d/tls/tls.crt -extfile openbao.cnf -extensions v3_req
+# Set permissions
+sudo chown -R openbao:openbao /etc/openbao.d/tls
+sudo chmod 600 /etc/openbao.d/tls/tls.key
+sudo chmod 755 /etc/openbao.d/tls&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_3_create_systemd_service"&gt;Step 3: Create Systemd Service&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create &lt;code&gt;/etc/systemd/system/openbao.service&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;[Unit]
+Description=OpenBao Secret Management
+Documentation=https://openbao.org/docs
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/openbao.d/openbao.hcl
+[Service]
+User=openbao
+Group=openbao
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+SecureBits=keep-caps
+AmbientCapabilities=CAP_IPC_LOCK
+CapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK
+NoNewPrivileges=yes
+ExecStart=/usr/bin/bao server -config=/etc/openbao.d/openbao.hcl
+ExecReload=/bin/kill --signal HUP $MAINPID
+KillMode=process
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+LimitNOFILE=65536
+LimitMEMLOCK=infinity
+[Install]
+WantedBy=multi-user.target&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_4_start_the_service"&gt;Step 4: Start the Service&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Reload systemd
+sudo systemctl daemon-reload
+# Enable and start OpenBao
+sudo systemctl enable openbao
+sudo systemctl start openbao
+# Check status
+sudo systemctl status openbao
+# View logs
+sudo journalctl -u openbao -f&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_initialize_and_unseal_openbao"&gt;Initialize and Unseal OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After starting OpenBao for the first time, it needs to be initialized and unsealed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_set_environment_variables"&gt;Set Environment Variables&lt;/h3&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+We will do the following commands as root user.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Be sure that the hostname is resolvable. In this case I am using the test domain: openbao.example.com.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Set the OpenBao address
+export BAO_ADDR=&amp;#39;https://openbao.example.com:8200&amp;#39;
+# If using self-signed certificates
+export BAO_CACERT=&amp;#39;/etc/openbao.d/tls/tls.crt&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_check_status"&gt;Check Status&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You will see that OpenBao is running but not yet initialized. This will be the next step.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status
+Key Value
+--- -----
+Seal Type shamir
+Initialized false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Sealed true
+Total Shares 0
+Threshold 0
+Unseal Progress 0/0
+Unseal Nonce n/a
+Version 2.4.4-1.el9
+Build Date 2025-11-24
+Storage Type file
+HA Enabled false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Not yet initialized&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_initialize_openbao"&gt;Initialize OpenBao&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we use OpenBao, we need to initialize it. This will create the unseal keys and the root token. The unseal keys are used to … well, unseal the OpenBao service.
+The root token is used as a master key to authenticate against the OpenBao service. This token has access to ALL secrets. &lt;strong&gt;Treat this root token with care.&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will initialize OpenBao with default options of 5 key shares and a threshold of 3. This means that we need 3 different unseal keys to unseal the OpenBao service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao operator init -key-shares=5 -key-threshold=3 -format=json &amp;gt; /root/openbao-init.json&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Store the unseal keys and root token securely! Anyone with these can access all secrets.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The output looks like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;unseal_keys_b64&amp;#34;: [
+&amp;#34;key1...&amp;#34;,
+&amp;#34;key2...&amp;#34;,
+&amp;#34;key3...&amp;#34;,
+&amp;#34;key4...&amp;#34;,
+&amp;#34;key5...&amp;#34;
+],
+&amp;#34;unseal_keys_hex&amp;#34;: [...],
+&amp;#34;unseal_shares&amp;#34;: 5,
+&amp;#34;unseal_threshold&amp;#34;: 3,
+&amp;#34;recovery_keys_b64&amp;#34;: [],
+&amp;#34;recovery_keys_hex&amp;#34;: [],
+&amp;#34;root_token&amp;#34;: &amp;#34;sbr.xxxxxxxxxxxx&amp;#34;
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_unseal_openbao"&gt;Unseal OpenBao&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now everything is set up and we can use the unseal keys to unseal the OpenBao service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You need to provide 3 (threshold) different unseal keys:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# First key
+bao operator unseal
+# Enter first unseal key
+# Second key
+bao operator unseal
+# Enter second unseal key
+# Third key
+bao operator unseal
+# Enter third unseal key&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After providing enough keys:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status
+Key Value
+--- -----
+Seal Type shamir
+Initialized true
+Sealed false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Total Shares 5
+Threshold 3
+Version 2.4.4-1.el9
+Build Date 2025-11-24
+Storage Type file
+Cluster Name openbao-standalone
+Cluster ID d07874ef-df52-e45f-1723-ade333c6d609
+HA Enabled false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Now unsealed and ready&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we can login with the root token to the OpenBao service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_login_with_root_token"&gt;Login with Root Token&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since we have not created any users yet, we will use the root token to authenticate.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Enter the root token from initialization
+bao login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_basic_verification"&gt;Basic Verification&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let us verify the installation works:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;List enabled secrets engines&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets list&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This lists the enabled secrets engines.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description
+---- ---- -------- -----------
+cubbyhole/ cubbyhole cubbyhole_84c3d2a5 per-token private secret storage
+identity/ identity identity_61809171 identity store
+sys/ system system_034ae772 system endpoints used for control, policy and debugging&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;List enabled auth methods&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao auth list&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This lists the enabled authentication methods.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description Version
+---- ---- -------- ----------- -------
+token/ token auth_token_c7feca17 token based credentials n/a&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a test secret&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets enable -path=secret kv-v2&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This enables the KV (key/value) secrets engine at the path &lt;code&gt;secret&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao kv put secret/test message=&amp;#34;Hello from OpenBao&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This creates a test secret at the path &lt;code&gt;secret/test&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao kv get secret/test&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This retrieves the test secret from the path &lt;code&gt;secret/test&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;That’s it for the basic verification. You can now start to use OpenBao in your production environment. Let’s see what we can do in the UI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_visiting_the_ui"&gt;Visiting the UI&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you watched the previous commands closely, you will have noticed that the UI has been enabled in the configuration file:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;# UI enabled
+ui = true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The UI is accessible at &lt;a href="http://openbao.example.com:8200" class="bare"&gt;http://openbao.example.com:8200&lt;/a&gt;. You can login with the root token from the initialization.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_openbao_login_form.png?width=480px" alt="OpenBao Login Form"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. OpenBao Login Form&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here you will see several options to explore. For now we are interested in the Secrets Engine section.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_openbao_secrets_engine.png?width=480px" alt="OpenBao Secrets Engine"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. OpenBao Secrets Engine&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We have created the path &amp;#34;secret&amp;#34; and inside it a secret called &amp;#34;test&amp;#34;.
+We can retrieve it now:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_test_secret_retrieval.png?width=480px" alt="OpenBao Secret Retrieval"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. OpenBao Secret Retrieval&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_security_hardening_checklist"&gt;Security Hardening Checklist&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before using OpenBao in production you should always consider the following checklist:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 25%;"/&gt;
+&lt;col style="width: 75%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Item&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Recommendation&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;TLS&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Always enable TLS with valid certificates&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Root Token&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Revoke root token after initial setup and create admin users instead&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Unseal Keys&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Distribute to different people/locations, consider auto-unseal&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Network&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Restrict access with firewall rules&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Audit&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enable audit logging&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Backups&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Regular Raft snapshots&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Updates&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Keep OpenBao updated&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_is_coming_next"&gt;What is Coming Next?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In Part 3, we will deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This provides:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;High availability out of the box&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Kubernetes-native management&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Integration with OpenShift security features&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Persistent storage via PVCs&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You now have a working standalone OpenBao installation. This forms the foundation for understanding how OpenBao operates. While standalone mode is useful for testing and edge cases, most production deployments will use Kubernetes, which we will cover next.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Key takeaways:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao can run standalone or in containers&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Dev mode is for testing only&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Production requires proper TLS, initialization, and security hardening&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Unseal keys must be stored securely&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/install" target="_blank" rel="noopener"&gt;OpenBao Installation Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration" target="_blank" rel="noopener"&gt;OpenBao Configuration Reference&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/commands" target="_blank" rel="noopener"&gt;OpenBao CLI Reference&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>[Ep.15] OpenShift GitOps - Argo CD Agent</title><link>https://blog.stderr.at/gitopscollection/2026-01-14-argocd-agent/</link><pubDate>Wed, 14 Jan 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2026-01-14-argocd-agent/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;OpenShift GitOps based on Argo CD is a powerful tool to manage the infrastructure and applications on an OpenShift cluster. Initially, there were two ways of deployment: centralized and decentralized (or distributed). Both methods had their own advantages and disadvantages. The choice was mainly between scalability and centralization.
 With OpenShift GitOps v1.19, the Argo CD Agent was finally generally available. This agent tries to solve this problem by bringing the best of both worlds together. In this quite long article, I will show you how to install and configure the Argo CD Agent with OpenShift GitOps using hub and spoke architecture.&lt;/p&gt;
@@ -3820,6 +4844,578 @@ Maybe I will cover some of these things in a future article.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;Happy tracing! 🚀&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Introduction - Part 1</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</link><pubDate>Wed, 11 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;I finally had some time to dig into Secret Management. For my demo environments, SealedSecrets is usually enough to quickly test something. But if you want to deploy a real application with Secret Management, you need to think of a more permanent solution.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article is the first of a series of articles about &lt;strong&gt;OpenBao&lt;/strong&gt;, a HashiCorp Vault fork. Today, we will explore what OpenBao is, why it was created, and when you should consider using it for your secret management needs. If you are familiar with HashiCorp Vault, you will find many similarities, but also some important differences that we will discuss.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In general, sensitive information in any system should be stored in a secure way. When it comes to OpenShift or Kubernetes, this is especially true, since the secrets are stored in the etcd database. Even if etcd is encrypted at rest, anybody can decode a given base64 string which is stored in the Secret.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Base64 is not an encryption format. It is an encoding format.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, the string &lt;code&gt;Thomas&lt;/code&gt; encoded as base64 is &lt;code&gt;VGhvbWFzCg==&lt;/code&gt;. This is simply masked plain text and it is not secure to share these values, especially not on Git. To make your CI/CD pipelines or GitOps process secure, you need to think of a secure way to manage your Secrets.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is where OpenBao comes in.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_is_openbao"&gt;What is OpenBao?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://openbao.org" target="_blank" rel="noopener"&gt;OpenBao&lt;/a&gt; is an identity-based secrets and encryption management system. It is an open-source, community driven fork of HashiCorp Vault and provides secure storage, fine-grained access control, and lifecycle management for secrets such as API or SSH keys, passwords, certificates, and encryption keys.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The core OpenBao workflow consists of four stages:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Authentication&lt;/strong&gt;: Verifying the identity of the client to determine if they are who they say they are. Once authenticated, a token is created and associated with a so-called policy.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Validation&lt;/strong&gt;: Checking if the client has the required permissions&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Authorization&lt;/strong&gt;: Granting access based on policies that provide or deny access to certain paths and operations in OpenBao.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Access&lt;/strong&gt;: Limiting what the client can do with the secret&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;At its core, OpenBao:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Stores and encrypts sensitive information at rest and in transit&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Provides fine-grained access controls (ACL)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Supports dynamic secret generation&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Offers a comprehensive audit trail (must be enabled)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Enables encryption as a service&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_history_why_openbao_exists"&gt;The History: Why OpenBao Exists&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao is a community-driven, open-source fork of HashiCorp Vault. But why was it created?&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In August 2023, HashiCorp announced a significant change to the licensing of their products, including Vault. They moved from the Mozilla Public License 2.0 (MPL 2.0) to the Business Source License 1.1 (BSL 1.1).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The BSL 1.1 license includes restrictions on competitive use:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Competitors could no longer use Vault’s code to offer competing services&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Cloud providers and managed service providers faced restrictions&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The open-source community lost the freedom to fork and commercialize&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_the_fork"&gt;The Fork&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In response to this license change, the Linux Foundation announced the OpenBao project in December 2023. OpenBao is:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;A fork of HashiCorp Vault (from version 1.14.x)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Licensed under the OSI-approved Mozilla Public License 2.0&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Governed by a community-driven model&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Maintained independently of HashiCorp&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Continues to enable innovation without license restrictions&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_openbao_vs_hashicorp_vault_key_differences"&gt;OpenBao vs. HashiCorp Vault: Key Differences&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While OpenBao shares its heritage with Vault, there are several important differences:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_licensing"&gt;Licensing&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Aspect&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;OpenBao&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;HashiCorp Vault&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;License&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;MPL 2.0 (OSI-approved open source)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;BSL 1.1 (with staged conversion)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Governance&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Community-driven (Linux Foundation)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;HashiCorp/IBM controlled&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Commercial restrictions&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;None&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Restrictions on competitive use&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enterprise Features&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Community-driven additions&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Paid Enterprise tier&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Support&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Community support&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Paid support available&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Branding&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;bao CLI, OpenBao naming&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault CLI, Vault naming&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_technical_differences"&gt;Technical Differences&lt;/h3&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Token Format&lt;/strong&gt; - OpenBao uses shorter tokens in the format &lt;code&gt;sbr.&lt;a href="#random"&gt;[random]&lt;/a&gt;&lt;/code&gt;, while Vault uses longer tokens (&lt;code&gt;hvs.&lt;/code&gt;, &lt;code&gt;hvb.&lt;/code&gt;, &lt;code&gt;hvr.&lt;/code&gt; prefixes followed by long random strings). Old Vault tokens are still accepted according to their TTLs, but newly issued tokens follow the OpenBao format.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Plugin Ecosystem&lt;/strong&gt; - OpenBao comes with fewer built-in plugins by default, focusing on OSI-licensed integrations. Proprietary cloud vendor plugins have been moved to external repositories.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Storage Backend&lt;/strong&gt; - OpenBao has simplified its storage options, primarily supporting Raft as the recommended backend.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;API Compatibility&lt;/strong&gt; - OpenBao’s API is designed to be compatible with Vault, meaning existing clients and integrations should work without modification. However, some edge cases may require updates.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_core_concepts"&gt;Core Concepts&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before diving into installation and configuration in the next articles, it is essential to understand the fundamental concepts of OpenBao:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_secrets_engines"&gt;Secrets Engines&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Secrets engines are components that store, generate, or encrypt data. OpenBao supports multiple types:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;KV (Key-Value)&lt;/strong&gt;: Simple static secret storage with optional versioning&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;PKI&lt;/strong&gt;: Certificate Authority for generating TLS certificates&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Database&lt;/strong&gt;: Dynamic credential generation for databases&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Transit&lt;/strong&gt;: Encryption as a Service (EaaS)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;SSH&lt;/strong&gt;: SSH key signing and OTP generation&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_authentication_methods"&gt;Authentication Methods&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Authentication methods verify client identity before granting access:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Kubernetes&lt;/strong&gt;: Uses Kubernetes service account tokens. Essential for Kubernetes/OpenShift deployments.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;OIDC&lt;/strong&gt;: OpenID Connect for user authentication, like Keycloak, Okta, or Azure AD.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;LDAP&lt;/strong&gt;: Directory service authentication, like Active Directory, OpenLDAP, or Microsoft AD.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;AppRole&lt;/strong&gt;: Machine-oriented authentication for applications. Ideal for CI/CD pipelines.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Token&lt;/strong&gt;: Direct token-based authentication. The root token is created during initialization.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_storage_backend"&gt;Storage Backend&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao encrypts all data before writing to storage. Supported backends include:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Integrated Raft&lt;/strong&gt; (recommended): Built-in distributed storage&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Consul&lt;/strong&gt;: HashiCorp’s service discovery and KV store (less common with OpenBao)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;File&lt;/strong&gt;: Single-node deployments only&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;PostgreSQL/MySQL&lt;/strong&gt;: Database-backed storage&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_policies"&gt;Policies&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Policies define what a client can do after authentication. They use path-based access control (deny-by-default mode):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-hcl hljs" data-lang="hcl"&gt;path &amp;#34;secret/data/myapp/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+path &amp;#34;pki/issue/my-role&amp;#34; {
+capabilities = [&amp;#34;create&amp;#34;, &amp;#34;update&amp;#34;]
+}
+path &amp;#34;database/creds/myapp-role&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_tokens"&gt;Tokens&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Tokens are the primary authentication credential in OpenBao. After successful authentication, clients receive a token that:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Has a TTL (Time To Live)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Is associated with one or more policies&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Can be renewed (if renewable)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Can create child tokens&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_sealunseal"&gt;Seal/Unseal&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao starts in a &lt;strong&gt;sealed&lt;/strong&gt; state where it cannot access encrypted data. The unseal process requires multiple key shares (using Shamir’s Secret Sharing) or auto-unseal mechanisms to decrypt the master key.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_leases"&gt;Leases&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Most secrets in OpenBao have an associated lease - a duration after which the secret expires. This enables:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Automatic secret rotation&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Revocation of compromised credentials&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Audit trail of secret usage&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_use_cases"&gt;Use Cases&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_dynamic_database_credentials"&gt;Dynamic Database Credentials&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of storing static database passwords:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Application authenticates to OpenBao&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Requests database credentials&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao creates a temporary database user&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Returns credentials with a short TTL&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Credentials automatically expire&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Benefits: No long-lived credentials, automatic rotation, per-application isolation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_certificate_management_with_pki"&gt;Certificate Management with PKI&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of manually managing TLS certificates:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Configure OpenBao as an intermediate CA&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications request certificates on demand&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Short-lived certificates (hours/days instead of years)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Automatic renewal before expiration&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Benefits: No certificate sprawl, automated rotation, reduced attack surface.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_encryption_as_a_service"&gt;Encryption as a Service&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of implementing encryption in each application:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Applications send plaintext to OpenBao’s Transit engine&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao encrypts with managed keys&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications store ciphertext&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Decryption requests go through OpenBao&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Benefits: Centralized key management, separation of duties, key rotation without re-encryption.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_kubernetes_secret_injection"&gt;Kubernetes Secret Injection&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of storing secrets in Kubernetes Secrets:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Deploy OpenBao with Kubernetes auth&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure injector or External Secrets Operator&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Pods automatically receive secrets at startup&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Secrets never stored in etcd&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Benefits: Secrets not in cluster, dynamic injection, centralized management.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_when_to_use_openbao"&gt;When to Use OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao is an excellent choice when you need:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Centralized Secret Management&lt;/strong&gt; - If you have secrets scattered across configuration files, environment variables, and various secret stores, OpenBao provides a single source of truth.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Dynamic Secrets&lt;/strong&gt; - For use cases where you need short-lived, automatically rotated credentials (e.g., database passwords), OpenBao can generate them on-demand.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Encryption as a Service&lt;/strong&gt; - If applications need encryption capabilities without managing encryption keys, OpenBao’s Transit engine provides this functionality.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Certificate Management&lt;/strong&gt; - OpenBao’s PKI engine can act as a Certificate Authority, issuing and managing TLS certificates.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compliance Requirements&lt;/strong&gt; - For environments with strict audit requirements, OpenBao provides comprehensive audit logging of all secret access.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_when_not_to_use_openbao"&gt;When NOT to Use OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao might be overkill for:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Simple, Static Secrets&lt;/strong&gt; - If you only have a few static secrets that rarely change, simpler solutions like Sealed Secrets or External Secrets Operator with a basic backend might suffice.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Small Teams with Limited Resources&lt;/strong&gt; - OpenBao requires operational expertise to maintain. If you do not have the resources to operate it properly, consider managed alternatives.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Single-Application Deployments&lt;/strong&gt; - If you have a single application with minimal secret requirements, the complexity of OpenBao may not be justified.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_architecture_overview"&gt;Architecture Overview&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A typical OpenBao deployment consists of:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part1_openbao_architecture.png" alt="Architecture Overview"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Architecture Overview&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Multiple Nodes&lt;/strong&gt;: For high availability (HA), OpenBao runs as a cluster&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Raft Consensus&lt;/strong&gt;: Leader election and data replication&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Persistent Storage&lt;/strong&gt;: Encrypted data stored on persistent volumes&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Load Balancer&lt;/strong&gt;: Distributes client requests&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao provides a powerful, open-source solution for secret management that addresses the challenges of modern cloud-native environments. Its fork from HashiCorp Vault means it benefits from years of development while remaining truly open source.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the next article, we will start with a standalone installation to understand the fundamentals before moving to Kubernetes deployments.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org" target="_blank" rel="noopener"&gt;OpenBao Official Website&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs" target="_blank" rel="noopener"&gt;OpenBao Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/openbao/openbao" target="_blank" rel="noopener"&gt;OpenBao GitHub Repository&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://www.linuxfoundation.org/press/linux-foundation-launches-openbao" target="_blank" rel="noopener"&gt;Linux Foundation OpenBao Announcement&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability Introduction - Part 1</title><link>https://blog.stderr.at/openshift-platform/observability/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/</link><pubDate>Sun, 23 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/observability/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/</guid><description>&lt;div class="paragraph"&gt;
@@ -10732,1088 +12328,6 @@ objects in different namespaces.&lt;/p&gt;
 &lt;p&gt;Furthermore we configured HTTP to HTTPS redirects and dove into
 &lt;em&gt;HTTPRoute&lt;/em&gt; ordering if a route matches multiple listeners in a
 &lt;em&gt;Gateway&lt;/em&gt; definition.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>A first look into the Kubernetes Gateway API on OpenShift</title><link>https://blog.stderr.at/openshift-platform/networking/2025-08-29-openshift-gateway-api/</link><pubDate>Fri, 29 Aug 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/networking/2025-08-29-openshift-gateway-api/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;This blog post summarizes our first look into the Kubernetes Gateway
-API and how it is integrated in OpenShift.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Kubernetes Gateway API is new implementation of the ingress, load
-balancing and service mesh API’s. See
-&lt;a href="https://gateway-api.sigs.k8s.io/" target="_blank" rel="noopener"&gt;upstream&lt;/a&gt; for more information.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Also the &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/ingress_and_load_balancing/configuring-ingress-cluster-traffic#nw-ingress-gateway-api-overview_ingress-gateway-api" target="_blank" rel="noopener"&gt;OpenShift documentation&lt;/a&gt; provides an overview of the Gateway API and it’s integration.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_things_to_consider_when_using_gateway_api_with_openshift"&gt;Things to consider when using Gateway API with OpenShift&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Currently UDN (User Defined Networks) with Gateway API are not supported.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Only TLS termination on the edge is supported (no pass-through or re-encrypt), this needs to be confirmed. We can’t find the original source of this statement&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The standard OpenShift ingress controller manages Gateway API Resources&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Gateway API provides a standard on how to get client traffic into a
-Kubernetes cluster. Vendors provide an implementation of the API. So
-OpenShift provides &lt;strong&gt;ONE&lt;/strong&gt; possible implementation, but there could
-be more than one in a cluster.&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;We found the following sentence in the OpenShift documentation
-interesting:&lt;/p&gt;
-&lt;div class="literalblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre&gt;Because OpenShift Container Platform uses a specific
-version of Gateway API CRDs, any use of third-party implementations
-of Gateway API must conform to the OpenShift Container Platform
-implementation to ensure that all fields work as expected&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_setting_up_gateway_api_on_openshift"&gt;Setting up Gateway API on OpenShift&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before you begin, ensure you have the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift 4.19 or higher with cluster-admin access&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;First you need to create a &lt;code&gt;GatewayClass&lt;/code&gt; object.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Be aware that the &lt;code&gt;GatewayClass&lt;/code&gt; object is &lt;strong&gt;NOT&lt;/strong&gt; namespaced.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-name: openshift-default
-spec:
-controllerName: openshift.io/gateway-controller/v1 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The controller name needs to be exactly as shown. Otherwise the
-ingress controller will &lt;strong&gt;NOT&lt;/strong&gt; manage the gateway and associated
-resources.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This creates a new pod in the openshift-ingress namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get po -n openshift-ingress
-NAME READY STATUS RESTARTS AGE
-istiod-openshift-gateway-7b567bc8b4-4lrt2 1/1 Running 0 12m &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-router-default-6db958cbd-dlbwz 1/1 Running 12 14d&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;this pod got create after applying the gateway class resource&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;code&gt;router-default&lt;/code&gt; is the default openshift ingress pod. The first
-difference seems to be the SCC (security context constraint) the pods
-are using.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get po -n openshift-ingress -o jsonpath=&amp;#39;{range .items[*]}{.metadata.name}{&amp;#34;\t&amp;#34;}{.metadata.annotations.openshift\.io/scc}{&amp;#34;\n&amp;#34;}{end}&amp;#39;
-istiod-openshift-gateway-7b567bc8b4-4lrt2 restricted-v2
-router-default-6db958cbd-dlbwz hostnetwork&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The standard router used host networking for listing on port 80 and 443
-on the node where it is running. Our &lt;code&gt;GatewayClass&lt;/code&gt; currently only
-provides a pod running Istiod awaiting further configuration. To
-actually listen for client request additional configuration is
-required.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A &lt;code&gt;Gateway&lt;/code&gt; is required to listen for client requests. We create the
-following gateway:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-name: http-gateway
-namespace: openshift-ingress &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-spec:
-gatewayClassName: openshift-default
-listeners:
-- name: http
-protocol: HTTP
-port: 80
-hostname: &amp;#34;*.apps.ocp.lan.stderr.at&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We create this gateway in the same namespace as the istio
-deployment. This is required for OpenShift.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This creates an additional pod in the &lt;code&gt;openshift-ingress&lt;/code&gt; namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get po
-NAME READY STATUS RESTARTS AGE
-http-gateway-openshift-default-d476664f5-h87mp 1/1 Running 0 36s&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We also got a new service for the our http-gateway&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;➜ oc get svc
-NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
-http-gateway-openshift-default LoadBalancer 172.30.183.48 10.0.0.150 15021:30251/TCP,80:30437/TCP 4m52s&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The interesting thing is the &lt;code&gt;TYPE&lt;/code&gt; of the service. It’s of type
-&lt;code&gt;LoadBalancer&lt;/code&gt;. We have
-&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking_operators/metallb-operator"&gt;MetalLB&lt;/a&gt;
-deployed in our cluster, this might be the reason for this. We will
-try to configure a gateway without MetalLB in in upcoming post.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Lets take a look at the gateway resource&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get gtw
-NAME CLASS ADDRESS PROGRAMMED AGE
-http-gateway openshift-default 10.0.0.150 True 3m&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So this seems to be working. But know we have a problem: the &lt;code&gt;*.apps&lt;/code&gt;
-domain that we used for our gateway points already to the default
-OpenShift Ingress. We could either&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;redeploy the gateway with a different wildcard domain (e.g. *.gtw…​)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;create a more specific DNS record that points to our new load balancer&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s try to confirm this with &lt;em&gt;curl&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ curl -I http://bla.apps.ocp.lan.stderr.at
-HTTP/1.0 503 Service Unavailable
-pragma: no-cache
-cache-control: private, max-age=0, no-cache, no-store
-content-type: text/html&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;code&gt;503&lt;/code&gt; is the response of default OpenShift Ingress.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ curl -I http://10.0.0.150
-HTTP/1.1 404 Not Found
-date: Fri, 29 Aug 2025 14:31:31 GMT
-transfer-encoding: chunked&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Our new gateway returns a &lt;code&gt;404&lt;/code&gt; not found response. We choose the
-first option and create another wildcard DNS entry for
-&lt;code&gt;*.gtw.ocp.lan.stderr.at&lt;/code&gt;. We re-deployed our gateway with the new hostname:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-name: http-gateway
-namespace: openshift-ingress
-spec:
-gatewayClassName: openshift-default
-listeners:
-- name: http
-protocol: HTTP
-port: 80
-hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;New hostname for resources exposed via our gateway&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc apply -f gateway.yaml
-gateway.gateway.networking.k8s.io/http-gateway created&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This also creates a DNSRecord resource:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc describe dnsrecords.ingress.operator.openshift.io -n openshift-ingress http-gateway-c8d7bfc67-wildcard
-Name: http-gateway-c8d7bfc67-wildcard
-Namespace: openshift-ingress
-Labels: gateway.istio.io/managed=openshift.io-gateway-controller-v1
-gateway.networking.k8s.io/gateway-name=http-gateway
-istio.io/rev=openshift-gateway
-Annotations: &amp;lt;none&amp;gt;
-API Version: ingress.operator.openshift.io/v1
-Kind: DNSRecord
-Metadata:
-Creation Timestamp: 2025-08-29T14:49:45Z
-Finalizers:
-operator.openshift.io/ingress-dns
-Generation: 1
-Owner References:
-API Version: v1
-Kind: Service
-Name: http-gateway-openshift-default
-UID: a023de5d-c428-4249-a190-de3cbfeb6964
-Resource Version: 141150968
-UID: 7a61a867-216e-40b7-88f3-e3934493c477
-Spec:
-Dns Management Policy: Managed
-Dns Name: *.gtw.ocp.lan.stderr.at.
-Record TTL: 30
-Record Type: A
-Targets:
-10.0.0.150
-Events: &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This resource is only internally used by the OpenShift ingress
-operator (see &lt;code&gt;oc explain dnsrecord&lt;/code&gt; for details).&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_creating_httproutes_for_exposing_our_service"&gt;Creating HTTPRoutes for exposing our service.&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To actually expose a HTTP pod via our new gateway we need:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;A &lt;em&gt;Namespace&lt;/em&gt; to deploy an example pod. We will use a Nginx for this&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;A &lt;em&gt;Service&lt;/em&gt; that exposes our Nginx pod&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;and finally a &lt;em&gt;HTTPRoute&lt;/em&gt; resource&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For the nginx deployment we used the following manifest:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: v1
-kind: Namespace
-metadata:
-name: gateway-api-test
-spec:
-finalizers:
-- kubernetes
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-name: nginx-deployment
-namespace: gateway-api-test
-labels:
-app: nginx
-spec:
-replicas: 1
-selector:
-matchLabels:
-app: nginx
-template:
-metadata:
-labels:
-app: nginx
-spec:
-containers:
-- name: nginx
-image: quay.io/nginx/nginx-unprivileged:1.29.1
-ports:
-- containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-name: nginx
-namespace: gateway-api-test
-spec:
-selector:
-app: nginx
-ports:
-- protocol: TCP
-port: 8080
-targetPort: 8080&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s see if our nginx pod got deployed successfully:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get po,svc -n gateway-api-test
-NAME READY STATUS RESTARTS AGE
-pod/nginx-deployment-796cdf7474-b7bqz 1/1 Running 0 20s
-NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
-service/nginx ClusterIP 172.30.42.36 &amp;lt;none&amp;gt; 8080/TCP 21s&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;And finally confirm our &lt;code&gt;Service&lt;/code&gt; is working:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc port-forward -n gateway-api-test svc/nginx 8080 &amp;amp;
-Forwarding from 127.0.0.1:8080 -&amp;gt; 8080
-Forwarding from [::1]:8080 -&amp;gt; 8080
-$ curl -I localhost:8080
-Handling connection for 8080
-HTTP/1.1 200 OK
-Server: nginx/1.29.1
-Date: Fri, 29 Aug 2025 15:45:12 GMT
-Content-Type: text/html
-Content-Length: 615
-Last-Modified: Wed, 13 Aug 2025 14:33:41 GMT
-Connection: keep-alive
-ETag: &amp;#34;689ca245-267&amp;#34;
-Accept-Ranges: bytes&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We received a response from our nginx pod, hurray!&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So next let’s try to create a &lt;code&gt;HTTPRoute&lt;/code&gt; to expose our nginx service to external clients:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-name: nginx-route
-spec:
-parentRefs:
-- name: http-gateway
-namespace: openshift-ingress
-hostnames: [&amp;#34;nginx.gtw.ocp.lan.stderr.at&amp;#34;]
-rules:
-- backendRefs:
-- name: nginx
-namespace: gateway-api-test
-port: 8080&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;One important point here, the &lt;code&gt;Gateway&lt;/code&gt; actually come in two flavors&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;dedicated gateways, only accepting HTTP routes in the same namespace (&lt;code&gt;openshift-ingress&lt;/code&gt;) in our case.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;shared gateways, which also accept HTTP route objects from other namespaces&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;see &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/ingress_and_load_balancing/configuring-ingress-cluster-traffic#nw-ingress-gateway-api-deployment_ingress-gateway-api"&gt;Gateway API deployment topologies&lt;/a&gt; in the OpenShift documentation for more information.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As this post is already rather long, we focus on the dedicated gateway topology for now.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The HTTP route must be deployed in the same namespace as the
-gateway if the dedicated topology is used.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So let’s deploy our &lt;code&gt;HTTPRoute&lt;/code&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc apply -f httproute.yaml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Verify we can reach our nginx pod:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;curl -I http://nginx.gtw.ocp.lan.stderr.at
-HTTP/1.1 500 Internal Server Error
-date: Fri, 29 Aug 2025 15:57:34 GMT
-transfer-encoding: chunked&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This return a &lt;em&gt;500&lt;/em&gt; error, something seems to be wrong with our route,
-let’s take a look at the status of the &lt;code&gt;HTTPRoute&lt;/code&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc describe gtw http-gateway
-.
-. (output omitted)
-.
-Status:
-Parents:
-Conditions:
-Last Transition Time: 2025-08-29T15:54:43Z
-Message: Route was valid
-Observed Generation: 1
-Reason: Accepted
-Status: True
-Type: Accepted
-Last Transition Time: 2025-08-29T15:54:43Z
-Message: backendRef nginx/gateway-api-test not accessible to a HTTPRoute in namespace &amp;#34;openshift-ingress&amp;#34; (missing a ReferenceGrant?) &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-Observed Generation: 1
-Reason: RefNotPermitted
-Status: False &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-Type: ResolvedRefs
-Controller Name: openshift.io/gateway-controller/v1
-Parent Ref:
-Group: gateway.networking.k8s.io
-Kind: Gateway
-Name: http-gateway
-Namespace: openshift-ingress&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Something seems to be wrong as the status is &lt;em&gt;False&lt;/em&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Seems we are missing a ReferenceGrant&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Looking at the
-&lt;a href="https://gateway-api.sigs.k8s.io/api-types/referencegrant/" target="_blank" rel="noopener"&gt;upstream&lt;/a&gt;
-documentation reveals a security feature of the Gateway API. Before a
-&lt;code&gt;HTTPRoute&lt;/code&gt; can reach a service in a &lt;em&gt;different&lt;/em&gt; namespace we must
-create a &lt;code&gt;ReferenceGrant&lt;/code&gt; in the namespace providing the service.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So let’s try to deploy following &lt;code&gt;ReferenceGrant&lt;/code&gt; in the &lt;em&gt;gateway-api-test&lt;/em&gt; namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: ReferenceGrant
-metadata:
-name: nginx
-namespace: gateway-api-test
-spec:
-from:
-- group: gateway.networking.k8s.io
-kind: HTTPRoute
-namespace: openshift-ingress
-to:
-- group: &amp;#34;&amp;#34;
-kind: Service&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Checking the status field of our &lt;code&gt;HTTPRoute&lt;/code&gt; again:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;(output omitted)
-Status:
-Addresses:
-Type: IPAddress
-Value: 10.0.0.150
-Conditions:
-Last Transition Time: 2025-08-29T15:47:07Z
-Message: Resource accepted
-Observed Generation: 1
-Reason: Accepted
-Status: True
-Type: Accepted
-Last Transition Time: 2025-08-29T15:47:08Z
-Message: Resource programmed, assigned to service(s) http-gateway-openshift-default.openshift-ingress.svc.cluster.local:80
-Observed Generation: 1
-Reason: Programmed
-Status: True &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-Type: Programmed&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;&lt;em&gt;Status&lt;/em&gt; is now &lt;em&gt;True&lt;/em&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;and finally calling the nginx pod again via our gateway:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ curl -I http://nginx.gtw.ocp.lan.stderr.at
-HTTP/1.1 200 OK
-server: nginx/1.29.1
-date: Fri, 29 Aug 2025 16:01:33 GMT
-content-type: text/html
-content-length: 615
-last-modified: Wed, 13 Aug 2025 14:33:41 GMT
-etag: &amp;#34;689ca245-267&amp;#34;
-accept-ranges: bytes&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally everything seems to be in place and working.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this blog post we took a first look at the Kubernetes Gateway API
-and it’s integration into OpenShift. We enabled the Gateway API via a
-&lt;code&gt;GatewayClass&lt;/code&gt; resource, created a simple HTTP Gateway via a
-&lt;code&gt;Gateway&lt;/code&gt;, deploy a Nginx pod and a Service and exposed the service
-via a &lt;code&gt;HTTPRoute&lt;/code&gt; and a &lt;code&gt;ReferenceGrant&lt;/code&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Hopefully an upcoming blog post will cover how to&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;How to deploy a Gateway without MetalLB&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Deploy a TLS secured service&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;implement HTTP redirects&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;rewriting URL’s (if possible)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;and other possibilities of the Gateway API&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>[Ep.14] Reusable Argo CD Application Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;When working with Argo CD at scale, you often find yourself creating similar Application manifests repeatedly. Each application needs the same basic structure but with different configurations for source repositories, destinations, and sync policies. Additionally, managing namespace metadata becomes tricky when you need to conditionally control whether Argo CD should manage namespace metadata based on sync options.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this article, I’ll walk you through a reusable Helm template that solves these challenges by providing a flexible, DRY (Don’t Repeat Yourself) approach to creating Argo CD Applications. This template is available in my public Helm Chart library and can easily be used by anyone.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_the_problem"&gt;The Problem&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Traditional Argo CD Application manifests suffer from several issues:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Repetitive Code&lt;/strong&gt;: Each application requires similar boilerplate YAML&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Configuration Validation&lt;/strong&gt;: Manual validation of required fields across multiple applications&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Maintenance Overhead&lt;/strong&gt;: Changes to common patterns require updates across multiple files&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_but_i_can_do_this_manually_right"&gt;But I can do this manually, right?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Of course, nobody prevents you from creating an Argo CD Application manifest manually or using the UI to enter the values there, but sometimes you just want to get things done faster or help your team with a consistent way to create Argo CD Applications. Often teams do not want to learn about a new tool like Argo CD and maybe you want to automate the creation by using a CI/CD pipeline.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_the_solution_a_reusable_helm_template"&gt;The Solution: A Reusable Helm Template&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I already work with a common template library for all of my Helm Charts. The idea is to have repeatable snippets in my tpl charts and I can reuse them in all other charts. Recently, I started testing the templating of entire Kubernetes manifests.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To address the above issues, I’ve created a comprehensive Helm template that will render an Argo CD Application. But let’s start with the end result.
-Your team wants to create a new Argo CD Application. They can do this either via the UI, via the CLI, by creating the YAML file manually, or through pull request or CI/CD integration. Ultimately, the minimum required information is:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;The name of the application&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The namespace of the application&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The source repository&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The destination repository&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So something like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;argocd_applications:
-my-app: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: &amp;#34;openshift-gitops&amp;#34;
-source: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-repositoryURL: &amp;#34;https://github.com/argoproj/argocd-example-apps.git&amp;#34;
-targetRevision: &amp;#34;HEAD&amp;#34;
-path: &amp;#34;guestbook&amp;#34;
-destination: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-server: &amp;#34;https://kubernetes.default.svc&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-namespace: &amp;#34;guestbook&amp;#34;
-my-second-app:
-....&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This key will become the name of the Application&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The source repository, this is the repository that contains the Helm chart or the Kubernetes manifests&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The destination, that defines the cluster and namespace where the application will be deployed&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Either &lt;strong&gt;server&lt;/strong&gt; or &lt;strong&gt;name&lt;/strong&gt; must be set, but not both.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With the above values multiple applications can be created at once.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_integrating_the_template"&gt;Integrating the Template&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The values from the above example can be used to create the Application manifest.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;All the developers (or CI/CD pipelines) need to do is to define the values and create one template to include the source template.
-This will look like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;{{- if .Values.argocd_applications }}
-{{- range $name, $config := .Values.argocd_applications }} &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-{{- if $config.enabled | default false }} &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
----
-{{- include &amp;#34;tpl.argocdApplication&amp;#34; (dict &amp;#34;name&amp;#34; $name &amp;#34;spec&amp;#34; $config) -}} &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-{{- end }}
-{{- end }}
-{{- end }}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Iterate over the applications, defining $name and $config&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Only include the application if it is enabled&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Include the template with the name of the application and the specification&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is everything you need to do to create an Argo CD Application. Let’s take a look at the template.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_key_features_of_the_template"&gt;Key Features of the template&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_1_flexible_destination_configuration"&gt;1. Flexible Destination Configuration&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The template supports both server URL and cluster name destinations with &lt;strong&gt;validation&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;destination:
-{{- if and ($spec.destination.server) ($spec.destination.name) }}
-{{ fail &amp;#34;destination.server and destination.name cannot be set at the same time&amp;#34; }}
-{{- else }}
-{{- if $spec.destination.server }}
-server: {{ $spec.destination.server }}
-{{- else if $spec.destination.name }}
-name: {{ $spec.destination.name }}
-{{- else }}
-server: https://kubernetes.default.svc
-{{- end }}
-{{- end }}
-namespace: {{ $spec.destination.namespace | required &amp;#34;destination.namespace is required&amp;#34; }}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_2_comprehensive_sync_policy_support"&gt;2. Comprehensive Sync Policy Support&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The template handles all Argo CD sync policy features:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Automated sync with prune, selfHeal, and allowEmpty options&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Flexible sync options array&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Retry configuration with backoff strategies&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Conditional managed namespace metadata&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_3_conditional_namespace_management"&gt;3. Conditional Namespace Management&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The intelligent handling of &lt;code&gt;managedNamespaceMetadata&lt;/code&gt;. The template only includes this section when it &lt;strong&gt;CreateNamespace=&lt;/strong&gt; option is set to true:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;{{- if and $spec.syncPolicy.syncOptions (not (has &amp;#34;CreateNamespace=false&amp;#34; $spec.syncPolicy.syncOptions)) }}
-{{- if $spec.syncPolicy.managedNamespaceMetadata }}
-managedNamespaceMetadata:
-{{- with $spec.syncPolicy.managedNamespaceMetadata.labels }}
-labels:
-{{- toYaml . | nindent 8 }}
-{{- end }}
-{{- with $spec.syncPolicy.managedNamespaceMetadata.annotations }}
-annotations:
-{{- toYaml . | nindent 8 }}
-{{- end }}
-{{- end }}
-{{- end }}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_4_other_features"&gt;4. Other Features&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I created the template to be as flexible as possible. However, I did not include everything in this template, only the most important features (from my point of view). Currently, the following is possible:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Create a template for an Argo CD Application using Git&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a template for an Argo CD Application using Helm defining all possible Helm parameters, like additional values files or other options.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Using a &lt;strong&gt;single&lt;/strong&gt; source&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Set required annotations and labels&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_5_not_possible_currently"&gt;5. Not possible (currently)&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Along with the supported features, there are some features that are currently not possible:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Defining multiple sources&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configure Kustomize settings&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;However, if you feel this needs to be added, please let me know and create an issue. I can then try to add it.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_why_this_approach_works"&gt;Why This Approach Works&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_1_dry_principle"&gt;1. DRY Principle&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Instead of repeating the same YAML structure across multiple applications, you define it once and reuse it everywhere.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_2_intelligent_defaults"&gt;2. Intelligent Defaults&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The template provides sensible defaults (like &lt;code&gt;openshift-gitops&lt;/code&gt; namespace) while allowing customization when needed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_3_validation"&gt;3. Validation&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Built-in validation ensures required fields are present and conflicting configurations are caught early.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_4_conditional_logic"&gt;4. Conditional Logic&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The template handles complex scenarios like namespace management automatically, reducing the chance of misconfigurations.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_real_world_benefits"&gt;Real-World Benefits&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In practice, this template has several advantages:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Consistency&lt;/strong&gt;: All applications follow the same pattern&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Maintainability&lt;/strong&gt;: Changes to common patterns are made in one place&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Safety&lt;/strong&gt;: Validation prevents common misconfigurations&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Flexibility&lt;/strong&gt;: Supports the full range of Argo CD features&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Development Guidelines&lt;/strong&gt;: Ensure all developers are using the same process&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_real_world_examples"&gt;Real-World Examples&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_1_define_a_ui_branding"&gt;1. Define a UI Branding&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I would like to define a top banner in the OpenShift Console.
-Everything is defined in the &lt;code&gt;clusters/management-cluster/branding&lt;/code&gt; folder in my git repository.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;All I need to do is to define the following values:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;argocd_applications:
-my-branding:
-enabled: true
-namespace: &amp;#34;openshift-gitops&amp;#34;
-source:
-repositoryURL: &amp;#34;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#34;
-targetRevision: &amp;#34;main&amp;#34;
-path: &amp;#34;clusters/management-cluster/branding&amp;#34;
-destination:
-name: in-cluster
-namespace: &amp;#34;default&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_2_define_a_ui_branding_with_custom_helm_value"&gt;2. Define a UI Branding with custom Helm value&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Like above I would like to define a top banner in the OpenShift Console. This time I want to use a custom Helm value to define the background color of the banner.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;argocd_applications:
-my-branding-custom-helm:
-enabled: true
-namespace: &amp;#34;openshift-gitops&amp;#34;
-source:
-repositoryURL: &amp;#34;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#34;
-targetRevision: &amp;#34;main&amp;#34;
-path: &amp;#34;clusters/management-cluster/branding&amp;#34;
-helm:
-parameters:
-- name: generic-cluster-config.console.console_banners.topbanner.backgroundcolor
-value: &amp;#39;#FF9843&amp;#39;
-destination:
-name: in-cluster
-namespace: &amp;#34;default&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_3_full_blown_example"&gt;3. Full-Blown Example&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A full example with all features can be found in my Git repository at: &lt;a href="https://github.com/tjungbauer/helm-charts/blob/main/charts/tpl/values_example_ArgoCD-Application.yaml" target="_blank" rel="noopener"&gt;values_example_ArgoCD-Application.yaml&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_about_validation"&gt;What about Validation?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Above I mentioned that the template is able to validate the values.
-This is true for the most important parts.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For example, try to define the following values:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;[...]
-destination:
-name: in-cluster
-server: &amp;#34;https://kubernetes.default.svc&amp;#34;
-namespace: &amp;#34;default&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;name&lt;/strong&gt; and &lt;strong&gt;server&lt;/strong&gt; are not allowed to be set at the same time.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Helm (and Argo CD which is using Helm) will validate the values and fail with an error.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;Error: destination.server and destination.name cannot be set at the same time&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This Argo CD Application template demonstrates how Helm’s templating capabilities can solve real-world GitOps challenges. By combining conditional logic, validation, and sensible defaults, we create a tool that’s both powerful and easy to use.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The conditional namespace management feature alone saves hours of debugging why Argo CD isn’t behaving as expected with namespace metadata. When you combine this with the DRY benefits and built-in validation, you get a robust foundation for managing Argo CD applications at scale.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Whether you’re managing a few applications or hundreds, this template pattern will help you maintain consistency, reduce errors, and improve your team’s GitOps experience.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
