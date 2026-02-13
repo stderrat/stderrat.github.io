@@ -1,4 +1,821 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OpenBao on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - Standalone Installation - Part 2</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</link><pubDate>Thu, 12 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OpenBao on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - OpenShift Deployment with Helm - Part 3</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/</link><pubDate>Fri, 13 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;After understanding standalone installation in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/" target="_blank" rel="noopener"&gt;Part 2&lt;/a&gt;, it is time to deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This approach provides high availability, Kubernetes-native management, and seamless integration with the OpenShift ecosystem.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Deploying OpenBao on OpenShift/Kubernetes offers several advantages:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;High Availability&lt;/strong&gt;: Multiple replicas with automatic failover&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Kubernetes-native&lt;/strong&gt;: Managed by standard Kubernetes primitives&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Persistent Storage&lt;/strong&gt;: Data survives pod restarts via PVCs&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Integration&lt;/strong&gt;: Works with Kubernetes service accounts for authentication&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Scalability&lt;/strong&gt;: Easy to scale and manage&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The official &lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm chart&lt;/a&gt; supports multiple deployment modes:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Dev&lt;/strong&gt;: Single server, in-memory storage (testing only)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Standalone&lt;/strong&gt;: Single server, persistent storage&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;HA&lt;/strong&gt;: Multiple servers with Raft consensus (recommended)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;External&lt;/strong&gt;: Connect to external OpenBao cluster&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_integrations"&gt;Integrations&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Currently, OpenBao supports the following integrations that help seamlessly load secrets into applications without the need to modify the application code:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent Injector&lt;/strong&gt;: A mutating webhook that automatically injects a sidecar container that retrieves and renews secrets.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;CSI Provider&lt;/strong&gt;: A (vendor neutral) CSI driver that mounts secrets as volumes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before deploying, ensure you have:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift 4.12+ or Kubernetes 1.30+&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Helm 3.6+&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;oc&lt;/code&gt; or &lt;code&gt;kubectl&lt;/code&gt; CLI configured&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The OpenBao CLI (&lt;code&gt;bao&lt;/code&gt;) for initialization and unsealing (see &lt;a href="https://openbao.org/docs/install/" target="_blank" rel="noopener"&gt;OpenBao installation&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Cluster-admin privileges (for initial setup)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A storage class that supports ReadWriteOnce PVCs&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Verify prerequisites
+oc version
+helm version
+# Check available storage classes
+oc get storageclass&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_adding_the_helm_repository"&gt;Adding the Helm Repository&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First, add the OpenBao Helm repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Add the OpenBao Helm repository
+helm repo add openbao https://openbao.github.io/openbao-helm
+# Update repository cache
+helm repo update
+# Search for available charts
+helm search repo openbao
+# Expected output:
+# NAME CHART VERSION APP VERSION DESCRIPTION
+# openbao/openbao 0.x.x 2.x.x Official OpenBao Helm chart&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+According to the official documentation, the Helm chart is new and under significant development. It should always be run with --dry-run before any install or upgrade to verify changes.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_creating_the_namespace"&gt;Creating the Namespace&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create a dedicated namespace for OpenBao:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+While I am using the &lt;strong&gt;oc&lt;/strong&gt; CLI, you can also use the &lt;strong&gt;kubectl&lt;/strong&gt; CLI as in-place replacement.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc new-project openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_deployment_mode_high_availability_recommended"&gt;Deployment Mode: High Availability (Recommended)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For production environments, deploy in HA mode with Raft. This is the recommended deployment mode for production and is straightforward to achieve on Kubernetes and OpenShift.
+The following values definitions will use OpenShift specific settings. I will mark them in the callouts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will first create a values file, deploy openbao and then discuss what must be done to activate all OpenBao pods.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_ha_values_file"&gt;Create HA Values File&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create &lt;code&gt;openbao-ha-values.yaml&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The values file is based on the official &lt;a href="https://github.com/openbao/openbao-helm/blob/main/charts/openbao/values.yaml" target="_blank" rel="noopener"&gt;values file from that chart&lt;/a&gt;, but only modified values or important changes are listed here.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;global:
+# Enable OpenShift-specific settings
+openshift: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+server:
+# High Availability configuration
+ha:
+enabled: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+replicas: 3 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+route:
+enabled: true &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+host: openbao.apps.cluster.example.com &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+# Raft storage configuration
+raft:
+enabled: true &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+setNodeId: true
+config: | &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+ui = true
+listener &amp;#34;tcp&amp;#34; {
+tls_disable = 1
+address = &amp;#34;[::]:8200&amp;#34;
+cluster_address = &amp;#34;[::]:8201&amp;#34;
+telemetry {
+unauthenticated_metrics_access = &amp;#34;true&amp;#34;
+}
+}
+storage &amp;#34;raft&amp;#34; {
+path = &amp;#34;/openbao/data&amp;#34;
+retry_join {
+leader_api_addr = &amp;#34;http://openbao-0.openbao-internal:8200&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;http://openbao-1.openbao-internal:8200&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;http://openbao-2.openbao-internal:8200&amp;#34;
+}
+}
+service_registration &amp;#34;kubernetes&amp;#34; {}
+telemetry {
+prometheus_retention_time = &amp;#34;30s&amp;#34;
+disable_hostname = true
+}
+# Resource requests and limits
+resources:
+requests:
+memory: 256Mi
+cpu: 250m
+limits:
+memory: 1Gi
+cpu: 1000m
+# Persistent volume for data
+dataStorage: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+enabled: true
+size: 10Gi
+# storageClass: &amp;#34;gp3-csi&amp;#34;
+# Injector configuration
+injector:
+enabled: true
+replicas: 2 # HA for the injector too &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
+# UI configuration
+ui: &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
+enabled: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;OpenShift specific&lt;/strong&gt;: Activate OpenShift Mode: Critical setting, if you install on OpenShift. It adjusts the Helm chart to use Routes instead of Ingress and modifies RoleBindings to work with OpenShift’s stricter authentication.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;High Availability (HA): Deploys OpenBao as a StatefulSet rather than a Deployment.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Raft Consensus Quorum: Sets the cluster size to 3. Raft requires an &lt;strong&gt;odd number of nodes&lt;/strong&gt; to handle leader elections and avoid split-brain scenarios. This cluster can survive the loss of 1 node.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;OpenShift specific&lt;/strong&gt;: Route: Tells Helm to create an OpenShift Route object automatically.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;OpenShift specific&lt;/strong&gt;: Host: The external DNS address where users and applications will access the OpenBao API and UI.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Integrated Raft Storage: Enables the internal Raft storage backend, removing the need for external dependencies like Consul or Etcd.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Server Configuration (HCL): The actual OpenBao server configuration file. Note that &lt;strong&gt;tls_disable = 1&lt;/strong&gt; is used because the OpenShift Route handles TLS termination at the edge, passing unencrypted traffic to the pod.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Persistent Storage: Allocates a 10Gi Persistent Volume Claim (PVC) for each of the 3 pods to store encrypted data and Raft logs.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Injector Redundancy: Runs 2 replicas of the sidecar injector. If the injector service is down, new application pods attempting to start with secrets will fail.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Web UI: Enables the graphical dashboard service.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_deploy_ha_cluster"&gt;Deploy HA Cluster&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Deploy with HA values
+helm install openbao openbao/openbao \
+--namespace openbao \
+--values openbao-ha-values.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_deployment"&gt;Verify the Deployment&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will result in the following output:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;NAME READY STATUS RESTARTS AGE
+openbao-0 0/1 Running 0 60s &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+openbao-agent-injector-xxx 1/1 Running 0 60s
+openbao-agent-injector-yyy 1/1 Running 0 60s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Only 1 openbao pod (instead of 3) is running, and the pod is not in &amp;#34;ready&amp;#34; state.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As you can see, only one OpenBao pod exists so far, and it is not in &amp;#34;ready&amp;#34; state. This is because OpenBao is not yet initialized and unsealed. Once that is done, the other pods will appear and join the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The OpenBao pods show 0/1 ready because they are sealed and need initialization.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is also indicated in the logs of the openbao pod:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;2026-02-13T14:44:52.587Z [ERROR] core: failed to get raft challenge: leader_addr=http://openbao-0.openbao-internal.openbao.svc:8200
+error=
+| error during raft bootstrap init call: Error making API request.
+|
+| URL: PUT http://openbao-0.openbao-internal.openbao.svc:8200/v1/sys/storage/raft/bootstrap/challenge
+| Code: 503. Errors:
+|
+| * Vault is sealed &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+2026-02-13T14:44:52.588Z [ERROR] core: failed to get raft challenge: leader_addr=http://openbao-2.openbao-internal.openbao.svc:8200 error=&amp;#34;error during raft bootstrap init call: Put \&amp;#34;http://openbao-2.openbao-internal.openbao.svc:8200/v1/sys/storage/raft/bootstrap/challenge\&amp;#34;: dial tcp: lookup openbao-2.openbao-internal.openbao.svc on 172.30.0.10:53: no such host&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+2026-02-13T14:44:52.589Z [ERROR] core: failed to get raft challenge: leader_addr=http://openbao-1.openbao-internal.openbao.svc:8200 error=&amp;#34;error during raft bootstrap init call: Put \&amp;#34;http://openbao-1.openbao-internal.openbao.svc:8200/v1/sys/storage/raft/bootstrap/challenge\&amp;#34;: dial tcp: lookup openbao-1.openbao-internal.openbao.svc on 172.30.0.10:53: no such host&amp;#34;
+2026-02-13T14:44:52.589Z [ERROR] core: failed to retry join raft cluster: retry=2s err=&amp;#34;failed to get raft challenge&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Vault is sealed: This means that the OpenBao service is not yet initialized and unsealed.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;No such host: This means that the OpenBao service is not yet available.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_initializing_and_unsealing_openbao"&gt;Initializing and Unsealing OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After deployment, OpenBao needs to be initialized and unsealed. This is done on the first pod. Once this is done, the other pods will appear and can join the cluster. We will create a local portforwarding to the first pod to initialize it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_initialize_the_cluster"&gt;Initialize the Cluster&lt;/h3&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a local port forwarding to the first pod&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc port-forward openbao-0 8200:8200 -n openbao &amp;amp;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Set environment variable&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export BAO_ADDR=&amp;#39;http://127.0.0.1:8200&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Check status&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will result in the following output:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
+--- -----
+Seal Type shamir
+Initialized false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Sealed true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+Total Shares 0
+Threshold 0
+Unseal Progress 0/0
+Unseal Nonce n/a
+Version 2.5.0
+Build Date 2026-02-04T16:19:33Z
+Storage Type raft
+HA Enabled true &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Not yet initialized&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Vault is sealed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;High Availability is enabled&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Initialize the cluster with 5 key shares and 3 threshold&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao operator init -key-shares=5 -key-threshold=3 -format=json &amp;gt; openbao-init.json&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the file &lt;code&gt;openbao-init.json&lt;/code&gt; with the unseal keys and root token.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;cat openbao-init.json&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Take care of the &lt;code&gt;openbao-init.json&lt;/code&gt; file. It contains the unseal keys and root token!
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_unseal_pod_openbao_0"&gt;Unseal Pod openbao-0&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After initialization, we need to unseal the first pod. This is done by providing 3 different unseal keys. (threshold is 3)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Unseal openbao-0 (3 times with different keys)
+bao operator unseal # Enter first key
+bao operator unseal # Enter second key
+bao operator unseal # Enter third key&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This unseals openbao-0, which can be verified with the command &lt;code&gt;bao status&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
+--- -----
+Seal Type shamir
+Initialized true
+Sealed false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Total Shares 5
+Threshold 3
+Version 2.5.0
+Build Date 2026-02-04T16:19:33Z
+Storage Type raft
+Cluster Name vault-cluster-80c01167
+Cluster ID b81ecb85-9751-655a-95b7-69463dd13241
+HA Enabled true
+HA Cluster https://openbao-0.openbao-internal:8201
+HA Mode active
+Active Since 2026-02-13T14:46:13.292643992Z
+Raft Committed Index 29
+Raft Applied Index 29&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Vault is unsealed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This makes openbao-0 ready and openbao-1 is trying to start:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods
+NAME READY STATUS RESTARTS AGE
+openbao-0 1/1 Running 0 2m10s &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+openbao-1 0/1 Running 0 14s &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+openbao-agent-injector-98769cf97-r4stk 1/1 Running 0 2m12s
+openbao-agent-injector-98769cf97-xldgm 1/1 Running 0 2m12s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;openbao-0 is ready&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;openbao-1 is trying to start and wants to join the Raft cluster&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_activate_pod_openbao_1"&gt;Activate Pod openbao-1&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since OpenBao is already initialized, we can skip the initialization step. However, we must join the &lt;strong&gt;Raft cluster&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-1 -- bao operator raft join http://openbao-0.openbao-internal:8200&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once done, we can unseal openbao-1. We need to provide 3 different unseal keys again.
+Execute the following command 3 times:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-1 -- bao operator unseal
+Unseal Key (will be hidden):&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now &lt;strong&gt;openbao-1&lt;/strong&gt; is ready and openbao-2 is trying to start:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods
+NAME READY STATUS RESTARTS AGE
+openbao-0 1/1 Running 0 3m48s
+openbao-1 1/1 Running 0 112s
+openbao-2 0/1 Running 0 18s
+openbao-agent-injector-98769cf97-r4stk 1/1 Running 0 3m50s
+openbao-agent-injector-98769cf97-xldgm 1/1 Running 0 3m50s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_activate_pod_openbao_2"&gt;Activate Pod openbao-2&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we need to repeat the previous steps for openbao-2.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-2 -- bao operator raft join http://openbao-0.openbao-internal:8200
+# Run 3 times (enter a different unseal key each time):
+oc exec -ti openbao-2 -- bao operator unseal&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_raft_cluster"&gt;Verify Raft Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can verify the Raft cluster by logging in with the root token and then checking the Raft peer list.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-0 -- bao login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Check the peer list:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check Raft peer list
+oc exec -ti openbao-0 -- bao operator raft list-peers
+Node Address State Voter
+---- ------- ----- -----
+openbao-0 openbao-0.openbao-internal:8201 leader true
+openbao-1 openbao-1.openbao-internal:8201 follower true
+openbao-2 openbao-2.openbao-internal:8201 follower true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_accessing_the_ui"&gt;Accessing the UI&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once unsealed, access the OpenBao UI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_via_route_production"&gt;Via Route (Production)&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get route openbao -n openbao
+# Open browser: https://openbao.apps.cluster.example.com&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part3_openbao_login_form.png?width=480px" alt="OpenBao Login Form"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. OpenBao Login Form&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Login with the root token from initialization, or with credentials once authentication is configured.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_upgrading_openbao"&gt;Upgrading OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Keep your secrets management up to date. To upgrade an existing deployment:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Update Helm repository
+helm repo update
+# Check available versions
+helm search repo openbao --versions
+# Upgrade with your values file
+helm upgrade openbao openbao/openbao \
+--namespace openbao \
+--values openbao-ha-values.yaml
+# Watch the rolling update
+oc get pods -n openbao -w&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+After upgrade, pods may need to be unsealed again if they restart.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_pods_not_starting"&gt;Pods Not Starting&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check pod status
+oc describe pod openbao-0 -n openbao
+# Check pod logs
+oc logs openbao-0 -n openbao
+# Check events
+oc get events -n openbao --sort-by=&amp;#39;.lastTimestamp&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_pvc_issues"&gt;PVC Issues&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check PVC status
+oc get pvc -n openbao
+# If pending, check storage class
+oc describe pvc data-openbao-0 -n openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_raft_join_failures"&gt;Raft Join Failures&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If pods cannot join the Raft cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check internal DNS resolution
+oc exec -it openbao-0 -n openbao -- nslookup openbao-internal
+# Check connectivity between pods
+oc exec -it openbao-0 -n openbao -- wget -O- http://openbao-1.openbao-internal:8200/v1/sys/health&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_should_be_considered_next"&gt;What Should Be Considered Next?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Securely store the unseal keys and root token&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure pod anti-affinity for true HA&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Consider auto-unseal for operational ease (upcoming article)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Put everything into a GitOps pipeline&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You now have OpenBao running on OpenShift in high-availability mode. This deployment:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Survives pod failures and restarts&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Uses Raft for distributed consensus&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Integrates with OpenShift security model&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Is ready for production use (after unsealing automation)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Key points to remember:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Use HA mode for production&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Store unseal keys securely&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure pod anti-affinity for true HA&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Consider auto-unseal for operational ease (upcoming article)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm" target="_blank" rel="noopener"&gt;OpenBao Helm Chart Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm Chart GitHub&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/run" target="_blank" rel="noopener"&gt;Running OpenBao on Kubernetes&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Standalone Installation - Part 2</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</link><pubDate>Thu, 12 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;In the previous article, we introduced OpenBao and its core concepts. Now it is time to get our hands dirty with a standalone installation. This approach is useful for testing, development environments, edge deployments, or scenarios where Kubernetes is not available.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="sect1"&gt;

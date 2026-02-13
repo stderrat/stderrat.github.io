@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OpenShift on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/openshift/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 12 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/openshift/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Virtualization Networking - The Overview</title><link>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</link><pubDate>Mon, 29 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OpenShift on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/openshift/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 13 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/openshift/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Virtualization Networking - The Overview</title><link>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</link><pubDate>Mon, 29 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;It’s time to dig into OpenShift Virtualization. You read that right, OpenShift Virtualization, based on &lt;strong&gt;kubevirt&lt;/strong&gt; allows you to run Virtual Machines on top of OpenShift, next to Pods.
 If you come from a pure Kubernetes background, OpenShift Virtualization can feel like stumbling into a different dimension. In the world of Pods, we rarely care about Layer 2, MAC addresses, or VLANs. The SDN (Software Defined Network) handles the magic and we are happy.&lt;/p&gt;
 &lt;/div&gt;
@@ -632,6 +632,823 @@ networkName: br0-network &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&g
 &lt;td&gt;The NAD name&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - OpenShift Deployment with Helm - Part 3</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/</link><pubDate>Fri, 13 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;After understanding standalone installation in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/" target="_blank" rel="noopener"&gt;Part 2&lt;/a&gt;, it is time to deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This approach provides high availability, Kubernetes-native management, and seamless integration with the OpenShift ecosystem.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Deploying OpenBao on OpenShift/Kubernetes offers several advantages:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;High Availability&lt;/strong&gt;: Multiple replicas with automatic failover&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Kubernetes-native&lt;/strong&gt;: Managed by standard Kubernetes primitives&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Persistent Storage&lt;/strong&gt;: Data survives pod restarts via PVCs&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Integration&lt;/strong&gt;: Works with Kubernetes service accounts for authentication&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Scalability&lt;/strong&gt;: Easy to scale and manage&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The official &lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm chart&lt;/a&gt; supports multiple deployment modes:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Dev&lt;/strong&gt;: Single server, in-memory storage (testing only)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Standalone&lt;/strong&gt;: Single server, persistent storage&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;HA&lt;/strong&gt;: Multiple servers with Raft consensus (recommended)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;External&lt;/strong&gt;: Connect to external OpenBao cluster&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_integrations"&gt;Integrations&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Currently, OpenBao supports the following integrations that help seamlessly load secrets into applications without the need to modify the application code:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent Injector&lt;/strong&gt;: A mutating webhook that automatically injects a sidecar container that retrieves and renews secrets.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;CSI Provider&lt;/strong&gt;: A (vendor neutral) CSI driver that mounts secrets as volumes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before deploying, ensure you have:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift 4.12+ or Kubernetes 1.30+&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Helm 3.6+&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;oc&lt;/code&gt; or &lt;code&gt;kubectl&lt;/code&gt; CLI configured&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The OpenBao CLI (&lt;code&gt;bao&lt;/code&gt;) for initialization and unsealing (see &lt;a href="https://openbao.org/docs/install/" target="_blank" rel="noopener"&gt;OpenBao installation&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Cluster-admin privileges (for initial setup)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A storage class that supports ReadWriteOnce PVCs&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Verify prerequisites
+oc version
+helm version
+# Check available storage classes
+oc get storageclass&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_adding_the_helm_repository"&gt;Adding the Helm Repository&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First, add the OpenBao Helm repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Add the OpenBao Helm repository
+helm repo add openbao https://openbao.github.io/openbao-helm
+# Update repository cache
+helm repo update
+# Search for available charts
+helm search repo openbao
+# Expected output:
+# NAME CHART VERSION APP VERSION DESCRIPTION
+# openbao/openbao 0.x.x 2.x.x Official OpenBao Helm chart&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+According to the official documentation, the Helm chart is new and under significant development. It should always be run with --dry-run before any install or upgrade to verify changes.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_creating_the_namespace"&gt;Creating the Namespace&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create a dedicated namespace for OpenBao:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+While I am using the &lt;strong&gt;oc&lt;/strong&gt; CLI, you can also use the &lt;strong&gt;kubectl&lt;/strong&gt; CLI as in-place replacement.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc new-project openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_deployment_mode_high_availability_recommended"&gt;Deployment Mode: High Availability (Recommended)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For production environments, deploy in HA mode with Raft. This is the recommended deployment mode for production and is straightforward to achieve on Kubernetes and OpenShift.
+The following values definitions will use OpenShift specific settings. I will mark them in the callouts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We will first create a values file, deploy openbao and then discuss what must be done to activate all OpenBao pods.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_create_ha_values_file"&gt;Create HA Values File&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create &lt;code&gt;openbao-ha-values.yaml&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The values file is based on the official &lt;a href="https://github.com/openbao/openbao-helm/blob/main/charts/openbao/values.yaml" target="_blank" rel="noopener"&gt;values file from that chart&lt;/a&gt;, but only modified values or important changes are listed here.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;global:
+# Enable OpenShift-specific settings
+openshift: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+server:
+# High Availability configuration
+ha:
+enabled: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+replicas: 3 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+route:
+enabled: true &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+host: openbao.apps.cluster.example.com &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+# Raft storage configuration
+raft:
+enabled: true &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+setNodeId: true
+config: | &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+ui = true
+listener &amp;#34;tcp&amp;#34; {
+tls_disable = 1
+address = &amp;#34;[::]:8200&amp;#34;
+cluster_address = &amp;#34;[::]:8201&amp;#34;
+telemetry {
+unauthenticated_metrics_access = &amp;#34;true&amp;#34;
+}
+}
+storage &amp;#34;raft&amp;#34; {
+path = &amp;#34;/openbao/data&amp;#34;
+retry_join {
+leader_api_addr = &amp;#34;http://openbao-0.openbao-internal:8200&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;http://openbao-1.openbao-internal:8200&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;http://openbao-2.openbao-internal:8200&amp;#34;
+}
+}
+service_registration &amp;#34;kubernetes&amp;#34; {}
+telemetry {
+prometheus_retention_time = &amp;#34;30s&amp;#34;
+disable_hostname = true
+}
+# Resource requests and limits
+resources:
+requests:
+memory: 256Mi
+cpu: 250m
+limits:
+memory: 1Gi
+cpu: 1000m
+# Persistent volume for data
+dataStorage: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+enabled: true
+size: 10Gi
+# storageClass: &amp;#34;gp3-csi&amp;#34;
+# Injector configuration
+injector:
+enabled: true
+replicas: 2 # HA for the injector too &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
+# UI configuration
+ui: &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
+enabled: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;OpenShift specific&lt;/strong&gt;: Activate OpenShift Mode: Critical setting, if you install on OpenShift. It adjusts the Helm chart to use Routes instead of Ingress and modifies RoleBindings to work with OpenShift’s stricter authentication.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;High Availability (HA): Deploys OpenBao as a StatefulSet rather than a Deployment.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Raft Consensus Quorum: Sets the cluster size to 3. Raft requires an &lt;strong&gt;odd number of nodes&lt;/strong&gt; to handle leader elections and avoid split-brain scenarios. This cluster can survive the loss of 1 node.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;OpenShift specific&lt;/strong&gt;: Route: Tells Helm to create an OpenShift Route object automatically.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;OpenShift specific&lt;/strong&gt;: Host: The external DNS address where users and applications will access the OpenBao API and UI.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Integrated Raft Storage: Enables the internal Raft storage backend, removing the need for external dependencies like Consul or Etcd.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Server Configuration (HCL): The actual OpenBao server configuration file. Note that &lt;strong&gt;tls_disable = 1&lt;/strong&gt; is used because the OpenShift Route handles TLS termination at the edge, passing unencrypted traffic to the pod.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Persistent Storage: Allocates a 10Gi Persistent Volume Claim (PVC) for each of the 3 pods to store encrypted data and Raft logs.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Injector Redundancy: Runs 2 replicas of the sidecar injector. If the injector service is down, new application pods attempting to start with secrets will fail.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Web UI: Enables the graphical dashboard service.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_deploy_ha_cluster"&gt;Deploy HA Cluster&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Deploy with HA values
+helm install openbao openbao/openbao \
+--namespace openbao \
+--values openbao-ha-values.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_the_deployment"&gt;Verify the Deployment&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will result in the following output:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;NAME READY STATUS RESTARTS AGE
+openbao-0 0/1 Running 0 60s &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+openbao-agent-injector-xxx 1/1 Running 0 60s
+openbao-agent-injector-yyy 1/1 Running 0 60s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Only 1 openbao pod (instead of 3) is running, and the pod is not in &amp;#34;ready&amp;#34; state.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As you can see, only one OpenBao pod exists so far, and it is not in &amp;#34;ready&amp;#34; state. This is because OpenBao is not yet initialized and unsealed. Once that is done, the other pods will appear and join the cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The OpenBao pods show 0/1 ready because they are sealed and need initialization.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is also indicated in the logs of the openbao pod:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;2026-02-13T14:44:52.587Z [ERROR] core: failed to get raft challenge: leader_addr=http://openbao-0.openbao-internal.openbao.svc:8200
+error=
+| error during raft bootstrap init call: Error making API request.
+|
+| URL: PUT http://openbao-0.openbao-internal.openbao.svc:8200/v1/sys/storage/raft/bootstrap/challenge
+| Code: 503. Errors:
+|
+| * Vault is sealed &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+2026-02-13T14:44:52.588Z [ERROR] core: failed to get raft challenge: leader_addr=http://openbao-2.openbao-internal.openbao.svc:8200 error=&amp;#34;error during raft bootstrap init call: Put \&amp;#34;http://openbao-2.openbao-internal.openbao.svc:8200/v1/sys/storage/raft/bootstrap/challenge\&amp;#34;: dial tcp: lookup openbao-2.openbao-internal.openbao.svc on 172.30.0.10:53: no such host&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+2026-02-13T14:44:52.589Z [ERROR] core: failed to get raft challenge: leader_addr=http://openbao-1.openbao-internal.openbao.svc:8200 error=&amp;#34;error during raft bootstrap init call: Put \&amp;#34;http://openbao-1.openbao-internal.openbao.svc:8200/v1/sys/storage/raft/bootstrap/challenge\&amp;#34;: dial tcp: lookup openbao-1.openbao-internal.openbao.svc on 172.30.0.10:53: no such host&amp;#34;
+2026-02-13T14:44:52.589Z [ERROR] core: failed to retry join raft cluster: retry=2s err=&amp;#34;failed to get raft challenge&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Vault is sealed: This means that the OpenBao service is not yet initialized and unsealed.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;No such host: This means that the OpenBao service is not yet available.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_initializing_and_unsealing_openbao"&gt;Initializing and Unsealing OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After deployment, OpenBao needs to be initialized and unsealed. This is done on the first pod. Once this is done, the other pods will appear and can join the cluster. We will create a local portforwarding to the first pod to initialize it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_initialize_the_cluster"&gt;Initialize the Cluster&lt;/h3&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a local port forwarding to the first pod&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc port-forward openbao-0 8200:8200 -n openbao &amp;amp;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Set environment variable&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export BAO_ADDR=&amp;#39;http://127.0.0.1:8200&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Check status&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will result in the following output:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
+--- -----
+Seal Type shamir
+Initialized false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Sealed true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+Total Shares 0
+Threshold 0
+Unseal Progress 0/0
+Unseal Nonce n/a
+Version 2.5.0
+Build Date 2026-02-04T16:19:33Z
+Storage Type raft
+HA Enabled true &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Not yet initialized&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Vault is sealed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;High Availability is enabled&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Initialize the cluster with 5 key shares and 3 threshold&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao operator init -key-shares=5 -key-threshold=3 -format=json &amp;gt; openbao-init.json&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the file &lt;code&gt;openbao-init.json&lt;/code&gt; with the unseal keys and root token.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;cat openbao-init.json&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Take care of the &lt;code&gt;openbao-init.json&lt;/code&gt; file. It contains the unseal keys and root token!
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_unseal_pod_openbao_0"&gt;Unseal Pod openbao-0&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After initialization, we need to unseal the first pod. This is done by providing 3 different unseal keys. (threshold is 3)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Unseal openbao-0 (3 times with different keys)
+bao operator unseal # Enter first key
+bao operator unseal # Enter second key
+bao operator unseal # Enter third key&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This unseals openbao-0, which can be verified with the command &lt;code&gt;bao status&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
+--- -----
+Seal Type shamir
+Initialized true
+Sealed false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Total Shares 5
+Threshold 3
+Version 2.5.0
+Build Date 2026-02-04T16:19:33Z
+Storage Type raft
+Cluster Name vault-cluster-80c01167
+Cluster ID b81ecb85-9751-655a-95b7-69463dd13241
+HA Enabled true
+HA Cluster https://openbao-0.openbao-internal:8201
+HA Mode active
+Active Since 2026-02-13T14:46:13.292643992Z
+Raft Committed Index 29
+Raft Applied Index 29&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Vault is unsealed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This makes openbao-0 ready and openbao-1 is trying to start:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods
+NAME READY STATUS RESTARTS AGE
+openbao-0 1/1 Running 0 2m10s &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+openbao-1 0/1 Running 0 14s &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+openbao-agent-injector-98769cf97-r4stk 1/1 Running 0 2m12s
+openbao-agent-injector-98769cf97-xldgm 1/1 Running 0 2m12s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;openbao-0 is ready&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;openbao-1 is trying to start and wants to join the Raft cluster&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_activate_pod_openbao_1"&gt;Activate Pod openbao-1&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since OpenBao is already initialized, we can skip the initialization step. However, we must join the &lt;strong&gt;Raft cluster&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-1 -- bao operator raft join http://openbao-0.openbao-internal:8200&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once done, we can unseal openbao-1. We need to provide 3 different unseal keys again.
+Execute the following command 3 times:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-1 -- bao operator unseal
+Unseal Key (will be hidden):&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now &lt;strong&gt;openbao-1&lt;/strong&gt; is ready and openbao-2 is trying to start:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods
+NAME READY STATUS RESTARTS AGE
+openbao-0 1/1 Running 0 3m48s
+openbao-1 1/1 Running 0 112s
+openbao-2 0/1 Running 0 18s
+openbao-agent-injector-98769cf97-r4stk 1/1 Running 0 3m50s
+openbao-agent-injector-98769cf97-xldgm 1/1 Running 0 3m50s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_activate_pod_openbao_2"&gt;Activate Pod openbao-2&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we need to repeat the previous steps for openbao-2.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-2 -- bao operator raft join http://openbao-0.openbao-internal:8200
+# Run 3 times (enter a different unseal key each time):
+oc exec -ti openbao-2 -- bao operator unseal&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_raft_cluster"&gt;Verify Raft Cluster&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can verify the Raft cluster by logging in with the root token and then checking the Raft peer list.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-0 -- bao login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Check the peer list:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check Raft peer list
+oc exec -ti openbao-0 -- bao operator raft list-peers
+Node Address State Voter
+---- ------- ----- -----
+openbao-0 openbao-0.openbao-internal:8201 leader true
+openbao-1 openbao-1.openbao-internal:8201 follower true
+openbao-2 openbao-2.openbao-internal:8201 follower true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_accessing_the_ui"&gt;Accessing the UI&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once unsealed, access the OpenBao UI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_via_route_production"&gt;Via Route (Production)&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get route openbao -n openbao
+# Open browser: https://openbao.apps.cluster.example.com&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part3_openbao_login_form.png?width=480px" alt="OpenBao Login Form"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. OpenBao Login Form&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Login with the root token from initialization, or with credentials once authentication is configured.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_upgrading_openbao"&gt;Upgrading OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Keep your secrets management up to date. To upgrade an existing deployment:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Update Helm repository
+helm repo update
+# Check available versions
+helm search repo openbao --versions
+# Upgrade with your values file
+helm upgrade openbao openbao/openbao \
+--namespace openbao \
+--values openbao-ha-values.yaml
+# Watch the rolling update
+oc get pods -n openbao -w&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+After upgrade, pods may need to be unsealed again if they restart.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_pods_not_starting"&gt;Pods Not Starting&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check pod status
+oc describe pod openbao-0 -n openbao
+# Check pod logs
+oc logs openbao-0 -n openbao
+# Check events
+oc get events -n openbao --sort-by=&amp;#39;.lastTimestamp&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_pvc_issues"&gt;PVC Issues&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check PVC status
+oc get pvc -n openbao
+# If pending, check storage class
+oc describe pvc data-openbao-0 -n openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_raft_join_failures"&gt;Raft Join Failures&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If pods cannot join the Raft cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Check internal DNS resolution
+oc exec -it openbao-0 -n openbao -- nslookup openbao-internal
+# Check connectivity between pods
+oc exec -it openbao-0 -n openbao -- wget -O- http://openbao-1.openbao-internal:8200/v1/sys/health&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_should_be_considered_next"&gt;What Should Be Considered Next?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Securely store the unseal keys and root token&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure pod anti-affinity for true HA&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Consider auto-unseal for operational ease (upcoming article)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Put everything into a GitOps pipeline&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You now have OpenBao running on OpenShift in high-availability mode. This deployment:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Survives pod failures and restarts&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Uses Raft for distributed consensus&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Integrates with OpenShift security model&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Is ready for production use (after unsealing automation)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Key points to remember:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Use HA mode for production&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Store unseal keys securely&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure pod anti-affinity for true HA&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Consider auto-unseal for operational ease (upcoming article)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm" target="_blank" rel="noopener"&gt;OpenBao Helm Chart Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm Chart GitHub&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/run" target="_blank" rel="noopener"&gt;Running OpenBao on Kubernetes&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>Hosted Control Planes behind a Proxy</title><link>https://blog.stderr.at/openshift-platform/other-topics/2025-12-15-hosted-control-planes-and-proxy/</link><pubDate>Mon, 15 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/other-topics/2025-12-15-hosted-control-planes-and-proxy/</guid><description>&lt;div class="paragraph"&gt;
@@ -13009,747 +13826,6 @@ namespace: &amp;#34;default&amp;#34;&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;Whether you’re managing a few applications or hundreds, this template pattern will help you maintain consistency, reduce errors, and improve your team’s GitOps experience.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Cert-Manager Policy Approver in OpenShift</title><link>https://blog.stderr.at/openshift-platform/security/certificates/2025-06-03-cert-manager-approver-policy/</link><pubDate>Tue, 03 Jun 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/certificates/2025-06-03-cert-manager-approver-policy/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;One of the most commonly deployed operators in OpenShift environments is the &lt;strong&gt;Cert-Manager Operator&lt;/strong&gt;. It automates the management of TLS certificates for applications running within the cluster, including their issuance and renewal.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The tool supports a variety of certificate issuers by default, including ACME, Vault, and self-signed certificates. Whenever a certificate is needed, Cert-Manager will automatically create a CertificateRequest resource that contains the details of the certificate. This resource is then processed by the appropriate issuer to generate the actual TLS certificate. The approval process in this case is usually fully automated, meaning that the certificate is issued without any manual intervention.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;But what if you want to have more control? What if certificate issuance must follow strict organizational policies, such as requiring a specifc country code or organization name?
-This is where the &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; resource, a resource provided by the Approver Policy, comes into play.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This article walks through configuring the &lt;strong&gt;Cert-Manager Approver Policy&lt;/strong&gt; in OpenShift to enforce granular policies on certificate requests.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before you begin, ensure you have the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift 4.16 or higher with cluster-admin access&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Cert-Manager Operator installed&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The installation of Cert-Manager itself is discussed in the article: &lt;a href="https://blog.stderr.at/gitopscollection/2024-07-04-managing-certificates-with-gitops/"&gt;Managing Certificates using GitOps approach&lt;/a&gt;.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The Cert-Manager Operator does not currently support the Approver Policy by default. You need to install the Approver Policy manually using a Helm Chart. There is a feature request to include the Approver Policy in the Cert-Manager Operator in the future.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_adding_approver_policy_chart_as_a_dependency"&gt;Adding Approver Policy Chart as a dependency&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Source: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Deployment&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above Chart contains the necessary resources to deploy the Cert-Manager itself and Cert-Manager Approver Policy in OpenShift.
-To deploy the Approver Policy alongside Cert-Manager, add it as a dependency in your &lt;strong&gt;Chart.yaml&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;[...]
-- name: cert-manager-approver-policy
-version: v0.19.0
-repository: https://charts.jetstack.io
-[...]&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is the official Helm Chart for the Cert-Manager Approver Policy tool provided by Jetstack. The version used in this example is v0.19.0, but you can use a newer version if available.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configuration_of_the_helm_chart"&gt;Configuration of the Helm Chart&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The initial &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/cert-manager/values.yaml" target="_blank" rel="noopener"&gt;values.yaml&lt;/a&gt; file was extended to:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;include the configuration for the Approver Policy Chart&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;the configuration for a &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; object&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;with some specific modifications to the CertManager resource itself&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_disabling_cert_managers_auto_approver"&gt;Disabling Cert-Manager’s Auto-Approver&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first step we need to do is to disable the auto-approver of the Cert-Manager. If this is not done, there will be a race condition between the auto-approver and the Approver Policy, which will lead to unexpected results.
-These changes are done by:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;cert-manager:
-certManager:
-enable_patch: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-unsupportedConfigOverrides:
-controller:
-args:
-- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This enables the patching of the CertManager resource, which tells the chart to overwrite (patch) the automatically generated CertManager resource with the custom configuration.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This disables the auto-approver Controller of the Cert-Manager.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-As the name suggests, this is currently an unsupported configuration, but it is necessary to disable the auto-approver for the Cert-Manager. In the future versions of the Cert-Manager, this might change, and the auto-approver might be supported out of the box.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In my case, the full CertManager resource looks like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: operator.openshift.io/v1alpha1
-kind: CertManager
-metadata:
-annotations:
-name: cluster
-spec:
-controllerConfig:
-overrideArgs: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-- &amp;#39;--dns01-recursive-nameservers-only&amp;#39;
-- &amp;#39;--dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53&amp;#39;
-logLevel: Normal
-managementState: Managed
-operatorLogLevel: Normal
-unsupportedConfigOverrides: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-controller:
-args:
-- &amp;#39;--controllers=*,-certificaterequests-approver&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Settings to support AWS Nameservers for DNS01 challenges.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This disables the auto-approver Controller of the Cert-Manager.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_configuration_of_the_approver_policy"&gt;Configuration of the Approver Policy&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The second step is to configure the Approver Policy chart. This chart will deploy the necessary resources, most importantly a Deployment that will start the Pods which will process the CertificateRequestPolicy resources later on.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;My configuration for that chart looks like this (some default values are omitted for brevity):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;cert-manager-approver-policy:
-crds: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-# This option decides if the CRDs should be installed
-# as part of the Helm installation.
-enabled: true
-# This option makes it so that the &amp;#34;helm.sh/resource-policy&amp;#34;: keep
-# annotation is added to the CRD. This will prevent Helm from uninstalling
-# the CRD when the Helm release is uninstalled.
-# WARNING: when the CRDs are removed, all cert-manager-approver-policy custom resources
-# (CertificateRequestPolicy) will be removed too by the garbage collector.
-keep: true
-# Number of replicas of approver-policy to run.
-replicaCount: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-image: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-# Target image repository.
-repository: quay.io/jetstack/cert-manager-approver-policy
-# Kubernetes imagePullPolicy on Deployment.
-pullPolicy: IfNotPresent
-tag: v0.19.0
-app:
-# List of signer names that approver-policy will be given permission to
-# approve and deny. CertificateRequests referencing these signer names can be
-# processed by approver-policy. Defaults to an empty array, allowing approval
-# for all signers.
-approveSignerNames: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- &amp;#39;issuers.cert-manager.io/*&amp;#39;
-- &amp;#39;clusterissuers.cert-manager.io/*&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This enables the installation of the CRDs that are required for the Approver Policy.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The number of replicas of the Approver Policy Deployment. In most cases, one replica is enough.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The image configuration for the Approver Policy. The image is pulled from the Jetstack Quay.io repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The list of signer names that the Approver Policy will be allowed to approve. In this case, it is configured to allow all issuers and clusterissuers.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The approveSignerNames are, if configured, an important setting, especially if you want to add custom (cluster)issuers. In such a case, you need to add the name of the custom issuer to this list. Otherwise the Approver Policy will not be able to approve the CertificateRequests for that issuer.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_creating_a_certificaterequestpolicy_and_rolebinding"&gt;Creating a CertificateRequestPolicy and Role(Binding)&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The final step in our configuration is to define a &lt;strong&gt;CertificateRequestPolicy&lt;/strong&gt; resource that will define the policy for the certificate requests. This resource will be processed by the Approver Policy and will determine if a certificate request is approved or denied based on the defined criteria.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following example shows a CertificateRequestPolicy that will:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Allow certificate requests with any common name, DNS names, IP addresses, URIs, and email addresses.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Require DNS names to be set.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Require the subject to contain a specific organization (MyOrganization) and country code (AT).&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Allow usages for server auth and client auth.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Set constraints for the certificate duration (1h-24h) and private key algorithm (RSA) and size (2048-4096).&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Allow all issuers by using an empty selector.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;role: cert-manager-policy:global-approver &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-serviceAccount: cert-manager &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-cert_manager_Namespace: cert-manager &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-policies:
-- name: my-approver-policy
-enabled: true
-allowed:
-commonName:
-required: false
-value: &amp;#34;*&amp;#34;
-validations: []
-dnsNames: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-required: true
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-ipAddresses:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-uris:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-emailAddresses:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-# isCA: false
-subject:
-organizations: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-required: true
-values:
-- &amp;#34;MyOrganization&amp;#34;
-validations:
-- rule: self.matches(&amp;#34;MyOrganization&amp;#34;)
-message: Organization must be MyOrganization
-countries:
-required: true
-values:
-- AT
-validations:
-- rule: self.matches(&amp;#34;AT&amp;#34;)
-message: Country code must be AT
-usages:
-- &amp;#34;server auth&amp;#34;
-- &amp;#34;client auth&amp;#34;
-constraints: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-minDuration: 1h
-maxDuration: 24h
-privateKey:
-algorithm: RSA
-minSize: 2048
-maxSize: 4096
-selector:
-issuerRef: {} &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The role that is used to approve the certificate requests. This role must be created in the OpenShift cluster and must have the necessary permissions to approve certificate requests.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The service account that is used by the Approver Policy to process the certificate requests. This service account must have the necessary permissions to access the CertificateRequest resources.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The namespace where the Cert-Manager is deployed. This is usually the &lt;code&gt;cert-manager&lt;/code&gt; namespace, but you can change it if you have a different namespace.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The DNS names are required to be set for the certificate request.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The subject must contain the organization MyOrganization and the country code AT.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The constraints for the certificate request, such as the minimum and maximum duration, private key algorithm, and size.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The selector is empty, which means that the policy applies to all issuers. If you want to limit the policy to specific issuers, you can specify the issuerRef here.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_rendered_certificaterequestpolicy_and_rolebinding"&gt;Rendered CertificateRequestPolicy and Role(Binding)&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above configuration will create a CertificateRequestPolicy resource that looks like this:
-&lt;div class="expand"&gt;
-&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});"&gt;
-&lt;i style="font-size:x-small;" class="fas fa-chevron-right"&gt;&lt;/i&gt;
-&lt;span&gt;
-&lt;a&gt;Expand me...&lt;/a&gt;
-&lt;/span&gt;
-&lt;/div&gt;
-&lt;div class="expand-content" style="display: none;"&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-# Source: cert-manager/templates/ClusterRole-Approver-Policy-approving.yaml
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-name: &amp;#34;cert-manager-policy:global-approver&amp;#34;
-labels:
-helm.sh/chart: cert-manager-2.0.0
-app.kubernetes.io/name: cert-manager
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/managed-by: Helm
-rules:
-- verbs:
-- use
-apiGroups:
-- policy.cert-manager.io
-resources:
-- certificaterequestpolicies
-resourceNames:
-- my-approver-policy
----
-# Source: cert-manager/charts/cert-manager-approver-policy/templates/clusterrolebinding.yaml
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-labels:
-app.kubernetes.io/name: cert-manager-approver-policy
-helm.sh/chart: cert-manager-approver-policy-v0.19.0
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/version: &amp;#34;v0.19.0&amp;#34;
-app.kubernetes.io/managed-by: Helm
-name: cert-manager-approver-policy
-roleRef:
-apiGroup: rbac.authorization.k8s.io
-kind: ClusterRole
-name: cert-manager-approver-policy
-subjects:
-- kind: ServiceAccount
-name: cert-manager-approver-policy
-namespace: default
----
-# Source: cert-manager/templates/CertificateRequestPolicy.yaml
-apiVersion: policy.cert-manager.io/v1alpha1
-kind: CertificateRequestPolicy
-metadata:
-name: my-approver-policy
-annotations:
-argocd.argoproj.io/sync-wave: &amp;#34;10&amp;#34;
-labels:
-helm.sh/chart: cert-manager-2.0.0
-app.kubernetes.io/name: cert-manager
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/managed-by: Helm
-spec:
-allowed:
-commonName:
-required: false
-value: &amp;#34;*&amp;#34;
-validations: []
-dnsNames:
-required: true
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-emailAddresses:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-ipAddresses:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-uris:
-required: false
-values:
-- &amp;#34;*&amp;#34;
-validations: []
-isCA: false
-subject:
-organizations:
-required: true
-values:
-- &amp;#34;MyOrganization&amp;#34;
-validations:
-- rule: &amp;#34;self.matches(\&amp;#34;MyOrganization\&amp;#34;)&amp;#34;
-message: &amp;#34;Organization must be MyOrganization&amp;#34;
-countries:
-required: true
-values:
-- &amp;#34;AT&amp;#34;
-validations:
-- rule: &amp;#34;self.matches(\&amp;#34;AT\&amp;#34;)&amp;#34;
-message: &amp;#34;Country code must be AT&amp;#34;
-organizationalUnits:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-localities:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-provinces:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-streetAddresses:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-postalCodes:
-required: false
-values: [&amp;#34;*&amp;#34;]
-validations: []
-serialNumber:
-required: false
-value: &amp;#34;*&amp;#34;
-validations: []
-usages:
-- &amp;#34;server auth&amp;#34;
-- &amp;#34;client auth&amp;#34;
-constraints:
-minDuration: 1h
-maxDuration: 24h
-privateKey:
-algorithm: RSA
-minSize: 2048
-maxSize: 4096
-selector:
-issuerRef: {}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;One important note is about the ClusterRole and ClusterRoleBinding that are created by the Helm Chart. The role looks like the following and is required to allow the Approver Policy to approve certificate requests. This small bit, puzzled me for a while:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;rules:
-- verbs:
-- use
-apiGroups:
-- policy.cert-manager.io
-resources:
-- certificaterequestpolicies
-resourceNames:
-- my-approver-policy&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With the above configuration we are good to go. The Helm Chart can be deployed to the OpenShift cluster (for example, using Argo CD), and the CertificateRequestPolicy will be created automatically.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A new Pod is running in the &lt;strong&gt;cert-manager&lt;/strong&gt; namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;❯ oc get pods -n cert-manager | grep approver
-NAME READY STATUS RESTARTS AGE
-cert-manager-approver-policy-xxxxx 1/1 Running 0 XXm &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The Pod &lt;code&gt;cert-manager-approver-policy-xxxxx&lt;/code&gt; is the Pod that is responsible for processing the CertificateRequestPolicy resources.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_testing_the_policy"&gt;Testing the Policy&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_test_1_valid_certificate_request"&gt;Test 1 - Valid Certificate Request&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now it is time to test the policy. We need to create a Certificate and monitor the output of our approval pod.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a reminder, the policy we created requires the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;The subject must contain the organization MyOrganization&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The subject must contain the country code AT.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The keysize must be at least 2048 bits. (max 4096 bits)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The duration must be between 1 hour and 24 hours.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The usage must be server auth or client auth.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s create this example Certificate in the &lt;code&gt;myproject&lt;/code&gt; namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-name: test-certificate1
-namespace: myproject
-spec:
-dnsNames:
-- test1.apps.ocp.aws.ispworld.at
-duration: 24h
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-privateKey:
-algorithm: RSA
-encoding: PKCS1
-rotationPolicy: Always
-secretName: test1
-subject:
-organizations:
-- MyOrganization
-countries:
-- AT
-usages:
-- server auth&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In the log of the Approver Policy Pod, we should see the following output:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;time=2025-06-03T16:07:58.656Z level=DEBUG+3 msg=&amp;#34;Approved by CertificateRequestPolicy: \&amp;#34;my-approver-policy\&amp;#34;&amp;#34; logger=controller-manager/events type=Normal object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate1-1 [...]}&amp;#34; reason=Approved&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This indicates that the CertificateRequest was approved by the Approver Policy. The policy was able to validate the subject, keysize, duration, and usage of the certificate request and approved it accordingly.
-The certificate has been created successfully in the &lt;strong&gt;myproject&lt;/strong&gt; namespace, and the secret &lt;strong&gt;test1&lt;/strong&gt; contains the TLS certificate and private key.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;❯ oc get secret test1 -n myproject -o yaml
-apiVersion: v1
-data:
-tls.crt: ...
-tls.key: ...
-kind: Secret
-metadata:
-labels:
-controller.cert-manager.io/fao: &amp;#34;true&amp;#34;
-name: test1
-namespace: myproject
-type: kubernetes.io/tls&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_test_2_invalid_certificate_request"&gt;Test 2 - Invalid Certificate Request&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;That was easy, but what happens if we create a CertificateRequest that does not meet the policy requirements? Let’s try to create a Certificate without the required organization or a wrong country code:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-name: test-certificate2
-namespace: myproject
-spec:
-dnsNames:
-- test2.apps.ocp.aws.ispworld.at
-duration: 24h
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-privateKey:
-algorithm: RSA
-encoding: PKCS1
-rotationPolicy: Always
-secretName: test2
-subject: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-countries:
-- XX
-usages:
-- server auth&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The subject does not contain the required organization MyOrganization and the country code is set to XX, which is not allowed by the policy.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will lead to the following error in the log of the Approver Policy Pod:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;time=2025-06-03T16:16:02.233Z level=DEBUG+3 msg=&amp;#34;No policy approved this request: [my-approver-policy: [spec.allowed.subject.organizations.required: Required value: true, spec.allowed.subject.countries.values: Invalid value: []string{\&amp;#34;XX\&amp;#34;}: AT, spec.allowed.subject.countries.validations[0]: Invalid value: \&amp;#34;XX\&amp;#34;: Country code must be AT]]&amp;#34; logger=controller-manager/events type=Warning object=&amp;#34;{Kind:CertificateRequest Namespace:myproject Name:test-certificate2-1 ...&amp;#34; reason=Denied&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It complains that the subject does not meet the policy requirements and therefore the CertificateRequest was denied.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_ok_we_have_a_policy_but_whats_next"&gt;Ok we have a policy, but whats next?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above example shows how the Cert-Manager Approver Policy can be configured and deployed, even if it is not yet supported by the Cert-Manager Operator. However, we only scratched the surface of what is possible with the Approver Policy.
-You can create more complex policies that include additional validations, such as checking the validity of the DNS names, IP addresses, or URIs. You can also create policies that require specific email addresses or organizational units in the subject.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can even create fine-grained policies that apply to specific issuers or namespaces by using the &lt;code&gt;selector&lt;/code&gt; field in the CertificateRequestPolicy resource. This allows you to create policies that are tailored to your specific requirements and use cases.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The best references can be found here:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Official documentation: &lt;a href="https://cert-manager.io/docs/policy/approval/approver-policy/" target="_blank" rel="noopener"&gt;Cert-Manager Approver Policy&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Example Policies: &lt;a href="https://github.com/cert-manager/approver-policy/tree/main/docs/examples" target="_blank" rel="noopener"&gt;Cert-Manager Approver Policy Examples&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Cert-Manager Approver Policy is a powerful tool that allows you to implement custom policies for certificate requests in OpenShift. It provides a way to control the issuance of TLS certificates based on specific criteria, such as the subject, key size, duration, and usage of the certificate.
-While not yet officially supported by the Cert-Manager Operator, it can be easily integrated into your OpenShift environment using a Helm Chart. Future support is currently being discussed, and it is expected that the Approver Policy will be included in the Cert-Manager Operator in the future.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
