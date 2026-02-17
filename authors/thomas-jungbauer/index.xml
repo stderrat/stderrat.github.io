@@ -2473,6 +2473,983 @@ setTimeout(() =&gt; targetCard.classList.remove('gitops-card-highlight'), 2000);
 &lt;/script&gt;
 &lt;/div&gt;
 &lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Enabling TLS on OpenShift - Part 4</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;In &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt; we deployed OpenBao on OpenShift in HA mode with TLS disabled: the OpenShift Route terminates TLS at the edge, and traffic from the Route to the pods is plain HTTP. While this is ok for quick tests, for a production-ready deployment, you should consider TLS for the entire journey. This article explains why and how to enable TLS end-to-end using the cert-manager operator, what to consider, and the exact steps to achieve it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Part 3 uses &lt;code&gt;tls_disable = 1&lt;/code&gt; in the OpenBao listener and relies on the OpenShift Route for TLS. That gives encryption between the client and the Route, but &lt;strong&gt;not&lt;/strong&gt; between the Route and the OpenBao pods or between pods (e.g. Raft). Enabling TLS on OpenBao itself adds encryption in transit everywhere and aligns with defense-in-depth and compliance requirements. After all, we are talking about a secrets management system here and should not compromise security.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This part assumes:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao is already deployed as in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt; (HA with Raft, Agent Injector enabled).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The &lt;strong&gt;cert-manager operator&lt;/strong&gt; is installed and configured on your OpenShift cluster.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The article &lt;a href="https://your-blog/openshift-platform/security/certificates/ssl-certificate-management/"&gt;SSL Certificate Management for OpenShift&lt;/a&gt; describes the setup and usage of the cert-manager operator as an example.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_why_enable_tls"&gt;Why Enable TLS?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Enabling TLS for OpenBao makes sense for several reasons:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Encryption in transit&lt;/strong&gt;: Traffic between the Route and the pods, and between OpenBao peers (Raft), is encrypted. Secrets and tokens are never sent in plain text on the cluster network.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Defense in depth&lt;/strong&gt;: Even if the Route or network is misconfigured, backend traffic remains protected.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compliance&lt;/strong&gt;: Many standards (e.g. PCI-DSS, SOC 2) require encryption in transit for sensitive data; TLS to the application (OpenBao) helps satisfy this.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent Injector&lt;/strong&gt;: The injector webhook is called by the Kubernetes API server. Using TLS for the webhook (with a valid certificate) is required for production and when running multiple replicas.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Consistency&lt;/strong&gt;: Using HTTPS everywhere simplifies client configuration and avoids mixing HTTP/HTTPS in the same environment.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_must_be_considered"&gt;What Must Be Considered?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Two TLS contexts&lt;/strong&gt;: Each needs its own certificate and configuration.&lt;/p&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao server (API and Raft)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Agent Injector (mutating webhook)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Certificate SANs&lt;/strong&gt;: Server certificates must include &lt;strong&gt;all names&lt;/strong&gt; used to reach OpenBao: Route host, internal service names (e.g. openbao.openbao.svc, openbao-0.openbao-internal.openbao.svc), 127.0.0.1 and ::1 for in-pod traffic, and any external DNS you use. The injector certificate must match the injector Service DNS name (e.g. openbao-agent-injector-svc.openbao.svc).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;cert-manager&lt;/strong&gt;: Using cert-manager gives automatic issuance and renewal. You need a ClusterIssuer (or an Issuer) in the OpenBao namespace.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+In this example, we will use a self-signed CA for the OpenBao server and the Agent Injector. In a production environment, you should use a trusted CA.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;OpenShift Route&lt;/strong&gt;: With backend TLS enabled, you can keep the Route in reencrypt mode: the Route terminates TLS from the client and opens a new TLS connection to the pod. Alternatively, use passthrough if you want end-to-end TLS without re-encryption at the Route.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Raft join&lt;/strong&gt;: After switching to TLS, retry_join and cluster addresses must use https:// and the correct hostnames. Existing unseal keys and root token are unchanged; only the transport is different.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Clients&lt;/strong&gt;: CLI and applications must use https:// for BAO_ADDR and, if you use a private CA, BAO_CACERT (or the system trust store) so that the client trusts the server certificate.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao HA deployment from &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt; (namespace &lt;code&gt;openbao&lt;/code&gt;, Helm release &lt;code&gt;openbao&lt;/code&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;cert-manager operator installed on OpenShift.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Sufficient rights to create Issuers, Certificates, and Secrets in the &lt;code&gt;openbao&lt;/code&gt; namespace.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_overview_of_steps"&gt;Overview of Steps&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a &lt;strong&gt;Certificate Authority (CA)&lt;/strong&gt; in the &lt;code&gt;openbao&lt;/code&gt; namespace (or use an existing ClusterIssuer).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Issue a &lt;strong&gt;Certificate for the OpenBao server&lt;/strong&gt; (API + Raft) and store it in a Secret.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Issue a &lt;strong&gt;Certificate for the Agent Injector&lt;/strong&gt; and reference it in the Helm values.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Update &lt;strong&gt;Helm values&lt;/strong&gt; to mount the server cert and CA, and configure the listener and Raft for TLS.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Upgrade&lt;/strong&gt; the Helm release; initialize and unseal openbao-0 (new cluster) or re-unseal (existing).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Verify&lt;/strong&gt; access via HTTPS and configure clients (&lt;code&gt;BAO_ADDR&lt;/code&gt;, &lt;code&gt;BAO_CACERT&lt;/code&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_step_1_certificate_authority_ca_for_openbao"&gt;Step 1: Certificate Authority (CA) for OpenBao&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you already have a ClusterIssuer (e.g. Let’s Encrypt or an enterprise CA), you can use it for the server and injector certificates and skip this step. For a self-signed CA in the OpenBao namespace (typical for internal cluster TLS), create the following.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This self-signed CA is only for testing purposes. In a production environment, you should use a trusted CA, preferably your own.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create a self-signed CA Issuer in the openbao namespace:&lt;/p&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+You might have your own CA or a ClusterIssuer already. You can use them, instead of creating a new one.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+name: openbao-selfsigned
+namespace: openbao &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+selfSigned: {} &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the OpenBao deployment is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The self-signed CA Issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create a self-signed CA Certificate in the openbao namespace:&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will now actually request the CA certificate from the self-signed CA Issuer. This process is fully automated by cert-manager because everything is self-signed. The requested certificate will be stored in the secret openbao-ca-secret and is available immediately.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+name: openbao-ca
+namespace: openbao &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+isCA: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+commonName: OpenBao CA
+secretName: openbao-ca-secret &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+duration: 87660h &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+privateKey: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+algorithm: ECDSA
+size: 256 &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+rotationPolicy: Always &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+issuerRef:
+name: openbao-selfsigned &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+kind: Issuer &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+group: cert-manager.io&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace where the OpenBao deployment is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The certificate is a CA certificate.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the secret where the certificate and key will be stored.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The duration of the certificate. In this case 10 years.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The private key algorithm and size.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The rotation policy of the private key.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The issuer of the certificate.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The kind of the issuer. Can be Issuer or ClusterIssuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_step_2_create_an_issuer_for_the_openbao_server_and_agent_injector"&gt;Step 2: Create an Issuer for the OpenBao Server and Agent Injector&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create an Issuer for the OpenBao Server and Agent Injector. This Issuer will reference the CA certificate and key stored in the secret openbao-ca-secret.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+name: openbao-ca-issuer
+namespace: openbao
+spec:
+ca:
+secretName: openbao-ca-secret&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The name of the secret where the CA certificate and key are stored.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_step_3_certificate_for_the_openbao_server"&gt;Step 3: Certificate for the OpenBao Server&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now it is time to create the certificate for the OpenBao server. The server certificate must include &lt;strong&gt;every hostname&lt;/strong&gt; used to reach OpenBao: the Route host, the headless service, and each Raft member. Adjust the dnsNames and optional uris to match your cluster and Route.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create the following Certificate object:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+name: openbao-server-tls
+namespace: openbao
+spec:
+secretName: openbao-server-tls &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+duration: 8760h &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+renewBefore: 720h &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+commonName: openbao.openbao.svc &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+dnsNames:
+- openbao.apps.cluster.example.com # Route host (adjust to your domain) &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+- openbao &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+- openbao.openbao
+- openbao.openbao.svc
+- openbao.openbao.svc.cluster.local
+- openbao-internal
+- openbao-internal.openbao
+- openbao-internal.openbao.svc
+- openbao-internal.openbao.svc.cluster.local
+- openbao-0.openbao-internal
+- openbao-0.openbao-internal.openbao
+- openbao-0.openbao-internal.openbao.svc
+- openbao-0.openbao-internal.openbao.svc.cluster.local
+- openbao-1.openbao-internal
+- openbao-1.openbao-internal.openbao
+- openbao-1.openbao-internal.openbao.svc
+- openbao-2.openbao-internal
+- openbao-2.openbao-internal.openbao
+- openbao-2.openbao-internal.openbao.svc
+ipAddresses: &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+- 127.0.0.1
+- &amp;#34;::1&amp;#34;
+issuerRef:
+name: openbao-ca-issuer &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+kind: Issuer
+group: cert-manager.io&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the secret where the certificate and key will be stored.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The duration of the certificate. In this case 1 year.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The duration before the certificate is renewed. In this case 30 days.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The common name of the certificate. This is the service name of the OpenBao server.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The Route host. Adjust to your domain.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The headless service names, all should be included.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Required for in-pod traffic: Readiness/liveness probes and local bao commands (e.g. raft join, operator unseal) connect to 127.0.0.1:8200. Without these IP SANs you get &amp;#34;tls: bad certificate&amp;#34; or &amp;#34;x509: cannot validate certificate for 127.0.0.1 because it doesn’t contain any IP SANs&amp;#34;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The issuer of the certificate, this time openbao-ca-issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After a few moments the certificate will be ready and the secret will be created. The cert-manager will store the signed certificate and key in the Secret openbao-server-tls with keys tls.crt and tls.key. The Helm chart can mount this secret for the OpenBao listener.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_step_4_certificate_for_the_agent_injector"&gt;Step 4: Certificate for the Agent Injector&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Agent Injector runs as a webhook; the Kubernetes API server calls it over TLS. The certificate must match the Service DNS name of the injector. Create a Certificate that references the same CA Issuer. In this example we use a short-lived certificate valid for 24 hours, renewed when 10% of the validity period remains.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Save as openbao-injector-cert.yaml:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+name: injector-certificate
+namespace: openbao
+spec:
+secretName: injector-tls &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+duration: 24h &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+renewBefore: 144m
+commonName: Agent Inject Cert &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+dnsNames:
+- openbao-agent-injector-svc &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+- openbao-agent-injector-svc.openbao
+- openbao-agent-injector-svc.openbao.svc
+- openbao-agent-injector-svc.openbao.svc.cluster.local
+issuerRef:
+name: openbao-ca-issuer
+kind: Issuer
+group: cert-manager.io&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the secret where the certificate and key will be stored.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The duration of the certificate. In this case 24 hours. (renewal is done 10% before expiry)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The injector service name.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The injector service name is defined by the Helm chart. If you override the injector service name, adjust dnsNames accordingly.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_step_5_helm_values_for_server_tls"&gt;Step 5: Helm Values for Server TLS&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With all the certificates created, we can update the Helm values so that OpenBao uses the server certificate and listens with TLS. You need to:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Mount the Secret openbao-server-tls into the OpenBao pods.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Set the listener to use tls_cert_file and tls_key_file and disable tls_disable.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Switch Raft retry_join and cluster addresses to https://.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Add the environment variable BAO_CACERT to the OpenBao pods.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we start, we need to export the CA certificate from the secret openbao-ca-secret and save its value:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39; | base64 -d&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will return the certificate like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Save this, you will need it in the next step.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we need to create the Helm values file. This time we will enable TLS. Refer to Part 3 of this series to see what the initial values file looks like.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create or update openbao-ha-values-tls.yaml (building on your Part 3 values):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;global:
+# Enable OpenShift-specific settings
+openshift: true
+# Required when TLS is enabled: tells the chart to use HTTPS for readiness/liveness
+# probes and for in-pod API_ADDR (127.0.0.1:8200). Otherwise you get &amp;#34;client sent
+# an HTTP request to an HTTPS server&amp;#34; from the probes.
+tlsDisable: false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+server:
+extraEnvironmentVars:
+BAO_CACERT: /openbao/tls/openbao-server-tls/ca.crt &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+# High Availability configuration
+ha:
+enabled: true
+replicas: 3
+# Raft storage configuration
+raft:
+enabled: true
+setNodeId: true
+config: |
+ui = true
+listener &amp;#34;tcp&amp;#34; {
+tls_disable = 0 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+address = &amp;#34;[::]:8200&amp;#34;
+cluster_address = &amp;#34;[::]:8201&amp;#34;
+tls_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/tls.crt&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+tls_key_file = &amp;#34;/openbao/tls/openbao-server-tls/tls.key&amp;#34; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+tls_min_version = &amp;#34;tls12&amp;#34; &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+telemetry {
+unauthenticated_metrics_access = &amp;#34;true&amp;#34;
+}
+}
+storage &amp;#34;raft&amp;#34; {
+path = &amp;#34;/openbao/data&amp;#34;
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-0.openbao-internal:8200&amp;#34; &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+leader_tls_servername = &amp;#34;openbao-0.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34; &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+}
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-1.openbao-internal:8200&amp;#34;
+leader_tls_servername = &amp;#34;openbao-1.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-2.openbao-internal:8200&amp;#34;
+leader_tls_servername = &amp;#34;openbao-2.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34;
+}
+}
+service_registration &amp;#34;kubernetes&amp;#34; {}
+telemetry {
+prometheus_retention_time = &amp;#34;30s&amp;#34;
+disable_hostname = true
+}
+route:
+enabled: true
+host: openbao.apps.cluster.example.com
+tls: &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
+# Route terminates client TLS; backend can use reencrypt or passthrough
+termination: reencrypt
+insecureEdgeTerminationPolicy: Redirect
+destinationCACertificate: | &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
+-----BEGIN CERTIFICATE-----
+# CA Certificate
+-----END CERTIFICATE-----
+extraVolumes: &lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;(11)&lt;/b&gt;
+- type: secret
+name: openbao-server-tls
+path: /openbao/tls
+readOnly: true
+extraVolumeMounts: &lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;(12)&lt;/b&gt;
+- name: openbao-server-tls
+mountPath: /openbao/tls
+readOnly: true
+# Resource requests and limits
+resources:
+requests:
+memory: 256Mi
+cpu: 250m
+limits:
+memory: 1Gi
+cpu: 1000m
+# Persistent volume for data
+dataStorage:
+enabled: true
+size: 10Gi
+# storageClass: &amp;#34;gp3-csi&amp;#34;
+# Injector configuration
+injector:
+enabled: true
+replicas: 2 # HA for the injector too
+certs: &lt;i class="conum" data-value="13"&gt;&lt;/i&gt;&lt;b&gt;(13)&lt;/b&gt;
+secretName: injector-tls
+# For a private CA: set caBundle to the CA cert (PEM) so the Kubernetes API server trusts the injector webhook. E.g. oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39; | base64 -d
+caBundle: &amp;#34;BASE64_ENCODED_CA_CERTIFICATE&amp;#34;
+certName: tls.crt
+keyName: tls.key
+# UI configuration
+ui:
+enabled: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;global.tlsDisable&lt;/strong&gt;: Set to false when the server listener uses TLS. This makes the chart use HTTPS for readiness/liveness probes and for the in-pod API_ADDR env var. If you leave it true (default), probes and local clients will use HTTP and you will see &amp;#34;client sent an HTTP request to an HTTPS server&amp;#34;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The environment variable BAO_CACERT is set to the CA certificate file path. This is helpful to execute the boa command inside the container.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The listener tls_disable is set to 0 to enable TLS.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The listener tls_cert_file is set to the certificate file path.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The listener tls_key_file is set to the key file path.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The listener tls_min_version is set to tls12.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The leader API address is set to the HTTPS address.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The leader CA certificate file is set to the CA certificate file path.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The Route tls termination is set to reencrypt.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The destination CA certificate is set to the CA certificate. Be sure not to add any extra lines or spaces.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;11&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The extra volumes are mounted at the /openbao/tls path.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;12&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The extra volume mounts are mounted at the /openbao/tls path.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="13"&gt;&lt;/i&gt;&lt;b&gt;13&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The injector certs are set to the injector TLS secret name. The caBundle must be provided in base64 format.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The secret key names must match what cert-manager writes: tls.crt and tls.key. The OpenBao Helm chart mounts each entry in extraVolumes at path + name (e.g. with path: /openbao/tls and name: openbao-server-tls the secret is mounted at /openbao/tls/openbao-server-tls/). The listener tls_cert_file and tls_key_file must use that full path.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Be sure to change the Route host in the Helm values to the one you are using. In addition, make sure that the CA certificate is added correctly to the Route. Do not add any extra lines or spaces and do not forget the | after destinationCACertificate: and the -----BEGIN CERTIFICATE----- and -----END CERTIFICATE----- lines.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_step_6_upgrade_the_helm_release"&gt;Step 6: Upgrade the Helm Release&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Perform a Helm upgrade so the new volumes and configuration are applied. Pods will restart and pick up TLS; Raft will use HTTPS for join and replication.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm upgrade openbao openbao/openbao \
+--namespace openbao \
+--values openbao-ha-values-tls.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Watch the rollout. The first pod (openbao-0) will log &amp;#34;raft retry join initiated&amp;#34; and stay 0/1 Ready until it is initialized and unsealed (new cluster) or until it forms quorum (existing cluster).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_new_cluster_initialize_and_unseal_openbao_0"&gt;New cluster: initialize and unseal openbao-0&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;openbao-0 will not become Ready until it is initialized and unsealed. Fetch the certificate, use port-forward and talk to OpenBao over HTTPS with the CA:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# 1. Save the CA cert (for BAO_CACERT)
+oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39; | base64 -d &amp;gt; openbao-ca.crt
+# 2. Port-forward to openbao-0 (background)
+oc port-forward openbao-0 8200:8200 -n openbao &amp;amp;
+# 3. Use HTTPS and CA cert
+export BAO_ADDR=&amp;#39;https://127.0.0.1:8200&amp;#39;
+export BAO_CACERT=&amp;#34;$PWD/openbao-ca.crt&amp;#34;
+# 4. Check status, then initialize (only once) and unseal 3 times
+bao status
+bao operator init -key-shares=5 -key-threshold=3 -format=json &amp;gt; openbao-init.json
+bao operator unseal
+bao operator unseal
+bao operator unseal
+bao status&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After unsealing, openbao-0 becomes leader and goes 1/1 Ready. Then start openbao-1 and openbao-2 and join or unseal them as in Part 3 (use https://).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Perform the following steps for the other pods - join the raft cluster and unseal them (3 times):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-1 -- bao operator raft join https://openbao-0.openbao-internal:8200
+# 3 times with 3 different unseal keys
+oc exec -ti openbao-1 -- bao operator unseal
+Unseal Key (will be hidden):&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Repeat the same steps for openbao-2.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_existing_cluster_re_unseal_after_restart"&gt;Existing cluster: re-unseal after restart&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The existing cluster is already initialized. Re-unseal the pods (and re-join the raft cluster if necessary).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n openbao -w
+oc exec -ti openbao-1 -- bao operator raft join https://openbao-0.openbao-internal:8200
+oc exec -ti openbao-1 -- bao operator unseal # three times; same for openbao-2&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Repeat the same steps for openbao-2.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_step_7_verify_and_use_https_from_clients"&gt;Step 7: Verify and Use HTTPS from Clients&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify server health over HTTPS (from inside the cluster):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl -k https://openbao.apps.cluster.example.com/v1/sys/health | jq&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Be sure to use the Route host in the Helm values.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;From your workstation, use the Route URL with HTTPS. If the Route host is signed by your internal CA, set BAO_CACERT to the CA file:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export BAO_ADDR=&amp;#39;https://openbao.apps.cluster.example.com&amp;#39;
+export BAO_CACERT=&amp;#39;/path/to/openbao-ca.crt&amp;#39;
+bao status&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Be sure to use the Route host in the Helm values.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Agent Injector: New pods that use the injector should start without webhook certificate errors. Check injector logs if you see TLS or certificate errors:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc logs -n openbao -l app.kubernetes.io/name=openbao-agent-injector -f&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_mutatingwebhookconfiguration_conflict_vault_k8s"&gt;MutatingWebhookConfiguration conflict (vault-k8s)&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;conflict occurred while applying object ... MutatingWebhookConfiguration: Apply failed with 1 conflict: conflict with &amp;#34;vault-k8s&amp;#34; using ... .webhooks[name=&amp;#34;vault.hashicorp.com&amp;#34;].clientConfig.caBundle
+this is a server-side apply (SSA) field ownership conflict. The OpenBao chart uses the same webhook name (vault.hashicorp.com) as the HashiCorp Vault agent injector for annotation compatibility. The clientConfig.caBundle field is still owned by a previous manager (e.g. a prior Vault Helm release or the Vault injector), so Helm cannot update it when you change the injector certificate.&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Fix option 1&lt;/strong&gt; – Delete the webhook and re-upgrade (recommended)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Remove the MutatingWebhookConfiguration so Helm can recreate it and own all fields. There will be a short window where the injector webhook is missing (new pods requesting injection may fail until the upgrade completes).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Replace RELEASE_NAME with your Helm release name (e.g. openbao)
+RELEASE_NAME=openbao
+oc delete mutatingwebhookconfiguration ${RELEASE_NAME}-agent-injector-cfg
+# Re-run the upgrade
+helm upgrade ${RELEASE_NAME} openbao/openbao \
+--namespace openbao \
+--values openbao-ha-values-tls.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Fix option 2&lt;/strong&gt; – Force takeover of the conflicting field&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you cannot delete the webhook (e.g. in production), take over the caBundle field with server-side apply, then run the Helm upgrade again:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Export the MutatingWebhookConfiguration, set webhooks[0].clientConfig.caBundle to your injector CA (base64 PEM from openbao-ca-secret), then re-apply with --server-side --force-conflicts:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Get the current object and the new CA bundle
+oc get mutatingwebhookconfiguration openbao-agent-injector-cfg -o yaml &amp;gt; mwc.yaml
+CA_BUNDLE=$(oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39;)
+# Edit mwc.yaml: set .webhooks[0].clientConfig.caBundle to the value of CA_BUNDLE (no quotes in YAML).
+# Then apply with force-conflicts so Helm can later manage it:
+oc apply -f mwc.yaml --server-side --force-conflicts
+# Re-run the Helm upgrade
+helm upgrade openbao openbao/openbao --namespace openbao --values openbao-ha-values-tls.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you still have HashiCorp Vault’s agent injector installed on the same cluster, ensure only one injector is active for a given namespace (e.g. use namespace selectors) or uninstall the Vault injector to avoid two webhooks with the same name in different resources.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_route_ui_tls_bad_record_mac"&gt;Route / UI – tls: bad record MAC&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Pod logs show &lt;code&gt;tls: bad record MAC&lt;/code&gt; from the router IP. The Route is likely using &lt;strong&gt;edge&lt;/strong&gt; termination (HTTP to pod). Fix: Use reencrypt and set &lt;code&gt;destinationCACertificate&lt;/code&gt; (Step 5).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get route openbao -n openbao -o jsonpath=&amp;#39;{.spec.tls.termination}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the OpenBao UI does not load and the pod logs show:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;http: TLS handshake error from 10.x.x.x:xxxxx: local error: tls: bad record MAC&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;the traffic is coming from the OpenShift router (the IP is typically a cluster pod IP).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Cause&lt;/strong&gt;: The Route is likely using edge termination: the router terminates TLS at the edge and sends plain HTTP to the pod. The pod expects HTTPS, so the TLS layer receives non-TLS data and reports &amp;#34;bad record MAC&amp;#34;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Fix&lt;/strong&gt;: Use reencrypt (or passthrough) and set destinationCACertificate so the router talks HTTPS to the pod. See Step 5 above. Quick check:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get route openbao -n openbao -o jsonpath=&amp;#39;{.spec.tls.termination}&amp;#39;
+# Must be &amp;#34;reencrypt&amp;#34; or &amp;#34;passthrough&amp;#34;, not &amp;#34;edge&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the output is edge, patch the Route to reencrypt and set spec.tls.destinationCACertificate to the CA PEM (Step 5).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_tls_handshake_127_0_0_1_certificate_errors"&gt;TLS handshake / 127.0.0.1 certificate errors&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you see in the pod logs:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;remote error: tls: bad certificate (from 127.0.0.1)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;or when running:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -ti openbao-0 — bao operator raft join https://…​;: x509: cannot validate certificate for 127.0.0.1 because it doesn’t contain any IP SANs&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The server certificate does not include 127.0.0.1 (and optionally ::1) as Subject Alternative Names. Readiness/liveness probes and in-pod bao commands connect to the listener on 127.0.0.1, so the certificate must include these IP SANs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Fix&lt;/strong&gt;: Add ipAddresses to the OpenBao server Certificate and let cert-manager re-issue:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Edit the Certificate (or re-apply the YAML from Step 3 with ipAddresses added)
+oc edit certificate openbao-server-tls -n openbao
+# Add under spec:
+# ipAddresses:
+# - 127.0.0.1
+# - &amp;#34;::1&amp;#34;
+# cert-manager will issue a new cert; wait until the secret is updated
+oc get certificate openbao-server-tls -n openbao
+# Restart OpenBao pods so they load the new cert
+oc rollout restart statefulset/openbao -n openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/configuration/" target="_blank" rel="noopener"&gt;OpenBao Helm configuration&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/examples/injector-tls-cert-manager/" target="_blank" rel="noopener"&gt;OpenBao Agent Injector TLS with cert-manager&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://cert-manager.io/docs/" target="_blank" rel="noopener"&gt;cert-manager documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Guide to OpenBao - OpenShift Deployment with Helm - Part 3</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/</link><pubDate>Fri, 13 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;After understanding standalone installation in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/" target="_blank" rel="noopener"&gt;Part 2&lt;/a&gt;, it is time to deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This approach provides high availability, Kubernetes-native management, and seamless integration with the OpenShift ecosystem.&lt;/p&gt;
 &lt;/div&gt;
@@ -13274,496 +14251,6 @@ when you installed you cluster on VMware with a certain boot image (let’s say 
 &lt;div class="sectionbody"&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;&lt;a href="https://access.redhat.com/solutions/7131061"&gt;How to use Changed Block Tracking (Dev Preview) in OpenShift 4.20&lt;/a&gt;. Change block tracking for PV’s is now in dev preview. Whatever this means exactly, needs more investigation.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Red Hat Quay Registry - Integrate Keycloak</title><link>https://blog.stderr.at/openshift-platform/quay/2025-09-19-quay-integrate-keycloak/</link><pubDate>Fri, 19 Sep 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/quay/2025-09-19-quay-integrate-keycloak/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;This guide shows you how to configure Keycloak as an OpenID Connect (OIDC) provider for Red Hat Quay Registry. It covers what to configure in Keycloak, what to put into Quay’s config.yaml (or Operator config), how to verify the login flow, and how to switch your Quay initial/admin account (stored locally in Quay’s DB) to an admin user that authenticates via Keycloak.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before starting this integration, ensure you have:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift cluster with admin access&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Red Hat Quay Registry 3.15+ installed (via Operator)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Red Hat build of Keycloak stable-v22+ installed and configured (via Operator)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Valid SSL certificates for both Quay and Keycloak&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Admin access to both Keycloak Admin Console and Quay configuration&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Basic understanding of OIDC/OAuth2 concepts&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Here we are using the Quay Operator and the Keycloak Operator on OpenShift.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_quick_overview_what_happens"&gt;Quick overview (what happens)&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Create a Keycloak client for Quay (OIDC).&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configure Quay’s OIDC provider section in config.yaml to point to Keycloak (client id/secret, endpoints, scopes, claim names).&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Restart Quay, test login via Keycloak. The first time an OIDC user logs in, Quay creates a local user record that is linked to the OIDC identity.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Promote that Quay user to superuser by adding their Quay username to SUPER_USERS (or use the UI/API).&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_keycloak_create_a_client_for_quay"&gt;Keycloak: create a client for Quay&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Steps in Keycloak Admin console:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Log in to the Keycloak Admin Console and select the realm you will use for Quay or create a new realm.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Select that realm and go to clients&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Press &lt;strong&gt;Create client&lt;/strong&gt; to create and configure a new client for Quay. Not much must be configured here, but at least the following:&lt;/p&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;Client type: OpenID Connect&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Client ID: quay-enterprise (The ID we will use in the Quay configuration as well)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Client authentication: ON&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Valid redirects URIs:&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback" class="bare"&gt;https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;(Optional) &lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/attach" class="bare"&gt;https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/attach&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;(Optional) &lt;a href="https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/cli" class="bare"&gt;https://&amp;lt;quay-hostname&amp;gt;/oauth2/&amp;lt;service-id&amp;gt;/callback/cli&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The service-id is the parent key you’ll use in Quay config — e.g. keycloak.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;Save the client.&lt;/p&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Go to Credentials and create or copy the &lt;strong&gt;client secret&lt;/strong&gt; you will use in Quay.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-&lt;strong&gt;(Optional)&lt;/strong&gt; If you intend to use groups/roles from Keycloak for Quay team synchronization, ensure your Keycloak users or groups are populated and that Keycloak includes group membership in tokens or exposes group claims (you may need to add a protocol mapper in the client to include groups or roles in the ID token or userinfo response). Refer to Keycloak docs for adding protocol mappers.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_keycloak_create_users_and_groups"&gt;Keycloak: create users and groups&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Go to Users and create a new user or use an existing one.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;If you created a new user, set a password for them in the Credentials tab.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Go to Groups and create a new group or use an existing one.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;You can assign users to that group.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_quay_add_oidc_configuration"&gt;Quay: add OIDC configuration&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Quay’s OIDC block is a nested object under &lt;strong&gt;AUTHENTICATION_TYPE: OIDC&lt;/strong&gt;. The parent key can be any name (e.g., KEYCLOAK_LOGIN_CONFIG) — Quay uses the parent key name to form the callback paths.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock important"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-important" title="Important"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The parent key name (before _LOGIN_CONFIG) must match the service-id used in Keycloak redirect URIs.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Example config.yaml snippet for Keycloak:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Using Quay Operator this configuration is stored as a secret in the namespace where Quay is installed.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;AUTHENTICATION_TYPE: OIDC &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-KEYCLOAK_LOGIN_CONFIG: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-CLIENT_ID: quay-enterprise &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-CLIENT_SECRET: &amp;lt;client-secret&amp;gt; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-LOGIN_SCOPES:
-- openid
-- email
-- profile
-- groups
-OIDC_SERVER: https://&amp;lt;keycloak hostname&amp;gt;/realms/quay/ &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-SERVICE_NAME: keycloak &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-PREFERRED_USERNAME_CLAIM_NAME: preferred_username
-VERIFIED_EMAIL_CLAIM_NAME: email
-PREFERRED_GROUP_CLAIM_NAME: groups
-OIDC_DISABLE_USER_ENDPOINT: false &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Set this parameter to &lt;strong&gt;OIDC&lt;/strong&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;parent key name can be any string (use KEYCLOAK_LOGIN_CONFIG here). This is important, and the part in front of _LOGIN_CONFIG must match the service-id you used in Keycloak.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The client id you used in Keycloak.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The client secret you used in Keycloak.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The realm base URL (no trailing /protocol…​), e.g.:
-&lt;a href="https://&amp;lt;keycloak_hostname&amp;gt;/realms/quay/" class="bare"&gt;https://&amp;lt;keycloak_hostname&amp;gt;/realms/quay/&lt;/a&gt; — Quay will discover .well-known/openid-configuration endpoints automatically.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The service name you used in Keycloak.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Set this parameter to &lt;strong&gt;false&lt;/strong&gt; to allow Quay to fetch user information from Keycloak. If using Azure Entra ID set this to &lt;strong&gt;true&lt;/strong&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Since we are using Quay Operator, the operator will pick up the changes automatically and restart Quay.
-If you are using a standalone Quay installation, you need to restart Quay for the change to take effect. (Config is not hot-reloaded.)&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_testing_login"&gt;Testing Login&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s do some tests to verify the configuration.
-Above we have created some users and groups in Keycloak. Let’s try to log in with one of them.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Open your Quay UI ( &lt;a href="https://&amp;lt;quay_hostname&amp;gt;" class="bare"&gt;https://&amp;lt;quay_hostname&amp;gt;&lt;/a&gt;; ) in a browser. On the login page you should see the external login option labelled Keycloak (or the SERVICE_NAME you set).&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/quay/images/quay-login-oidc.png?width=320" alt="quay login oidc"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic" start="2"&gt;
-&lt;li&gt;
-&lt;p&gt;Click the &amp;#34;Sign in with Keycloak&amp;#34; option. and you will be redirected to Keycloak’s login screen. Here you can authenticate with a Keycloak user.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/quay/images/quay-keycloak.png?width=320" alt="quay keycloak"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After successful authentication, Keycloak redirects back to Quay and Quay creates a local user mapped to the OIDC claims (username, email). If you set USERNAME_CLAIM to preferred_username, look at the created Quay username in the UI under your user’s profile.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_make_the_keycloak_user_a_quay_admin"&gt;Make the Keycloak user a Quay admin&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In Quay only one identity provider can be used at a time. If you previously set up a local admin account, you need to make a Keycloak user a Quay admin by adding their Quay username to SUPER_USERS where all administrators are listed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In the Quay configuration, you can define administrators using the SUPER_USERS array.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Make sure the Keycloak user has logged in once so Quay has created a local user record
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Edit the Quay configuration once more and add the Quay username (exact username created by Quay).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For example, let’s say we have created a user called &amp;#34;alice&amp;#34; in Keycloak. We need to add this user to the SUPER_USERS array.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;SETUP_COMPLETE: true
-SUPER_USERS:
-- admin # existing local admin (optional)
-- alice # alice is the Quay username created from Keycloak login&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After restart, the Quay account alice will have superuser privileges (same as if created in the UI).&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_working_with_podman_on_cli"&gt;Working with Podman on CLI&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now, as we changed the authentication method, we need to verify if we can push/pull images from/to the registry.
-The command line tool of the choice is &lt;strong&gt;podman&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;However, podman does not redirect to SSO login, so it needs a token to authenticate. We can generate a new token for a user in the Quay UI.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;In the Quay UI, go to the &lt;strong&gt;Account Settings&lt;/strong&gt; (upper right corner)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;In the settings section, under &lt;strong&gt;Docker CLI and other Application Tokens&lt;/strong&gt;, click on &lt;strong&gt;Create Application Token&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Enter a name for the token&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Select the newly created token and copy the podman login command (or any other command you need)&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/quay/images/quay-app-pass.png?width=320" alt="quay app pass"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The command for podman will look like this:&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman login -u=&amp;#39;$app&amp;#39; -p=&amp;#39;&amp;lt;token&amp;gt;&amp;#39; &amp;lt;quay-url&amp;gt;
-Login Succeeded!&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now you can push/pull images from/to the registry.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_troubleshooting"&gt;Troubleshooting&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Common issues and their solutions:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_redirect_uri_mismatch"&gt;Redirect URI Mismatch&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;: Keycloak returns &amp;#34;Invalid redirect URI&amp;#34; error&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;: Ensure all three redirect URIs are configured in Keycloak client:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-none hljs"&gt;https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback
-https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback/attach
-https://&amp;lt;quay-hostname&amp;gt;/oauth2/keycloak/callback/cli&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_username_mapping_issues"&gt;Username Mapping Issues&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;: Quay creates unexpected usernames&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Check which claim Keycloak sends: inspect ID token in browser dev tools&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Common claims: preferred_username, email, sub, name&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Update PREFERRED_USERNAME_CLAIM_NAME in Quay config accordingly&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_ssl_certificate_issues"&gt;SSL Certificate Issues&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;: Quay cannot reach Keycloak due to TLS verification errors&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Solutions&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Install your internal CA certificate in the Quay container&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Use publicly trusted certificates for both services&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;For testing only: disable SSL verification (not recommended for production)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_authentication_flow_failures"&gt;Authentication Flow Failures&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;: Login redirects but fails to create user in Quay&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Debugging steps&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Check Quay logs: &lt;code&gt;oc logs deployment/quay-app&lt;/code&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Verify OIDC discovery endpoint: &lt;code&gt;&lt;a href="https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration" class="bare"&gt;https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration&lt;/a&gt;&lt;/code&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Confirm client secret matches between Keycloak and Quay&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Test with curl: &lt;code&gt;curl -k &lt;a href="https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration" class="bare"&gt;https://&amp;lt;keycloak&amp;gt;/realms/&amp;lt;realm&amp;gt;/.well-known/openid-configuration&lt;/a&gt;&lt;/code&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Integrating Quay 3.15 with Keycloak via OIDC centralizes authentication, simplifies user management, and allows you to leverage enterprise identity features. The key steps are straightforward: create a Keycloak client with the correct redirect URIs, configure the corresponding OIDC block in Quay’s config.yaml.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;By switching the initial database-backed admin to an identity managed in Keycloak, you reduce the risk of &amp;#34;orphaned&amp;#34; local accounts and align Quay administration with your organization’s identity and access management strategy.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
