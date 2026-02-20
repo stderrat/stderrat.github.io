@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OpenShift on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/openshift/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 17 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/openshift/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Virtualization Networking - The Overview</title><link>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</link><pubDate>Mon, 29 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>OpenShift on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/openshift/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 20 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/openshift/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Virtualization Networking - The Overview</title><link>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</link><pubDate>Mon, 29 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/virtualization/2025-12-29-openshift-virtualization-networking/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;It’s time to dig into OpenShift Virtualization. You read that right, OpenShift Virtualization, based on &lt;strong&gt;kubevirt&lt;/strong&gt; allows you to run Virtual Machines on top of OpenShift, next to Pods.
 If you come from a pure Kubernetes background, OpenShift Virtualization can feel like stumbling into a different dimension. In the world of Pods, we rarely care about Layer 2, MAC addresses, or VLANs. The SDN (Software Defined Network) handles the magic and we are happy.&lt;/p&gt;
 &lt;/div&gt;
@@ -632,6 +632,769 @@ networkName: br0-network &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&g
 &lt;td&gt;The NAD name&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - GitOps Deployment with Argo CD - Part 5</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-20-openbao-part-5-gitops-deployment/</link><pubDate>Fri, 20 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-20-openbao-part-5-gitops-deployment/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Following the GitOps mantra &amp;#34;If it is not in Git, it does not exist&amp;#34;, this article demonstrates how to deploy and manage OpenBao using Argo CD. This approach provides version control, audit trails, and declarative management for your secret management infrastructure.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Deploying OpenBao via GitOps offers significant advantages:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Version Control&lt;/strong&gt;: All configuration changes are tracked in Git&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Audit Trail&lt;/strong&gt;: Who changed what, when, and why&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Declarative&lt;/strong&gt;: Desired state is defined, not imperative commands&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Reproducible&lt;/strong&gt;: Same deployment process across environments&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Self-healing&lt;/strong&gt;: Argo CD ensures actual state matches desired state&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, there are challenges specific to secret management:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Initial unsealing requires manual intervention or automationxw&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Root tokens and unseal keys must be handled carefully&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Chicken-and-egg problem: How to store OpenBao secrets before OpenBao exists?&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This article will focus on the deployment of the applicaiotns for the OpenBao deployment. The problem with the automatic unsealing will be addressed in the next article.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before you begin, ensure you have:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift GitOps (Argo CD) installed and configured&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A Git repository for your cluster configuration&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Understanding of the App-of-Apps pattern (see &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/"&gt;Configure App-of-Apps&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The official OpenBao Helm chart from &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_wrapper_helm_chart"&gt;The (Wrapper) Helm Chart&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The official OpenBao Helm Chart works well for deploying OpenBao itself. However, additional settings such as certificates are not covered there. Therefore, I created a (wrapper) Helm Chart that includes the official OpenBao Helm Chart, a &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; that I created a while ago, and allows you to add additional objects in the templates folder.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I will follow the same setup as discussed in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls"&gt;Part 4&lt;/a&gt;. This means:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create Issuer for Cert-Manager&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create CA Certificate for OpenBao&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create Certificate for OpenBao Server&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create Certificate for OpenBao Agent Injector&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install OpenBao Helm Chart&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, there is &lt;strong&gt;one significant issue&lt;/strong&gt; with this approach: we need the certificate details (especially the CA certificate) before we can install the OpenBao Helm Chart, since the certificate must be referenced in the values file. This is a chicken-and-egg problem—particularly if you use self-signed CA certificates.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since you typically create the CA certificate first and only once (or have it already), a separate Application for the CA certificate is a good approach. Once this is synchronised, the OpenBao Application can be updated and deployed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This means we will need two Helm Charts: one for the CA certificate and one for OpenBao itself.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_helm_chart_for_the_ca_certificate"&gt;Helm Chart for the CA Certificate&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create a new Helm Chart for the CA certificate. This will use the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; as a dependency and will create the:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Issuer for Cert-Manager&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Request the CA certificate from the Issuer&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create the &lt;strong&gt;openbao&lt;/strong&gt; namespace&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The example I am using can be found at &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/openbao-ca-certificate" target="_blank" rel="noopener"&gt;GitOps openbao-ca-certificate&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Please check the &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/" target="_blank" rel="noopener"&gt;GitOps Repository Structure&lt;/a&gt; and subsequent articles for more information on how to structure your Git repository.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the &lt;strong&gt;Chart.yaml&lt;/strong&gt; file you can see two dependencies:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;dependencies:
+- name: tpl
+version: ~1.0.0
+repository: https://charts.stderr.at/
+- name: cert-manager
+version: ~2.0.3 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+repository: https://charts.stderr.at/
+condition: cert-manager.enabled&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The Cert-Manager Helm Chart version must be at least 2.0.3 to support the namespace parameter for the Issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;tpl&lt;/strong&gt; dependency is a library that contains templates for the namespace and other shared components (I keep this library in my &lt;a href="https://blog.stderr.at/helm-charts/" target="_blank" rel="noopener"&gt;Helm Charts&lt;/a&gt; repository). The &lt;strong&gt;cert-manager&lt;/strong&gt; dependency is the Cert-Manager Helm Chart.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;values.yaml&lt;/strong&gt; file below contains the configuration for the Cert-Manager:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+All settings that are passed to a subchart (cert-manager) must be prefixed with the name of the subchart. In this case, &lt;code&gt;cert-manager.&lt;/code&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;namespace:
+create: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+name: &amp;#34;openbao&amp;#34;
+description: &amp;#34;OpenBao Namespace&amp;#34;
+displayName: &amp;#34;OpenBao Namespace&amp;#34;
+additionalLabels:
+pod-security.kubernetes.io/audit: restricted
+pod-security.kubernetes.io/audit-version: latest
+pod-security.kubernetes.io/warn: restricted
+pod-security.kubernetes.io/warn-version: latest
+cert-manager: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+enabled: true &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+issuer:
+# Name of issuer
+- name: openbao-selfsigned &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+# -- Syncwave to create this issuer
+syncwave: 5 &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+# -- Type can be either ClusterIssuer or Issuer
+type: Issuer
+# -- Enable this issuer.
+# @default -- false
+enabled: true
+# -- Namespace for Issuer (ignored for ClusterIssuer). Defaults to the default namespace when not set.
+namespace: openbao &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+# -- Create a selfSigned issuer. The SelfSigned issuer doesn&amp;#39;t represent a certificate authority as such, but instead denotes that certificates will &amp;#34;sign themselves&amp;#34; using a given private key.
+selfSigned: true &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+certificates: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+enabled: true
+# List of certificates
+certificate:
+- name: openbao-ca
+enabled: true
+namespace: openbao
+syncwave: &amp;#34;10&amp;#34;
+secretName: openbao-ca-secret
+duration: 87660h
+dnsNames:
+- openbao-ca
+privateKey:
+algorithm: ECDSA
+size: 256
+rotationPolicy: Always
+isCA: true
+# Reference to the issuer that shall be used.
+issuerRef:
+name: openbao-selfsigned
+kind: Issuer&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Create the &lt;strong&gt;openbao&lt;/strong&gt; namespace with various settings.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the Cert-Manager subchart. All settings below will be passed to the Cert-Manager subchart.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enables Cert-Manager.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Syncwave for this issuer; it must be lower than the syncwave of the certificate.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Namespace for the issuer; supported since version 2.0.3 of the Cert-Manager Helm Chart.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Creates a self-signed issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The certificate section and all the settings. Verify the &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/#_step_1_certificate_authority_ca_for_openbao"&gt;Part 4&lt;/a&gt; for more information.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This chart creates the &lt;strong&gt;openbao&lt;/strong&gt; namespace, which is required for the OpenBao deployment.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_helm_chart_for_the_openbao_deployment"&gt;Helm Chart for the OpenBao Deployment&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create a new Helm Chart for the OpenBao deployment. This will use the official &lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm chart&lt;/a&gt; and the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; as dependencies and will create the:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao deployment (including Route)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Issuer for the OpenBao server using the CA certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Required OpenBao certificates based on the CA certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I have added the full values.yaml file below. Please check the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/openbao/values.yaml" target="_blank" rel="noopener"&gt;GitOps openbao/values.yaml&lt;/a&gt; to fetch the full chart.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Besides the two certificates added here in the values.yaml file, I made two further changes: fullnameOverride and nameOverride are both set to &lt;strong&gt;openbao&lt;/strong&gt;. This is good practice for setting the name of the deployment when using Argo CD.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This values file contains the CA certificate in plain text. Whether that is acceptable is debatable—it is a public certificate, and here it is self-signed and used only in my demo environment.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;# Full values.yaml file for the OpenBao deployment
+########################################################
+# Cert-Manager
+########################################################
+cert-manager:
+enabled: true
+issuer:
+# Name of issuer
+- name: openbao-ca-issuer &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+# -- Syncwave to create this issuer
+syncwave: &amp;#39;-1&amp;#39;
+# -- Type can be either ClusterIssuer or Issuer
+type: Issuer
+# -- Enable this issuer.
+# @default -- false
+enabled: true
+# -- Namespace for Issuer (ignored for ClusterIssuer). Defaults to the default namespace when not set.
+namespace: openbao
+ca:
+secretName: openbao-ca-secret
+certificates:
+enabled: true
+# List of certificates
+certificate:
+########################################################
+# OpenBao Server TLS Certificate
+########################################################
+- name: openbao-server-tls &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+enabled: true
+namespace: openbao
+syncwave: &amp;#34;0&amp;#34;
+secretName: openbao-server-tls
+duration: 8760h
+renewBefore: 720h
+dnsNames:
+- openbao.openbao.svc
+- openbao.apps.ocp.aws.ispworld.at # Route host (adjust to your domain)
+- openbao
+- openbao.openbao
+- openbao.openbao.svc
+- openbao.openbao.svc.cluster.local
+- openbao-internal
+- openbao-internal.openbao
+- openbao-internal.openbao.svc
+- openbao-internal.openbao.svc.cluster.local
+- openbao-0.openbao-internal
+- openbao-0.openbao-internal.openbao
+- openbao-0.openbao-internal.openbao.svc
+- openbao-0.openbao-internal.openbao.svc.cluster.local
+- openbao-1.openbao-internal
+- openbao-1.openbao-internal.openbao
+- openbao-1.openbao-internal.openbao.svc
+- openbao-2.openbao-internal
+- openbao-2.openbao-internal.openbao
+- openbao-2.openbao-internal.openbao.svc
+ipAddresses:
+- 127.0.0.1
+- &amp;#34;::1&amp;#34;
+# Reference to the issuer that shall be used.
+issuerRef:
+name: openbao-ca-issuer
+kind: Issuer
+########################################################
+# Injector TLS Certificate
+########################################################
+- name: injector-certificate &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+enabled: true
+namespace: openbao
+syncwave: &amp;#34;0&amp;#34;
+secretName: injector-tls
+duration: 24h
+renewBefore: 144m
+dnsNames:
+- openbao-agent-injector-svc
+- openbao-agent-injector-svc.openbao
+- openbao-agent-injector-svc.openbao.svc
+- openbao-agent-injector-svc.openbao.svc.cluster.local
+# Reference to the issuer that shall be used.
+issuerRef:
+name: openbao-ca-issuer
+kind: Issuer
+########################################################
+# OpenBao Deployment
+########################################################
+openbao: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+# Override the full name of the deployment via Argo CD
+fullnameOverride: openbao
+nameOverride: openbao
+global:
+# Enable OpenShift-specific settings
+openshift: true
+# -- The namespace to deploy to. Defaults to the `helm` installation namespace.
+namespace: openbao
+# Required when TLS is enabled: tells the chart to use HTTPS for readiness/liveness
+# probes and for in-pod API_ADDR (127.0.0.1:8200). Otherwise you get &amp;#34;client sent
+# an HTTP request to an HTTPS server&amp;#34; from the probes.
+tlsDisable: false
+server:
+extraEnvironmentVars:
+BAO_CACERT: /openbao/tls/openbao-server-tls/ca.crt
+# High Availability configuration
+ha:
+enabled: true
+replicas: 3
+# Raft storage configuration
+raft:
+enabled: true
+setNodeId: true
+config: |
+ui = true
+listener &amp;#34;tcp&amp;#34; {
+tls_disable = 0
+address = &amp;#34;[::]:8200&amp;#34;
+cluster_address = &amp;#34;[::]:8201&amp;#34;
+tls_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/tls.crt&amp;#34;
+tls_key_file = &amp;#34;/openbao/tls/openbao-server-tls/tls.key&amp;#34;
+tls_min_version = &amp;#34;tls12&amp;#34;
+telemetry {
+unauthenticated_metrics_access = &amp;#34;true&amp;#34;
+}
+}
+storage &amp;#34;raft&amp;#34; {
+path = &amp;#34;/openbao/data&amp;#34;
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-0.openbao-internal:8200&amp;#34;
+leader_tls_servername = &amp;#34;openbao-0.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-1.openbao-internal:8200&amp;#34;
+leader_tls_servername = &amp;#34;openbao-1.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-2.openbao-internal:8200&amp;#34;
+leader_tls_servername = &amp;#34;openbao-2.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34;
+}
+}
+service_registration &amp;#34;kubernetes&amp;#34; {}
+telemetry {
+prometheus_retention_time = &amp;#34;30s&amp;#34;
+disable_hostname = true
+}
+route:
+enabled: true
+host: openbao.apps.ocp.aws.ispworld.at
+tls:
+# Route terminates client TLS; backend can use reencrypt or passthrough
+termination: reencrypt
+insecureEdgeTerminationPolicy: Redirect
+destinationCACertificate: |
+-----BEGIN CERTIFICATE-----
+MIIBWzCCAQCgAwIBAgIQNdbg4KIu9oi6dDClE8drmjAKBggqhkjOPQQDAjAAMB4X
+DTI2MDIxODA5NDIxNFoXDTM2MDIxODIxNDIxNFowADBZMBMGByqGSM49AgEGCCqG
+SM49AwEHA0IABIeYw35/kEHvyctLtOA5xMlyQNxUtXtfBbZMUfPh6AN5MFjIGuNS
+cn07a3EpSpfY6/3DaPpu+4wYNFlc+/qDNYajXDBaMA4GA1UdDwEB/wQEAwICpDAP
+BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQgyRk5Vv9K0VULcCgga5mRg4O9kTAY
+BgNVHREBAf8EDjAMggpvcGVuYmFvLWNhMAoGCCqGSM49BAMCA0kAMEYCIQCwQ7lZ
+Q0jzUjJFzpTGkQjU2+OB159LIQMSbSQ7dz8nVQIhAIDa7f87tjQxDxbJio+/vJx2
+awFaWnueGOOQpvwCcV/+
+-----END CERTIFICATE-----
+extraVolumes:
+- type: secret
+name: openbao-server-tls
+path: /openbao/tls
+readOnly: true
+extraVolumeMounts:
+- name: openbao-server-tls
+mountPath: /openbao/tls
+readOnly: true
+# Resource requests and limits
+resources:
+requests:
+memory: 256Mi
+cpu: 250m
+limits:
+memory: 1Gi
+cpu: 1000m
+# Persistent volume for data
+dataStorage:
+enabled: true
+size: 10Gi
+# storageClass: &amp;#34;gp3-csi&amp;#34;
+# Injector configuration
+injector:
+enabled: true
+replicas: 2 # HA for the injector too
+certs:
+secretName: injector-tls
+# For a private CA: set caBundle to the CA cert (PEM) so the Kubernetes API server trusts the injector webhook. E.g. oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39; | base64 -d
+caBundle: &amp;#34;LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJXekNDQVFDZ0F3SUJBZ0lRTmRiZzRLSXU5b2k2ZERDbEU4ZHJtakFLQmdncWhrak9QUVFEQWpBQU1CNFgKRFRJMk1ESXhPREE1TkRJeE5Gb1hEVE0yTURJeE9ESXhOREl4TkZvd0FEQlpNQk1HQnlxR1NNNDlBZ0VHQ0NxRwpTTTQ5QXdFSEEwSUFCSWVZdzM1L2tFSHZ5Y3RMdE9BNXhNbHlRTnhVdFh0ZkJiWk1VZlBoNkFONU1GaklHdU5TCmNuMDdhM0VwU3BmWTYvM0RhUHB1KzR3WU5GbGMrL3FETllhalhEQmFNQTRHQTFVZER3RUIvd1FFQXdJQ3BEQVAKQmdOVkhSTUJBZjhFQlRBREFRSC9NQjBHQTFVZERnUVdCQlFneVJrNVZ2OUswVlVMY0NnZ2E1bVJnNE85a1RBWQpCZ05WSFJFQkFmOEVEakFNZ2dwdmNHVnVZbUZ2TFdOaE1Bb0dDQ3FHU000OUJBTUNBMGtBTUVZQ0lRQ3dRN2xaClEwanpVakpGenBUR2tRalUyK09CMTU5TElRTVNiU1E3ZHo4blZRSWhBSURhN2Y4N3RqUXhEeGJKaW8rL3ZKeDIKYXdGYVdudWVHT09RcHZ3Q2NWLysKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=&amp;#34;
+certName: tls.crt
+keyName: tls.key
+# UI configuration
+ui:
+enabled: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Issuer for OpenBao. The syncwave is set to &amp;#39;-1&amp;#39; to create the issuer before the certificate request and the OpenBao deployment.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Certificate for the OpenBao server, with all DNS names and IP addresses used to reach it. The syncwave is set to &amp;#39;0&amp;#39; so the certificate is created after the issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Certificate for the OpenBao Agent Injector, with all DNS names used to reach it. The syncwave is set to &amp;#39;0&amp;#39; so the certificate is created after the issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;OpenBao deployment configuration; the two overrides fullnameOverride and nameOverride are both set to &lt;strong&gt;openbao&lt;/strong&gt;. See &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/#_step_5_helm_values_for_server_tls"&gt;Part 4&lt;/a&gt; for more information.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_creating_argo_cd_applications"&gt;Creating Argo CD Applications&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Whilst the Helm Charts are ready, we need to create the Argo CD Applications for the CA certificate and the OpenBao deployment.
+If you read our blog carefully, you will notice that these Application resources are created automatically when I add something to the folder clusters/management-cluster :)
+This is done by leveraging ApplicationSet resources and is fully described in the &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/" target="_blank" rel="noopener"&gt;GitOps Repository Structure&lt;/a&gt; and subsequent articles.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For the sake of simplicity, I will show the created Application resources below. The setup is the same for both; they simply target a different path in the Git repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;# Full Application resource for the OpenBao CA Certificate
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: in-cluster-openbao-ca-certificate
+namespace: openshift-gitops
+spec:
+destination:
+name: in-cluster &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: default &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+info:
+- name: Description
+value: ApplicationSet that Deploys on Management Cluster Configuration (using Git Generator)
+project: in-cluster &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+source:
+path: clusters/management-cluster/openbao-ca-certificate &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+targetRevision: main
+syncPolicy:
+retry:
+backoff:
+duration: 5s
+factor: 2
+maxDuration: 3m
+limit: 5
+---
+# Full Application resource for the OpenBao deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: in-cluster-openbao
+namespace: openshift-gitops
+spec:
+destination:
+name: in-cluster &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: openbao &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+info:
+- name: Description
+value: ApplicationSet that Deploys on Management Cluster Configuration (using Git Generator)
+project: in-cluster &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+source:
+path: clusters/management-cluster/openbao &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+targetRevision: main
+syncPolicy:
+retry:
+backoff:
+duration: 5s
+factor: 2
+maxDuration: 3m
+limit: 5&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Target cluster; here, the local cluster&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Namespace of the target cluster; here, the OpenBao deployment will be installed.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Argo CD Project (must exist)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path to the Git repository for the CA certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;URL of the Git repository&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path to the OpenBao deployment&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the following Applications:
+- in-cluster-openbao-ca-certificate
+- in-cluster-openbao&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The ApplicationSet adds the prefix &lt;strong&gt;in-cluster-&lt;/strong&gt; to each Application name so that they remain unique in Argo CD.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part5_openbao_argocd.png" alt="OpenBao Argo CD Applications"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Argo CD: OpenBao Argo CD Applications&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first Application to synchronise is &lt;strong&gt;in-cluster-openbao-ca-certificate&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It creates the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Namespace&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;CA Issuer&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;CA Certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Then synchronise &lt;strong&gt;in-cluster-openbao&lt;/strong&gt;. It creates:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao deployment&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao Agent Injector&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao Server TLS Certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao Agent Injector TLS Certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_openbao_is_runningwhat_next"&gt;OpenBao is running—what next?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Deploying OpenBao via GitOps gives you version control and declarative management for your secret management infrastructure.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Whilst OpenBao is running and managed by Argo CD, the next step is to configure it: you will need to handle initialisation (for a new cluster) and unsealing (see &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt; and &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/"&gt;Part 4&lt;/a&gt;). That manual approach does not scale. In the next article, I will discuss ways to automate initialisation and unsealing.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Key takeaways:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Use sync waves to control deployment order&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Consider auto-unseal for production (Part 6)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Store initialisation data securely outside Git&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/" target="_blank" rel="noopener"&gt;Configure App-of-Apps&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/helm/" target="_blank" rel="noopener"&gt;Argo CD Helm Support&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/" target="_blank" rel="noopener"&gt;Argo CD Sync Waves&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Enabling TLS on OpenShift - Part 4</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/</guid><description>&lt;div class="paragraph"&gt;
@@ -13723,666 +14486,6 @@ objects in different namespaces.&lt;/p&gt;
 &lt;p&gt;Furthermore we configured HTTP to HTTPS redirects and dove into
 &lt;em&gt;HTTPRoute&lt;/em&gt; ordering if a route matches multiple listeners in a
 &lt;em&gt;Gateway&lt;/em&gt; definition.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>A first look into the Kubernetes Gateway API on OpenShift</title><link>https://blog.stderr.at/openshift-platform/networking/2025-08-29-openshift-gateway-api/</link><pubDate>Fri, 29 Aug 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/networking/2025-08-29-openshift-gateway-api/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;This blog post summarizes our first look into the Kubernetes Gateway
-API and how it is integrated in OpenShift.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Kubernetes Gateway API is new implementation of the ingress, load
-balancing and service mesh API’s. See
-&lt;a href="https://gateway-api.sigs.k8s.io/" target="_blank" rel="noopener"&gt;upstream&lt;/a&gt; for more information.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Also the &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/ingress_and_load_balancing/configuring-ingress-cluster-traffic#nw-ingress-gateway-api-overview_ingress-gateway-api" target="_blank" rel="noopener"&gt;OpenShift documentation&lt;/a&gt; provides an overview of the Gateway API and it’s integration.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_things_to_consider_when_using_gateway_api_with_openshift"&gt;Things to consider when using Gateway API with OpenShift&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Currently UDN (User Defined Networks) with Gateway API are not supported.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Only TLS termination on the edge is supported (no pass-through or re-encrypt), this needs to be confirmed. We can’t find the original source of this statement&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The standard OpenShift ingress controller manages Gateway API Resources&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Gateway API provides a standard on how to get client traffic into a
-Kubernetes cluster. Vendors provide an implementation of the API. So
-OpenShift provides &lt;strong&gt;ONE&lt;/strong&gt; possible implementation, but there could
-be more than one in a cluster.&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;We found the following sentence in the OpenShift documentation
-interesting:&lt;/p&gt;
-&lt;div class="literalblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre&gt;Because OpenShift Container Platform uses a specific
-version of Gateway API CRDs, any use of third-party implementations
-of Gateway API must conform to the OpenShift Container Platform
-implementation to ensure that all fields work as expected&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_setting_up_gateway_api_on_openshift"&gt;Setting up Gateway API on OpenShift&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before you begin, ensure you have the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift 4.19 or higher with cluster-admin access&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;First you need to create a &lt;code&gt;GatewayClass&lt;/code&gt; object.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Be aware that the &lt;code&gt;GatewayClass&lt;/code&gt; object is &lt;strong&gt;NOT&lt;/strong&gt; namespaced.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-name: openshift-default
-spec:
-controllerName: openshift.io/gateway-controller/v1 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The controller name needs to be exactly as shown. Otherwise the
-ingress controller will &lt;strong&gt;NOT&lt;/strong&gt; manage the gateway and associated
-resources.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This creates a new pod in the openshift-ingress namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get po -n openshift-ingress
-NAME READY STATUS RESTARTS AGE
-istiod-openshift-gateway-7b567bc8b4-4lrt2 1/1 Running 0 12m &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-router-default-6db958cbd-dlbwz 1/1 Running 12 14d&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;this pod got create after applying the gateway class resource&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;code&gt;router-default&lt;/code&gt; is the default openshift ingress pod. The first
-difference seems to be the SCC (security context constraint) the pods
-are using.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get po -n openshift-ingress -o jsonpath=&amp;#39;{range .items[*]}{.metadata.name}{&amp;#34;\t&amp;#34;}{.metadata.annotations.openshift\.io/scc}{&amp;#34;\n&amp;#34;}{end}&amp;#39;
-istiod-openshift-gateway-7b567bc8b4-4lrt2 restricted-v2
-router-default-6db958cbd-dlbwz hostnetwork&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The standard router used host networking for listing on port 80 and 443
-on the node where it is running. Our &lt;code&gt;GatewayClass&lt;/code&gt; currently only
-provides a pod running Istiod awaiting further configuration. To
-actually listen for client request additional configuration is
-required.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A &lt;code&gt;Gateway&lt;/code&gt; is required to listen for client requests. We create the
-following gateway:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-name: http-gateway
-namespace: openshift-ingress &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-spec:
-gatewayClassName: openshift-default
-listeners:
-- name: http
-protocol: HTTP
-port: 80
-hostname: &amp;#34;*.apps.ocp.lan.stderr.at&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We create this gateway in the same namespace as the istio
-deployment. This is required for OpenShift.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This creates an additional pod in the &lt;code&gt;openshift-ingress&lt;/code&gt; namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get po
-NAME READY STATUS RESTARTS AGE
-http-gateway-openshift-default-d476664f5-h87mp 1/1 Running 0 36s&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We also got a new service for the our http-gateway&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;➜ oc get svc
-NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
-http-gateway-openshift-default LoadBalancer 172.30.183.48 10.0.0.150 15021:30251/TCP,80:30437/TCP 4m52s&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The interesting thing is the &lt;code&gt;TYPE&lt;/code&gt; of the service. It’s of type
-&lt;code&gt;LoadBalancer&lt;/code&gt;. We have
-&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/networking_operators/metallb-operator"&gt;MetalLB&lt;/a&gt;
-deployed in our cluster, this might be the reason for this. We will
-try to configure a gateway without MetalLB in in upcoming post.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Lets take a look at the gateway resource&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get gtw
-NAME CLASS ADDRESS PROGRAMMED AGE
-http-gateway openshift-default 10.0.0.150 True 3m&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So this seems to be working. But know we have a problem: the &lt;code&gt;*.apps&lt;/code&gt;
-domain that we used for our gateway points already to the default
-OpenShift Ingress. We could either&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;redeploy the gateway with a different wildcard domain (e.g. *.gtw…​)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;create a more specific DNS record that points to our new load balancer&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s try to confirm this with &lt;em&gt;curl&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ curl -I http://bla.apps.ocp.lan.stderr.at
-HTTP/1.0 503 Service Unavailable
-pragma: no-cache
-cache-control: private, max-age=0, no-cache, no-store
-content-type: text/html&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;code&gt;503&lt;/code&gt; is the response of default OpenShift Ingress.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ curl -I http://10.0.0.150
-HTTP/1.1 404 Not Found
-date: Fri, 29 Aug 2025 14:31:31 GMT
-transfer-encoding: chunked&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Our new gateway returns a &lt;code&gt;404&lt;/code&gt; not found response. We choose the
-first option and create another wildcard DNS entry for
-&lt;code&gt;*.gtw.ocp.lan.stderr.at&lt;/code&gt;. We re-deployed our gateway with the new hostname:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-name: http-gateway
-namespace: openshift-ingress
-spec:
-gatewayClassName: openshift-default
-listeners:
-- name: http
-protocol: HTTP
-port: 80
-hostname: &amp;#34;*.gtw.ocp.lan.stderr.at&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;New hostname for resources exposed via our gateway&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc apply -f gateway.yaml
-gateway.gateway.networking.k8s.io/http-gateway created&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This also creates a DNSRecord resource:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc describe dnsrecords.ingress.operator.openshift.io -n openshift-ingress http-gateway-c8d7bfc67-wildcard
-Name: http-gateway-c8d7bfc67-wildcard
-Namespace: openshift-ingress
-Labels: gateway.istio.io/managed=openshift.io-gateway-controller-v1
-gateway.networking.k8s.io/gateway-name=http-gateway
-istio.io/rev=openshift-gateway
-Annotations: &amp;lt;none&amp;gt;
-API Version: ingress.operator.openshift.io/v1
-Kind: DNSRecord
-Metadata:
-Creation Timestamp: 2025-08-29T14:49:45Z
-Finalizers:
-operator.openshift.io/ingress-dns
-Generation: 1
-Owner References:
-API Version: v1
-Kind: Service
-Name: http-gateway-openshift-default
-UID: a023de5d-c428-4249-a190-de3cbfeb6964
-Resource Version: 141150968
-UID: 7a61a867-216e-40b7-88f3-e3934493c477
-Spec:
-Dns Management Policy: Managed
-Dns Name: *.gtw.ocp.lan.stderr.at.
-Record TTL: 30
-Record Type: A
-Targets:
-10.0.0.150
-Events: &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This resource is only internally used by the OpenShift ingress
-operator (see &lt;code&gt;oc explain dnsrecord&lt;/code&gt; for details).&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_creating_httproutes_for_exposing_our_service"&gt;Creating HTTPRoutes for exposing our service.&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To actually expose a HTTP pod via our new gateway we need:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;A &lt;em&gt;Namespace&lt;/em&gt; to deploy an example pod. We will use a Nginx for this&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;A &lt;em&gt;Service&lt;/em&gt; that exposes our Nginx pod&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;and finally a &lt;em&gt;HTTPRoute&lt;/em&gt; resource&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For the nginx deployment we used the following manifest:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: v1
-kind: Namespace
-metadata:
-name: gateway-api-test
-spec:
-finalizers:
-- kubernetes
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-name: nginx-deployment
-namespace: gateway-api-test
-labels:
-app: nginx
-spec:
-replicas: 1
-selector:
-matchLabels:
-app: nginx
-template:
-metadata:
-labels:
-app: nginx
-spec:
-containers:
-- name: nginx
-image: quay.io/nginx/nginx-unprivileged:1.29.1
-ports:
-- containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-name: nginx
-namespace: gateway-api-test
-spec:
-selector:
-app: nginx
-ports:
-- protocol: TCP
-port: 8080
-targetPort: 8080&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s see if our nginx pod got deployed successfully:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc get po,svc -n gateway-api-test
-NAME READY STATUS RESTARTS AGE
-pod/nginx-deployment-796cdf7474-b7bqz 1/1 Running 0 20s
-NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
-service/nginx ClusterIP 172.30.42.36 &amp;lt;none&amp;gt; 8080/TCP 21s&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;And finally confirm our &lt;code&gt;Service&lt;/code&gt; is working:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc port-forward -n gateway-api-test svc/nginx 8080 &amp;amp;
-Forwarding from 127.0.0.1:8080 -&amp;gt; 8080
-Forwarding from [::1]:8080 -&amp;gt; 8080
-$ curl -I localhost:8080
-Handling connection for 8080
-HTTP/1.1 200 OK
-Server: nginx/1.29.1
-Date: Fri, 29 Aug 2025 15:45:12 GMT
-Content-Type: text/html
-Content-Length: 615
-Last-Modified: Wed, 13 Aug 2025 14:33:41 GMT
-Connection: keep-alive
-ETag: &amp;#34;689ca245-267&amp;#34;
-Accept-Ranges: bytes&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We received a response from our nginx pod, hurray!&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So next let’s try to create a &lt;code&gt;HTTPRoute&lt;/code&gt; to expose our nginx service to external clients:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-name: nginx-route
-spec:
-parentRefs:
-- name: http-gateway
-namespace: openshift-ingress
-hostnames: [&amp;#34;nginx.gtw.ocp.lan.stderr.at&amp;#34;]
-rules:
-- backendRefs:
-- name: nginx
-namespace: gateway-api-test
-port: 8080&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;One important point here, the &lt;code&gt;Gateway&lt;/code&gt; actually come in two flavors&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;dedicated gateways, only accepting HTTP routes in the same namespace (&lt;code&gt;openshift-ingress&lt;/code&gt;) in our case.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;shared gateways, which also accept HTTP route objects from other namespaces&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;see &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/ingress_and_load_balancing/configuring-ingress-cluster-traffic#nw-ingress-gateway-api-deployment_ingress-gateway-api"&gt;Gateway API deployment topologies&lt;/a&gt; in the OpenShift documentation for more information.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As this post is already rather long, we focus on the dedicated gateway topology for now.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The HTTP route must be deployed in the same namespace as the
-gateway if the dedicated topology is used.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So let’s deploy our &lt;code&gt;HTTPRoute&lt;/code&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc apply -f httproute.yaml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Verify we can reach our nginx pod:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;curl -I http://nginx.gtw.ocp.lan.stderr.at
-HTTP/1.1 500 Internal Server Error
-date: Fri, 29 Aug 2025 15:57:34 GMT
-transfer-encoding: chunked&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This return a &lt;em&gt;500&lt;/em&gt; error, something seems to be wrong with our route,
-let’s take a look at the status of the &lt;code&gt;HTTPRoute&lt;/code&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ oc describe gtw http-gateway
-.
-. (output omitted)
-.
-Status:
-Parents:
-Conditions:
-Last Transition Time: 2025-08-29T15:54:43Z
-Message: Route was valid
-Observed Generation: 1
-Reason: Accepted
-Status: True
-Type: Accepted
-Last Transition Time: 2025-08-29T15:54:43Z
-Message: backendRef nginx/gateway-api-test not accessible to a HTTPRoute in namespace &amp;#34;openshift-ingress&amp;#34; (missing a ReferenceGrant?) &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-Observed Generation: 1
-Reason: RefNotPermitted
-Status: False &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-Type: ResolvedRefs
-Controller Name: openshift.io/gateway-controller/v1
-Parent Ref:
-Group: gateway.networking.k8s.io
-Kind: Gateway
-Name: http-gateway
-Namespace: openshift-ingress&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Something seems to be wrong as the status is &lt;em&gt;False&lt;/em&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Seems we are missing a ReferenceGrant&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Looking at the
-&lt;a href="https://gateway-api.sigs.k8s.io/api-types/referencegrant/" target="_blank" rel="noopener"&gt;upstream&lt;/a&gt;
-documentation reveals a security feature of the Gateway API. Before a
-&lt;code&gt;HTTPRoute&lt;/code&gt; can reach a service in a &lt;em&gt;different&lt;/em&gt; namespace we must
-create a &lt;code&gt;ReferenceGrant&lt;/code&gt; in the namespace providing the service.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So let’s try to deploy following &lt;code&gt;ReferenceGrant&lt;/code&gt; in the &lt;em&gt;gateway-api-test&lt;/em&gt; namespace:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: ReferenceGrant
-metadata:
-name: nginx
-namespace: gateway-api-test
-spec:
-from:
-- group: gateway.networking.k8s.io
-kind: HTTPRoute
-namespace: openshift-ingress
-to:
-- group: &amp;#34;&amp;#34;
-kind: Service&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Checking the status field of our &lt;code&gt;HTTPRoute&lt;/code&gt; again:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;(output omitted)
-Status:
-Addresses:
-Type: IPAddress
-Value: 10.0.0.150
-Conditions:
-Last Transition Time: 2025-08-29T15:47:07Z
-Message: Resource accepted
-Observed Generation: 1
-Reason: Accepted
-Status: True
-Type: Accepted
-Last Transition Time: 2025-08-29T15:47:08Z
-Message: Resource programmed, assigned to service(s) http-gateway-openshift-default.openshift-ingress.svc.cluster.local:80
-Observed Generation: 1
-Reason: Programmed
-Status: True &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-Type: Programmed&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;&lt;em&gt;Status&lt;/em&gt; is now &lt;em&gt;True&lt;/em&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;and finally calling the nginx pod again via our gateway:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;$ curl -I http://nginx.gtw.ocp.lan.stderr.at
-HTTP/1.1 200 OK
-server: nginx/1.29.1
-date: Fri, 29 Aug 2025 16:01:33 GMT
-content-type: text/html
-content-length: 615
-last-modified: Wed, 13 Aug 2025 14:33:41 GMT
-etag: &amp;#34;689ca245-267&amp;#34;
-accept-ranges: bytes&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally everything seems to be in place and working.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this blog post we took a first look at the Kubernetes Gateway API
-and it’s integration into OpenShift. We enabled the Gateway API via a
-&lt;code&gt;GatewayClass&lt;/code&gt; resource, created a simple HTTP Gateway via a
-&lt;code&gt;Gateway&lt;/code&gt;, deploy a Nginx pod and a Service and exposed the service
-via a &lt;code&gt;HTTPRoute&lt;/code&gt; and a &lt;code&gt;ReferenceGrant&lt;/code&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Hopefully an upcoming blog post will cover how to&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;How to deploy a Gateway without MetalLB&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Deploy a TLS secured service&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;implement HTTP redirects&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;rewriting URL’s (if possible)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;and other possibilities of the Gateway API&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>

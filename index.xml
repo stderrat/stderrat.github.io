@@ -885,6 +885,769 @@ networkName: br0-network &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&g
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>GitOps Catalog</title><link>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</link><pubDate>Mon, 22 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;The &lt;a href="https://blog.stderr.at/gitops-catalog/"&gt;GitOps Catalog&lt;/a&gt; page provides an interactive visualization of all available ArgoCD applications from the openshift-clusterconfig-gitops repository. Check out the page &lt;strong&gt;&lt;a href="https://blog.stderr.at/gitops-catalog/"&gt;GitOps Catalog&lt;/a&gt;&lt;/strong&gt; for more details.&lt;/p&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - GitOps Deployment with Argo CD - Part 5</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-20-openbao-part-5-gitops-deployment/</link><pubDate>Fri, 20 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-20-openbao-part-5-gitops-deployment/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Following the GitOps mantra &amp;#34;If it is not in Git, it does not exist&amp;#34;, this article demonstrates how to deploy and manage OpenBao using Argo CD. This approach provides version control, audit trails, and declarative management for your secret management infrastructure.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Deploying OpenBao via GitOps offers significant advantages:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Version Control&lt;/strong&gt;: All configuration changes are tracked in Git&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Audit Trail&lt;/strong&gt;: Who changed what, when, and why&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Declarative&lt;/strong&gt;: Desired state is defined, not imperative commands&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Reproducible&lt;/strong&gt;: Same deployment process across environments&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Self-healing&lt;/strong&gt;: Argo CD ensures actual state matches desired state&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, there are challenges specific to secret management:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Initial unsealing requires manual intervention or automationxw&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Root tokens and unseal keys must be handled carefully&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Chicken-and-egg problem: How to store OpenBao secrets before OpenBao exists?&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This article will focus on the deployment of the applicaiotns for the OpenBao deployment. The problem with the automatic unsealing will be addressed in the next article.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before you begin, ensure you have:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift GitOps (Argo CD) installed and configured&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A Git repository for your cluster configuration&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Understanding of the App-of-Apps pattern (see &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/"&gt;Configure App-of-Apps&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The official OpenBao Helm chart from &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_wrapper_helm_chart"&gt;The (Wrapper) Helm Chart&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The official OpenBao Helm Chart works well for deploying OpenBao itself. However, additional settings such as certificates are not covered there. Therefore, I created a (wrapper) Helm Chart that includes the official OpenBao Helm Chart, a &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; that I created a while ago, and allows you to add additional objects in the templates folder.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I will follow the same setup as discussed in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls"&gt;Part 4&lt;/a&gt;. This means:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Create Issuer for Cert-Manager&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create CA Certificate for OpenBao&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create Certificate for OpenBao Server&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create Certificate for OpenBao Agent Injector&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Install OpenBao Helm Chart&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, there is &lt;strong&gt;one significant issue&lt;/strong&gt; with this approach: we need the certificate details (especially the CA certificate) before we can install the OpenBao Helm Chart, since the certificate must be referenced in the values file. This is a chicken-and-egg problem—particularly if you use self-signed CA certificates.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Since you typically create the CA certificate first and only once (or have it already), a separate Application for the CA certificate is a good approach. Once this is synchronised, the OpenBao Application can be updated and deployed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This means we will need two Helm Charts: one for the CA certificate and one for OpenBao itself.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_helm_chart_for_the_ca_certificate"&gt;Helm Chart for the CA Certificate&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create a new Helm Chart for the CA certificate. This will use the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; as a dependency and will create the:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Issuer for Cert-Manager&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Request the CA certificate from the Issuer&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create the &lt;strong&gt;openbao&lt;/strong&gt; namespace&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The example I am using can be found at &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/openbao-ca-certificate" target="_blank" rel="noopener"&gt;GitOps openbao-ca-certificate&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Please check the &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/" target="_blank" rel="noopener"&gt;GitOps Repository Structure&lt;/a&gt; and subsequent articles for more information on how to structure your Git repository.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the &lt;strong&gt;Chart.yaml&lt;/strong&gt; file you can see two dependencies:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;dependencies:
+- name: tpl
+version: ~1.0.0
+repository: https://charts.stderr.at/
+- name: cert-manager
+version: ~2.0.3 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+repository: https://charts.stderr.at/
+condition: cert-manager.enabled&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The Cert-Manager Helm Chart version must be at least 2.0.3 to support the namespace parameter for the Issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;tpl&lt;/strong&gt; dependency is a library that contains templates for the namespace and other shared components (I keep this library in my &lt;a href="https://blog.stderr.at/helm-charts/" target="_blank" rel="noopener"&gt;Helm Charts&lt;/a&gt; repository). The &lt;strong&gt;cert-manager&lt;/strong&gt; dependency is the Cert-Manager Helm Chart.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;values.yaml&lt;/strong&gt; file below contains the configuration for the Cert-Manager:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+All settings that are passed to a subchart (cert-manager) must be prefixed with the name of the subchart. In this case, &lt;code&gt;cert-manager.&lt;/code&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;namespace:
+create: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+name: &amp;#34;openbao&amp;#34;
+description: &amp;#34;OpenBao Namespace&amp;#34;
+displayName: &amp;#34;OpenBao Namespace&amp;#34;
+additionalLabels:
+pod-security.kubernetes.io/audit: restricted
+pod-security.kubernetes.io/audit-version: latest
+pod-security.kubernetes.io/warn: restricted
+pod-security.kubernetes.io/warn-version: latest
+cert-manager: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+enabled: true &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+issuer:
+# Name of issuer
+- name: openbao-selfsigned &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+# -- Syncwave to create this issuer
+syncwave: 5 &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+# -- Type can be either ClusterIssuer or Issuer
+type: Issuer
+# -- Enable this issuer.
+# @default -- false
+enabled: true
+# -- Namespace for Issuer (ignored for ClusterIssuer). Defaults to the default namespace when not set.
+namespace: openbao &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+# -- Create a selfSigned issuer. The SelfSigned issuer doesn&amp;#39;t represent a certificate authority as such, but instead denotes that certificates will &amp;#34;sign themselves&amp;#34; using a given private key.
+selfSigned: true &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+certificates: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
+enabled: true
+# List of certificates
+certificate:
+- name: openbao-ca
+enabled: true
+namespace: openbao
+syncwave: &amp;#34;10&amp;#34;
+secretName: openbao-ca-secret
+duration: 87660h
+dnsNames:
+- openbao-ca
+privateKey:
+algorithm: ECDSA
+size: 256
+rotationPolicy: Always
+isCA: true
+# Reference to the issuer that shall be used.
+issuerRef:
+name: openbao-selfsigned
+kind: Issuer&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Create the &lt;strong&gt;openbao&lt;/strong&gt; namespace with various settings.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the Cert-Manager subchart. All settings below will be passed to the Cert-Manager subchart.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enables Cert-Manager.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Syncwave for this issuer; it must be lower than the syncwave of the certificate.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Namespace for the issuer; supported since version 2.0.3 of the Cert-Manager Helm Chart.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Creates a self-signed issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The certificate section and all the settings. Verify the &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/#_step_1_certificate_authority_ca_for_openbao"&gt;Part 4&lt;/a&gt; for more information.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This chart creates the &lt;strong&gt;openbao&lt;/strong&gt; namespace, which is required for the OpenBao deployment.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_helm_chart_for_the_openbao_deployment"&gt;Helm Chart for the OpenBao Deployment&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create a new Helm Chart for the OpenBao deployment. This will use the official &lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm chart&lt;/a&gt; and the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; as dependencies and will create the:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao deployment (including Route)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Issuer for the OpenBao server using the CA certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Required OpenBao certificates based on the CA certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I have added the full values.yaml file below. Please check the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/openbao/values.yaml" target="_blank" rel="noopener"&gt;GitOps openbao/values.yaml&lt;/a&gt; to fetch the full chart.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Besides the two certificates added here in the values.yaml file, I made two further changes: fullnameOverride and nameOverride are both set to &lt;strong&gt;openbao&lt;/strong&gt;. This is good practice for setting the name of the deployment when using Argo CD.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This values file contains the CA certificate in plain text. Whether that is acceptable is debatable—it is a public certificate, and here it is self-signed and used only in my demo environment.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;# Full values.yaml file for the OpenBao deployment
+########################################################
+# Cert-Manager
+########################################################
+cert-manager:
+enabled: true
+issuer:
+# Name of issuer
+- name: openbao-ca-issuer &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+# -- Syncwave to create this issuer
+syncwave: &amp;#39;-1&amp;#39;
+# -- Type can be either ClusterIssuer or Issuer
+type: Issuer
+# -- Enable this issuer.
+# @default -- false
+enabled: true
+# -- Namespace for Issuer (ignored for ClusterIssuer). Defaults to the default namespace when not set.
+namespace: openbao
+ca:
+secretName: openbao-ca-secret
+certificates:
+enabled: true
+# List of certificates
+certificate:
+########################################################
+# OpenBao Server TLS Certificate
+########################################################
+- name: openbao-server-tls &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+enabled: true
+namespace: openbao
+syncwave: &amp;#34;0&amp;#34;
+secretName: openbao-server-tls
+duration: 8760h
+renewBefore: 720h
+dnsNames:
+- openbao.openbao.svc
+- openbao.apps.ocp.aws.ispworld.at # Route host (adjust to your domain)
+- openbao
+- openbao.openbao
+- openbao.openbao.svc
+- openbao.openbao.svc.cluster.local
+- openbao-internal
+- openbao-internal.openbao
+- openbao-internal.openbao.svc
+- openbao-internal.openbao.svc.cluster.local
+- openbao-0.openbao-internal
+- openbao-0.openbao-internal.openbao
+- openbao-0.openbao-internal.openbao.svc
+- openbao-0.openbao-internal.openbao.svc.cluster.local
+- openbao-1.openbao-internal
+- openbao-1.openbao-internal.openbao
+- openbao-1.openbao-internal.openbao.svc
+- openbao-2.openbao-internal
+- openbao-2.openbao-internal.openbao
+- openbao-2.openbao-internal.openbao.svc
+ipAddresses:
+- 127.0.0.1
+- &amp;#34;::1&amp;#34;
+# Reference to the issuer that shall be used.
+issuerRef:
+name: openbao-ca-issuer
+kind: Issuer
+########################################################
+# Injector TLS Certificate
+########################################################
+- name: injector-certificate &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+enabled: true
+namespace: openbao
+syncwave: &amp;#34;0&amp;#34;
+secretName: injector-tls
+duration: 24h
+renewBefore: 144m
+dnsNames:
+- openbao-agent-injector-svc
+- openbao-agent-injector-svc.openbao
+- openbao-agent-injector-svc.openbao.svc
+- openbao-agent-injector-svc.openbao.svc.cluster.local
+# Reference to the issuer that shall be used.
+issuerRef:
+name: openbao-ca-issuer
+kind: Issuer
+########################################################
+# OpenBao Deployment
+########################################################
+openbao: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+# Override the full name of the deployment via Argo CD
+fullnameOverride: openbao
+nameOverride: openbao
+global:
+# Enable OpenShift-specific settings
+openshift: true
+# -- The namespace to deploy to. Defaults to the `helm` installation namespace.
+namespace: openbao
+# Required when TLS is enabled: tells the chart to use HTTPS for readiness/liveness
+# probes and for in-pod API_ADDR (127.0.0.1:8200). Otherwise you get &amp;#34;client sent
+# an HTTP request to an HTTPS server&amp;#34; from the probes.
+tlsDisable: false
+server:
+extraEnvironmentVars:
+BAO_CACERT: /openbao/tls/openbao-server-tls/ca.crt
+# High Availability configuration
+ha:
+enabled: true
+replicas: 3
+# Raft storage configuration
+raft:
+enabled: true
+setNodeId: true
+config: |
+ui = true
+listener &amp;#34;tcp&amp;#34; {
+tls_disable = 0
+address = &amp;#34;[::]:8200&amp;#34;
+cluster_address = &amp;#34;[::]:8201&amp;#34;
+tls_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/tls.crt&amp;#34;
+tls_key_file = &amp;#34;/openbao/tls/openbao-server-tls/tls.key&amp;#34;
+tls_min_version = &amp;#34;tls12&amp;#34;
+telemetry {
+unauthenticated_metrics_access = &amp;#34;true&amp;#34;
+}
+}
+storage &amp;#34;raft&amp;#34; {
+path = &amp;#34;/openbao/data&amp;#34;
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-0.openbao-internal:8200&amp;#34;
+leader_tls_servername = &amp;#34;openbao-0.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-1.openbao-internal:8200&amp;#34;
+leader_tls_servername = &amp;#34;openbao-1.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34;
+}
+retry_join {
+leader_api_addr = &amp;#34;https://openbao-2.openbao-internal:8200&amp;#34;
+leader_tls_servername = &amp;#34;openbao-2.openbao-internal&amp;#34;
+leader_ca_cert_file = &amp;#34;/openbao/tls/openbao-server-tls/ca.crt&amp;#34;
+}
+}
+service_registration &amp;#34;kubernetes&amp;#34; {}
+telemetry {
+prometheus_retention_time = &amp;#34;30s&amp;#34;
+disable_hostname = true
+}
+route:
+enabled: true
+host: openbao.apps.ocp.aws.ispworld.at
+tls:
+# Route terminates client TLS; backend can use reencrypt or passthrough
+termination: reencrypt
+insecureEdgeTerminationPolicy: Redirect
+destinationCACertificate: |
+-----BEGIN CERTIFICATE-----
+MIIBWzCCAQCgAwIBAgIQNdbg4KIu9oi6dDClE8drmjAKBggqhkjOPQQDAjAAMB4X
+DTI2MDIxODA5NDIxNFoXDTM2MDIxODIxNDIxNFowADBZMBMGByqGSM49AgEGCCqG
+SM49AwEHA0IABIeYw35/kEHvyctLtOA5xMlyQNxUtXtfBbZMUfPh6AN5MFjIGuNS
+cn07a3EpSpfY6/3DaPpu+4wYNFlc+/qDNYajXDBaMA4GA1UdDwEB/wQEAwICpDAP
+BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQgyRk5Vv9K0VULcCgga5mRg4O9kTAY
+BgNVHREBAf8EDjAMggpvcGVuYmFvLWNhMAoGCCqGSM49BAMCA0kAMEYCIQCwQ7lZ
+Q0jzUjJFzpTGkQjU2+OB159LIQMSbSQ7dz8nVQIhAIDa7f87tjQxDxbJio+/vJx2
+awFaWnueGOOQpvwCcV/+
+-----END CERTIFICATE-----
+extraVolumes:
+- type: secret
+name: openbao-server-tls
+path: /openbao/tls
+readOnly: true
+extraVolumeMounts:
+- name: openbao-server-tls
+mountPath: /openbao/tls
+readOnly: true
+# Resource requests and limits
+resources:
+requests:
+memory: 256Mi
+cpu: 250m
+limits:
+memory: 1Gi
+cpu: 1000m
+# Persistent volume for data
+dataStorage:
+enabled: true
+size: 10Gi
+# storageClass: &amp;#34;gp3-csi&amp;#34;
+# Injector configuration
+injector:
+enabled: true
+replicas: 2 # HA for the injector too
+certs:
+secretName: injector-tls
+# For a private CA: set caBundle to the CA cert (PEM) so the Kubernetes API server trusts the injector webhook. E.g. oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39; | base64 -d
+caBundle: &amp;#34;LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJXekNDQVFDZ0F3SUJBZ0lRTmRiZzRLSXU5b2k2ZERDbEU4ZHJtakFLQmdncWhrak9QUVFEQWpBQU1CNFgKRFRJMk1ESXhPREE1TkRJeE5Gb1hEVE0yTURJeE9ESXhOREl4TkZvd0FEQlpNQk1HQnlxR1NNNDlBZ0VHQ0NxRwpTTTQ5QXdFSEEwSUFCSWVZdzM1L2tFSHZ5Y3RMdE9BNXhNbHlRTnhVdFh0ZkJiWk1VZlBoNkFONU1GaklHdU5TCmNuMDdhM0VwU3BmWTYvM0RhUHB1KzR3WU5GbGMrL3FETllhalhEQmFNQTRHQTFVZER3RUIvd1FFQXdJQ3BEQVAKQmdOVkhSTUJBZjhFQlRBREFRSC9NQjBHQTFVZERnUVdCQlFneVJrNVZ2OUswVlVMY0NnZ2E1bVJnNE85a1RBWQpCZ05WSFJFQkFmOEVEakFNZ2dwdmNHVnVZbUZ2TFdOaE1Bb0dDQ3FHU000OUJBTUNBMGtBTUVZQ0lRQ3dRN2xaClEwanpVakpGenBUR2tRalUyK09CMTU5TElRTVNiU1E3ZHo4blZRSWhBSURhN2Y4N3RqUXhEeGJKaW8rL3ZKeDIKYXdGYVdudWVHT09RcHZ3Q2NWLysKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=&amp;#34;
+certName: tls.crt
+keyName: tls.key
+# UI configuration
+ui:
+enabled: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Issuer for OpenBao. The syncwave is set to &amp;#39;-1&amp;#39; to create the issuer before the certificate request and the OpenBao deployment.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Certificate for the OpenBao server, with all DNS names and IP addresses used to reach it. The syncwave is set to &amp;#39;0&amp;#39; so the certificate is created after the issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Certificate for the OpenBao Agent Injector, with all DNS names used to reach it. The syncwave is set to &amp;#39;0&amp;#39; so the certificate is created after the issuer.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;OpenBao deployment configuration; the two overrides fullnameOverride and nameOverride are both set to &lt;strong&gt;openbao&lt;/strong&gt;. See &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/#_step_5_helm_values_for_server_tls"&gt;Part 4&lt;/a&gt; for more information.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_creating_argo_cd_applications"&gt;Creating Argo CD Applications&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Whilst the Helm Charts are ready, we need to create the Argo CD Applications for the CA certificate and the OpenBao deployment.
+If you read our blog carefully, you will notice that these Application resources are created automatically when I add something to the folder clusters/management-cluster :)
+This is done by leveraging ApplicationSet resources and is fully described in the &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/" target="_blank" rel="noopener"&gt;GitOps Repository Structure&lt;/a&gt; and subsequent articles.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For the sake of simplicity, I will show the created Application resources below. The setup is the same for both; they simply target a different path in the Git repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;# Full Application resource for the OpenBao CA Certificate
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: in-cluster-openbao-ca-certificate
+namespace: openshift-gitops
+spec:
+destination:
+name: in-cluster &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: default &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+info:
+- name: Description
+value: ApplicationSet that Deploys on Management Cluster Configuration (using Git Generator)
+project: in-cluster &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+source:
+path: clusters/management-cluster/openbao-ca-certificate &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+targetRevision: main
+syncPolicy:
+retry:
+backoff:
+duration: 5s
+factor: 2
+maxDuration: 3m
+limit: 5
+---
+# Full Application resource for the OpenBao deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: in-cluster-openbao
+namespace: openshift-gitops
+spec:
+destination:
+name: in-cluster &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: openbao &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+info:
+- name: Description
+value: ApplicationSet that Deploys on Management Cluster Configuration (using Git Generator)
+project: in-cluster &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+source:
+path: clusters/management-cluster/openbao &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+targetRevision: main
+syncPolicy:
+retry:
+backoff:
+duration: 5s
+factor: 2
+maxDuration: 3m
+limit: 5&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Target cluster; here, the local cluster&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Namespace of the target cluster; here, the OpenBao deployment will be installed.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Argo CD Project (must exist)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path to the Git repository for the CA certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;URL of the Git repository&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path to the OpenBao deployment&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the following Applications:
+- in-cluster-openbao-ca-certificate
+- in-cluster-openbao&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The ApplicationSet adds the prefix &lt;strong&gt;in-cluster-&lt;/strong&gt; to each Application name so that they remain unique in Argo CD.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part5_openbao_argocd.png" alt="OpenBao Argo CD Applications"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. Argo CD: OpenBao Argo CD Applications&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first Application to synchronise is &lt;strong&gt;in-cluster-openbao-ca-certificate&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It creates the following:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Namespace&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;CA Issuer&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;CA Certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Then synchronise &lt;strong&gt;in-cluster-openbao&lt;/strong&gt;. It creates:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao deployment&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao Agent Injector&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao Server TLS Certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao Agent Injector TLS Certificate&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_openbao_is_runningwhat_next"&gt;OpenBao is running—what next?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Deploying OpenBao via GitOps gives you version control and declarative management for your secret management infrastructure.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Whilst OpenBao is running and managed by Argo CD, the next step is to configure it: you will need to handle initialisation (for a new cluster) and unsealing (see &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt; and &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/"&gt;Part 4&lt;/a&gt;). That manual approach does not scale. In the next article, I will discuss ways to automate initialisation and unsealing.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Key takeaways:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Use sync waves to control deployment order&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Consider auto-unseal for production (Part 6)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Store initialisation data securely outside Git&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/" target="_blank" rel="noopener"&gt;Configure App-of-Apps&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/helm/" target="_blank" rel="noopener"&gt;Argo CD Helm Support&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/" target="_blank" rel="noopener"&gt;Argo CD Sync Waves&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Enabling TLS on OpenShift - Part 4</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/</link><pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;In &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt; we deployed OpenBao on OpenShift in HA mode with TLS disabled: the OpenShift Route terminates TLS at the edge, and traffic from the Route to the pods is plain HTTP. While this is ok for quick tests, for a production-ready deployment, you should consider TLS for the entire journey. This article explains why and how to enable TLS end-to-end using the cert-manager operator, what to consider, and the exact steps to achieve it.&lt;/p&gt;
 &lt;/div&gt;
@@ -12531,138 +13294,6 @@ oc debug node/&amp;lt;node-name&amp;gt; -- chroot /host ovs-vsctl show
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;Always test your configuration in a non-production environment before applying to production clusters.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>What's new in OpenShift, 4.20 Edition</title><link>https://blog.stderr.at/whats-new/2025-11-10-whatsnew-420/</link><pubDate>Mon, 10 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/2025-11-10-whatsnew-420/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;This article covers news and updates in the OpenShift 4.20 release. We focus on points that got our attention, but this
-is &lt;strong&gt;not&lt;/strong&gt; a complete summary of the &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/release_notes/index"&gt;release notes&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configuring_a_local_arbiter_node"&gt;Configuring a local arbiter node&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/installing_an_on-premise_cluster_with_the_agent-based_installer/index#installing-ocp-agent-local-arbiter-node_installing-with-agent-based-installer"&gt;Configuring a local arbiter node&lt;/a&gt; describes how to configure an OCP cluster with only two control plane (ETCD) nodes. Might be useful in a pure bare metal environment where three bare metal control plane nodes might be overkill.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_two_node_clusters_with_fencing"&gt;Two node clusters with fencing&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/installing_on_bare_metal/index#bmo-about-the-hostfirmwarecomponents-resource_bare-metal-postinstallation-configuration"&gt;Two-node with Fencing&lt;/a&gt; still in tech preview. Useful for environments with only two active datacenters. Especially if you have bare metal control plane nodes. We got quite a few customers with only to data centers available.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_about_the_hostfirmwarecomponents_resource"&gt;About the HostFirmwareComponents resource&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/installing_on_bare_metal/index#bmo-about-the-hostfirmwarecomponents-resource_bare-metal-postinstallation-configuration"&gt;About the HostFirmwareComponents&lt;/a&gt;. When Metal3 is used it’s now possible to update the NIC (Network interface card) firmware.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_boot_image_updates_on_vmware"&gt;Boot image updates on Vmware&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/machine_configuration/index#mco-update-boot-images"&gt;Boot image management&lt;/a&gt; can be used to update the boot image for new nodes. Up until now
-when you installed you cluster on VMware with a certain boot image (let’s say 4.15) it never got updates. New nodes were always booted from this old image and later updated to the current cluster release.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_about_on_cluster_image_mode"&gt;About on-cluster image mode&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/machine_configuration/index#coreos-layering-configuring-on_mco-coreos-layering"&gt;About on-cluster image mode&lt;/a&gt;. Image mode allows you to customize the node operating system image. You basically create a Containerfile, install custom RPM’s or deploy custom configuration files in the Containerfile and OCP creates a layered image for you cluster. The image is automatically rolled out to the cluster with the Machine Config Operator. Fancy stuff…​.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_pinning_images"&gt;Pinning images&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/machine_configuration/index#machine-config-pin-preload-images_machine-config-operator"&gt;Pinning images&lt;/a&gt;. If your internet connection is flaky, or you have reasons to not trust the availablity of Red Hat registries like quay.io or registry.redhat.io you can now pin images those images. They are pulled down immediately and will not be garbage collected (hopefully…​).&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_bgp_routing"&gt;BGP routing&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/advanced_networking/index#about-bgp-routing"&gt;About BGP routing&lt;/a&gt;. MetalLB had support for announcing IP’s via BGP for a long time, but now it’s also possible to announce UDN’s or EgressIP. IMHO this is especially interesting for EgressIP because there were some nasty &lt;a href="https://issues.redhat.com/browse/OCPBUGS-42303"&gt;bugs&lt;/a&gt; around using &lt;a href="https://wiki.wireshark.org/Gratuitous_ARP"&gt;GRAP (Gratuitous ARP)&lt;/a&gt; for announcing IP’s to switches.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_migrating_a_configured_br_ex_bridge_to_nmstate"&gt;Migrating a configured br-ex bridge to NMState&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/installing_on_bare_metal/index#migrating-br-ex-bridge-nmstate_bare-metal-postinstallation-configuration"&gt;Migrating a configured br-ex bridge to NMState&lt;/a&gt;. There’s this ominous &lt;em&gt;configure-ovs.sh&lt;/em&gt; that reconfigures the public interface of a node an brings up br-ex. There was support for deploying an NMState-based configuration during cluster installation and not using &lt;em&gt;configure-ovs.sh&lt;/em&gt;. Now it’s also possible to get rid of the shell script &lt;strong&gt;after&lt;/strong&gt; installation.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configuration_for_a_bond_cni_secondary_network"&gt;Configuration for a Bond CNI secondary network&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/multiple_networks/index#nw-multus-bond-cni-object_configuring-additional-network-cni"&gt;Configuration for a Bond CNI secondary network&lt;/a&gt;. Bond interface can now be created for interface in containers. This currently only supports SR-IOV virtual functions.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_manage_secure_signatures_with_sigstore"&gt;Manage secure signatures with sigstore&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/nodes/index#nodes-sigstore-using"&gt;Manage secure signatures with sigstore&lt;/a&gt;. Sigstore support can now be enabled on a cluster level or on an individual namespace level.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_running_pods_in_linux_user_namespaces"&gt;Running pods in Linux user namespaces&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/nodes/index#nodes-pods-user-namespaces"&gt;Running pods in Linux user namespaces&lt;/a&gt;. This is IMHO a big one. Linux user namespaces are finally supported in OpenShift! So it’s possible to grant root inside a container and map the root UID to an unprivileged ID outside the container.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_adjust_pod_resource_levels_without_pod_disruption"&gt;Adjust pod resource levels without pod disruption&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/nodes/index#nodes-pods-adjust-resources-in-place"&gt;Adjust pod resource levels without pod disruption&lt;/a&gt;. Resize CPU and memory resource without restarting a Pod!&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introducing_the_oc_adm_upgrade_recommend_command_general_availability"&gt;Introducing the &lt;em&gt;oc adm upgrade recommend&lt;/em&gt; command (General Availability)&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/updating_clusters/index#understanding-openshift-updates"&gt;Understanding OpenShift upgrades&lt;/a&gt;. &lt;em&gt;oc&lt;/em&gt; know officially supports cluster upgrade from the command line. &lt;em&gt;oc adm upgrade recommended&lt;/em&gt; performs some pre-flight checks before upgrading a cluster.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_additional_cluster_latency_requirements_for_etcd"&gt;Additional cluster latency requirements for etcd&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/etcd/index#recommended-cluster-latency-etcd_etcd-practices"&gt;Cluster latency requirements for etcd&lt;/a&gt;. ETCD latency requirements were updated in the documentation.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_sunset_of_the_red_hat_marketplace_operated_by_ibm"&gt;Sunset of the Red Hat Marketplace, operated by IBM&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://access.redhat.com/articles/7130828"&gt;Sunset of the Red Hat Marketplace, operated by IBM&lt;/a&gt;. It seems Red Hat Marktplace is no more…​&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_how_to_use_changed_block_tracking_dev_preview_in_openshift_4_20"&gt;How to use Changed Block Tracking (Dev Preview) in OpenShift 4.20&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://access.redhat.com/solutions/7131061"&gt;How to use Changed Block Tracking (Dev Preview) in OpenShift 4.20&lt;/a&gt;. Change block tracking for PV’s is now in dev preview. Whatever this means exactly, needs more investigation.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
