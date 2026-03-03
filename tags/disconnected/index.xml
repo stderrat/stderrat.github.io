@@ -3,6 +3,18 @@
 OKD documentation sometimes refers to OpenShift image locations, we had to read multiple sections to get it working and we
 also consulted the OpenShift documentation at &lt;a href="https://docs.redhat.com" class="bare"&gt;https://docs.redhat.com&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Updated on 2026-03-03: Fixed install-config.yaml
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;First we need to download the &lt;em&gt;oc&lt;/em&gt; command in the version we would like to install. OKD provides them in their release page:&lt;/p&gt;
 &lt;/div&gt;
@@ -169,13 +181,13 @@ baseDomain: internal
 compute:
 - hyperthreading: Enabled
 name: worker
-replicas: 0
+replicas: 0 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
 controlPlane:
 hyperthreading: Enabled
 name: master
-replicas: 3
+replicas: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
 metadata:
-name: sno
+name: okd-sno
 networking:
 clusterNetwork:
 - cidr: 10.128.0.0/14
@@ -186,21 +198,23 @@ serviceNetwork:
 platform:
 none: {}
 fips: false
+sshKey: &amp;#39;the key&amp;#39;
+bootstrapInPlace: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+installationDisk: /dev/vda
 pullSecret: |
 {
 &amp;#34;auths&amp;#34;: {
-&amp;#34;internal.registry&amp;#34;: {
-&amp;#34;auth&amp;#34;: &amp;#34;&amp;lt;credentials base64 encoded&amp;gt;&amp;#34;,
-&amp;#34;email&amp;#34;: &amp;#34;you@example.com&amp;#34;
+&amp;#34;registry.internal&amp;#34;: {
+&amp;#34;auth&amp;#34;: &amp;#34;&amp;lt;username:password base64 encoded&amp;#34;
+&amp;#34;email&amp;#34;: &amp;#34;some@email&amp;#34;
 }
 }
 }
-sshKey: &amp;#39;ssh-ed25519 AAAA...&amp;#39;
-additionalTrustBundle: |
+additionalTrustBundle: | &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
 -----BEGIN CERTIFICATE-----
 ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
 -----END CERTIFICATE-----
-ImageDigestSources:
+ImageDigestSources: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
 - mirrors:
 - registry.internal/openshift/release
 source: quay.io/okd/scos-content
@@ -208,6 +222,30 @@ source: quay.io/okd/scos-content
 - registry.internal/openshift/release-images
 source: quay.io/okd/scos-release&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We set the number of worker to zero (0). Because this is a SNO installation. Workers nodes could be added later, even for a SNO cluster&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We set the number of master nodes to one (1)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This tells the installer that we do not have a bootstrap node and it should create on large ignition config file&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;If required the CA certificate of our registry. This is required if the registry uses an internal certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;ImageDigestSources configures CRIO to redirect requests to quay.io to our private registry.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;It’s time to create the installation manifests and ignition configs. We created a directory &lt;em&gt;install&lt;/em&gt;, copied the &lt;em&gt;install-config.yaml&lt;/em&gt; into this directory and triggered the &lt;em&gt;openshift-install&lt;/em&gt; command:&lt;/p&gt;
@@ -238,8 +276,17 @@ to set kernel boot arguments to configure the network interface with a static IP
 &lt;div class="listingblock"&gt;
 &lt;div class="content"&gt;
 &lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;alias coreos-installer=&amp;#39;podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release&amp;#39;
-coreos-installer iso ignition embed -fi install/bootstrap.ign fcos-live.iso
+coreos-installer iso ignition embed -fi install/bootstrap-in-place-for-live-iso.ign fcos-live.iso
 coreos-installer iso kargs modify --append &amp;#39;ip=10.0.0.99::10.0.0.1:255.255.255.0:sno.internal:ens33:none:10.0.0.255&amp;#39; fcos-live.iso&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can take a look at the ISO bootstrap config and the kernels arguments with:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;coreos-installer iso ignition show fcos-live.iso
+coreos-installer iso kargs show fcos-live.iso&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
