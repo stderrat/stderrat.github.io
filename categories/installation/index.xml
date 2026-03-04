@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Installation on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/installation/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 09 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/installation/index.xml" rel="self" type="application/rss+xml"/><item><title>OKD Single node installation in a disconnected environment</title><link>https://blog.stderr.at/openshift-platform/infrastructure/2026-02-09-okd-sno-disconnected/</link><pubDate>Mon, 09 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/infrastructure/2026-02-09-okd-sno-disconnected/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Because of reasons we had to setup a disconnected single node OKD &amp;#34;cluster&amp;#34;. This is our brain dump as the
+&lt;p&gt;Because of reasons we had to set up a disconnected single node OKD &amp;#34;cluster&amp;#34;. This is our brain dump as the
 OKD documentation sometimes refers to OpenShift image locations, we had to read multiple sections to get it working and we
 also consulted the OpenShift documentation at &lt;a href="https://docs.redhat.com" class="bare"&gt;https://docs.redhat.com&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
@@ -10,13 +10,13 @@ also consulted the OpenShift documentation at &lt;a href="https://docs.redhat.co
 &lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
 &lt;/td&gt;
 &lt;td class="content"&gt;
-Updated on 2026-03-03: Fixed install-config.yaml
+Updated on 2026-03-03: Fixed install-config.yaml and create manifest command
 &lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;First we need to download the &lt;em&gt;oc&lt;/em&gt; command in the version we would like to install. OKD provides them in their release page:&lt;/p&gt;
+&lt;p&gt;First we need to download the &lt;em&gt;oc&lt;/em&gt; command in the version we would like to install. OKD provides it on its release page:&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;&lt;a href="https://github.com/okd-project/okd/releases/download/4.21.0-okd-scos.3/openshift-client-linux-amd64-rhel9-4.21.0-okd-scos.3.tar.gz" class="bare"&gt;https://github.com/okd-project/okd/releases/download/4.21.0-okd-scos.3/openshift-client-linux-amd64-rhel9-4.21.0-okd-scos.3.tar.gz&lt;/a&gt;&lt;/p&gt;
@@ -68,7 +68,7 @@ Updated on 2026-03-03: Fixed install-config.yaml
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;For mirroring all required OKD images to our private registry we created a &lt;em&gt;ImageSetConfiguration&lt;/em&gt;:&lt;/p&gt;
+&lt;p&gt;For mirroring all required OKD images to our private registry we created an &lt;em&gt;ImageSetConfiguration&lt;/em&gt;:&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="listingblock"&gt;
 &lt;div class="content"&gt;
@@ -120,14 +120,14 @@ additionalImages: []&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The hard part for use was finding the right values for &lt;em&gt;channels&lt;/em&gt; and
-the min/max versions. Once again OKD
+&lt;p&gt;The hard part for us was finding the right values for &lt;em&gt;channels&lt;/em&gt; and
+the min/max versions. Once again the OKD
 &lt;a href="https://amd64.origin.releases.ci.openshift.org/"&gt;release status page&lt;/a&gt;
 was helpful.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;Our private registry is based on &lt;a href="https://goharbor.io"&gt;Harbor&lt;/a&gt; for our
-experiments, but any Docker v2 compatible registry should work. Then
+experiments, but any Docker v2 compatible registry should work. The
 only thing required is a project within Harbor called &lt;em&gt;openshift&lt;/em&gt; and
 a user/password for pulling/pushing images to this project. The
 project name might be configurable with &lt;em&gt;oc mirror&lt;/em&gt;, but this requires
@@ -142,16 +142,16 @@ key and provide the &lt;em&gt;OCP_SIGNATURE_URL&lt;/em&gt;:&lt;/p&gt;
 &lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;curl -LO https://raw.githubusercontent.com/openshift/cluster-update-keys/master/keys/verifier-public-key-openshift-ci-4
 export OCP_SIGNATURE_URL=&amp;#34;https://storage.googleapis.com/openshift-ci-release/releases/signatures/openshift/release/&amp;#34;
 export OCP_SIGNATURE_VERIFICATION_PK=&amp;#34;verifier-public-key-openshift-ci-4&amp;#34;
-# for debugging add --log-level debug, but we intermittent errors this options.
+# for debugging add --log-level debug, but we had intermittent errors with this option.
 # after removing --log-level debug oc mirror ran without problems
 oc mirror -c ImageSetConfiguration.yaml --authfile docker-auth.json --workspace file:///workspace docker://internal.registry --v2&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;This will create the &lt;em&gt;ImageDigestMirrorSource&lt;/em&gt; in &lt;em&gt;/workspace/working-dir/cluster-resoruces/idms-oc-mirror.yaml&lt;/em&gt; and &lt;em&gt;ImageTagMirrorSource&lt;/em&gt; custom resources in &lt;em&gt;/workspace/working-dir/cluster-resources/itms-oc-mirror.yaml&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;This will create the &lt;em&gt;ImageDigestMirrorSource&lt;/em&gt; in &lt;em&gt;/workspace/working-dir/cluster-resources/idms-oc-mirror.yaml&lt;/em&gt; and &lt;em&gt;ImageTagMirrorSource&lt;/em&gt; custom resources in &lt;em&gt;/workspace/working-dir/cluster-resources/itms-oc-mirror.yaml&lt;/em&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The content &lt;em&gt;ImageDigestMirrorSource&lt;/em&gt; will be reused in
+&lt;p&gt;The content of &lt;em&gt;ImageDigestMirrorSource&lt;/em&gt; will be reused in
 the &lt;em&gt;install-config.yaml&lt;/em&gt;. This is required to redirect image pulls done by the node from &lt;em&gt;quay.io&lt;/em&gt; to our private registry.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
@@ -172,7 +172,7 @@ the &lt;em&gt;install-config.yaml&lt;/em&gt;. This is required to redirect image
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;Now we prepared the required &lt;em&gt;install-config.yaml&lt;/em&gt; file to trigger the &lt;em&gt;openshift-install&lt;/em&gt; command.
-We basically followed &lt;a href="https://docs.okd.io/latest/installing/installing_sno/install-sno-installing-sno.html(Installing" class="bare"&gt;https://docs.okd.io/latest/installing/installing_sno/install-sno-installing-sno.html(Installing&lt;/a&gt; a Single Node OpenShift Cluster).&lt;/p&gt;
+We basically followed &lt;a href="https://docs.okd.io/latest/installing/installing_sno/install-sno-installing-sno.html"&gt;Installing a Single Node OpenShift Cluster&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="listingblock"&gt;
 &lt;div class="content"&gt;
@@ -205,7 +205,7 @@ pullSecret: |
 {
 &amp;#34;auths&amp;#34;: {
 &amp;#34;registry.internal&amp;#34;: {
-&amp;#34;auth&amp;#34;: &amp;#34;&amp;lt;username:password base64 encoded&amp;#34;
+&amp;#34;auth&amp;#34;: &amp;#34;&amp;lt;username:password base64 encoded&amp;gt;&amp;#34;,
 &amp;#34;email&amp;#34;: &amp;#34;some@email&amp;#34;
 }
 }
@@ -227,7 +227,7 @@ source: quay.io/okd/scos-release&lt;/code&gt;&lt;/pre&gt;
 &lt;table&gt;
 &lt;tbody&gt;&lt;tr&gt;
 &lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We set the number of worker to zero (0). Because this is a SNO installation. Workers nodes could be added later, even for a SNO cluster&lt;/td&gt;
+&lt;td&gt;We set the number of workers to zero (0). Because this is a SNO installation. Worker nodes could be added later, even for a SNO cluster&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
@@ -235,7 +235,7 @@ source: quay.io/okd/scos-release&lt;/code&gt;&lt;/pre&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This tells the installer that we do not have a bootstrap node and it should create on large ignition config file&lt;/td&gt;
+&lt;td&gt;This tells the installer that we do not have a bootstrap node and it should create one large ignition config file&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
@@ -252,16 +252,13 @@ source: quay.io/okd/scos-release&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;div class="listingblock"&gt;
 &lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;---
-$ mkdir install
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;$ mkdir install
 $ cp install-config.yaml install/
-$ openshift-install create manifests --dir=install
-$ openshift-install create ignition-configs --dir=install
----&lt;/code&gt;&lt;/pre&gt;
+$ openshift-install --dir=install create single-node-ignition-config&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;We are not ready to download the installation ISO and to embed our ignition config into it. We also want
+&lt;p&gt;We are now ready to download the installation ISO and to embed our ignition config into it. We also want
 to set kernel boot arguments to configure the network interface with a static IP address.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="listingblock"&gt;
@@ -281,7 +278,7 @@ coreos-installer iso kargs modify --append &amp;#39;ip=10.0.0.99::10.0.0.1:255.2
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;We can take a look at the ISO bootstrap config and the kernels arguments with:&lt;/p&gt;
+&lt;p&gt;We can take a look at the ISO bootstrap config and the kernel arguments with:&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="listingblock"&gt;
 &lt;div class="content"&gt;
