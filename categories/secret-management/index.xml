@@ -1,4 +1,1197 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Secret Management on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/secret-management/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 05 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/secret-management/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - Initialisation, Unsealing, and Auto-Unseal - Part 6</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-05-openbao-part-6-auto-unsealing/</link><pubDate>Thu, 05 Mar 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-05-openbao-part-6-auto-unsealing/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Secret Management on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/secret-management/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 09 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/secret-management/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - Authentication Methods - Part 7</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/</link><pubDate>Mon, 09 Mar 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;With OpenBao deployed and running, the next critical step is configuring authentication. Ultimately, you want to limit access to only authorised people. This article covers two common authentication methods: Kubernetes for pods and LDAP for enterprise directories (in a simplified example). There are many more methods, but we cannot cover them all in this article.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Authentication in OpenBao verifies the identity of clients before granting access to secrets. OpenBao supports multiple authentication methods, each suited for different use cases. Among others it supports:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Method&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Best For&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Key Features&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Kubernetes&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Pods running in K8s/OpenShift&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Service account tokens, automatic&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;OIDC&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Human users, SSO&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;OpenShift OAuth, Keycloak, Azure AD&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;LDAP&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enterprise directories&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Active Directory, OpenLDAP&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;AppRole&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;CI/CD, automation&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Role ID + Secret ID&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Token&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Direct access, bootstrap&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Simple but less secure&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The full documentation of the authentication methods and the list of available methods (for example Radius) can be found here: &lt;a href="https://openbao.org/docs/auth/" target="_blank" rel="noopener"&gt;OpenBao Authentication Methods&lt;/a&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_authentication_workflow"&gt;Authentication Workflow&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The authentication workflow in OpenBao from a user perspective is as follows:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;A client wants to authenticate to OpenBao and provides credentials.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao validates the credentials against the authentication method. For example: LDAP&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;If the authentication method (e.g. LDAP) is successful, it will return the required information about the client.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao maps this result to policies that are mapped to the authentication method.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao generates a token that is associated with the policies and returns it to the client.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The client can then use this token for further operations.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_prerequisites_for_authentication_methods"&gt;Prerequisites for Authentication Methods&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before configuring authentication:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao is deployed and unsealed (Parts 2-6)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;You have admin access to OpenBao (root token)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Access to the required authentication backend:&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;For Kubernetes auth: Access to the OpenShift cluster&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;For LDAP: Access to the LDAP server&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;etc.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Set up your environment:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can set up your environment by using either the &lt;strong&gt;CLI&lt;/strong&gt; or the &lt;strong&gt;UI&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_using_the_cli"&gt;Using the CLI&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can use the CLI to interact with OpenBao. In this example we will forward the port locally to the OpenBao server and set the environment variable &lt;code&gt;BAO_ADDR&lt;/code&gt; to the local address. With &lt;strong&gt;boa login&lt;/strong&gt; and the root token you can authenticate against OpenBao with full access.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Port forward (if needed)
+oc port-forward svc/openbao 8200:8200 -n openbao &amp;amp;
+# Set environment
+export BAO_ADDR=&amp;#39;http://127.0.0.1:8200&amp;#39;
+# You may need the SSL CA too.
+# export BAO_CACERT=&amp;#34;$PWD/openbao-ca.crt&amp;#34;
+# Login with root token
+bao login
+# List all authentication methods
+bao auth list&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The last command returns a list of the available authentication methods. Currently there is only one authentication method enabled: &lt;strong&gt;token&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description Version
+---- ---- -------- ----------- -------
+token/ token auth_token_1020fa7b token based credentials n/a&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_using_the_ui"&gt;Using the UI&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The UI, if enabled, is accessible via the OpenShift Route (if running on OpenShift and if it was created in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/"&gt;Part 3&lt;/a&gt;). The password/token is the &lt;strong&gt;root token&lt;/strong&gt; from the initialisation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part7_openbao_ui_login_form.png" alt="OpenBao UI Login Form"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. OpenBao UI Login Form&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The UI has the advantage that it offers more visibility into the configuration and possibilities.
+For example, at the beginning there is one authentication method &lt;strong&gt;token&lt;/strong&gt; enabled. This is required for the root token authentication.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part7_openbao_ui_authentication_methods.png?width=840px" alt="OpenBao UI Authentication Methods"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 2. OpenBao UI Authentication Methods&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can enable the other authentication methods by clicking on the &lt;strong&gt;Enable new method&lt;/strong&gt; link to see what options are available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part7_openbao_ui_configuring_new_authentication_methods.png" alt="OpenBao UI Configuring New Authentication Method"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 3. OpenBao UI Configuring New Authentication Method&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_understanding_policies"&gt;Understanding Policies&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before you can actually use an authentication method, it is important to understand what &lt;strong&gt;policies&lt;/strong&gt; do. A policy is a way to declaratively define what (which paths) authenticated users can access or not. All paths are &lt;strong&gt;denied by default&lt;/strong&gt;. A policy is mapped to an authentication method. For example, when we look at LDAP, we could configure something like this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;em&gt;Every member of group &amp;#34;dev&amp;#34; is mapped to a policy named &amp;#34;dev-policy&amp;#34;. The policy then allows the user to read the secrets under the path &amp;#34;secret/data/dev/*&amp;#34;.&lt;/em&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_basic_policy_structure"&gt;Basic Policy Structure&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A policy is a set of &lt;strong&gt;path rules&lt;/strong&gt;. Each rule says: “for this path (or path prefix), the bearer of this policy may use these &lt;strong&gt;capabilities&lt;/strong&gt;.” Paths are tied to OpenBao’s internal API: for example, secrets in the KV v2 engine live under &lt;code&gt;secret/data/&amp;lt;mount-path&amp;gt;/&amp;lt;key&amp;gt;&lt;/code&gt;, so a path like &lt;code&gt;secret/data/myapp/*&lt;/code&gt; means “any key under the &lt;code&gt;myapp&lt;/code&gt; prefix in the KV v2 store mounted at &lt;code&gt;secret/&lt;/code&gt;.”&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The example below does two things that are typical for an application policy:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Secrets access:&lt;/strong&gt; It allows &lt;strong&gt;read&lt;/strong&gt; and &lt;strong&gt;list&lt;/strong&gt; on &lt;code&gt;secret/data/myapp/*&lt;/code&gt;.&lt;/p&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;read&lt;/strong&gt; lets the client fetch the value of a secret at a path (e.g. &lt;code&gt;secret/data/myapp/database&lt;/code&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;list&lt;/strong&gt; is required to list keys under a path (e.g. to discover &lt;code&gt;myapp/database&lt;/code&gt;, &lt;code&gt;myapp/api-key&lt;/code&gt;); without it, the client would need to know every path in advance.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Token renewal:&lt;/strong&gt; It allows &lt;strong&gt;update&lt;/strong&gt; on &lt;code&gt;auth/token/renew-self&lt;/code&gt;. Tokens often have a limited lifetime; this path lets the holder extend their own token without needing the root token or extra permissions. Including it avoids applications losing access when the token expires.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Policies can be written in JSON or HCL.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-hcl hljs" data-lang="hcl"&gt;# Example policy: myapp-read-policy.hcl
+# Allow reading secrets from specific path (KV v2 engine at mount &amp;#34;secret/&amp;#34;)
+path &amp;#34;secret/data/myapp/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+# Allow renewing own token so the app can extend its token before expiry
+path &amp;#34;auth/token/renew-self&amp;#34; {
+capabilities = [&amp;#34;update&amp;#34;]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The path &lt;code&gt;secret/data/myapp/*&lt;/code&gt; assumes you have a KV v2 secrets engine mounted at &lt;code&gt;secret/&lt;/code&gt; and will store application secrets under keys like &lt;code&gt;myapp/database&lt;/code&gt;, &lt;code&gt;myapp/api-key&lt;/code&gt;, etc. Adjust the mount path and prefix to match your setup.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The use of globs (*) may result in surprising or unexpected behaviour. Use them with caution.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_policy_capabilities"&gt;Policy Capabilities&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Each path defined in a policy must have at least one capability. This provides control over the allowed or denied operations a user may perform. There are several capabilities available:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;create&lt;/code&gt; - Create new data at the given path&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;read&lt;/code&gt; - Read data&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;update&lt;/code&gt; - Update existing data&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;patch&lt;/code&gt; - Patch existing data (Partial update)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;delete&lt;/code&gt; - Delete data&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;list&lt;/code&gt; - List keys at a path&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;scan&lt;/code&gt; - Scan or browse the path for keys&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;sudo&lt;/code&gt; - Allows access to paths that are &lt;strong&gt;root-protected&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;deny&lt;/code&gt; - Explicitly deny (overrides other grants)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_default_policies"&gt;Default Policies&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When OpenBao is deployed the first time, there are no additional authentication methods enabled, except for &lt;strong&gt;token&lt;/strong&gt;. This is required for the root access itself. To allow the administrator to access using the root token, there is one default policy called &lt;strong&gt;root&lt;/strong&gt;. This policy is somewhat of a catch-all policy; it allows the administrator to access everything.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In addition to the root policy, there is one other default policy called &lt;strong&gt;default&lt;/strong&gt;. This policy is used for all authenticated users. It allows them, for example, to look up their own properties and to renew or revoke their own token.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s look at the default policies in the CLI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+A quick reminder of how to log in to OpenBao using the CLI when running it against Kubernetes: first open a port-forward, set the variable &lt;code&gt;BAO_ADDR&lt;/code&gt; to the local address; if you use HTTPS you may need to set the SSL CA certificate, then log in with the root token.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;You need to have the CA certificate in the current directory, which you might fetch with:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39; | base64 -d &amp;gt; openbao-ca.crt&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Port forward, set the environment variables and login with the root token:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Port forward (if needed)
+oc port-forward svc/openbao 8200:8200 -n openbao &amp;amp;
+# Set environment
+export BAO_ADDR=&amp;#39;https://127.0.0.1:8200&amp;#39;
+# You may need the SSL CA too.
+export BAO_CACERT=&amp;#34;$PWD/openbao-ca.crt&amp;#34;
+# Login with root token
+bao login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Now to list and fetch the current policies you can use the following commands:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# List policies
+bao policy list
+# Returns something like this:
+#default
+#root
+# Read a policy
+bao policy read default&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The second command returns the policy content:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Allow tokens to look up their own properties
+path &amp;#34;auth/token/lookup-self&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}
+# Allow tokens to renew themselves
+path &amp;#34;auth/token/renew-self&amp;#34; {
+capabilities = [&amp;#34;update&amp;#34;]
+}
+# Allow tokens to revoke themselves
+path &amp;#34;auth/token/revoke-self&amp;#34; {
+capabilities = [&amp;#34;update&amp;#34;]
+}
+# Allow a token to look up its own capabilities on a path
+path &amp;#34;sys/capabilities-self&amp;#34; {
+[...]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Again you will see the same policies in the UI. You can also manage them or create new ones using the UI.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part7_openbao_ui_list_policies.png" alt="OpenBao UI List Policies"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 4. OpenBao UI Listing Policies&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_creating_policies_using_the_cli"&gt;Creating Policies using the CLI&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Creating a policy, for example using the CLI, is straightforward. You can create a policy from a file or inline. The syntax is either JSON or HCL.
+The example below creates a policy called &amp;#34;myapp-read&amp;#34; from a file called &amp;#34;myapp-read-policy.hcl&amp;#34;. The policy allows reading and listing secrets under the path &amp;#34;secret/data/myapp/*&amp;#34;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Create a policy from file
+bao policy write myapp-read myapp-read-policy.hcl
+# Or inline
+bao policy write myapp-read - &amp;lt;&amp;lt;EOF
+path &amp;#34;secret/data/myapp/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+EOF
+# List policies
+bao policy list
+# Read a policy
+bao policy read myapp-read&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_kubernetes_authentication_method"&gt;Kubernetes Authentication Method&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As we work a lot with OpenShift/Kubernetes, this method of authentication will be the first to try.
+The Kubernetes auth method can be used to authenticate against OpenBao using Kubernetes Service Account tokens.
+It is essential for pods to access secrets.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let us try a simple example.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_1_enable_kubernetes_auth"&gt;Step 1: Enable Kubernetes Auth&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Assuming you are still logged into OpenBao, you can enable the kubernetes auth method with the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao auth enable --description=&amp;#34;Authentication method for Kubernetes/OpenShift cluster&amp;#34; kubernetes&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This simply enabled the authentication method and set a description. However, we need to configure it further.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_2_configure_kubernetes_auth"&gt;Step 2: Configure Kubernetes Auth&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To configure the kubernetes auth method, you need to get the Kubernetes API server address. You can get it with the following command (assuming you are logged into the OpenShift cluster):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The command &lt;code&gt;oc&lt;/code&gt; can be replaced by &lt;code&gt;kubectl&lt;/code&gt; if you are not using an OpenShift cluster.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Get the Kubernetes API server address
+KUBERNETES_HOST=$(oc whoami --show-server) &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+# Configure the auth method
+bao write auth/kubernetes/config \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+kubernetes_host=&amp;#34;$KUBERNETES_HOST&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Get the Kubernetes API server address. This will use something like &lt;a href="https://api.cluster.example.com:6443" class="bare"&gt;https://api.cluster.example.com:6443&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Configure the auth method with the Kubernetes API server address.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+When running inside Kubernetes, OpenBao automatically uses the pod’s service account to communicate with the Kubernetes API.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_3_create_a_policy_for_the_application"&gt;Step 3: Create a Policy for the Application&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we need to associate a policy to the authentication method. We could also assign the default policy but we want to provide access to the path &lt;strong&gt;secret/data/expense/database&lt;/strong&gt; and &lt;strong&gt;secret/metadata/expense/config&lt;/strong&gt; for the application.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Create policy for an example application
+bao policy write expense-app - &amp;lt;&amp;lt;EOF
+# Read database credentials
+path &amp;#34;secret/data/expense/database&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}
+# Read application config
+path &amp;#34;secret/data/expense/config&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+# Allow token renewal
+path &amp;#34;auth/token/renew-self&amp;#34; {
+capabilities = [&amp;#34;update&amp;#34;]
+}
+EOF&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_4_create_a_kubernetes_auth_role"&gt;Step 4: Create a Kubernetes Auth Role&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As the next step we map the policy to the authentication method. We will further limit the access to the namespace &lt;strong&gt;expense&lt;/strong&gt; and the service account &lt;strong&gt;expense-app&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Create a role that maps Kubernetes service accounts to OpenBao policies
+bao write auth/kubernetes/role/expense-app \
+bound_service_account_names=expense-app \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+bound_service_account_namespaces=expense \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+policies=expense-app \ &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+ttl=1h \ &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+max_ttl=24h &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;bound_service_account_names&lt;/code&gt;: K8s service account name(s)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;bound_service_account_namespaces&lt;/code&gt;: K8s namespace(s)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;policies&lt;/code&gt;: OpenBao policies to attach&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;ttl&lt;/code&gt;: Token time-to-live&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;max_ttl&lt;/code&gt;: Maximum token lifetime&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+All of the configuration above, created using the CLI, can also be done using the UI of OpenBao.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_ensure_the_kv_v2_secrets_engine_is_mounted_at_secret"&gt;Ensure the KV v2 secrets engine is mounted at &lt;code&gt;secret/&lt;/code&gt;&lt;/h4&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+We will discuss secret engines in more detail in the next part of the guide.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The policy and demo commands in this guide use the path &lt;code&gt;secret/data/expense/database&lt;/code&gt;, which assumes a KV v2 secrets engine mounted at &lt;code&gt;secret/&lt;/code&gt;. To check and enable it:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Check existing mounts:&lt;/strong&gt; List enabled secrets engines and look for &lt;code&gt;secret/&lt;/code&gt; with type &lt;code&gt;kv&lt;/code&gt; (version 2):&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# List all secrets engine mounts (requires a token with read on sys/mounts)
+bao secrets list&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Look for an entry like &lt;code&gt;secret/&lt;/code&gt; with type &lt;code&gt;kv&lt;/code&gt; or &lt;code&gt;kv-v2&lt;/code&gt;. If you see &lt;code&gt;secret/&lt;/code&gt; and it is KV v2, you can skip to Step 5.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Enable KV v2 at &lt;code&gt;secret/&lt;/code&gt; if missing:&lt;/strong&gt; If &lt;code&gt;secret/&lt;/code&gt; is not listed, or you want to use a fresh mount, enable the KV v2 engine at the path &lt;code&gt;secret&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Enable KV v2 secrets engine at path &amp;#34;secret&amp;#34; (requires root or policy with sys/mounts capability)
+bao secrets enable -path=secret -version=2 kv&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If &lt;code&gt;secret/&lt;/code&gt; already exists as KV v1, you cannot change it in place to v2; use a different path (e.g. &lt;code&gt;secretv2/&lt;/code&gt;) and update the policy and demo paths accordingly (&lt;code&gt;secretv2/data/expense/database&lt;/code&gt;, etc.).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_5_store_the_database_secret_in_openbao_one_time"&gt;Step 5: Store the database secret in OpenBao (one-time)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before the application can read it, store the database password (and any other keys) at the path the policy allows. Run this once from a machine that has OpenBao access (e.g. &lt;code&gt;bao&lt;/code&gt; CLI and a token).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock important"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-important" title="Important"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+You must use a token that has &lt;strong&gt;create&lt;/strong&gt; and &lt;strong&gt;update&lt;/strong&gt; capability on the KV path. The &lt;code&gt;expense-app&lt;/code&gt; policy is read-only (for the application). Use the &lt;strong&gt;root token&lt;/strong&gt; from OpenBao initialisation, or log in with &lt;code&gt;bao login&lt;/code&gt; and use a token that has a policy granting &lt;code&gt;create&lt;/code&gt; and &lt;code&gt;update&lt;/code&gt; on &lt;code&gt;secret/data/expense/*&lt;/code&gt;. If you use a read-only token (e.g. one that only has the expense-app policy), you will get a 403 &amp;#34;preflight capability check returned 403&amp;#34;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Store the database secret at secret/data/expense/database (KV v2 path)
+bao kv put secret/expense/database password=&amp;#34;my-super-secret-db-password&amp;#34; username=&amp;#34;expense_db_user&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This creates (or overwrites) the secret at &lt;code&gt;secret/data/expense/database&lt;/code&gt;. The policy grants the &lt;code&gt;expense-app&lt;/code&gt; role &lt;strong&gt;read&lt;/strong&gt; on this path only; the application cannot create or update it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_6_create_the_expense_namespace_and_demo_application"&gt;Step 6: Create the expense namespace and demo application&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the following manifests to create the namespace, service account, optional long-lived token (Kubernetes 1.24+), and a demo deployment that authenticates to OpenBao and fetches the database secret. Adjust the OpenBao URL if your OpenBao is in another namespace or uses HTTPS (e.g. &lt;code&gt;&lt;a href="https://openbao.openbao.svc:8200" class="bare"&gt;https://openbao.openbao.svc:8200&lt;/a&gt;&lt;/code&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Remember: We have created a policy that allows the service account with the name &lt;strong&gt;expense-app&lt;/strong&gt; in the namespace &lt;strong&gt;expense&lt;/strong&gt; to read the secret at &lt;strong&gt;secret/data/expense/database&lt;/strong&gt;. If you want to use different paths or namespaces, you need to adjust the policy accordingly.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;# full-demo-expense-app.yaml
+# 1. Namespace
+apiVersion: v1
+kind: Namespace &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+metadata:
+name: expense
+---
+# 2. Service account used by the demo app to authenticate to OpenBao
+apiVersion: v1
+kind: ServiceAccount &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+metadata:
+name: expense-app
+namespace: expense
+---
+# 3. Long-lived token for Kubernetes 1.24+ (optional; allows pods to use the SA token)
+apiVersion: v1
+kind: Secret &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+metadata:
+name: expense-app-token
+namespace: expense
+annotations:
+kubernetes.io/service-account.name: expense-app
+type: kubernetes.io/service-account-token
+---
+# 4. Demo deployment: authenticates to OpenBao and fetches secret/data/expense/database
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: expense-demo
+namespace: expense
+labels:
+app: expense-demo
+spec:
+replicas: 1
+selector:
+matchLabels:
+app: expense-demo
+template:
+metadata:
+labels:
+app: expense-demo
+spec:
+serviceAccountName: expense-app
+containers:
+- name: demo
+image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+command:
+- /bin/sh
+- -c
+- |
+echo &amp;#34;=== Installing curl ===&amp;#34;
+microdnf install -y curl 2&amp;gt;/dev/null || true
+echo &amp;#34;=== Fetching database secret from OpenBao ===&amp;#34;
+JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+OPENBAO_URL=&amp;#34;${OPENBAO_URL:-http://openbao.openbao:8200}&amp;#34;
+RESP=$(curl -s -k -X POST -H &amp;#34;Content-Type: application/json&amp;#34; \ &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+-d &amp;#34;{\&amp;#34;jwt\&amp;#34;: \&amp;#34;$JWT\&amp;#34;, \&amp;#34;role\&amp;#34;: \&amp;#34;expense-app\&amp;#34;}&amp;#34; \
+&amp;#34;$OPENBAO_URL/v1/auth/kubernetes/login&amp;#34;)
+TOKEN=$(echo &amp;#34;$RESP&amp;#34; | sed -n &amp;#39;s/.*&amp;#34;client_token&amp;#34;:&amp;#34;\([^&amp;#34;]*\)&amp;#34;.*/\1/p&amp;#39;)
+if [ -z &amp;#34;$TOKEN&amp;#34; ]; then
+echo &amp;#34;ERROR: Failed to get OpenBao token. Check OpenBao URL ($OPENBAO_URL), role expense-app, and network.&amp;#34;
+echo &amp;#34;Response: $RESP&amp;#34;
+exit 1
+fi
+echo &amp;#34;OpenBao token obtained. Reading secret/data/expense/database ...&amp;#34;
+SECRET=$(curl -s -k -H &amp;#34;X-Vault-Token: $TOKEN&amp;#34; &amp;#34;$OPENBAO_URL/v1/secret/data/expense/database&amp;#34;) &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+echo &amp;#34;$SECRET&amp;#34;
+PASSWORD=$(echo &amp;#34;$SECRET&amp;#34; | sed -n &amp;#39;s/.*&amp;#34;password&amp;#34;:&amp;#34;\([^&amp;#34;]*\)&amp;#34;.*/\1/p&amp;#39;)
+echo &amp;#34;Database password (data.data.password): ${PASSWORD:-&amp;lt;not set&amp;gt;}&amp;#34;
+echo &amp;#34;=== Demo complete. Pod stays running; exec in to run more curl commands. ===&amp;#34;
+exec sleep infinity
+env:
+# Override if OpenBao is in another namespace or uses HTTPS
+- name: OPENBAO_URL
+value: &amp;#34;https://openbao.openbao:8200&amp;#34;
+resources:
+requests:
+memory: &amp;#34;64Mi&amp;#34;
+cpu: &amp;#34;10m&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Create the namespace&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Create the service account&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Create the secret (long-lived token for Kubernetes 1.24+)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Authenticate to OpenBao and get a client token (using the Kubernetes JWT)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Fetch the database secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The examples above use &lt;strong&gt;curl -k&lt;/strong&gt; to bypass certificate verification. For production, you should adjust this and mount the CA certificate in the pod (see the note earlier in this section on using the &lt;code&gt;openbao-ca&lt;/code&gt; Secret).
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the manifests and wait for the pod to be ready:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f full-demo-expense-app.yaml
+# Wait for the demo pod to be running
+oc -n expense rollout status deployment/expense-demo
+# View the log: you should see the OpenBao token response and the fetched secret (including the password)
+oc -n expense logs -l app=expense-demo -f&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The log output shows the application authenticating with the Kubernetes JWT, receiving an OpenBao token, and reading the secret at &lt;code&gt;secret/data/expense/database&lt;/code&gt;. The field &lt;code&gt;data.data.password&lt;/code&gt; is the database password you stored in Step 5.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_7_test_kubernetes_authentication_manually"&gt;Step 7: Test Kubernetes authentication manually&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;From any pod that uses the same service account (e.g. the demo pod above), you can run the same steps by hand:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# From within a pod using the service account (e.g. oc exec -it deployment/expense-demo -n expense -- /bin/sh)
+JWT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+# 1. Authenticate to OpenBao and get a client token (sed works on UBI minimal; use jq -r .auth.client_token if jq is available)
+LOGIN=$(curl -s -k --request POST \
+--data &amp;#34;{\&amp;#34;jwt\&amp;#34;: \&amp;#34;$JWT\&amp;#34;, \&amp;#34;role\&amp;#34;: \&amp;#34;expense-app\&amp;#34;}&amp;#34; \
+https://openbao.openbao:8200/v1/auth/kubernetes/login)
+TOKEN=$(echo &amp;#34;$LOGIN&amp;#34; | sed -n &amp;#39;s/.*&amp;#34;client_token&amp;#34;:&amp;#34;\([^&amp;#34;]*\)&amp;#34;.*/\1/p&amp;#39;)
+# 2. Fetch the database secret (same path the policy allows)
+curl -s -k -H &amp;#34;X-Vault-Token: $TOKEN&amp;#34; https://openbao.openbao:8200/v1/secret/data/expense/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_summary_kubernetes_auth_method"&gt;Summary: Kubernetes auth method&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A lot of steps were involved to configure the Kubernetes auth method. Let us summarize them:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;In OpenBao:&lt;/strong&gt; Enabled the Kubernetes auth method, configured it with the cluster API server address, created the &lt;code&gt;expense-app&lt;/code&gt; policy (read on &lt;code&gt;secret/data/expense/database&lt;/code&gt; and &lt;code&gt;secret/data/expense/config&lt;/code&gt;, update on &lt;code&gt;auth/token/renew-self&lt;/code&gt;), and created the &lt;code&gt;expense-app&lt;/code&gt; role that binds the Kubernetes service account &lt;code&gt;expense-app&lt;/code&gt; in namespace &lt;code&gt;expense&lt;/code&gt; to that policy.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Secrets engine:&lt;/strong&gt; Ensured the KV v2 engine is mounted at &lt;code&gt;secret/&lt;/code&gt; and stored the database secret at &lt;code&gt;secret/expense/database&lt;/code&gt; (one-time, using the root token).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;In the cluster:&lt;/strong&gt; Created the &lt;code&gt;expense&lt;/code&gt; namespace, the &lt;code&gt;expense-app&lt;/code&gt; service account, an optional long-lived token Secret (for Kubernetes 1.24+), and the &lt;code&gt;expense-demo&lt;/code&gt; deployment that uses that service account to authenticate to OpenBao and fetch the secret. For HTTPS, created the &lt;code&gt;openbao-ca&lt;/code&gt; Secret in &lt;code&gt;expense&lt;/code&gt; with the OpenBao server CA.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Verification:&lt;/strong&gt; Applied the manifests, confirmed the demo pod starts and logs show a successful login and the fetched secret (including the database password). Optionally ran the same login and read steps manually via &lt;code&gt;oc exec&lt;/code&gt; into the pod.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ldap_authentication_method"&gt;LDAP Authentication Method&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;LDAP auth integrates with enterprise directories like Active Directory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is a very simplified example. As a prerequisite you need to have an LDAP server and a service account with the necessary permissions to read the users and groups. This is not part of this guide.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_1_enable_ldap_auth"&gt;Step 1: Enable LDAP Auth&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To enable LDAP authentication, you need to use the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao auth enable ldap&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_2_configure_ldap_active_directory_example"&gt;Step 2: Configure LDAP (Active Directory Example)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this step you need to configure the LDAP server address, the user and group attributes, the bind DN and the bind password.
+The example below configures the LDAP server address to &lt;strong&gt;ldaps://ad.example.com:636&lt;/strong&gt;, the user attribute to &lt;strong&gt;sAMAccountName&lt;/strong&gt;, the user DN to &lt;strong&gt;OU=Users,DC=example,DC=com&lt;/strong&gt;, the group DN to &lt;strong&gt;OU=Groups,DC=example,DC=com&lt;/strong&gt;, the group attribute to &lt;strong&gt;cn&lt;/strong&gt;, the group filter to &lt;strong&gt;(&amp;amp;(objectClass=group)(member:1.2.840.113556.1.4.1941:={{.UserDN}}))&lt;/strong&gt;, the bind DN to &lt;strong&gt;CN=openbao-svc,OU=ServiceAccounts,DC=example,DC=com&lt;/strong&gt; and the bind password to &lt;strong&gt;service-account-password&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao write auth/ldap/config \
+url=&amp;#34;ldaps://ad.example.com:636&amp;#34; \
+userattr=&amp;#34;sAMAccountName&amp;#34; \
+userdn=&amp;#34;OU=Users,DC=example,DC=com&amp;#34; \
+groupdn=&amp;#34;OU=Groups,DC=example,DC=com&amp;#34; \
+groupattr=&amp;#34;cn&amp;#34; \
+groupfilter=&amp;#34;(&amp;amp;(objectClass=group)(member:1.2.840.113556.1.4.1941:={{.UserDN}}))&amp;#34; \
+binddn=&amp;#34;CN=openbao-svc,OU=ServiceAccounts,DC=example,DC=com&amp;#34; \
+bindpass=&amp;#34;service-account-password&amp;#34; \
+certificate=@/path/to/ldap-ca.pem \
+insecure_tls=false \
+starttls=false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_3_create_the_policies_used_by_the_group_mapping"&gt;Step 3: Create the policies used by the group mapping&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before mapping LDAP groups to policy names, create those policies. Below are example definitions: &lt;strong&gt;admin-policy&lt;/strong&gt; grants read/list/update on secrets (e.g. for operators), and &lt;strong&gt;user-policy&lt;/strong&gt; grants read-only access to a limited path.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;admin-policy&lt;/strong&gt; — for members of &lt;strong&gt;openbao-admins&lt;/strong&gt; (e.g. operators who may read and update secrets)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;user-policy&lt;/strong&gt; — for members of &lt;strong&gt;openbao-users&lt;/strong&gt; (e.g. developers with read-only access to a subset of secrets)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create them with the CLI (run before the group mapping in Step 4):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Create admin-policy (e.g. from file admin-policy.hcl)
+bao policy write admin-policy - &amp;lt;&amp;lt;EOF
+path &amp;#34;secret/data/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;, &amp;#34;update&amp;#34;, &amp;#34;create&amp;#34;, &amp;#34;delete&amp;#34;]
+}
+path &amp;#34;secret/metadata/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+path &amp;#34;auth/token/renew-self&amp;#34; {
+capabilities = [&amp;#34;update&amp;#34;]
+}
+EOF
+# Create user-policy
+bao policy write user-policy - &amp;lt;&amp;lt;EOF
+path &amp;#34;secret/data/myapp/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+path &amp;#34;auth/token/renew-self&amp;#34; {
+capabilities = [&amp;#34;update&amp;#34;]
+}
+EOF&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Adjust paths (e.g. &lt;code&gt;secret/data/myapp/&lt;/code&gt;) to match your KV v2 mount and the paths you want each role to access. The &lt;strong&gt;default&lt;/strong&gt; policy is built-in and grants token lookup/renew/revoke-self. Attaching it in addition to &lt;strong&gt;admin-policy&lt;/strong&gt; or &lt;strong&gt;user-policy&lt;/strong&gt; is a typical pattern.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_4_map_ldap_groups_to_policies"&gt;Step 4: Map LDAP groups to policies&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now map the LDAP groups to the policy names. The example below maps the LDAP group &lt;strong&gt;openbao-admins&lt;/strong&gt; to the policies &lt;strong&gt;admin-policy&lt;/strong&gt; and &lt;strong&gt;default&lt;/strong&gt; and the LDAP group &lt;strong&gt;openbao-users&lt;/strong&gt; to the policies &lt;strong&gt;user-policy&lt;/strong&gt; and &lt;strong&gt;default&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Map an LDAP group to policies
+bao write auth/ldap/groups/openbao-admins \
+policies=&amp;#34;admin-policy,default&amp;#34;
+bao write auth/ldap/groups/openbao-users \
+policies=&amp;#34;user-policy,default&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_step_5_test_ldap_authentication"&gt;Step 5: Test LDAP authentication&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Assuming you have a user &lt;strong&gt;jdoe&lt;/strong&gt; in the LDAP group &lt;strong&gt;openbao-users&lt;/strong&gt;, you can test the LDAP authentication with the following commands:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Login with LDAP credentials
+bao login -method=ldap username=jdoe
+# Or via API
+curl --request POST \
+--data &amp;#39;{&amp;#34;password&amp;#34;: &amp;#34;user-password&amp;#34;}&amp;#39; \
+$BAO_ADDR/v1/auth/ldap/login/jdoe&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_what_jdoe_can_and_cannot_do_user_policy"&gt;What jdoe can and cannot do (user-policy)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;jdoe holds &lt;strong&gt;user-policy&lt;/strong&gt; (and &lt;strong&gt;default&lt;/strong&gt;), so their token has only the capabilities defined there.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;What jdoe can do:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Get a secret under &lt;code&gt;secret/data/myapp/*&lt;/code&gt;: after logging in, jdoe can read and list secrets in that path. For example:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# After bao login -method=ldap username=jdoe (and entering the password)
+bao kv get secret/myapp/database
+# Or via API (use the client_token from the login response)
+curl -s -H &amp;#34;X-Vault-Token: $TOKEN&amp;#34; $BAO_ADDR/v1/secret/data/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;List keys under &lt;code&gt;secret/data/myapp/&lt;/code&gt; to discover available secrets.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Renew or revoke their own token (from the &lt;strong&gt;default&lt;/strong&gt; policy) and look up their own token properties.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;What jdoe cannot do:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Read secrets outside &lt;code&gt;myapp&lt;/code&gt; — e.g. &lt;code&gt;secret/data/expense/database&lt;/code&gt; or &lt;code&gt;secret/data/other-app/*&lt;/code&gt; returns permission denied.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create, update, or delete any secret — &lt;strong&gt;user-policy&lt;/strong&gt; grants only &lt;code&gt;read&lt;/code&gt; and &lt;code&gt;list&lt;/code&gt; on &lt;code&gt;secret/data/myapp/*&lt;/code&gt;, so write operations are denied.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Access admin or system paths — no access to &lt;code&gt;sys/&lt;strong&gt;&lt;/strong&gt;&lt;/code&gt;&lt;strong&gt;, other auth methods, or policies. Only the paths explicitly granted in *user-policy&lt;/strong&gt; and &lt;strong&gt;default&lt;/strong&gt; are allowed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_common_practices_for_authentication"&gt;Common Practices for Authentication&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Use the principle of least privilege&lt;/strong&gt; - Do not grant more permissions than necessary.&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-hcl hljs" data-lang="hcl"&gt;# Bad: Too broad
+path &amp;#34;secret/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+# Good: Specific paths
+path &amp;#34;secret/data/myapp/database&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Set Appropriate Token TTLs&lt;/strong&gt; - Set the appropriate TTLs for different use cases.&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Short-lived for automated systems
+bao write auth/kubernetes/role/batch-job \
+ttl=5m \
+max_ttl=15m
+# Longer for interactive users
+bao write auth/oidc/role/human-user \
+ttl=8h \
+max_ttl=24h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Enable Audit Logging&lt;/strong&gt; - Enable audit logging to track authentication attempts and other activities.&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Enable file audit
+bao audit enable file file_path=/var/log/openbao/audit.log
+# All authentication attempts are logged&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Regularly Rotate Credentials&lt;/strong&gt; - Rotate the credentials periodically to reduce the risk of compromise.&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Rotate AppRole Secret IDs periodically
+bao write -f auth/approle/role/cicd-role/secret-id
+# Revoke old tokens
+bao token revoke &amp;lt;old-token&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_common_authentication_patterns"&gt;Common Authentication Patterns&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Pattern 1: Application Pods&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-none hljs"&gt;Pod → Service Account Token → Kubernetes Auth → Policy → Secret&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Pattern 2: Human Users&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-none hljs"&gt;User → LDAP/OIDC Login → Group Mapping → Policy → Secret&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Pattern 3: CI/CD Pipeline&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-none hljs"&gt;Pipeline → AppRole (Role ID + Secret ID) → Policy → Secret&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_is_coming_next"&gt;What is Coming Next?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In Part 8, we will explore secrets engines, like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;KV (Key-Value) for static secrets&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In upcoming parts, I will try to cover common practices for OpenBao operation and maintenance. If there is time and an opportunity to test other authentication methods, I will do so.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Proper authentication configuration is crucial for OpenBao security. Key takeaways:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Use &lt;strong&gt;Kubernetes auth&lt;/strong&gt; for pods&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use &lt;strong&gt;LDAP/OIDC&lt;/strong&gt; for human users (SSO)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Use &lt;strong&gt;AppRole&lt;/strong&gt; for automation&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Create &lt;strong&gt;specific policies&lt;/strong&gt; with least privilege&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Set &lt;strong&gt;appropriate TTLs&lt;/strong&gt; for different use cases&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Enable audit logging&lt;/strong&gt; for compliance&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/kubernetes" target="_blank" rel="noopener"&gt;Kubernetes Auth Method&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/jwt" target="_blank" rel="noopener"&gt;JWT/OIDC Auth Method&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/ldap" target="_blank" rel="noopener"&gt;LDAP Auth Method&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/approle" target="_blank" rel="noopener"&gt;AppRole Auth Method&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/concepts/policies" target="_blank" rel="noopener"&gt;Policies Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Initialisation, Unsealing, and Auto-Unseal - Part 6</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-05-openbao-part-6-auto-unsealing/</link><pubDate>Thu, 05 Mar 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-05-openbao-part-6-auto-unsealing/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;After deploying OpenBao via GitOps (&lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-20-openbao-part-5-gitops-deployment/"&gt;Part 5&lt;/a&gt;), OpenBao must be initialised and then unsealed before it becomes functional. You usually do not want to do this unsealing manually, since this is not scalable especially in bigger, productive environments. This article explains how to handle initialisation and unsealing, and possible options to configure an &lt;strong&gt;auto-unseal&lt;/strong&gt; process so that OpenBao unseals itself on every restart without manual key entry.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="sect1"&gt;
