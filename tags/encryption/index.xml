@@ -1,4 +1,1691 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Encryption on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/encryption/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 11 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/encryption/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenBao</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/</guid><description/></item><item><title>Secrets Management</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/</guid><description/></item><item><title>The Guide to OpenBao - Introduction - Part 1</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</link><pubDate>Wed, 11 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Encryption on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/encryption/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 26 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/encryption/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenBao</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/</guid><description/></item><item><title>Secrets Management</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/</guid><description/></item><item><title>The Guide to OpenBao - Secrets Engines KV - Part 8</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/</link><pubDate>Wed, 25 Mar 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Secrets engines are the heart of OpenBao’s functionality. They store, generate, or encrypt data. This article covers the most commonly used secrets engine: KV for static secrets. It will demonstrate how to use the KV secrets engine to store and retrieve secrets. Upcoming articles will cover the PKI secrets engine and the integration with &lt;strong&gt;cert-manager&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Secrets engines are components which store, generate, or encrypt data. Some engines simply store and read data, others connect to other services and other engines provide encryption as a service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;They are enabled at a path in OpenBao (as everything is done as a path in OpenBao). This means each secrets engine defines its very own path including properties.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The path is case-sensitive. For example, the KV secrets engine enabled at kv/ and KV/ are treated as two distinct instances of KV secrets engine.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The management of the secret engines is done via the CLI or API or, if enabled, the UI. Engines can be enabled, disabled, moved or tuned.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Enable - enables a secrets engine at the given path.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Disable - disables an existing secrets engine. All existing secrets are revoked and the data is deleted.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Move - moves the path for an existing secrets engine.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Tune - tunes global configuration for the secrets engine such as the TTLs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_list_of_secrets_engines"&gt;List of Secrets Engines&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To list all enabled secrets engines, we can use the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets list&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Which will output something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description
+---- ---- -------- -----------
+cubbyhole/ cubbyhole cubbyhole_f8b1e784 per-token private secret storage
+identity/ identity identity_76940581 identity store
+secret/ kv kv_ccb47c73 n/a
+sys/ system system_cb0d64b7 system endpoints used for control, policy and debugging&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+As a reminder: To login to the OpenBao CLI, we can use the following command (assuming that you are using HTTPS and have the CA certificate ready):
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export BAO_ADDR=&amp;#39;https://127.0.0.1:8200&amp;#39;
+export BAO_CACERT=&amp;#34;$PWD/openbao-ca.crt&amp;#34;
+bao login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="sect-kv"&gt;KV (Key-Value) Secrets Engine&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;KV&lt;/strong&gt; secrets engine is probably the most commonly used engine. It is a generic key-value store.
+When you work with KV secrets engine you will note very soon that there are two versions of the engine: &lt;strong&gt;KV v1&lt;/strong&gt; and &lt;strong&gt;KV v2&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_kv_version_1"&gt;KV Version 1&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v1 is the older version of the KV secrets engine. It does not support versioning and only stores the recently written value for a key. Requests to this engine will be more performant because the storage requests will be fewer and no locking is required. The storage as such will be much smaller, since it does not need to retain any history.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_kv_version_2"&gt;KV Version 2&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v2 on the other hand supports versioning of secrets. When a version is deleted, the underlying data is not removed, instead you must destroy it intentionally. Storing the history of secrets will increase the required storage space. However, I would recommend using KV v2 in most cases as the benefit of versioning is too great to ignore.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The following example will use KV v2.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_kv_version_1_vs_version_2"&gt;KV Version 1 vs Version 2&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Feature&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Version 1&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Version 2&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Versioning&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (up to 10 versions by default)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Check-and-Set&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (prevents concurrent writes)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Soft delete&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (recoverable)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Metadata&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (custom metadata)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+KV v1 can be upgraded to KV v2 by using the following command as described in the documentation: &lt;a href="https://openbao.org/docs/secrets/kv/kv-v2/#upgrading-from-version-1" target="_blank" rel="noopener"&gt;Upgrading from version 1&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_enabling_kv_engine"&gt;Enabling KV Engine&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s enable the KV v2 engine at the path &lt;strong&gt;secret/&lt;/strong&gt; and give it the description &amp;#34;Application secrets&amp;#34;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This path was used in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/"&gt;Part 7 of this series&lt;/a&gt; already. So you might have to remove or rename the engine first if you have already enabled it.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets enable \
+-path=secret \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+-version=2 \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+-description=&amp;#34;Application secrets&amp;#34; \
+kv &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path where the secrets will be stored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Version of the engine in case of KV&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the engine&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_storing_secrets"&gt;Storing Secrets&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With the enabled engine, we can now store secrets at the path:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Put a secret (KV v2)
+bao kv put secret/myapp/database \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+username=&amp;#34;dbadmin&amp;#34; \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+password=&amp;#34;supersecret123&amp;#34; \
+host=&amp;#34;db.example.com&amp;#34; \
+port=&amp;#34;5432&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path where the secret will be stored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Secret data&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Which will output something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;======= Secret Path =======
+secret/data/myapp/database &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+======= Metadata =======
+Key Value
+--- -----
+created_time 2026-03-13T05:56:52.670296216Z
+custom_metadata &amp;lt;nil&amp;gt;
+deletion_time n/a
+destroyed false
+version 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path where the secret will be stored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Version of the secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_reading_secrets"&gt;Reading Secrets&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To read the secret, we can use one of the following commands:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Read a secret
+bao kv get secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Which will output something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;======= Secret Path =======
+secret/data/myapp/database &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+[... more metadata ...]
+====== Data ====== &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+Key Value
+--- -----
+host db.example.com
+password supersecret123
+port 5432
+username dbadmin&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path where the secret will be stored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Secret data&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As an alternative, we can use the following command to get the secret as JSON:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Get as JSON
+bao kv get -format=json secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can also read a specific existing version of the secret by using the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Read specific version
+bao kv get -version=2 secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Or simply, a specific field:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Get specific field
+bao kv get -field=password secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the UI is enabled, the same can be achieved via the browser:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part8_secretsengine_kv.png" alt="OpenBao Secret Retrieval"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. OpenBao Secret Retrieval&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_managing_versions"&gt;Managing Versions&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v2 keeps a version history. This is a big advantage over KV v1. To try version management, ensure the secret has at least two versions. Create a second version by writing to the same path again (e.g. with updated values):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao kv put secret/myapp/database username=dbadmin password=newpassword456 port=5432 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Updating an existing secret with a new password, which will create a new version in KV v2.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now you can list versions, soft-delete, undelete, or destroy a specific version:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+I will only paste the output of the first command. The rest will be similar …​ you’ll get the idea.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# List all versions and metadata
+bao kv metadata get secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Which will output something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;====== Version 1 ====== &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Key Value
+--- -----
+created_time 2026-03-13T05:56:52.670296216Z
+deletion_time n/a
+destroyed false
+====== Version 2 ====== &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+Key Value
+--- -----
+created_time 2026-03-13T06:13:18.539285992Z
+deletion_time n/a
+destroyed false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Version 1&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Version 2&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Specific versions can now be (soft-) deleted, permanently destroyed etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The last command of the list will completely delete all versions and metadata for a given path aka the secret is gone.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Delete specific version (soft delete)
+bao kv delete -versions=2 secret/myapp/database
+# Undelete a version
+bao kv undelete -versions=2 secret/myapp/database
+# Permanently destroy a version
+bao kv destroy -versions=2 secret/myapp/database
+# Delete all versions and metadata
+bao kv metadata delete secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock tip"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-tip" title="Tip"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+When you define a secret you can set the maximum number of versions to keep using the flag &lt;strong&gt;-max-versions=5&lt;/strong&gt;. This is the number of versions that will be kept in the history.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_custom_metadata"&gt;Custom Metadata&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A secret’s key metadata can contain multiple custom metadata that can be used to describe the secret. The data will be stored as key-value pairs. Imagine them like labels in Kubernetes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s extend our secret with some custom metadata:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Add custom metadata to a secret
+bao kv metadata put \
+-custom-metadata=&amp;#34;owner=team-a&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+-custom-metadata=&amp;#34;environment=production&amp;#34; \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;First custom metadata to set an owner label&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Second custom metadata to set an environment label&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_policies_for_kv_v2"&gt;Policies for KV v2&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao policies control which authenticated clients may access which paths and with what actions. For the KV v2 secrets engine, any read or write via the API is checked against the token’s policies; without a policy granting the right capabilities, requests return 403. This section shows example policy rules you can attach to roles (e.g. Kubernetes auth roles) or tokens so that applications and users have the minimum access they need.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v2 exposes two logical path trees under the mount path (here &lt;code&gt;secret/&lt;/code&gt;):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;secret/data/&amp;lt;path&amp;gt;&lt;/code&gt;&lt;/strong&gt; — Secret values. Use capabilities such as &lt;code&gt;read&lt;/code&gt;, &lt;code&gt;create&lt;/code&gt;, &lt;code&gt;update&lt;/code&gt;, and &lt;code&gt;delete&lt;/code&gt; for reading and writing secret data.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;secret/metadata/&amp;lt;path&amp;gt;&lt;/code&gt;&lt;/strong&gt; — Version and metadata. Use &lt;code&gt;list&lt;/code&gt; to enumerate keys, and &lt;code&gt;read&lt;/code&gt;/&lt;code&gt;delete&lt;/code&gt; for version metadata and destroying versions.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following example grants read-only access to all secrets under &lt;code&gt;myapp/&lt;/code&gt;, plus full read/write (including create, update, delete) for the single path &lt;code&gt;myapp/database&lt;/code&gt;. Replace &lt;code&gt;myapp&lt;/code&gt; with your application or team prefix as needed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-hcl hljs" data-lang="hcl"&gt;# Note: KV v2 uses /data/ for values and /metadata/ for metadata
+# Read secret values under myapp/
+path &amp;#34;secret/data/myapp/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}
+# List secret keys under myapp/ (required for listing, e.g. bao kv list secret/myapp)
+path &amp;#34;secret/metadata/myapp/*&amp;#34; {
+capabilities = [&amp;#34;list&amp;#34;]
+}
+# Full access to a specific secret (create, read, update, delete)
+path &amp;#34;secret/data/myapp/database&amp;#34; {
+capabilities = [&amp;#34;create&amp;#34;, &amp;#34;read&amp;#34;, &amp;#34;update&amp;#34;, &amp;#34;delete&amp;#34;]
+}
+# Read and delete version metadata for this secret (e.g. destroy version)
+path &amp;#34;secret/metadata/myapp/database&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;, &amp;#34;delete&amp;#34;]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After writing the policy to OpenBao (e.g. &lt;code&gt;bao policy write myapp-kv policy.hcl&lt;/code&gt;), attach it to the appropriate auth method role or token so that clients receive a token with this policy. For token renewal, ensure the role or token also has &lt;code&gt;update&lt;/code&gt; on &lt;code&gt;auth/token/renew-self&lt;/code&gt; if you use renewable tokens.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/"&gt;Part 7&lt;/a&gt; of this series (Authentication Methods) explains the authentication methods and policies in more detail.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This part focused on the &lt;strong&gt;KV&lt;/strong&gt; secrets engine: enabling a mount, storing and reading secrets, version lifecycle (list, soft delete, destroy), custom metadata, and &lt;strong&gt;policies&lt;/strong&gt; that distinguish KV v2’s &lt;code&gt;data/&lt;/code&gt; and &lt;code&gt;metadata/&lt;/code&gt; paths.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Key takeaways:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Prefer &lt;strong&gt;KV v2&lt;/strong&gt; when you need &lt;strong&gt;versioning&lt;/strong&gt;, &lt;strong&gt;check-and-set&lt;/strong&gt;, &lt;strong&gt;soft delete&lt;/strong&gt;, and richer &lt;strong&gt;metadata&lt;/strong&gt;; use KV v1 only when you explicitly want the simpler, lower-overhead path.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Grant &lt;strong&gt;&lt;code&gt;secret/data/…​&lt;/code&gt;&lt;/strong&gt; for secret values and &lt;strong&gt;&lt;code&gt;secret/metadata/…​&lt;/code&gt;&lt;/strong&gt; for listing and version operations—policies must match how the CLI and API resolve KV v2 paths.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Attach policies to &lt;strong&gt;tokens or auth roles&lt;/strong&gt; (for example Kubernetes auth) so applications receive &lt;strong&gt;least-privilege&lt;/strong&gt; access; include &lt;strong&gt;&lt;code&gt;auth/token/renew-self&lt;/code&gt;&lt;/strong&gt; if tokens should be renewable.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;PKI&lt;/strong&gt; secrets engine and integration with &lt;strong&gt;cert-manager&lt;/strong&gt; are covered in the next article in this series.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/secrets/kv/kv-v2" target="_blank" rel="noopener"&gt;KV Secrets Engine v2&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Secrets Engines PKI - Part 9</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-26-openbao-part-9-secrets-engines-pki/</link><pubDate>Thu, 26 Mar 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-26-openbao-part-9-secrets-engines-pki/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Secrets engines are one of the most important concepts in OpenBao. &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/"&gt;Part 8&lt;/a&gt; covered the KV secrets engine; this article covers the &lt;strong&gt;PKI&lt;/strong&gt; secrets engine and its integration with &lt;strong&gt;cert-manager&lt;/strong&gt; on Kubernetes and OpenShift.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_quick_navigation"&gt;Quick Navigation&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Navigate directly to the main sections of this article:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="#sect-pki"&gt;PKI secrets engine&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="#sect-cert-manager"&gt;Integration with cert-manager&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/"&gt;Part 8&lt;/a&gt; of this series explained the basics of secrets engines and the KV secrets engine. This article focuses on the PKI secrets engine and on integrating OpenBao with &lt;strong&gt;cert-manager&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+As a reminder: to &lt;strong&gt;log in&lt;/strong&gt; to the OpenBao CLI, use the following (assuming HTTPS and a CA certificate available locally):
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export BAO_ADDR=&amp;#39;https://127.0.0.1:8200&amp;#39;
+export BAO_CACERT=&amp;#34;$PWD/openbao-ca.crt&amp;#34;
+bao login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="sect-pki"&gt;PKI Secrets Engine&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The PKI engine dynamically generates X.509 certificates, acting as a &lt;strong&gt;Certificate Authority (CA)&lt;/strong&gt;. You can obtain a certificate without manually generating a private key and CSR on the client: OpenBao provisions the key material and signed certificate according to the role.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The time to live (TTL) of each generated certificate can be kept short to reduce reliance on revocation. It is possible to store the certificates in memory during the startup of an application and discard them when the application shuts down. This way, a certificate is only valid during the application runtime, is kept in memory and is never written to disk.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_setting_up_pki_secrets_engine_root_ca"&gt;Setting Up PKI Secrets Engine (Root CA)&lt;/h3&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Before we can use the PKI secrets engine, we need to enable and configure it. To enable it, we can simply use the following command:&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets enable -path=pki pki&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will enable the PKI secrets engine at the path &lt;strong&gt;pki/&lt;/strong&gt;. If the path parameter is not provided, the engine will use the name of the engine as path.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The default value of the TTL is 30 days. To increase the maximum lease time for certificates issued under this mount, use &lt;strong&gt;&lt;code&gt;-max-lease-ttl=87600h&lt;/code&gt;&lt;/strong&gt; (or another duration).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;em&gt;Note that individual roles can restrict this value to be shorter on a per-certificate basis. This just configures the global maximum for this secrets engine.&lt;/em&gt; Source: &lt;a href="https://openbao.org/docs/secrets/pki/setup/" target="_blank" rel="noopener"&gt;PKI secrets engine - setup and usage&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;Next we need to provide a CA certificate and a private key. OpenBao can either generate its own self-signed root certificate, or can use an existing one. Using an existing one is recommended for production environments. This is managed outside of OpenBao and OpenBao is provided with a signed intermediate CA.&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can simply generate a self-signed root certificate by using the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao write pki/root/generate/internal \
+common_name=&amp;#34;Example Root CA&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+issuer_name=&amp;#34;root-ca&amp;#34; \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+ttl=8760h \ &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+key_bits=4096 \ &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Common name of the root certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Issuer name of the root certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Time to live of the root certificate, here 8760 hours (365 days)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Key bits of the root certificate, here 4096 bits (default is 2048 bits)
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The response will look something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
+--- -----
+certificate -----BEGIN CERTIFICATE-----...
+expiration 1536807433
+issuing_ca -----BEGIN CERTIFICATE-----...
+serial_number 7c:f1:fb:2c:6e:4d:99:0e:82:1b:08:0a:81:ed:61:3e:1d:fa:f5:29&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The certificate key is stored in OpenBao. The returned certificates are purely informational.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Set URL configuration&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The location of the Certificate Revocation List (CRL) and the issuing certificate are stored in the configuration of the PKI secrets engine and must be updated manually.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Configure CA and CRL URLs
+bao write pki/config/urls \
+issuing_certificates=&amp;#34;https://openbao.example.com/v1/pki/ca&amp;#34; \
+crl_distribution_points=&amp;#34;https://openbao.example.com/v1/pki/crl&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure a Role&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we need to define a role for the certificates. Roles define the allowed domains and the maximum time to live for the certificates. The following example creates a role for server certificates. It allows us to issue certificates for the domains &lt;code&gt;example.com&lt;/code&gt; and &lt;code&gt;internal.example.com&lt;/code&gt; with a maximum time to live of 720 hours (30 days) and a key size of 2048 bits.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao write pki/roles/server-cert \
+allowed_domains=&amp;#34;example.com,internal.example.com&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+allow_subdomains=true \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+max_ttl=720h \
+key_bits=2048 \ &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+key_type=rsa \ &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+require_cn=false \
+allow_any_name=false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Allowed domains&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Allow subdomains&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Key size&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Key type, typically rsa or ec (elliptic curve)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Issuing Certificates&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao is now ready to issue certificates. We will use the &lt;code&gt;issue&lt;/code&gt; endpoint to request a new certificate.
+The following example requests a new certificate for the domain &lt;code&gt;myapp.example.com&lt;/code&gt; and the subdomain &lt;code&gt;myapp.internal.example.com&lt;/code&gt; with a maximum time to live of 168 hours (7 days) and a key size of 2048 bits.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao write pki/issue/server-cert \
+common_name=&amp;#34;myapp.example.com&amp;#34; \
+alt_names=&amp;#34;myapp.internal.example.com&amp;#34; \
+ttl=168h \&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will return the full certificate chain including the root CA certificate and the key.
+For better readability, the output was shortened to show the certificate only:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
+--- -----
+certificate -----BEGIN CERTIFICATE-----
+MIIE7zCCAtegAwIBAgIUH0eTVpXCP7iu0Y75dWAvjktbyxcwDQYJKoZIhvcNAQEL
+BQAwGjEYMBYGA1UEAxMPRXhhbXBsZSBSb290IENBMB4XDTI2MDMyMjA1MjEyNVoX
+DTI2MDMyOTA1MjE1NFowHDEaMBgGA1UEAxMRbXlhcHAuZXhhbXBsZS5jb20wggEi
+MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDliY0K3qb8TwNBXOHdfBygs5+Y
+Pwh83vtS0Nph6ZsPdI9JTuvI6AbzEz6M283aY7OeJ3m3G2fRwt7ZdgsAcyt+jnL8
+Izx/MS/4ztsdZJ/wxs3M42/iFehSofqihgorY1+SGaTdveCFg9H7Egjn1eJFnGB/
+iqANzxg5NohE4gf8zpAKDjl4CIPDSmNJX2xQ+3wXJgx1eKeVOeB0jFnMSYskS0hD
+qwM+QyYRKodc/akI6Xu7OqWQLMW7qmNS+6TBHsGOopve9EP6ym65Jss6de4X9zIP
+BYeWQ0gvG18i22eJrkISRWlO2uw+Fbho0tBhqfRfjsVpxrUrTKwIgxg+F0+5AgMB
+AAGjggEpMIIBJTAOBgNVHQ8BAf8EBAMCA6gwHQYDVR0lBBYwFAYIKwYBBQUHAwEG
+CCsGAQUFBwMCMB0GA1UdDgQWBBRbFm9oqRl//tc+Z0ert4DKp9KjkDAfBgNVHSME
+GDAWgBSL03nIIcEY+IAz/1g2q5NBbufx9DBBBggrBgEFBQcBAQQ1MDMwMQYIKwYB
+BQUHMAKGJWh0dHBzOi8vb3BlbmJhby5leGFtcGxlLmNvbS92MS9wa2kvY2EwOAYD
+VR0RBDEwL4IRbXlhcHAuZXhhbXBsZS5jb22CGm15YXBwLmludGVybmFsLmV4YW1w
+bGUuY29tMDcGA1UdHwQwMC4wLKAqoCiGJmh0dHBzOi8vb3BlbmJhby5leGFtcGxl
+LmNvbS92MS9wa2kvY3JsMA0GCSqGSIb3DQEBCwUAA4ICAQBUoLwWgpTaodRKpL3c
+zp/yPgHNagZA8SQRLqKttywbHzfPNUSsC56XqfZnOHaq/gobNKrmirUAHPnXRUjO
+Jd2+wXBO9aKqAhiy5is2ueNRo+C8IdPQpFNQ+5MW+G4FXJqSkvDUlT47mAoRkKUJ
+nsjoV/xzHYKgw/YF7QZtmL8moM9W9Bhg3dB6KEaUvscpNn/9USfPquVLXOuQ/8Bs
+6zQGijJUhb5gpRgGjmJhs0Oo/MkABxBUq2jFmvGWP0NklcJO7smtetx/RSrtyFZ0
+X7zgMlD1yUy4DaHX13LhszAfercTFNodV/mAfEaJUrW+U9I97MzVg8QJvn9/AsaM
+mWjfKHczhd9AzupOlogX8L3cdZxx9hkdD4NcR8tRb4QR5sOqzoBN7NfNpQ699b0F
+kxESrHIysqBcx4dYjXLFsUqzRGm2sGZ4j1N8w1OZY/s0kfsG7RXpXJjwtQ2RwPo1
+iSjbJ/VLjji2pz5BtVRtHiXnkoVtSD8QBpjCYqyHekXUArJCVkaDPzkB2MWNZXpk
+2koi2fYa0U4x4ITqDsKeMpLvGAl2vqkp20lphXXqRwaAdNuEFd69YZ6qXzw/6GdI
+TC/Ki7zApSvO0kJvMs9NILcHgDjpndCA/sMpG9iv4wFMpgYet9wc+dzPMXnHcj4o
+PGbyb/WJomcxQMDuV1x1S1X2iA==
+-----END CERTIFICATE-----
+expiration 1774761714
+issuing_ca -----BEGIN CERTIFICATE-----
+MIIFJTCCAw2gAwIBAgIUJde0eccC1TpbufxVsUBhZhq9hWwwDQYJKoZIhvcNAQEL
+BQAwGjEYMBYGA1UEAxMPRXhhbXBsZSBSb290IENBMB4XDTI2MDMyMjA0NDI1OVoX
+DTI2MDQyMzA0NDMyOVowGjEYMBYGA1UEAxMPRXhhbXBsZSBSb290IENBMIICIjAN
+BgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA1XGanJKZZYySc9+WCXuGp9MLMo/O
+MCRAR0u+BQbmxaSBcFLsxfNdkB8Jcunx7RnaGZIJwYXNIy+tNejqwQfiah7pTwJq
+SYnXcYqZAETJUFvdYygjs4MCeaebvogmBQcZRzxJNNPzUblYpVOhmSGLvZZ7Vs5F
+zY9wsKUEc3c3fMhwbxe/n/KQzvT/VzXSrLOw54LTsG7GNnUIhkuKwNqkhXuVItDy
+ps+3z7RG/hOAWN9vktqLybi/E/uTmUqpsMrHSg7EMjqJ2jP8FMyH9EARLRL9gUG3
+XFFNhFzjjDKjFrMsTUyVr+9tp4ucCZaakP9ZhjN9R/6FCXXR1K/XTVhTgYkawPHd
++PJaXn2T7NOie+tChiZx5Sii2XZtDm7WMFfwb4xhOBV67pWCSWSjkKl/xIDSrdRj
+qLtzVfP/wiSL4sL9fy7Pya2OBtF2d/bdXXQ54JbbRlw3eRP+y+ej63UD+OP602EE
+bbzrGB+B7ozwnfCmNNBnF23GgVYtJPWfDvgjXicprvbgjpmQAjeFohA8IIC322w5
+sFsYuDL46KEs/KREoHjQNo1pxHKnmITU5GIMmWWoPyidTZuNNc4qWM6cH5RAbJup
+IBaJWcWAr4eZ8p7pZd1dMkWEld4tieLdoJv2ENK77rDhwrq8kz66Xw9/xDJ/Nuio
+sw5sd3py6Ayz+ekCAwEAAaNjMGEwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQF
+MAMBAf8wHQYDVR0OBBYEFIvTecghwRj4gDP/WDark0Fu5/H0MB8GA1UdIwQYMBaA
+FIvTecghwRj4gDP/WDark0Fu5/H0MA0GCSqGSIb3DQEBCwUAA4ICAQAJuRiReD46
+H85vhc1wzg7JUy6k+q5aUA9iKOupGyYBtkvzniQzhouZGEP47AcWkbPNGqo/3yl+
+SCUItkBfPjunBmzcAhhZqyxJJ1q/SgY21DBf3W7WB0yzPx+saCwEi74rf44HbslY
+Gp9W9pv0NFDT1+lQGerp978ErGQZh2M8rrGFwhcHmx71/umZ9ju6xyaGRaoHba+Y
+8bxhR11j/Zx/UGRQBpjdAe2+VuAHDGpHjd9ieQ45YgoyJYkjBbecXJFttcVnShwu
+7rxu8HNV3fMjoa4M6TDaY4z8KDgzHChzQSRB085TJIZzcG+/4zpJredzLe+jEq0P
+RAuFEx4FjpRqYQu08HUmepO0Vd8a2ut7WyIBOC5b+pM+55LaGDfDF6rt8H7g6G84
+w/RYFP/w/elxp3T1cFgDXsuZ60mfK6SX5ZbH3ZGPN0+xF/VahncUWKSfxSaSjzRI
+Eml/Aac22kgtbbtxf8Bn4tgtY30sxqQRVnldHKi02FxS+DNg3SZB1hIpw6myyUo0
+XH/ZtyumDLkcCvKzz/KvQGDOWDBmaPfPOPfMgiFXryB+YFMfy75Bhm0+aE+GM8fP
+sextO8kawYI62aCHiOClkm2qIBiFtbsNG2HMTL4HKaNDOh9vxesPD5EteVzxTvg4
+Oyk8YPB4kGtloH569v2Fj2U24D6KRyqxvQ==
+-----END CERTIFICATE-----
+not_before 1774156885&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;That is it. We have just created our first certificate.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_setting_up_an_intermediate_ca"&gt;Setting Up an Intermediate CA&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The test above demonstrated the usage of the PKI secrets engine to issue a certificate. However, the certificate was issued by the root CA. This is not practical or recommended for production environments. Instead, we should use an intermediate CA. The setup is very similar to the root CA, but with a few key differences: Instead of directly signing with the root CA, we will create a CSR (Certificate Signing Request) and sign it with the root CA. This can then be used to issue certificates with the intermediate CA.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;First we enable the PKI secrets engine for the intermediate CA and tune it a little bit.&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Enable PKI engine for intermediate CA
+bao secrets enable -path=pki_int pki
+# Configure maximum lease time
+bao secrets tune -max-lease-ttl=43800h pki_int&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We set the maximum TTL of the intermediate CA to 43800 hours (5 years). It should be equal to or less than the root CA.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Generate a CSR (Certificate Signing Request)&lt;/p&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Generate intermediate CSR
+bao write -format=json pki_int/intermediate/generate/internal \
+common_name=&amp;#34;Example Intermediate CA&amp;#34; \
+issuer_name=&amp;#34;intermediate-ca&amp;#34; \
+key_bits=4096 \
+| jq -r &amp;#39;.data.csr&amp;#39; &amp;gt; pki_int.csr&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will create the CSR and store it at &lt;code&gt;pki_int.csr&lt;/code&gt;, which can be signed by the root CA and then used to issue certificates with the intermediate CA. As an example, the following CSR is generated:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;-----BEGIN CERTIFICATE REQUEST-----
+MIIEZzCCAk8CAQAwIjEgMB4GA1UEAxMXRXhhbXBsZSBJbnRlcm1lZGlhdGUgQ0Ew
+ggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQC/dLEhNgiBeMiCIwrAq9S8
+9m7SjqH59JaYPTBEpdAKCs1gsEBNROOaI+zftVaVJEGw/yi1gFRijTbjvBAbwAbc
+YDV5VYLXqaoetkSE2hhIbsX92xwwch++J3BkGrgLt5y6uK0gLfODLp0hbxTdGhO0
+RvIBKa2X1ctSLgEscgAr8PrlIfDlzahcxDgxpQQsN/1CASW2X5i/DEj160rbODzG
+v10FEsVEcOLaJEee9qQ9yvwySiPLfH7KjEFV8qlQd/uY4gnGE8WW6nHhZEW+0Lsj
+h1iO0Y4GA2Yw60FtTxsGAQlTCE3xCZTajInwc0XgDIYBtj/PEJhQUNU7mamchqng
+jg+MJb9jzoqYmTw7dLvxTFTobu8s8y+7mjKQYevg7+FRNWQ467PmxGqaD++HQEw9
+Ef1kaQ1Aw0L5ZuTZ2QaEzbJe2Rka5slHAja6rHxX2rNk6YkdbE2MfCUPqSVpqHBp
+I+ptF8b73EgjgKINpWRXKvqH4QX2f6zUpVbr+5AikbS9TmPLQRqHHKtO0uDFEQzn
+38w9PntU/N29BrYhzkeCzdGNFZTcL+Yijnp7fKrHl+iYasIUQD+MGWR3sUqaOODc
+JmKvfl8H9UNulV4I7JXn0MBUUIT3uhTtsJ4Q62xr9pltZH5ijgR8Zqrl/q2kh+jf
+pCoA7CpUKZXSiSou0zG3lwIDAQABoAAwDQYJKoZIhvcNAQELBQADggIBAGBAEsLK
+QdeEejkFxP06xmEKypvGcy4GGw2g/ODp9lZQeNyaObwiABDjdJfj7CBgFGsPcMbq
+DAFq/Kt/f+BmQwRulQf6ers9OIC8+4HAgHF9olgYJSn+lsrNXT9M4m02orIAodey
++xFxIcuUCHygQiXMIzb4QLzyvzW0/CqdsCysfbgHNN8P5deOR2/PseirYZKYFRQI
+/ZxQrjB2Uj9gBND1Q5ew97Gm+mVvhqnb1T/Y1aIS+iEdRXADjxIvdweOPBXj3pDY
+h8P+NgrP49pAKEvPuRFgfWMrkMrg4dQYPtVElcjN5XFMBXY2wZDketTu0rqroSlk
+tcEhcwHdFFi+ILq6UHBDtMhZBkFtJG/82FgjcnR1G+1UOwKGSFOJ0HGiZpYGOXtc
+hJM07eSZ0JzFCrg+2/geHM5c8X33yShe+4DRc3fi2KpsQbOAvvtH7Kb6AYwNu953
+yBoOSpzI3Q9XjiFaAl1U8JDIr5DRfHGkUt1ozg4nf3ZHjPQC/NQNTq4XNEnjWgnJ
+kiC+Ss4YZ6QnfvQU3aIwU97WKG6PIb5x9v+5mBwQe6AgDn2T1mmfyumsFfu/7aTB
+87BUt3lWesvuW67JvE95LKs8NukNTW8FETR/x3Kn8TSYMulvXJsv7yb8g+Mm8k5w
+f+LiteH/fEMVMYsoIdNL6MYJhiZNxStFDC2V
+-----END CERTIFICATE REQUEST-----&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Sign the CSR with the root CA&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The CSR must now be signed using the root CA that was generated previously. Use:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao write -format=json pki/root/sign-intermediate \
+csr=@pki_int.csr \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+format=pem_bundle \
+ttl=43800h \
+| jq -r &amp;#39;.data.certificate&amp;#39; &amp;gt; cert_bundle.pem &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The CSR file created in the previous step&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The signed certificate is stored in the file &lt;code&gt;cert_bundle.pem&lt;/code&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will sign the CSR with the root CA and store the signed certificate at &lt;code&gt;cert_bundle.pem&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure the set-signed certificate&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We need to configure the intermediate CA with the signed certificate, so we can issue new certificates:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao write pki_int/intermediate/set-signed \
+certificate=@cert_bundle.pem&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Creating Certificate Roles&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we can issue certificates, we need to create roles. The following defines a role for server certificates and a role for client certificates, including allowed domains, maximum TTL, and key type.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Create a role for issuing server certificates
+bao write pki_int/roles/server-cert \
+allowed_domains=&amp;#34;example.com,internal.example.com&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+allow_subdomains=true \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+max_ttl=720h \
+key_bits=2048 \ &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+key_type=rsa \
+require_cn=false \
+allow_any_name=false
+# Create a role for client certificates
+bao write pki_int/roles/client-cert \
+allowed_domains=&amp;#34;example.com&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+allow_subdomains=true \
+max_ttl=168h \
+key_usage=&amp;#34;DigitalSignature,KeyEncipherment&amp;#34; \
+ext_key_usage=&amp;#34;ClientAuth&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The allowed domains, comma separated list&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Allow subdomains, true or false&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The key bits, 2048 or 4096
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Check out the official documentation for more details of possible options: &lt;a href="https://openbao.org/docs/" target="_blank" rel="noopener"&gt;https://openbao.org/docs/&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Issuing Certificates&lt;/p&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally we can issue certificates. The example below issues a server certificate via the intermediate mount (and the article’s role setup supports a separate client role if you need mutual TLS).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Issue a server certificate
+bao write pki_int/issue/server-cert \
+common_name=&amp;#34;myapp.example.com&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+alt_names=&amp;#34;myapp.internal.example.com&amp;#34; \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+ttl=168h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The common name, the subdomain under example.com is allowed.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The alternative names
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This will print a large amount of detail. Typical fields include:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;certificate&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;issuing_ca&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;private_key&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;serial_number&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The output contains the full chain (intermediate and root CA), the leaf certificate, and the private key, which you can use to configure TLS in an application.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;+
+TIP: It can also be printed out in JSON format which is easier to process later.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;+
+The following example creates the JSON file with all the components.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;+&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao write -format=json pki_int/issue/server-cert \
+common_name=&amp;#34;api.example.com&amp;#34; \
+ttl=168h &amp;gt; api-cert.json&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;+
+This can then be extracted to the individual components using the &lt;code&gt;jq&lt;/code&gt; command.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;+&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;cat /tmp/api-cert.json | jq -r &amp;#39;.data.certificate&amp;#39;
+cat /tmp/api-cert.json | jq -r &amp;#39;.data.private_key&amp;#39;
+cat /tmp/api-cert.json | jq -r &amp;#39;.data.ca_chain[]&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="pki-policies"&gt;PKI Policies&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Every OpenBao request is checked against the token’s policies; without an explicit allow, paths are &lt;strong&gt;denied&lt;/strong&gt;.
+PKI is split into several API paths (&lt;code&gt;issue&lt;/code&gt;, &lt;code&gt;sign&lt;/code&gt;, &lt;code&gt;ca&lt;/code&gt;, &lt;code&gt;crl&lt;/code&gt;, …), so you grant only what each client needs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example: operators using &lt;code&gt;pki_int/issue/…​&lt;/code&gt; need the &lt;strong&gt;issue&lt;/strong&gt; path; cert-manager sending a CSR needs the &lt;strong&gt;sign&lt;/strong&gt; path; workloads or validators that fetch trust material need &lt;strong&gt;read&lt;/strong&gt; on the CA (and often the CRL) paths etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The example below is a single policy you can attach to a role or token; split into narrower policies in production if different actors should not share the same privileges.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;set -e
+cat &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39; | bao policy write pki-int-workload -
+# Allow issuing certificates with the server-cert role (CLI / API issue endpoint)
+path &amp;#34;pki_int/issue/server-cert&amp;#34; {
+capabilities = [&amp;#34;create&amp;#34;, &amp;#34;update&amp;#34;]
+}
+# Allow cert-manager (Vault issuer) to sign CSRs via the sign endpoint for the same role
+path &amp;#34;pki_int/sign/server-cert&amp;#34; {
+capabilities = [&amp;#34;create&amp;#34;, &amp;#34;update&amp;#34;]
+}
+# Allow reading CA certificate
+path &amp;#34;pki_int/ca/pem&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}
+# Allow reading CRL
+path &amp;#34;pki_int/crl/pem&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}
+EOF
+bao policy read pki-int-workload&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="sect-cert-manager"&gt;Integration with cert-manager&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://cert-manager.io/" target="_blank" rel="noopener"&gt;cert-manager&lt;/a&gt; requests TLS certificates inside Kubernetes and stores them in Secrets.
+It includes a &lt;strong&gt;Vault&lt;/strong&gt; issuer that talks to HashiCorp Vault’s HTTP API; OpenBao exposes the same API for PKI and auth, so you can point that issuer at OpenBao instead of Vault.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;cert-manager generates a private key and a CSR in the cluster, then calls the PKI &lt;strong&gt;sign&lt;/strong&gt; endpoint for your role (not the &lt;strong&gt;issue&lt;/strong&gt; endpoint you used from the CLI earlier).
+The path in the issuer must therefore follow &lt;code&gt;mount/sign/role-name&lt;/code&gt;, for example &lt;code&gt;pki_int/sign/server-cert&lt;/code&gt;, matching the intermediate mount and role from this article.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before the &lt;code&gt;ClusterIssuer&lt;/code&gt; can log in to OpenBao, you need &lt;strong&gt;Kubernetes auth&lt;/strong&gt; enabled, a &lt;strong&gt;policy&lt;/strong&gt; that allows signing on &lt;code&gt;pki_int&lt;/code&gt; (see &lt;a href="#pki-policies"&gt;PKI policies&lt;/a&gt;), and a &lt;strong&gt;role&lt;/strong&gt; that binds the cert-manager controller’s service account to that policy.
+&lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/"&gt;Part 7 of this series&lt;/a&gt; walks through Kubernetes authentication in detail; the commands below are a minimal summary for cert-manager.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_enable_the_kubernetes_auth_method"&gt;Enable the Kubernetes auth method&lt;/h3&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Skip this step if &lt;code&gt;kubernetes&lt;/code&gt; is already listed under &lt;code&gt;bao auth list&lt;/code&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao auth enable --description=&amp;#34;Kubernetes/OpenShift service account auth&amp;#34; kubernetes&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_the_kubernetes_auth_method"&gt;Configure the Kubernetes auth method&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao’s server validates incoming service-account JWTs by calling the Kubernetes TokenReview API.
+If OpenBao runs &lt;strong&gt;inside&lt;/strong&gt; the cluster (the setup assumed here), configure &lt;code&gt;auth/kubernetes&lt;/code&gt; with:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;kubernetes_host&lt;/code&gt;&lt;/strong&gt; — API URL reachable from the OpenBao pods (typically &lt;code&gt;&lt;a href="https://kubernetes.default.svc:443" class="bare"&gt;https://kubernetes.default.svc:443&lt;/a&gt;&lt;/code&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;kubernetes_ca_cert&lt;/code&gt;&lt;/strong&gt; — PEM of the cluster CA that signs the API server certificate (same material as in the service-account token Secret).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;token_reviewer_jwt&lt;/code&gt;&lt;/strong&gt; — long-lived JWT for a dedicated service account that may create TokenReview objects (via &lt;code&gt;system:auth-delegator&lt;/code&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If OpenBao runs &lt;strong&gt;outside&lt;/strong&gt; the cluster, use your public API URL for &lt;code&gt;kubernetes_host&lt;/code&gt; (for example &lt;code&gt;$(oc whoami --show-server)&lt;/code&gt;), the same CA and reviewer JWT extracted from the cluster, and ensure the OpenBao process can reach that URL on the network.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_in_cluster_example_reviewer_service_account_and_secret"&gt;In-cluster example: reviewer service account and Secret&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create a service account in the OpenBao namespace (here openbao), bind &lt;strong&gt;system:auth-delegator&lt;/strong&gt;, and request a &lt;strong&gt;long-lived token&lt;/strong&gt; Secret (required from Kubernetes 1.24 onward unless you use another token source).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+name: openbao-kube-auth
+namespace: openbao &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+name: openbao-kube-auth-delegator
+roleRef:
+apiGroup: rbac.authorization.k8s.io
+kind: ClusterRole
+name: system:auth-delegator &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+subjects:
+- kind: ServiceAccount
+name: openbao-kube-auth
+namespace: openbao
+---
+apiVersion: v1
+kind: Secret
+metadata:
+name: openbao-kube-auth-token
+namespace: openbao
+annotations:
+kubernetes.io/service-account.name: openbao-kube-auth
+type: kubernetes.io/service-account-token &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace of the OpenBao service account&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the ClusterRole that binds the service account to the system:auth-delegator role&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The type of the Secret, which is a long-lived token Secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Save the YAML manifest to a file (for example openbao-kube-auth.yaml), apply it, then wait until the Secret contains a token (the control plane fills &lt;code&gt;data.token&lt;/code&gt;—often within a few seconds).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -n openbao -f openbao-kube-auth.yaml
+until oc get secret openbao-kube-auth-token -n openbao -o jsonpath=&amp;#39;{.data.token}&amp;#39; | grep -q .
+do
+sleep 2
+done&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+You can manage the reviewer service account, &lt;code&gt;ClusterRoleBinding&lt;/code&gt;, and token Secret through GitOps so the configuration stays reproducible.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_configure_authkubernetesconfig"&gt;Configure auth/kubernetes/config&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Dump the reviewer JWT and CA to files and configure the Kubernetes auth backend.
+Use the &lt;strong&gt;in-cluster&lt;/strong&gt; API URL so OpenBao pods reach the Kubernetes API without relying on the external load balancer.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;TMP=$(mktemp -d) &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+trap &amp;#39;rm -rf &amp;#34;$TMP&amp;#34;&amp;#39; EXIT
+oc get secret openbao-kube-auth-token -n openbao -o jsonpath=&amp;#39;{.data.token}&amp;#39; | base64 -d &amp;gt; &amp;#34;$TMP/reviewer.jwt&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+oc get secret openbao-kube-auth-token -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39; | base64 -d &amp;gt; &amp;#34;$TMP/k8s-ca.crt&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+bao write auth/kubernetes/config \ &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+kubernetes_host=&amp;#34;https://kubernetes.default.svc:443&amp;#34; \
+kubernetes_ca_cert=@&amp;#34;$TMP/k8s-ca.crt&amp;#34; \
+token_reviewer_jwt=@&amp;#34;$TMP/reviewer.jwt&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Create a temporary directory to store the reviewer JWT and CA and remove it after the script exits&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Get the reviewer JWT from the Secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Get the CA from the Secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Write the configuration to the auth/kubernetes/config path using the internal API URL of the Kubernetes cluster.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock tip"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-tip" title="Tip"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+On plain Kubernetes, replace &lt;code&gt;oc&lt;/code&gt; with &lt;code&gt;kubectl&lt;/code&gt; and the same Secret paths.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If logins fail after cluster upgrades or with projected service-account tokens, check whether you must set &lt;code&gt;issuer&lt;/code&gt; or related options; see &lt;a href="https://openbao.org/docs/auth/kubernetes/" target="_blank" rel="noopener"&gt;OpenBao Kubernetes auth&lt;/a&gt; and &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/"&gt;Part 7&lt;/a&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To inspect the stored Kubernetes auth backend configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao read auth/kubernetes/config&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You should see &lt;code&gt;kubernetes_host&lt;/code&gt; and &lt;code&gt;kubernetes_ca_cert&lt;/code&gt;; &lt;code&gt;token_reviewer_jwt&lt;/code&gt; is often omitted or redacted on read.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_policy_and_role_for_cert_manager"&gt;Policy and role for cert-manager&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Attach a policy (here &lt;code&gt;cert-manager-pki&lt;/code&gt;) that matches the PKI paths cert-manager uses—aligned with &lt;a href="#pki-policies"&gt;PKI policies&lt;/a&gt;—then map the controller’s service account to that policy.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Adjust &lt;code&gt;bound_service_account_names&lt;/code&gt; and &lt;code&gt;bound_service_account_namespaces&lt;/code&gt; if your cert-manager installation does not use the &lt;code&gt;cert-manager&lt;/code&gt; service account in the &lt;code&gt;cert-manager&lt;/code&gt; namespace.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao policy write cert-manager-pki - &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39;
+path &amp;#34;pki_int/sign/server-cert&amp;#34; {
+capabilities = [&amp;#34;create&amp;#34;, &amp;#34;update&amp;#34;]
+}
+path &amp;#34;pki_int/ca/pem&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}
+path &amp;#34;pki_int/crl/pem&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}
+path &amp;#34;auth/token/renew-self&amp;#34; {
+capabilities = [&amp;#34;update&amp;#34;]
+}
+EOF
+bao write auth/kubernetes/role/cert-manager \
+bound_service_account_names=cert-manager \
+bound_service_account_namespaces=cert-manager \
+policies=cert-manager-pki \
+ttl=1h \
+max_ttl=24h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_verify_with_a_kubernetes_login_optional"&gt;Verify with a Kubernetes login (optional)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After the cert-manager auth role exists, prove that OpenBao accepts the same service-account identity cert-manager will use.
+Request a short-lived projected token for that service account, then log in to the &lt;strong&gt;Kubernetes&lt;/strong&gt; auth method:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;JWT=$(oc create token cert-manager -n cert-manager --duration=15m)
+bao write -format=json auth/kubernetes/login role=cert-manager jwt=&amp;#34;$JWT&amp;#34; \
+| jq -r &amp;#39;.auth.client_token&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A printed &lt;strong&gt;client token&lt;/strong&gt; means TokenReview and role binding succeeded.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_configure_the_clusterissuer_for_cert_manager"&gt;Configure the (Cluster)Issuer for cert-manager&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To integrate cert-manager with OpenBao we need to configure either a ClusterIssuer (cluster-wide) or an Issuer (namespace-scoped). The setup is very similar.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The ClusterIssuer manifest below must use the same OpenBao role name in &lt;code&gt;spec.vault.auth.kubernetes.role&lt;/code&gt; (here &lt;code&gt;cert-manager&lt;/code&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The server URL in the issuer must be reachable &lt;strong&gt;from the cert-manager pods&lt;/strong&gt; (in-cluster Service DNS is typical), for example &lt;a href="https://openbao.openbao.svc:8200" class="bare"&gt;https://openbao.openbao.svc:8200&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following is an example of a ClusterIssuer manifest.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+name: openbao-cluster-issuer
+spec:
+vault:
+path: pki_int/sign/server-cert &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+server: https://openbao.openbao.svc:8200 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+caBundle: LS0tLS1CRUdJTi... &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+auth:
+kubernetes:
+role: cert-manager
+mountPath: /v1/auth/kubernetes &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+serviceAccountRef:
+name: cert-manager &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;PKI sign path for the OpenBao role (mount/sign/role-name).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;OpenBao Service URL as seen from cert-manager pods.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;Required&lt;/strong&gt; for private / self-signed OpenBao TLS: single-line base64 of the PEM CA (see the command block below). Omit only if the server uses a public CA trusted by default in the cert-manager image.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Kubernetes auth mount path in OpenBao (default is &lt;code&gt;/v1/auth/kubernetes&lt;/code&gt;).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the cert-manager controller service account only. Do &lt;strong&gt;not&lt;/strong&gt; add &lt;code&gt;namespace&lt;/code&gt; under &lt;code&gt;serviceAccountRef&lt;/code&gt;; it is not part of the cert-manager API.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If OpenBao’s HTTPS certificate is not signed by a CA already trusted inside the cert-manager pods, you must supply trust material; otherwise TLS verification fails with &lt;code&gt;x509: certificate signed by unknown authority&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use &lt;strong&gt;&lt;code&gt;caBundle&lt;/code&gt;&lt;/strong&gt; (base64-encoded PEM of the CA that signed OpenBao’s server certificate) or &lt;strong&gt;&lt;code&gt;caBundleSecretRef&lt;/code&gt;&lt;/strong&gt; pointing to a Secret in the &lt;code&gt;cert-manager&lt;/code&gt; namespace.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Fetch the certificate OpenBao is using:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get secret openbao-server-tls -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}{&amp;#34;\n&amp;#34;}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This secret was created in a previous article, when we were setting up the OpenBao server.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The returned string must be added to the &lt;strong&gt;ClusterIssuer&lt;/strong&gt; manifest as the value of the &lt;code&gt;caBundle&lt;/code&gt; field.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Alternatively, copy the CA PEM into a Secret in the &lt;strong&gt;cert-manager&lt;/strong&gt; namespace and reference it (no giant line in the issuer):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;# spec.vault fragment — use instead of caBundle if you prefer
+caBundleSecretRef:
+name: openbao-ca
+key: ca.crt&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, this requires that the Secret exists in the appropriate namespace. For ClusterIssuer, the Secret must be in the &lt;code&gt;cert-manager&lt;/code&gt; namespace.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once the ClusterIssuer is created and is ready, we can issue a certificate.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_issue_a_certificate"&gt;Issue a Certificate&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With the ClusterIssuer in place, create a Certificate in the workload namespace (here myapp, this namespace must exist).
+cert-manager will create a TLS Secret (myapp-tls below) containing &lt;code&gt;tls.crt&lt;/code&gt; and &lt;code&gt;tls.key&lt;/code&gt;, and renew the cert before it expires according to &lt;code&gt;renewBefore&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+name: myapp-tls
+namespace: myapp &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+secretName: myapp-tls &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+issuerRef: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+name: openbao-cluster-issuer
+kind: ClusterIssuer
+commonName: myapp.example.com &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+dnsNames:
+- myapp.example.com
+duration: 168h &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+renewBefore: 48h &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
+privateKey:
+rotationPolicy: Always &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The namespace of the workload&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The name of the TLS Secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The issuer of the certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The common name of the certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The duration of the certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The duration before the certificate is renewed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Explicit rotation policy: &lt;code&gt;Always&lt;/code&gt; matches cert-manager ≥ v1.18 default (new key each renewal). Set &lt;code&gt;Never&lt;/code&gt; only if you rely on a stable key across renewals.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The values you set in &lt;code&gt;commonName&lt;/code&gt; and &lt;code&gt;dnsNames&lt;/code&gt; must be &lt;strong&gt;allowed by the OpenBao PKI role&lt;/strong&gt; (&lt;code&gt;allowed_domains&lt;/code&gt;, &lt;code&gt;allow_subdomains&lt;/code&gt;, &lt;code&gt;allow_bare_domains&lt;/code&gt;, and related settings).
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock tip"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-tip" title="Tip"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If the Certificate never reaches &lt;code&gt;Ready=True&lt;/code&gt;, check &lt;code&gt;kubectl describe certificate&lt;/code&gt; / &lt;code&gt;kubectl describe certificaterequest&lt;/code&gt; (or the same with &lt;code&gt;oc describe&lt;/code&gt; on OpenShift) in that namespace, the cert-manager controller logs, and the OpenBao audit log for &lt;code&gt;403&lt;/code&gt; policy denials or CSR rejection messages from the PKI engine.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When everything is working, a Secret named &lt;code&gt;myapp-tls&lt;/code&gt; is created in the &lt;code&gt;myapp&lt;/code&gt; namespace containing &lt;code&gt;tls.crt&lt;/code&gt; and &lt;code&gt;tls.key&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc describe secret/myapp-tls -n myapp
+[source,bash]
+----
+Name: myapp-tls
+Namespace: myapp
+[...output omitted...]
+Type: kubernetes.io/tls
+Data
+====
+tls.key: 1679 bytes
+ca.crt: 1846 bytes
+tls.crt: 3631 bytes&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This part showed how to turn OpenBao into a &lt;strong&gt;usable CA&lt;/strong&gt; for cluster workloads and how to &lt;strong&gt;automate TLS&lt;/strong&gt; with cert-manager.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You should now be able to:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Enable the PKI engine, set CA and CRL URLs, define roles, and issue certificates via the &lt;code&gt;issue&lt;/code&gt; API (CLI or automation).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Stand up an intermediate CA signed by the root, and keep day-to-day issuance on the intermediate mount (&lt;code&gt;pki_int&lt;/code&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Express least-privilege with policies that separate &lt;code&gt;issue&lt;/code&gt; from &lt;code&gt;sign&lt;/code&gt;, and allow CA/CRL reads where validators or clients need them.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Wire cert-manager to OpenBao’s Vault-compatible API: Kubernetes auth in-cluster (reviewer JWT and CA), a ClusterIssuer with &lt;code&gt;caBundle&lt;/code&gt; (or &lt;code&gt;caBundleSecretRef&lt;/code&gt;) for private OpenBao TLS, &lt;code&gt;serviceAccountRef.name&lt;/code&gt; only (no &lt;code&gt;namespace&lt;/code&gt; field), and a Certificate with an explicit &lt;code&gt;privateKey.rotationPolicy&lt;/code&gt; for cert-manager ≥ v1.18.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/secrets/pki" target="_blank" rel="noopener"&gt;PKI Secrets Engine&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Introduction - Part 1</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</link><pubDate>Wed, 11 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;I finally had some time to dig into Secret Management. For my demo environments, SealedSecrets is usually enough to quickly test something. But if you want to deploy a real application with Secret Management, you need to think of a more permanent solution.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;

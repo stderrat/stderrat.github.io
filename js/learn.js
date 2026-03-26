@@ -243,9 +243,21 @@ jQuery(document).ready(function() {
 
     // clipboard
     var clipInit = false;
+    function shouldSkipCopyButton(code) {
+        var $code = $(code);
+        if ($code.parent().prop('tagName') !== 'PRE') {
+            return false;
+        }
+        var $pre = $code.parent();
+        return $code.closest('.listingblock.nocopy').length > 0 || $pre.hasClass('nocopy');
+    }
     $('code').each(function() {
         var code = $(this),
             text = code.text();
+
+        if (shouldSkipCopyButton(this)) {
+            return;
+        }
 
         if (text.length > 5) {
             if (!clipInit) {

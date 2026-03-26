@@ -1,0 +1,589 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>KV on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/kv/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 25 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/kv/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - Secrets Engines KV - Part 8</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/</link><pubDate>Wed, 25 Mar 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Secrets engines are the heart of OpenBao’s functionality. They store, generate, or encrypt data. This article covers the most commonly used secrets engine: KV for static secrets. It will demonstrate how to use the KV secrets engine to store and retrieve secrets. Upcoming articles will cover the PKI secrets engine and the integration with &lt;strong&gt;cert-manager&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Secrets engines are components which store, generate, or encrypt data. Some engines simply store and read data, others connect to other services and other engines provide encryption as a service.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;They are enabled at a path in OpenBao (as everything is done as a path in OpenBao). This means each secrets engine defines its very own path including properties.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The path is case-sensitive. For example, the KV secrets engine enabled at kv/ and KV/ are treated as two distinct instances of KV secrets engine.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The management of the secret engines is done via the CLI or API or, if enabled, the UI. Engines can be enabled, disabled, moved or tuned.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Enable - enables a secrets engine at the given path.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Disable - disables an existing secrets engine. All existing secrets are revoked and the data is deleted.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Move - moves the path for an existing secrets engine.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Tune - tunes global configuration for the secrets engine such as the TTLs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_list_of_secrets_engines"&gt;List of Secrets Engines&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To list all enabled secrets engines, we can use the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets list&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Which will output something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description
+---- ---- -------- -----------
+cubbyhole/ cubbyhole cubbyhole_f8b1e784 per-token private secret storage
+identity/ identity identity_76940581 identity store
+secret/ kv kv_ccb47c73 n/a
+sys/ system system_cb0d64b7 system endpoints used for control, policy and debugging&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+As a reminder: To login to the OpenBao CLI, we can use the following command (assuming that you are using HTTPS and have the CA certificate ready):
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export BAO_ADDR=&amp;#39;https://127.0.0.1:8200&amp;#39;
+export BAO_CACERT=&amp;#34;$PWD/openbao-ca.crt&amp;#34;
+bao login&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="sect-kv"&gt;KV (Key-Value) Secrets Engine&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;KV&lt;/strong&gt; secrets engine is probably the most commonly used engine. It is a generic key-value store.
+When you work with KV secrets engine you will note very soon that there are two versions of the engine: &lt;strong&gt;KV v1&lt;/strong&gt; and &lt;strong&gt;KV v2&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_kv_version_1"&gt;KV Version 1&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v1 is the older version of the KV secrets engine. It does not support versioning and only stores the recently written value for a key. Requests to this engine will be more performant because the storage requests will be fewer and no locking is required. The storage as such will be much smaller, since it does not need to retain any history.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_kv_version_2"&gt;KV Version 2&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v2 on the other hand supports versioning of secrets. When a version is deleted, the underlying data is not removed, instead you must destroy it intentionally. Storing the history of secrets will increase the required storage space. However, I would recommend using KV v2 in most cases as the benefit of versioning is too great to ignore.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The following example will use KV v2.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_kv_version_1_vs_version_2"&gt;KV Version 1 vs Version 2&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Feature&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Version 1&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Version 2&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Versioning&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (up to 10 versions by default)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Check-and-Set&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (prevents concurrent writes)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Soft delete&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (recoverable)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Metadata&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (custom metadata)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+KV v1 can be upgraded to KV v2 by using the following command as described in the documentation: &lt;a href="https://openbao.org/docs/secrets/kv/kv-v2/#upgrading-from-version-1" target="_blank" rel="noopener"&gt;Upgrading from version 1&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_enabling_kv_engine"&gt;Enabling KV Engine&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s enable the KV v2 engine at the path &lt;strong&gt;secret/&lt;/strong&gt; and give it the description &amp;#34;Application secrets&amp;#34;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This path was used in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/"&gt;Part 7 of this series&lt;/a&gt; already. So you might have to remove or rename the engine first if you have already enabled it.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets enable \
+-path=secret \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+-version=2 \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+-description=&amp;#34;Application secrets&amp;#34; \
+kv &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path where the secrets will be stored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Version of the engine in case of KV&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the engine&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_storing_secrets"&gt;Storing Secrets&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With the enabled engine, we can now store secrets at the path:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Put a secret (KV v2)
+bao kv put secret/myapp/database \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+username=&amp;#34;dbadmin&amp;#34; \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+password=&amp;#34;supersecret123&amp;#34; \
+host=&amp;#34;db.example.com&amp;#34; \
+port=&amp;#34;5432&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path where the secret will be stored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Secret data&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Which will output something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;======= Secret Path =======
+secret/data/myapp/database &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+======= Metadata =======
+Key Value
+--- -----
+created_time 2026-03-13T05:56:52.670296216Z
+custom_metadata &amp;lt;nil&amp;gt;
+deletion_time n/a
+destroyed false
+version 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path where the secret will be stored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Version of the secret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_reading_secrets"&gt;Reading Secrets&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To read the secret, we can use one of the following commands:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Read a secret
+bao kv get secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Which will output something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;======= Secret Path =======
+secret/data/myapp/database &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+[... more metadata ...]
+====== Data ====== &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+Key Value
+--- -----
+host db.example.com
+password supersecret123
+port 5432
+username dbadmin&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path where the secret will be stored&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Secret data&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As an alternative, we can use the following command to get the secret as JSON:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Get as JSON
+bao kv get -format=json secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can also read a specific existing version of the secret by using the following command:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Read specific version
+bao kv get -version=2 secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Or simply, a specific field:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Get specific field
+bao kv get -field=password secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the UI is enabled, the same can be achieved via the browser:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part8_secretsengine_kv.png" alt="OpenBao Secret Retrieval"/&gt;
+&lt;/div&gt;
+&lt;div class="title"&gt;Figure 1. OpenBao Secret Retrieval&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_managing_versions"&gt;Managing Versions&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v2 keeps a version history. This is a big advantage over KV v1. To try version management, ensure the secret has at least two versions. Create a second version by writing to the same path again (e.g. with updated values):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao kv put secret/myapp/database username=dbadmin password=newpassword456 port=5432 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Updating an existing secret with a new password, which will create a new version in KV v2.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now you can list versions, soft-delete, undelete, or destroy a specific version:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+I will only paste the output of the first command. The rest will be similar …​ you’ll get the idea.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# List all versions and metadata
+bao kv metadata get secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Which will output something like:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;====== Version 1 ====== &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+Key Value
+--- -----
+created_time 2026-03-13T05:56:52.670296216Z
+deletion_time n/a
+destroyed false
+====== Version 2 ====== &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+Key Value
+--- -----
+created_time 2026-03-13T06:13:18.539285992Z
+deletion_time n/a
+destroyed false&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Version 1&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Version 2&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Specific versions can now be (soft-) deleted, permanently destroyed etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The last command of the list will completely delete all versions and metadata for a given path aka the secret is gone.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Delete specific version (soft delete)
+bao kv delete -versions=2 secret/myapp/database
+# Undelete a version
+bao kv undelete -versions=2 secret/myapp/database
+# Permanently destroy a version
+bao kv destroy -versions=2 secret/myapp/database
+# Delete all versions and metadata
+bao kv metadata delete secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock tip"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-tip" title="Tip"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+When you define a secret you can set the maximum number of versions to keep using the flag &lt;strong&gt;-max-versions=5&lt;/strong&gt;. This is the number of versions that will be kept in the history.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_custom_metadata"&gt;Custom Metadata&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A secret’s key metadata can contain multiple custom metadata that can be used to describe the secret. The data will be stored as key-value pairs. Imagine them like labels in Kubernetes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s extend our secret with some custom metadata:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Add custom metadata to a secret
+bao kv metadata put \
+-custom-metadata=&amp;#34;owner=team-a&amp;#34; \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+-custom-metadata=&amp;#34;environment=production&amp;#34; \ &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+secret/myapp/database&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;First custom metadata to set an owner label&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Second custom metadata to set an environment label&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_policies_for_kv_v2"&gt;Policies for KV v2&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao policies control which authenticated clients may access which paths and with what actions. For the KV v2 secrets engine, any read or write via the API is checked against the token’s policies; without a policy granting the right capabilities, requests return 403. This section shows example policy rules you can attach to roles (e.g. Kubernetes auth roles) or tokens so that applications and users have the minimum access they need.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v2 exposes two logical path trees under the mount path (here &lt;code&gt;secret/&lt;/code&gt;):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;secret/data/&amp;lt;path&amp;gt;&lt;/code&gt;&lt;/strong&gt; — Secret values. Use capabilities such as &lt;code&gt;read&lt;/code&gt;, &lt;code&gt;create&lt;/code&gt;, &lt;code&gt;update&lt;/code&gt;, and &lt;code&gt;delete&lt;/code&gt; for reading and writing secret data.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;secret/metadata/&amp;lt;path&amp;gt;&lt;/code&gt;&lt;/strong&gt; — Version and metadata. Use &lt;code&gt;list&lt;/code&gt; to enumerate keys, and &lt;code&gt;read&lt;/code&gt;/&lt;code&gt;delete&lt;/code&gt; for version metadata and destroying versions.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following example grants read-only access to all secrets under &lt;code&gt;myapp/&lt;/code&gt;, plus full read/write (including create, update, delete) for the single path &lt;code&gt;myapp/database&lt;/code&gt;. Replace &lt;code&gt;myapp&lt;/code&gt; with your application or team prefix as needed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-hcl hljs" data-lang="hcl"&gt;# Note: KV v2 uses /data/ for values and /metadata/ for metadata
+# Read secret values under myapp/
+path &amp;#34;secret/data/myapp/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;]
+}
+# List secret keys under myapp/ (required for listing, e.g. bao kv list secret/myapp)
+path &amp;#34;secret/metadata/myapp/*&amp;#34; {
+capabilities = [&amp;#34;list&amp;#34;]
+}
+# Full access to a specific secret (create, read, update, delete)
+path &amp;#34;secret/data/myapp/database&amp;#34; {
+capabilities = [&amp;#34;create&amp;#34;, &amp;#34;read&amp;#34;, &amp;#34;update&amp;#34;, &amp;#34;delete&amp;#34;]
+}
+# Read and delete version metadata for this secret (e.g. destroy version)
+path &amp;#34;secret/metadata/myapp/database&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;, &amp;#34;delete&amp;#34;]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;After writing the policy to OpenBao (e.g. &lt;code&gt;bao policy write myapp-kv policy.hcl&lt;/code&gt;), attach it to the appropriate auth method role or token so that clients receive a token with this policy. For token renewal, ensure the role or token also has &lt;code&gt;update&lt;/code&gt; on &lt;code&gt;auth/token/renew-self&lt;/code&gt; if you use renewable tokens.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/"&gt;Part 7&lt;/a&gt; of this series (Authentication Methods) explains the authentication methods and policies in more detail.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This part focused on the &lt;strong&gt;KV&lt;/strong&gt; secrets engine: enabling a mount, storing and reading secrets, version lifecycle (list, soft delete, destroy), custom metadata, and &lt;strong&gt;policies&lt;/strong&gt; that distinguish KV v2’s &lt;code&gt;data/&lt;/code&gt; and &lt;code&gt;metadata/&lt;/code&gt; paths.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Key takeaways:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Prefer &lt;strong&gt;KV v2&lt;/strong&gt; when you need &lt;strong&gt;versioning&lt;/strong&gt;, &lt;strong&gt;check-and-set&lt;/strong&gt;, &lt;strong&gt;soft delete&lt;/strong&gt;, and richer &lt;strong&gt;metadata&lt;/strong&gt;; use KV v1 only when you explicitly want the simpler, lower-overhead path.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Grant &lt;strong&gt;&lt;code&gt;secret/data/…​&lt;/code&gt;&lt;/strong&gt; for secret values and &lt;strong&gt;&lt;code&gt;secret/metadata/…​&lt;/code&gt;&lt;/strong&gt; for listing and version operations—policies must match how the CLI and API resolve KV v2 paths.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Attach policies to &lt;strong&gt;tokens or auth roles&lt;/strong&gt; (for example Kubernetes auth) so applications receive &lt;strong&gt;least-privilege&lt;/strong&gt; access; include &lt;strong&gt;&lt;code&gt;auth/token/renew-self&lt;/code&gt;&lt;/strong&gt; if tokens should be renewable.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;PKI&lt;/strong&gt; secrets engine and integration with &lt;strong&gt;cert-manager&lt;/strong&gt; are covered in the next article in this series.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/secrets/kv/kv-v2" target="_blank" rel="noopener"&gt;KV Secrets Engine v2&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>
