@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Home Lab on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/home-lab/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 09 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/home-lab/index.xml" rel="self" type="application/rss+xml"/><item><title>Creating a RHEL 10 VM on macOS with bootc-image-builder</title><link>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</link><pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Yes, we have Apple machines in our lab because why not. So we needed a
+RHEL 10 VM to set up Ansible Automation Platform, which seems to
+support AARCH64 and Red Hat Enterprise Linux 10.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We need &lt;a href="https://mac.getutm.app/" target="_blank" rel="noopener"&gt;UTM&lt;/a&gt; installed on our Mac machine,
+either
+&lt;a href="https://github.com/utmapp/UTM/releases/latest/download/UTM.dmg" target="_blank" rel="noopener"&gt;manually&lt;/a&gt;,
+via &lt;a href="https://formulae.brew.sh/cask/utm" target="_blank" rel="noopener"&gt;Homebrew&lt;/a&gt; or using a Nix
+&lt;a href="https://github.com/tosmi/nixos-config/blob/7faff0ed92d4bbefbef42641497cd2aa49c54b83/macos/fuji/flake.nix#L146" target="_blank" rel="noopener"&gt;flake&lt;/a&gt;
+(in order of increasing coolness).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Podman is also required, same rules as above apply:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://podman-desktop.io/" target="_blank" rel="noopener"&gt;manual installation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://formulae.brew.sh/cask/podman-desktop" target="_blank" rel="noopener"&gt;Homebrew&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://github.com/tosmi/nixos-config/blob/3a6bc775d3164d080390590522956ad5399a34c6/macos/fuji/flake.nix#L147" target="_blank" rel="noopener"&gt;flake.nix&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We followed the
+&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/creating-bootc-compatible-base-disk-images-by-using-bootc-image-builder" target="_blank" rel="noopener"&gt;RHEL documentation&lt;/a&gt; for creating a bootable qcow image from a bootc
+container image.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;According to the &lt;a href="https://github.com/osbuild/bootc-image-builder?tab=readme-ov-file#-installation" target="_blank" rel="noopener"&gt;upstream image builder docs&lt;/a&gt;, we need to make sure
+that our podman machine runs rootful. Otherwise image builder will not work. So let’s do this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ podman machine stop
+$ podman machine set --rootful
+$ podman machine start
+$ podman machine info&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Next we need to pull the &lt;em&gt;bootc-image-builder&lt;/em&gt; image:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ podman login registry.redhat.io &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+$ podman pull registry.redhat.io/rhel10/bootc-image-builder&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This requires a valid Red Hat account. Registration is free of charge.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Then we can pull the RHEL 10 bootc container, as &lt;em&gt;bootc-image-builder&lt;/em&gt; is not able to pull container images:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman pull registry.redhat.io/rhel10/rhel-bootc:latest&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Image builder provides the option to configure the resulting image via
+kickstart. A builder for kickstart files is available here:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://access.redhat.com/labs/kickstartconfig/" class="bare"&gt;https://access.redhat.com/labs/kickstartconfig/&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a complete list of options see the &lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/automatically_installing_rhel/kickstart-commands-and-options-reference" target="_blank" rel="noopener"&gt;kickstart documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One important note from the documentation (quoted):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The following combined customizations are not supported: [customizations.user] and [customizations.installer.kickstart]. When you add a Kickstart, use a configuration file in the TOML format, because multi-line strings are prone to error.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For running the image builder we created a &lt;a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/bootc/config.toml" target="_blank" rel="noopener"&gt;&lt;em&gt;toml&lt;/em&gt; config file&lt;/a&gt; to configure the final qcow image:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-toml hljs" data-lang="toml"&gt;[[customizations.user]]
+name = &amp;#34;pinhead&amp;#34;
+password = &amp;#34;thepassword&amp;#34;
+key = &amp;#34;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIYhjnWzsArZVyyTa1E6sDbH06rUGDAhAF3bf3pmeBtm toni@stderr.at&amp;#34;
+groups = [&amp;#34;wheel&amp;#34;]
+[[customizations.filesystem]]
+mountpoint = &amp;#34;/&amp;#34;
+minsize = &amp;#34;50 GiB&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we are ready to trigger &lt;em&gt;bootc-image-builder&lt;/em&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman run \
+--rm \
+--privileged \
+--pull=newer \
+--security-opt label=type:unconfined_t \
+-v /var/lib/containers/storage:/var/lib/containers/storage \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+-v ./config.toml:/config.toml:ro \
+-v ./output:/output \
+registry.redhat.io/rhel10/bootc-image-builder:latest \
+--type qcow2 \
+--config /config.toml \
+registry.redhat.io/rhel10/rhel-bootc:latest&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We had to map this directory into the container, maybe this is required because we run podman in a VM on macOS (podman machine).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can find the resulting qcow image in the output directory under
+&lt;em&gt;output/qcow2/disk.qcow2&lt;/em&gt;. This image can be used to create a RHEL 10
+VM in UTM on macOS.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is also possible to customize the container image which is used as
+an input for &lt;em&gt;bootc-image-builder&lt;/em&gt;. But this requires a valid RHEL
+subscription inside the container. The easiest way to achieve this is
+by running bootc-image-builder on an already registered RHEL machine.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A &lt;em&gt;Makefile&lt;/em&gt; to streamline image creation can be found &lt;a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/bootc/Makefile" target="_blank" rel="noopener"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;</description></item></channel></rss>
