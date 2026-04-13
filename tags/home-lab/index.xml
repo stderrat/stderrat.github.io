@@ -1,4 +1,204 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Home Lab on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/home-lab/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 09 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/home-lab/index.xml" rel="self" type="application/rss+xml"/><item><title>Creating a RHEL 10 VM on macOS with bootc-image-builder</title><link>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</link><pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Home Lab on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/home-lab/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 10 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/home-lab/index.xml" rel="self" type="application/rss+xml"/><item><title>Creating a customized RHEL 10 VM image with image-builder</title><link>https://blog.stderr.at/other/2026-04-10-customize-rhel-image-builder/</link><pubDate>Fri, 10 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-10-customize-rhel-image-builder/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;In the blog post
+&lt;a href="https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/"&gt;Creating a
+RHEL 10 VM on macOS with bootc-image-builder&lt;/a&gt; we described how to
+quickly create a bootc (&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/introducing-image-mode-for-rhel"&gt;image mode&lt;/a&gt;) base image on macOS. Now we would like to
+create a customized standard RHEL image.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For this exercise we re-use an already provisioned RHEL 10.1 machine, the reasons for this are&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;We are going to use the &lt;em&gt;image-builder&lt;/em&gt; command instead of &lt;em&gt;bootc
+image builder&lt;/em&gt;. If there is a container image providing this
+command, please let us know&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;We are going to install packages which requires a subscribed RHEL
+machine. A RHEL subscription for up to 16 machines is free of charge. You
+just need to register at the &lt;a href="https://developers.redhat.com/" target="_blank" rel="noopener"&gt;Red Hat developer&lt;/a&gt; site.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First we need to install required tools onto our RHEL 10.1 host:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ sudo dnf install -y image-builder&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Next we create a blueprint file to customize the resulting qcow2
+image. We use the resulting image for a &amp;#34;services&amp;#34; machine, running
+Unifi OS, Kea for DHCP and ISC bind (dns server):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-toml hljs" data-lang="toml"&gt;name = &amp;#34;services-rhel10&amp;#34;
+description = &amp;#34;A VM running services&amp;#34;
+version = &amp;#34;0.1&amp;#34;
+[[packages]]
+name = &amp;#34;podman&amp;#34;
+version = &amp;#34;*&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+[customizations]
+hostname = &amp;#34;services&amp;#34;
+[[customizations.filesystem]]
+mountpoint = &amp;#34;/&amp;#34;
+minsize = &amp;#34;50 GiB&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+[customizations.kernel]
+append = &amp;#34;ip=10.0.0.144::10.0.0.1:255.255.255.0:services:ens3:none:10.0.0.255&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+[[customizations.group]]
+name = &amp;#34;pinhead&amp;#34;
+gid = 1000
+[[customizations.user]]
+name = &amp;#34;pinhead&amp;#34;
+password = &amp;#34;&amp;lt;password hash&amp;gt;&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+key = &amp;#34;&amp;lt;ssh public key&amp;gt;&amp;#34; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+home = &amp;#34;/home/pinhead/&amp;#34;
+shell = &amp;#34;/usr/bin/bash&amp;#34;
+groups = [&amp;#34;users&amp;#34;, &amp;#34;wheel&amp;#34;]
+uid = 1000
+gid = 1000
+[[customizations.sshkey]]
+user = &amp;#34;root&amp;#34;
+key = &amp;#34;&amp;lt;public key&amp;gt;&amp;#34; &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;use the latest version of this package&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;resize the resulting image to 50GB&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;we configure a static ip address for this machine, our default interface is &lt;em&gt;ens3&lt;/em&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enter the generated password hash here (see below)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;SSH public key to access this account&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;SSH public key to access the root account&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create a password hash use:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;python3 -c &amp;#39;import crypt,getpass;pw=getpass.getpass();print(crypt.crypt(pw) if (pw==getpass.getpass(&amp;#34;Confirm: &amp;#34;)) else exit())&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a detailed list of all customizations supported by &lt;em&gt;image-builder&lt;/em&gt;
+see the
+&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/composing_a_customized_rhel_system_image/supported-image-customizations" target="_blank" rel="noopener"&gt;image builder customizations&lt;/a&gt;
+documentation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As mentioned in the
+&lt;a href="https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/" target="_blank" rel="noopener"&gt;previous article&lt;/a&gt;
+image builder provides the option to configure the resulting
+image via kickstart. A builder for kickstart files is available here:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://access.redhat.com/labs/kickstartconfig/" class="bare"&gt;https://access.redhat.com/labs/kickstartconfig/&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a complete list of options see the &lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/automatically_installing_rhel/kickstart-commands-and-options-reference" target="_blank" rel="noopener"&gt;kickstart documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One important note from the documentation (quoted):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The following combined customizations are not supported: [customizations.user] and [customizations.installer.kickstart]. When you add a Kickstart, use a configuration file in the TOML format, because multi-line strings are prone to error.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we are ready to run &lt;em&gt;image-builder&lt;/em&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;image-builder build qcow2 --distro rhel-10.1 --arch x86_64 --blueprint services-blueprint.toml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The command above failed for us with the following error message:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;Failed to open file &amp;#34;/sys/fs/selinux/checkreqprot&amp;#34;: Read-only file system
+imported gpg key
+Signature check failed on sha256:9d0a71d87912a815f837f8427438936d6e9842834cc1f1062b90b2a41fbde594, lookup package name in manifest.
+Traceback (most recent call last):
+File &amp;#34;/run/osbuild/bin/org.osbuild.rpm&amp;#34;, line 260, in &amp;lt;module&amp;gt;
+r = main(args[&amp;#34;tree&amp;#34;], args[&amp;#34;inputs&amp;#34;], args[&amp;#34;options&amp;#34;])
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File &amp;#34;/run/osbuild/bin/org.osbuild.rpm&amp;#34;, line 162, in main
+subprocess.run([
+File &amp;#34;/usr/lib64/python3.12/subprocess.py&amp;#34;, line 571, in run
+raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command &amp;#39;[&amp;#39;rpmkeys&amp;#39;, &amp;#39;--root&amp;#39;, &amp;#39;/run/osbuild/tree&amp;#39;, &amp;#39;--checksig&amp;#39;, &amp;#39;sha256:9d0a71d87912a815f837f8427438936d6e9842834cc1f1062b90b2a41fbde594&amp;#39;]&amp;#39; returned non-zero exit status 1.
+Finished module org.osbuild.rpm
+Finished pipeline build
+manifest - failed
+Output:
+Failed&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;According to &lt;a href="https://access.redhat.com/solutions/7136467"&gt;this
+knowledge base article&lt;/a&gt; this is a bug in the current (2026-04-10)
+version of image builder.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can download an updated JSON file containing the missing RPM GPG
+keys from the article. Drop the &lt;em&gt;RHEL-10.1&lt;/em&gt; JSON file in a directory
+and run &lt;em&gt;image-builder&lt;/em&gt; again:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;image-builder --data-dir override/ &amp;lt;1&amp;gt; build qcow2 --distro rhel-10.1 --arch x86_64 --blueprint services-blueprint.toml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Use the &lt;em&gt;--data-dir&lt;/em&gt; option and specify the folder with the &lt;em&gt;RHEL-10.1.json&lt;/em&gt; file.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can find the resulting qcow image in the output directory under
+&lt;em&gt;rhel-10.1-qcow2-x86_64/rhel-10.1-qcow2-x86_64.qcow2&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A &lt;em&gt;Makefile&lt;/em&gt; to streamline image creation can be found
+&lt;a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/image-builder/Makefile" target="_blank" rel="noopener"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;</description></item><item><title>Creating a RHEL 10 VM on macOS with bootc-image-builder</title><link>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</link><pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;Yes, we have Apple machines in our lab because why not. So we needed a
 RHEL 10 VM to set up Ansible Automation Platform, which seems to
 support AARCH64 and Red Hat Enterprise Linux 10.&lt;/p&gt;

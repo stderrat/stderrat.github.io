@@ -1,4 +1,204 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>YAUB Yet Another Useless Blog on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/index.xml" rel="self" type="application/rss+xml"/><item><title>Creating a RHEL 10 VM on macOS with bootc-image-builder</title><link>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</link><pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>YAUB Yet Another Useless Blog on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/index.xml" rel="self" type="application/rss+xml"/><item><title>Creating a customized RHEL 10 VM image with image-builder</title><link>https://blog.stderr.at/other/2026-04-10-customize-rhel-image-builder/</link><pubDate>Fri, 10 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-10-customize-rhel-image-builder/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;In the blog post
+&lt;a href="https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/"&gt;Creating a
+RHEL 10 VM on macOS with bootc-image-builder&lt;/a&gt; we described how to
+quickly create a bootc (&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/introducing-image-mode-for-rhel"&gt;image mode&lt;/a&gt;) base image on macOS. Now we would like to
+create a customized standard RHEL image.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For this exercise we re-use an already provisioned RHEL 10.1 machine, the reasons for this are&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;We are going to use the &lt;em&gt;image-builder&lt;/em&gt; command instead of &lt;em&gt;bootc
+image builder&lt;/em&gt;. If there is a container image providing this
+command, please let us know&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;We are going to install packages which requires a subscribed RHEL
+machine. A RHEL subscription for up to 16 machines is free of charge. You
+just need to register at the &lt;a href="https://developers.redhat.com/" target="_blank" rel="noopener"&gt;Red Hat developer&lt;/a&gt; site.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;First we need to install required tools onto our RHEL 10.1 host:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ sudo dnf install -y image-builder&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Next we create a blueprint file to customize the resulting qcow2
+image. We use the resulting image for a &amp;#34;services&amp;#34; machine, running
+Unifi OS, Kea for DHCP and ISC bind (dns server):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-toml hljs" data-lang="toml"&gt;name = &amp;#34;services-rhel10&amp;#34;
+description = &amp;#34;A VM running services&amp;#34;
+version = &amp;#34;0.1&amp;#34;
+[[packages]]
+name = &amp;#34;podman&amp;#34;
+version = &amp;#34;*&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+[customizations]
+hostname = &amp;#34;services&amp;#34;
+[[customizations.filesystem]]
+mountpoint = &amp;#34;/&amp;#34;
+minsize = &amp;#34;50 GiB&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+[customizations.kernel]
+append = &amp;#34;ip=10.0.0.144::10.0.0.1:255.255.255.0:services:ens3:none:10.0.0.255&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+[[customizations.group]]
+name = &amp;#34;pinhead&amp;#34;
+gid = 1000
+[[customizations.user]]
+name = &amp;#34;pinhead&amp;#34;
+password = &amp;#34;&amp;lt;password hash&amp;gt;&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+key = &amp;#34;&amp;lt;ssh public key&amp;gt;&amp;#34; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+home = &amp;#34;/home/pinhead/&amp;#34;
+shell = &amp;#34;/usr/bin/bash&amp;#34;
+groups = [&amp;#34;users&amp;#34;, &amp;#34;wheel&amp;#34;]
+uid = 1000
+gid = 1000
+[[customizations.sshkey]]
+user = &amp;#34;root&amp;#34;
+key = &amp;#34;&amp;lt;public key&amp;gt;&amp;#34; &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;use the latest version of this package&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;resize the resulting image to 50GB&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;we configure a static ip address for this machine, our default interface is &lt;em&gt;ens3&lt;/em&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enter the generated password hash here (see below)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;SSH public key to access this account&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;SSH public key to access the root account&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To create a password hash use:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;python3 -c &amp;#39;import crypt,getpass;pw=getpass.getpass();print(crypt.crypt(pw) if (pw==getpass.getpass(&amp;#34;Confirm: &amp;#34;)) else exit())&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a detailed list of all customizations supported by &lt;em&gt;image-builder&lt;/em&gt;
+see the
+&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/composing_a_customized_rhel_system_image/supported-image-customizations" target="_blank" rel="noopener"&gt;image builder customizations&lt;/a&gt;
+documentation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As mentioned in the
+&lt;a href="https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/" target="_blank" rel="noopener"&gt;previous article&lt;/a&gt;
+image builder provides the option to configure the resulting
+image via kickstart. A builder for kickstart files is available here:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://access.redhat.com/labs/kickstartconfig/" class="bare"&gt;https://access.redhat.com/labs/kickstartconfig/&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a complete list of options see the &lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/automatically_installing_rhel/kickstart-commands-and-options-reference" target="_blank" rel="noopener"&gt;kickstart documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One important note from the documentation (quoted):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The following combined customizations are not supported: [customizations.user] and [customizations.installer.kickstart]. When you add a Kickstart, use a configuration file in the TOML format, because multi-line strings are prone to error.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now we are ready to run &lt;em&gt;image-builder&lt;/em&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;image-builder build qcow2 --distro rhel-10.1 --arch x86_64 --blueprint services-blueprint.toml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The command above failed for us with the following error message:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;Failed to open file &amp;#34;/sys/fs/selinux/checkreqprot&amp;#34;: Read-only file system
+imported gpg key
+Signature check failed on sha256:9d0a71d87912a815f837f8427438936d6e9842834cc1f1062b90b2a41fbde594, lookup package name in manifest.
+Traceback (most recent call last):
+File &amp;#34;/run/osbuild/bin/org.osbuild.rpm&amp;#34;, line 260, in &amp;lt;module&amp;gt;
+r = main(args[&amp;#34;tree&amp;#34;], args[&amp;#34;inputs&amp;#34;], args[&amp;#34;options&amp;#34;])
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File &amp;#34;/run/osbuild/bin/org.osbuild.rpm&amp;#34;, line 162, in main
+subprocess.run([
+File &amp;#34;/usr/lib64/python3.12/subprocess.py&amp;#34;, line 571, in run
+raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command &amp;#39;[&amp;#39;rpmkeys&amp;#39;, &amp;#39;--root&amp;#39;, &amp;#39;/run/osbuild/tree&amp;#39;, &amp;#39;--checksig&amp;#39;, &amp;#39;sha256:9d0a71d87912a815f837f8427438936d6e9842834cc1f1062b90b2a41fbde594&amp;#39;]&amp;#39; returned non-zero exit status 1.
+Finished module org.osbuild.rpm
+Finished pipeline build
+manifest - failed
+Output:
+Failed&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;According to &lt;a href="https://access.redhat.com/solutions/7136467"&gt;this
+knowledge base article&lt;/a&gt; this is a bug in the current (2026-04-10)
+version of image builder.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can download an updated JSON file containing the missing RPM GPG
+keys from the article. Drop the &lt;em&gt;RHEL-10.1&lt;/em&gt; JSON file in a directory
+and run &lt;em&gt;image-builder&lt;/em&gt; again:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;image-builder --data-dir override/ &amp;lt;1&amp;gt; build qcow2 --distro rhel-10.1 --arch x86_64 --blueprint services-blueprint.toml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Use the &lt;em&gt;--data-dir&lt;/em&gt; option and specify the folder with the &lt;em&gt;RHEL-10.1.json&lt;/em&gt; file.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can find the resulting qcow image in the output directory under
+&lt;em&gt;rhel-10.1-qcow2-x86_64/rhel-10.1-qcow2-x86_64.qcow2&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A &lt;em&gt;Makefile&lt;/em&gt; to streamline image creation can be found
+&lt;a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/image-builder/Makefile" target="_blank" rel="noopener"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;</description></item><item><title>Creating a RHEL 10 VM on macOS with bootc-image-builder</title><link>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</link><pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;Yes, we have Apple machines in our lab because why not. So we needed a
 RHEL 10 VM to set up Ansible Automation Platform, which seems to
 support AARCH64 and Red Hat Enterprise Linux 10.&lt;/p&gt;
@@ -12350,253 +12550,6 @@ capabilities = [&amp;#34;read&amp;#34;]
 &lt;p&gt;&lt;a href="https://www.linuxfoundation.org/press/linux-foundation-launches-openbao" target="_blank" rel="noopener"&gt;Linux Foundation OpenBao Announcement&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability Introduction - Part 1</title><link>https://blog.stderr.at/openshift-platform/observability/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/</link><pubDate>Sun, 23 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/observability/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;With this article I would like to summarize and, especially, remember my setup. This is Part 1 of a series of articles that I split up so it is easier to read and understand and not too long. Initially, there will be 6 parts, but I will add more as needed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In modern microservices architectures, understanding how requests flow through your distributed system is crucial for debugging, performance optimization, and maintaining system health. &lt;strong&gt;Distributed tracing&lt;/strong&gt; provides visibility into these complex interactions by tracking requests as they traverse multiple services.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This whole guide demonstrates how to set up a distributed tracing infrastructure using&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;OpenShift&lt;/strong&gt; (4.16+) as base platform&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Red Hat Build of OpenTelemetry&lt;/strong&gt; - The observability framework based on &lt;a href="https://opentelemetry.io/" target="_blank" rel="noopener"&gt;OpenTelemetry&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;TempoStack&lt;/strong&gt; - &lt;a href="https://grafana.com/docs/tempo/latest/" target="_blank" rel="noopener"&gt;Grafana’s distributed&lt;/a&gt; tracing backend for Kubernetes&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Multi-tenant architecture&lt;/strong&gt; - Isolating traces by team or environment&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Cluster Observability Operator&lt;/strong&gt; - For now this Operator is only used to extend the OpenShift UI with the tracing UI.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_thanks_to"&gt;Thanks to&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This article would not have been possible without the help of &lt;a href="https://www.linkedin.com/in/michaela-lang-900603b9/" target="_blank" rel="noopener"&gt;Michaela Lang&lt;/a&gt;. Check out her articles on LinkedIn mainly discussing Tracing and Service Mesh.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_is_opentelemetry"&gt;What is OpenTelemetry?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://opentelemetry.io/" target="_blank" rel="noopener"&gt;OpenTelemetry&lt;/a&gt; is an observability framework and toolkit which aims to provide unified, standardized, and vendor-neutral telemetry data collection for traces, metrics and logs for cloud-native software.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-In this article we will focus on traces only.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When it comes to Red Hat and OpenShift, the supported installation is based on the Operator &lt;strong&gt;Red Hat Build of OpenTelemetry&lt;/strong&gt;, which is based on the open source OpenTelemetry project and adds supportability.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_core_features"&gt;Core Features:&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;em&gt;Source: &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/red_hat_build_of_opentelemetry/index#otel-product-overview_otel-architecture" target="_blank" rel="noopener"&gt;OpenShift OTEL Product Overview&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;strong&gt;OpenTelemetry Collector&lt;/strong&gt; can receive, process, and forward telemetry data in multiple formats, making it the ideal component for telemetry processing and interoperability between telemetry systems. The Collector provides a unified solution for collecting and processing metrics, traces, and logs.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The core features of the OpenTelemetry Collector include:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Data Collection and Processing Hub&lt;/strong&gt;
-It acts as a central component that gathers telemetry data like metrics and traces from various sources. This data can be created from instrumented applications and infrastructure.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Customizable telemetry data pipeline&lt;/strong&gt;
-The OpenTelemetry Collector is customizable and supports various processors, exporters, and receivers.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Auto-instrumentation features&lt;/strong&gt;
-Automatic instrumentation simplifies the process of adding observability to applications. If used, developers do not need to manually instrument their code for basic telemetry data. (This depends a bit on the used coding language and framework, maybe this is worth a separate article)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Here are some of the use cases for the OpenTelemetry Collector:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Centralized data collection&lt;/strong&gt;
-In a microservices architecture, the Collector can be deployed to aggregate data from multiple services.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Data enrichment and processing&lt;/strong&gt;
-Before forwarding data to analysis tools, the Collector can enrich, filter, and process this data.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Multi-backend receiving and exporting&lt;/strong&gt;
-The Collector can receive and send data to multiple monitoring and analysis platforms simultaneously.
-You can use Red Hat build of OpenTelemetry in combination with Red Hat OpenShift Distributed Tracing Platform.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_is_grafana_tempo"&gt;What is Grafana Tempo?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://grafana.com/oss/tempo/" target="_blank" rel="noopener"&gt;Grafana Tempo&lt;/a&gt; is an open-source, easy-to-use, and high-scale distributed tracing backend. Tempo lets you search for traces, generate metrics from spans, and link your tracing data with logs and metrics.
-It is deeply integrated with Grafana, Prometheus and Loki and can ingest traces from various sources, such as OpenTelemetry, Jaeger, Zipkin and more.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_core_features_2"&gt;Core Features:&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;em&gt;Source: &lt;a href="https://grafana.com/oss/tempo/" target="_blank" rel="noopener"&gt;Grafana Tempo&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Built for massive scale&lt;/strong&gt;
-The only dependency is object storage which provides affordable long-term storage of traces.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Cost-effective&lt;/strong&gt;
-Not indexing the traces makes it possible to store orders of magnitude more trace data for the same cost.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Strong integration with open source tools&lt;/strong&gt;
-Compatible with open source tracing protocols.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In addition, it is deeply integrated with &lt;strong&gt;Grafana&lt;/strong&gt;, allowing you to visualize the traces in a Grafana dashboard and link logs, metrics and traces together.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_use_case_for_this_article"&gt;Use Case for this Article&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The use case that was tested in this article was the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Several applications (team-a, team-b, …​) are hosted on separate OpenShift namespaces.
-On each application namespace, a &lt;strong&gt;local&lt;/strong&gt; OpenTelemetry Collector (OTC) is configured to collect the traces from the application. These local OpenTelemetry Collectors will export the traces to a &lt;strong&gt;central&lt;/strong&gt; OpenTelemetry Collector (hosted in the namespace &lt;strong&gt;tempostack&lt;/strong&gt;).
-The central Collector will then export the data to a TempoStack instance (also hosted in the namespace &lt;strong&gt;tempostack&lt;/strong&gt;), which will store the traces in object storage. The storage itself is provided by S3-compatible storage, in this example OpenShift Data Foundation.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For a more detailed view see the next section.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_architecture_overview"&gt;Architecture Overview&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As described the implementation follows a &lt;strong&gt;two-tier collector architecture&lt;/strong&gt; with multi-tenancy support:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-mermaid {align=" center"="" zoom="true" }="" hljs"="" data-lang="mermaid {align=" center"="" zoom="true" }"=""&gt;---
-title: &amp;#34;Architecture Overview&amp;#34;
-config:
-theme: &amp;#39;dark&amp;#39;
----
-graph TB
-subgraph app[&amp;#34;Application&amp;#34;]
-mockbin1[&amp;#34;Mockbin #1&amp;lt;br/&amp;gt;(team-a namespace)&amp;lt;br/&amp;gt;(tenantA)&amp;#34;]
-mockbin2[&amp;#34;Mockbin #2&amp;lt;br/&amp;gt;(team-b namespace)&amp;lt;br/&amp;gt;(tenantB)&amp;#34;]
-end
-subgraph local[&amp;#34;Local OTC&amp;#34;]
-otc_a[&amp;#34;OTC-team-a&amp;lt;br/&amp;gt;• Add namespace&amp;lt;br/&amp;gt;• Batch processing&amp;lt;br/&amp;gt;• Forward to central&amp;#34;]
-otc_b[&amp;#34;OTC-team-b&amp;lt;br/&amp;gt;• Add namespace&amp;lt;br/&amp;gt;• Batch processing&amp;lt;br/&amp;gt;• Forward to central&amp;#34;]
-end
-subgraph central[&amp;#34;Central OTC (tempostack namespace)&amp;#34;]
-otc_central[&amp;#34;OTC-central&amp;lt;br/&amp;gt;• Receive from local collectors&amp;lt;br/&amp;gt;• Add K8s metadata (k8sattributes)&amp;lt;br/&amp;gt;• Route by namespace (routing connector)&amp;lt;br/&amp;gt;• Authenticate with bearer token&amp;lt;br/&amp;gt;• Forward to TempoStack with tenant ID&amp;#34;]
-end
-subgraph tempo[&amp;#34;TempoStack (tempostack namespace)&amp;#34;]
-tempostack[&amp;#34;Multi-tenant Trace Storage&amp;lt;br/&amp;gt;• tenantA, tenantB, ...&amp;lt;br/&amp;gt;• S3 backend storage&amp;lt;br/&amp;gt;• 48-hour retention&amp;#34;]
-end
-mockbin1 --&amp;gt;|&amp;#34;OTLP&amp;#34;| otc_a
-mockbin2 --&amp;gt;|&amp;#34;OTLP&amp;#34;| otc_b
-otc_a --&amp;gt;|&amp;#34;OTLP(with namespace)&amp;#34;| otc_central
-otc_b --&amp;gt;|&amp;#34;OTLP(with namespace)&amp;#34;| otc_central
-otc_central --&amp;gt;|&amp;#34;OTLP&amp;lt;br/&amp;gt;(X-Scope-OrgID header)&amp;#34;| tempostack
-classDef appStyle fill:#2f652a,stroke:#2f652a,stroke-width:2px
-classDef localStyle fill:#425cc6,stroke:#425cc6,stroke-width:2px;
-classDef centralStyle fill:#425cc6,stroke:#425cc6,stroke-width:2px;
-classDef tempoStyle fill:#906403,stroke:#906403,stroke-width:2px
-class mockbin1,mockbin2 appStyle
-class otc_a,otc_b localStyle
-class otc_central centralStyle
-class tempostack tempoStyle&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;As quick summary&lt;/strong&gt;
-Traces from the application &lt;strong&gt;Mockbin #1&lt;/strong&gt; are collected by the &amp;#34;OTC-team-a&amp;#34; and forwarded to the &amp;#34;Central OTC&amp;#34;. From there the traces are further forwarded to Tempo.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_why_2_tier_architecture"&gt;Why 2-Tier Architecture?&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You may ask yourself why there are two OpenTelemetry Collectors and if the application could not send directly to the Central OTC or if the Local OTC could not write directly into the Tempo storage. Both options are fine and will work, however, I tried to make it more secure. Only one OTC is allowed to perform write actions and applications can only send to the Local OTC, which forwards to the Central OTC where the traces are routed based on the source namespace. This way, nobody can interfere with other namespaces.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Therefore:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Separation of Concerns&lt;/strong&gt;: Application namespaces handle local processing; central namespace handles routing and storage. The Central decides where and how to store. Application owners cannot overwrite this.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Resource Efficiency&lt;/strong&gt;: Lightweight collectors in app namespaces, heavy processing centralized&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Security&lt;/strong&gt;: Applications don’t need direct access to TempoStack&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Scalability&lt;/strong&gt;: Each tier can scale independently&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Multi-tenancy&lt;/strong&gt;: Central collector routes traces to appropriate tenants&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_now"&gt;What now?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The next articles will cover the actual implementation. We will first deploy Tempo and the Central Collector. Then we will deploy example applications and the Local Collector.
-If everything works as planned, we will be able to see traces on the OpenShift UI.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
