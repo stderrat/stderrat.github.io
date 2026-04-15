@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Argo CD on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/argo-cd/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 05 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/argo-cd/index.xml" rel="self" type="application/rss+xml"/><item><title>GitOps Catalog</title><link>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</link><pubDate>Mon, 22 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Argo CD on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/argo-cd/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 15 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/argo-cd/index.xml" rel="self" type="application/rss+xml"/><item><title>GitOps Catalog</title><link>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</link><pubDate>Mon, 22 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;The &lt;a href="https://blog.stderr.at/gitops-catalog/"&gt;GitOps Catalog&lt;/a&gt; page provides an interactive visualization of all available ArgoCD applications from the openshift-clusterconfig-gitops repository. Check out the page &lt;strong&gt;&lt;a href="https://blog.stderr.at/gitops-catalog/"&gt;GitOps Catalog&lt;/a&gt;&lt;/strong&gt; for more details.&lt;/p&gt;
 &lt;/div&gt;</description></item><item><title>GitOps Episodes</title><link>https://blog.stderr.at/gitopscollection/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/</guid><description/></item><item><title>GitOps</title><link>https://blog.stderr.at/openshift-platform/gitops/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/gitops/</guid><description/></item><item><title>GitOps Catalog</title><link>https://blog.stderr.at/gitops-catalog/</link><pubDate>Mon, 22 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitops-catalog/</guid><description>
 &lt;div class="paragraph"&gt;
@@ -5113,6 +5113,1645 @@ argocd-agent-bm01 branding-banner Synced Healthy&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;While the initial setup requires several steps, especially around certificate management, the resulting architecture offers a robust foundation for GitOps at scale.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>[Ep.16] Tuning OpenShift GitOps for performance at scale</title><link>https://blog.stderr.at/gitopscollection/2026-03-27-openshift-gitops-performance-tuning/</link><pubDate>Wed, 15 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2026-03-27-openshift-gitops-performance-tuning/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Argo CD is a powerhouse for GitOps. It is easy to get started with and helps you manage clusters and applications. As the number of clusters, applications, and repositories grows, performance can suffer: refreshes take longer, the UI may feel sluggish, and the experience turns frustrating.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article is about performance tuning: which options exist, which scenarios matter, and which settings might help in your environment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;GitOps has become a common way to manage configuration drift, and Argo CD is one of the most widely used tools for it. It keeps the desired state defined in Git aligned with what actually runs in the cluster. On Kubernetes you can use Argo CD to manage multiple clusters from a single management cluster (other topologies exist) and to synchronise multiple repositories. A typical pattern is two Argo CD instances: one for cluster configuration and one for application rollout (though many variants work).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;What holds across setups is that Argo CD tends to slow down as its configuration grows and as the repositories it syncs from get larger and busier.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, imagine you have a single repository with thousands of commits. By default, Argo CD synchronises the whole repository, including the history. This is one screw that can be tightened.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_argo_cd_components"&gt;Argo CD Components&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Argo CD is made up of several cooperating components. In rough data-flow order, they are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Repo Server&lt;/strong&gt;: Connects to Git repositories, clones and syncs them, and generates manifests (for example with Helm or Kustomize). It uses &lt;strong&gt;Redis&lt;/strong&gt; for caching.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Redis&lt;/strong&gt;: Caches generated manifests and other data the other components reuse (default 24h).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Server&lt;/strong&gt;: Exposes the API and UI; it reads from Redis to verify if it is still valid.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;ApplicationSet Controller&lt;/strong&gt;: Reconciles &lt;code&gt;ApplicationSet&lt;/code&gt; resources and creates &lt;code&gt;Application&lt;/code&gt; objects that the application controller picks up.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Application Controller&lt;/strong&gt;: Reconciles desired state with live state in the cluster—creating, updating, and deleting resources as needed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+You may also see extra pods (for example Dex or a GitOps plugin). They are not central to the core sync path covered here; tuning them is mostly a matter of resources and replicas.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_tldr_an_overview"&gt;TL;DR: an overview&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When starting with this article, I did not expect to fall down into the rabbit hole. The article became bigger and bigger and I am pretty sure that there will be settings that I missed, even though I search the actual source code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you find anything missing, please let me know. I am happy to add it.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following overview table summarises the settings discussed in this article. &lt;strong&gt;Default&lt;/strong&gt; and &lt;strong&gt;example recommended&lt;/strong&gt; values are indicative—always validate in your environment. If you want a quick overview, start here.&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch settings-overview"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 18%;"/&gt;
+&lt;col style="width: 12%;"/&gt;
+&lt;col style="width: 13%;"/&gt;
+&lt;col style="width: 22%;"/&gt;
+&lt;col style="width: 35%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Setting&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Default&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Recommended&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Standalone Argo CD&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;OpenShift GitOps (ArgoCD CR)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-git-depth"&gt;Git shallow clone (depth)&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Full history&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;1&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Repository Secret with stringData.depth / data.depth (base64).&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+kind: Secret
+metadata:
+name: my-repo
+namespace: openshift-gitops
+labels:
+argocd.argoproj.io/secret-type: repository
+stringData:
+url: https://github.com/org/repo.git
+depth: &amp;#34;1&amp;#34;
+type: git
+type: Opaque&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-repo-parallelism-limit"&gt;ARGOCD_REPO_SERVER_PARALLELISM_LIMIT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;0 (unlimited)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;20 then tune (avoid OOM)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; → reposerver.parallelism.limit, or env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+repo:
+env:
+- name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
+value: &amp;#34;20&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-git-ls-remote-parallelism"&gt;ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;0 (unlimited)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;20 when Git rate limits bite&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment (or &lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; if your version maps it).&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+repo:
+env:
+- name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
+value: &amp;#34;20&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-exec-timeout"&gt;ARGOCD_EXEC_TIMEOUT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;90s&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;180s or higher for heavy Helm/Kustomize&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_EXEC_TIMEOUT
+value: 180s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-exec-fatal-timeout"&gt;ARGOCD_EXEC_FATAL_TIMEOUT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;10s&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Leave default unless you change SIGTERM→SIGKILL grace&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_EXEC_FATAL_TIMEOUT
+value: 10s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-git-attempts-count"&gt;ARGOCD_GIT_ATTEMPTS_COUNT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;1&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;3–5 on flaky networks&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_GIT_ATTEMPTS_COUNT
+value: &amp;#34;3&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-repo-cache-expiration"&gt;ARGOCD_REPO_CACHE_EXPIRATION&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;24h&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Often keep 24h; shorten only with care&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_REPO_CACHE_EXPIRATION
+value: 24h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-revision-cache-lock-timeout"&gt;ARGOCD_REVISION_CACHE_LOCK_TIMEOUT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;10s&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Raise if large charts hit lock timeouts (e.g. 30s)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+value: 30s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-server-repo-timeout"&gt;ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;60&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Align with repo render time (e.g. 180)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+server:
+env:
+- name: ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS
+value: &amp;#34;180&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-controller-sharding"&gt;Application Controller Sharding&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Disabled / single replica&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enable for multi-cluster; algorithm + replicas&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;HA StatefulSet, argocd-cmd-params-cm controller.sharding.algorithm, ARGOCD_CONTROLLER_REPLICAS / ARGOCD_CONTROLLER_SHARD on pods.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+env:
+- name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+value: round-robin
+sharding:
+enabled: true
+replicas: 3
+minShards: 2
+maxShards: 5&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-timeout-reconciliation"&gt;timeout.reconciliation&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;3m&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;600s–3600s with webhooks&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cm&lt;/code&gt; data.timeout.reconciliation.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+extraConfig:
+timeout.reconciliation: 600s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-timeout-reconciliation-jitter"&gt;timeout.reconciliation.jitter&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;60s (if unset, controller default applies)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Keep a fraction of timeout.reconciliation (often tens of seconds); 0s = no random spread&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cm&lt;/code&gt; data.timeout.reconciliation.jitter → env ARGOCD_RECONCILIATION_JITTER on the controller.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+extraConfig:
+timeout.reconciliation: 600s
+timeout.reconciliation.jitter: 60s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-status-processors"&gt;controller.status.processors&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;20&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;50–100 at large scale&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; controller.status.processors.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+processors:
+status: 50&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-operation-processors"&gt;controller.operation.processors&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;10&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Raise when the sync queue backs up&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; controller.operation.processors.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+processors:
+operation: 25&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-controller-repo-server-timeout"&gt;ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS + controller.repo.server.timeout.seconds&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;60&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;120–300 for slow manifest RPCs&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; controller.repo.server.timeout.seconds (or env ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS on the controller).&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+env:
+- name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
+value: &amp;#34;180&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-kubectl-parallelism"&gt;ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT + controller.kubectl.parallelism.limit&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;20&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Match or slightly below operation processors (e.g. 50)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; controller.kubectl.parallelism.limit.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+env:
+- name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+value: &amp;#34;50&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;Standalone Argo CD&lt;/strong&gt; uses &lt;code&gt;argocd-cm&lt;/code&gt;, &lt;code&gt;argocd-cmd-params-cm&lt;/code&gt;, and environment variables on the upstream Deployments / StatefulSets. The &lt;strong&gt;OpenShift GitOps&lt;/strong&gt; column shows &lt;code&gt;spec&lt;/code&gt; fragments merged into the &lt;code&gt;ArgoCD&lt;/code&gt; CR (&lt;code&gt;metadata.name&lt;/code&gt; / &lt;code&gt;metadata.namespace&lt;/code&gt; &lt;code&gt;openshift-gitops&lt;/code&gt;); use the same &lt;code&gt;spec&lt;/code&gt; under &lt;code&gt;metadata.name&lt;/code&gt; / &lt;code&gt;namespace&lt;/code&gt; &lt;code&gt;argocd&lt;/code&gt; for a community &lt;strong&gt;Argo CD Operator&lt;/strong&gt; install. Repository &lt;code&gt;depth&lt;/code&gt; is always a &lt;code&gt;Secret&lt;/code&gt;, not a field on &lt;code&gt;ArgoCD&lt;/code&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_lets_start_tuning"&gt;Let’s start tuning&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we discuss the obvious settings, like increasing replicas, resources, or configuring sharding, let’s take a look at the often-overlooked settings.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="setting-git-depth"&gt;Repo-Server: Git shallow cloning&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By default Argo CD will clone the whole repository including the history. Depending on the repository size this can take a long time. By limiting the commit history downloaded by the argocd-repo-server, you can drastically reduce fetch times, bandwidth, and resource consumption, especially for large monorepos.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To configure &lt;strong&gt;Git shallow cloning&lt;/strong&gt;, set the &lt;code&gt;depth&lt;/code&gt; parameter to the number of commits you want to clone. For example, to clone only the latest commit, set the &lt;code&gt;depth&lt;/code&gt; parameter to &lt;code&gt;1&lt;/code&gt;. This setting applies at the repository level, so you must configure it in the Secret object for each repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+When you work with &lt;strong&gt;public&lt;/strong&gt; repositories you might not have this Secret object. In that case you need to create that Secret object for the public repository.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here is an example of a Secret object for a &lt;strong&gt;public repository&lt;/strong&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Secret
+apiVersion: v1
+metadata:
+name: repo-2960947011
+namespace: openshift-gitops
+labels:
+argocd.argoproj.io/secret-type: repository &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+annotations:
+managed-by: argocd.argoproj.io
+data:
+depth: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+type: Git
+url: https://github.com/tjungbauer/openshift-clusterconfig-gitops &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+type: Opaque&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The label is used to identify the Secret object as a repository secret.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The depth parameter is the number of commits you want to clone.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The url field is the repository URL.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the logs of the repo server we can see the different calls to the Git repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-log hljs" data-lang="log"&gt;# Without depth parameter
+time=&amp;#34;2026-04-12T02:42:44Z&amp;#34; level=info msg=&amp;#34;Initializing https://github.com/tjungbauer/openshift-clusterconfig-gitops to /tmp/_argocd-repo/991f2e97-c2ca-4fd0-8988-b9af2f1b228e&amp;#34;
+[...truncated...]
+time=&amp;#34;2026-04-12T02:42:45Z&amp;#34; level=info msg=Trace args=&amp;#34;[git fetch origin --tags --force --prune]&amp;#34; dir=/tmp/_argocd-repo/991f2e97-c2ca-4fd0-8988-b9af2f1b228e operation_name=&amp;#34;exec git&amp;#34; time_ms=1011.528864 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+# With depth parameter
+time=&amp;#34;2026-04-12T02:45:23Z&amp;#34; level=info msg=&amp;#34;Initializing https://github.com/tjungbauer/openshift-clusterconfig-gitops to /tmp/_argocd-repo/fcd62851-9f0f-4c0b-aa61-039327adc256&amp;#34;
+[...truncated...]
+time=&amp;#34;2026-04-12T02:45:23Z&amp;#34; level=info msg=Trace args=&amp;#34;[git fetch origin 0a2f72afe511023aa2a86560de24f6046644c286 --depth 1 --force --prune]&amp;#34; dir=/tmp/_argocd-repo/fcd62851-9f0f-4c0b-aa61-039327adc256 operation_name=&amp;#34;exec git&amp;#34; time_ms=559.205253 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Without a &lt;code&gt;depth&lt;/code&gt; value, the whole history of the repository is fetched, which takes almost twice as long.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;With &lt;code&gt;depth&lt;/code&gt; set, Git fetches only the requested shallow history.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not forget that the &lt;code&gt;depth&lt;/code&gt; parameter must be added to the Secret. If you use a public repository you might need to create the Secret object manually.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#shallow-clone" target="_blank" rel="noopener"&gt;Argo CD: Shallow clone&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_repo_server_environment_variables_to_boost_performance"&gt;Repo-Server: Environment variables to boost performance&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The repo server container can be configured with environment variables to boost performance.
+When you use the OpenShift GitOps Operator, set these variables in the &lt;code&gt;spec.repo.env&lt;/code&gt; section of the &lt;code&gt;ArgoCD&lt;/code&gt; custom resource, for example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+[...truncated...]
+repo:
+env:
+- name: ENV_NAME
+value: &amp;#34;VALUE&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you prefer to use a ConfigMap (or Secret) instead, you can do so by setting a reference:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; env:
+- valueFrom:
+configMapKeyRef:
+name: my-configmap
+key: my-key
+optional: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The variables are passed as a simple list to the container.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you do not use the operator you can set these values in the repo server deployment or the Argo CD ConfigMap.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following environment variables might be considered:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-repo-parallelism-limit"&gt;ARGOCD_REPO_SERVER_PARALLELISM_LIMIT (Default: 0)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This variable defines the &lt;strong&gt;maximum number of parallel fetches&lt;/strong&gt; of the Git repository. The most common issue arises when the repo server crashes with &lt;strong&gt;OOM&lt;/strong&gt; errors. By default this variable is set to &lt;code&gt;0&lt;/code&gt;, which means no limit.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine you have a single repository with 500 applications. If you push new code to the repo, Argo CD detects the change and tries to generate the manifests for all applications at once. That can mean a large number of &lt;code&gt;helm template&lt;/code&gt; or &lt;code&gt;kustomize build&lt;/code&gt; commands running concurrently, which results in:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;High CPU spikes&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Very high memory use, leading to &lt;code&gt;OOMKilled&lt;/code&gt; containers and possibly a crash loop for the repo server&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you set a value greater than &lt;code&gt;0&lt;/code&gt; (for example, &lt;code&gt;20&lt;/code&gt;), you configure a strict worker pool (a semaphore).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If 500 requests arrive, the repo server only processes 20 at a time. The remaining 480 requests wait in a queue until a worker is free.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Applications might take a few extra seconds to sync during large bursts of activity.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Your argocd-repo-server stays stable, remains online, and avoids repeated OOM kills.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+There is no one-size-fits-all value here. The best approach is to start with a modest number such as &lt;code&gt;20&lt;/code&gt; and monitor the behaviour of the repo server.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-deployment.yaml#L62" target="_blank" rel="noopener"&gt;Argo CD: Repo server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-git-ls-remote-parallelism"&gt;ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT (Default: 0)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While the previous setting protects your Kubernetes cluster, this setting &lt;strong&gt;protects your Git service&lt;/strong&gt; from being overwhelmed by too many concurrent requests. Argo CD periodically runs &lt;code&gt;git ls-remote&lt;/code&gt; to check for new commits.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine that we still have 500 applications pointing to a single repository and branch (for example, main). When reconciliation runs, Argo CD runs &lt;code&gt;git ls-remote&lt;/code&gt; for each of the 500 applications at the same time to check for new commits. If your Git provider enforces a strict rate limit, this might lead to:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Request throttling by the Git provider&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Your repository or organisation being completely blocked by the Git provider&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications left in an &lt;code&gt;Unknown&lt;/code&gt; state in Argo CD&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Setting this value adds a second limit. When you set a value greater than 0 (for example, &lt;code&gt;20&lt;/code&gt;), the repo server opens at most 20 concurrent connections to the Git provider. The remaining requests wait in a queue until a connection is free.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Slower reconciliation for applications that are not yet synced.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: You are less likely to hit rate limits on your Git provider.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not set the value too low. For example, a value of &lt;code&gt;2&lt;/code&gt; might cause timeouts in the application controller if requests wait too long in the queue.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-deployment.yaml#L236" target="_blank" rel="noopener"&gt;Argo CD: Repo server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-exec-timeout"&gt;ARGOCD_EXEC_TIMEOUT (Default: 90s)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Sets the &lt;strong&gt;maximum time for child processes&lt;/strong&gt; (Helm, Kustomize, additional plugins, etc.). The repo server uses these tools to generate the final Kubernetes manifests for your applications. When the value is too low, it might lead to timeouts for slow charts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine you are deploying applications that rely on very large or complex Helm charts and Kustomize overlays. Because these charts take longer to render, the child process might need more than the default 90 seconds to complete.
+If the timeout expires before rendering finishes, you may see:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Timeouts in the application controller for slow charts.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications failing to sync and throwing rendering errors.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Frustration when heavy but valid configurations break simply because they need more time to render.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By adjusting this value (for example, configuring it to 180s) you give the repo server more time to finish rendering complex manifests. It tells Argo CD to wait longer before killing the child process.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: A higher timeout means a genuinely hung process holds resources longer before Argo CD finally terminates it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Complex, large, or slow-rendering charts have enough time to generate manifests successfully.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not set the value too high. An excessively high timeout stops Argo CD from failing fast under severe load or when a rendering process hangs.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#argocd-repo-server" target="_blank" rel="noopener"&gt;Argo CD: High Availability Guide&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-exec-fatal-timeout"&gt;ARGOCD_EXEC_FATAL_TIMEOUT (Default: 10s)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting complements &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt;. It is used to &lt;strong&gt;forcibly terminate a child process&lt;/strong&gt; (such as Helm, Kustomize, etc.) if it cannot exit gracefully.
+When execution exceeds ARGOCD_EXEC_TIMEOUT, Argo CD sends &lt;code&gt;SIGTERM&lt;/code&gt;. If the process still has not exited when the fatal timeout elapses, Argo CD sends &lt;code&gt;SIGKILL&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine a scenario where a manifest generation tool or a custom plugin gets completely stuck in an unresponsive state.
+When the standard &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt; is reached, Argo CD asks the process to stop gracefully. If the child process ignores that request or is fully deadlocked, you may see:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Zombie processes consuming memory and CPU on the repo server.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The repo server eventually running out of resources.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Subsequent application syncs failing or hanging indefinitely because the underlying tools are locked up.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Setting this value adds a strict fallback limit. When configured (for example, setting it to 120s if your regular timeout is 90s), it tells Argo CD to intervene and mercilessly terminate the process if it hasn’t exited by this hard deadline.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Force-killing a process prevents it from cleaning up after itself.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: It guarantees that a hung process will not permanently lock up the repo server’s compute resources.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+I personally would &lt;strong&gt;not set this value&lt;/strong&gt; if it is not absolutely necessary. The default 10 seconds should be enough for most cases.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#argocd-repo-server" target="_blank" rel="noopener"&gt;Argo CD: High Availability Guide&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-git-attempts-count"&gt;ARGOCD_GIT_ATTEMPTS_COUNT (Default: 1)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This variable sets the &lt;strong&gt;maximum number of retry attempts&lt;/strong&gt; for failed Git repository requests. When Argo CD interacts with your Git provider, network hiccups, temporary outages, or rate limiting or throttling by the provider can cause a Git request to fail unexpectedly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, if multiple concurrent requests hit the provider, the provider might randomly reset the connection (often seen as a connection reset by peer or ssh: handshake failed error in the logs). With the default setting of one attempt, Argo CD fails the sync or reconciliation immediately when this happens, leaving applications in an &lt;code&gt;Unknown&lt;/code&gt; state or surfacing a sync error.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Increasing this value (for example, to &lt;code&gt;3&lt;/code&gt;, &lt;code&gt;5&lt;/code&gt;, or even &lt;code&gt;10&lt;/code&gt; in heavily throttled environments) configures Argo CD to retry the failed Git operation automatically before surfacing a hard error.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If your Git provider is genuinely down (for example, a major GitHub outage) or your credentials have expired, the repo server wastes time retrying an operation that cannot succeed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: It improves resilience against flaky network paths, temporary DNS issues, and provider rate limiting.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Avoid setting this to an unrealistically high value (such as &lt;code&gt;50&lt;/code&gt;) unless you are addressing a specific, known throttling problem. A very high retry count can leave the repo server tied up on a bad repository for minutes, and you will still hit &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt; in the end. In practice, values between &lt;code&gt;3&lt;/code&gt; and &lt;code&gt;5&lt;/code&gt; are a good balance for stability.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#argocd-repo-server" target="_blank" rel="noopener"&gt;Argo CD: High Availability Guide&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_repo_server_caching_optimizations"&gt;Repo-Server: Caching optimizations&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following additional environment variables are focused on caching optimizations.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-repo-cache-expiration"&gt;ARGOCD_REPO_CACHE_EXPIRATION (Default: 24h)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting &lt;strong&gt;controls the time-to-live (TTL) for cached repository states&lt;/strong&gt; and generated manifests in the repo server (stored in Redis). When that TTL expires, the cache is invalidated and the repo server downloads the repository and generates the manifests again.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For most environments, the default of &lt;code&gt;24h&lt;/code&gt; is a good balance between performance and freshness. You can still trigger a manual refresh when you need newer content.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When the repo server downloads a Git repository and generates Kubernetes manifests, doing so is resources expensive.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the repo server has already downloaded a repository and the remote Git branch has not received any new commits, there is no need to re-download and re-render the same YAML. However, if you use floating tags (such as &lt;code&gt;latest&lt;/code&gt; or &lt;code&gt;main&lt;/code&gt;) or rely on remote Helm repositories where a chart can change without a version bump, an overly long cache TTL would stop Argo CD from seeing updates promptly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This value sets how long the repo server trusts its cached data before it forces a fresh download and re-renders manifests to confirm nothing changed upstream.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If set too high (for example, &lt;code&gt;48h&lt;/code&gt;), developers who use mutable image tags or update remote Helm charts without bumping versions will find that Argo CD does not pick up their changes quickly enough.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Keeps the repo server fast and efficient by serving pre-rendered manifests from Redis for most sync operations.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;Do not lower&lt;/strong&gt; this value (for example, to &lt;code&gt;5m&lt;/code&gt;) only to pick up floating tags sooner. Doing so forces the repo server to discard its cache and re-render manifests from scratch far more often, which severely degrades performance.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-deployment.yaml#L104" target="_blank" rel="noopener"&gt;Argo CD: Repo server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-revision-cache-lock-timeout"&gt;ARGOCD_REVISION_CACHE_LOCK_TIMEOUT (Default: 10s)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This variable sets the TTL used to deduplicate concurrent work on the same revision (&lt;code&gt;0&lt;/code&gt; disables deduplication). It reduces duplicate manifest generation when many applications refresh at once.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine you have 100 applications pointing to the same Git repository and commit. When a webhook fires, all 100 applications try to sync at once. To save CPU, Argo CD generates the manifests for that commit once, caches the result in Redis, and serves it to every application. The first worker locks the cache key while it renders; everyone else waits.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If rendering takes a long time (for example, a very large Helm chart) and exceeds the default lock timeout, waiting workers assume the first attempt failed and all start rendering the same commit themselves, causing a sharp CPU spike. That pattern is often called a &lt;strong&gt;cache stampede&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Increasing this lock timeout gives the first worker more time to finish rendering and populate the cache. Other workers stay in the queue instead of duplicating the work.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If the first worker hangs or exits without releasing the lock, the others remain blocked until this longer timeout elapses.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Reduces cache stampedes where many workers render the same Git commit unnecessarily, which protects the repo server from sudden CPU spikes during mass reconciliations.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+As with &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt;, tune this value based on how long your slowest Helm chart or Kustomize overlay actually takes to render. The default of &lt;code&gt;10s&lt;/code&gt; is adequate for many environments; large charts or complex overlays may need a higher value.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-deployment.yaml#L224" target="_blank" rel="noopener"&gt;Argo CD: Repo server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-server-repo-timeout"&gt;ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS (Default: 60)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This variable sets the maximum time the Argo CD &lt;strong&gt;API server waits for a response&lt;/strong&gt; from the repo server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you open the Argo CD Web UI or click on an application, the API Server has to make an internal gRPC call to the Repo Server and say, &amp;#34;Hey, please render these manifests and send them back to me so I can show them to the user.&amp;#34;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you have very large Helm charts or complex Kustomize builds, the repo server might take a long time to render them.
+However, this API server timeout defaults to 60 seconds, so the UI can give up, drop the connection, and show a &lt;strong&gt;context deadline exceeded&lt;/strong&gt; error even though the repo server is still rendering in the background.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By increasing this value you tell the API Server to be more patient. It will keep the loading spinner going until the repo server finally finishes rendering and returns the data.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If the repo server genuinely hangs or crashes, users will sit staring at a spinning wheel in the UI for a much longer time before finally receiving an error message.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Eliminates false-positive UI and CLI errors when viewing complex applications, ensuring users can actually see the manifests and diffs for heavy deployments.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Align this timeout with &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt; on the repo server. If the repo server may spend 180 seconds rendering a chart but the API server gives up after 60 seconds, the UI will keep failing for slow applications.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/server/argocd-server-deployment.yaml#L133" target="_blank" rel="noopener"&gt;Argo CD: Server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="setting-controller-sharding"&gt;Application controller: Sharding (horizontal scaling)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you investigate performance issues, &lt;strong&gt;sharding&lt;/strong&gt; is often one of the first topics you meet. Sharding scales the application controller horizontally by distributing work across multiple controller replicas automatically.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When a single application controller reconciles too many applications across too many clusters, it becomes the bottleneck: high CPU and memory use, long reconcile queues, Kubernetes API throttling, and pressure on the repo server.
+Sharding splits that work across &lt;strong&gt;multiple controller replicas&lt;/strong&gt;. Each replica has a &lt;strong&gt;shard index&lt;/strong&gt; and reconciles only &lt;strong&gt;applications whose destination clusters map to that shard&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Implicitly, this means that sharding only makes sense if you have more than one cluster in your environment.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_how_it_works_conceptually"&gt;How it works (conceptually)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;You run &lt;strong&gt;N&lt;/strong&gt; application-controller replicas (typically a StatefulSet so each pod has a stable identity).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Argo CD assigns every registered cluster (including the in-cluster deployment) to &lt;strong&gt;exactly one shard&lt;/strong&gt; using a &lt;strong&gt;distribution function&lt;/strong&gt;. The controller for shard K ignores clusters that are not mapped to K.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications are processed by the shard that owns their &lt;strong&gt;destination cluster&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_distribution_algorithms"&gt;Distribution algorithms&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following algorithms are supported. Configure them with the &lt;strong&gt;ARGOCD_CONTROLLER_SHARDING_ALGORITHM&lt;/strong&gt; (at spec.controller.env) environment variable when you use the OpenShift GitOps Operator, or with &lt;strong&gt;controller.sharding.algorithm&lt;/strong&gt; in argocd-cmd-params-cm ConfigMap:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;legacy&lt;/code&gt;&lt;/strong&gt; — stable hash from cluster ID; simple, but shards can be unbalanced (some busier than others). Kept for compatibility.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;round-robin&lt;/code&gt;&lt;/strong&gt; — tends to spread clusters more evenly across shards; often a better default when you scale out.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;consistent-hashing&lt;/code&gt;&lt;/strong&gt; — can improve balance further in some large, multi-cluster setups; cluster placement can reshuffle when the number of shards changes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The OpenShift GitOps documentation does not explicitly mention &lt;code&gt;consistent-hashing&lt;/code&gt;, which often indicates limited or unsupported use on that distribution. If you set &lt;code&gt;ARGOCD_CONTROLLER_SHARDING_ALGORITHM&lt;/code&gt; under &lt;code&gt;spec.controller.env&lt;/code&gt;, Argo CD still reads whatever value you supply—verify against your operator version before relying on it in production.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_why_it_improves_performance"&gt;Why it improves performance&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Parallelism across nodes: More controller pods mean more CPU and memory headroom in aggregate.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Smaller per-shard work: Each replica handles fewer clusters and fewer applications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Better fit for hub-and-spoke: On a management cluster with many spoke clusters, sharding is the usual way to scale past what one controller can sustain.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_trade_offs"&gt;Trade-offs&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Operational complexity: More pods to monitor; you must ensure every shard stays healthy.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Not a substitute for repo-server tuning: If manifest generation or Git is the bottleneck, sharding the controller alone will not fix it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Only useful if you have more than one cluster in your environment.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_configure_sharding"&gt;Configure Sharding&lt;/h4&gt;
+&lt;div class="sect4"&gt;
+&lt;h5 id="_openshift_gitops_argo_cd_custom_resource"&gt;OpenShift GitOps (Argo CD custom resource)&lt;/h5&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The OpenShift GitOps Operator lets you configure sharding in the Argo CD custom resource.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following snippet shows a typical sharding configuration, including the algorithm.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+controller:
+env:
+- name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+value: round-robin &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+sharding:
+enabled: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+replicas: 3 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+minShards: 2 &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+maxShards: 5 &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The algorithm to use for sharding&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Sharding must be enabled explicitly.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Number of application-controller replicas (shards)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Minimum number of shards&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Maximum number of shards&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Sharding applies to the &lt;strong&gt;application controller&lt;/strong&gt; only. The &lt;strong&gt;repo server&lt;/strong&gt;, &lt;strong&gt;Redis&lt;/strong&gt;, and &lt;strong&gt;Argo CD server&lt;/strong&gt; scale on their own and are sized separately.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect4"&gt;
+&lt;h5 id="_standalone_argo_cd"&gt;Standalone Argo CD&lt;/h5&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Install the high-availability layout so the application controller is a StatefulSet (not a single-replica Deployment).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Set &lt;strong&gt;replicas&lt;/strong&gt; on that StatefulSet to the number of shards you want - each replica is one shard.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure &lt;strong&gt;&lt;code&gt;controller.sharding.algorithm&lt;/code&gt;&lt;/strong&gt; in &lt;strong&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt;&lt;/strong&gt; (for example &lt;code&gt;round-robin&lt;/code&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Ensure each pod receives &lt;strong&gt;&lt;code&gt;ARGOCD_CONTROLLER_REPLICAS&lt;/code&gt;&lt;/strong&gt; (total shard count) and &lt;strong&gt;&lt;code&gt;ARGOCD_CONTROLLER_SHARD&lt;/code&gt;&lt;/strong&gt; (this pod’s index).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_controller_performance_tuning_configmap"&gt;Controller: Performance tuning (ConfigMap)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The controller container can also be configured with environment variables. However, you configure it slightly differently from the repo server. The configuration comes from a ConfigMap: either you edit that ConfigMap directly, or, if you use the OpenShift GitOps Operator, you set &lt;code&gt;spec.extraConfig&lt;/code&gt; or the appropriate setting under &lt;code&gt;spec.controller&lt;/code&gt;. Those values eventually become environment variables in the controller container.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you use the OpenShift GitOps Operator with the Argo CD custom resource, set &lt;code&gt;spec.extraConfig&lt;/code&gt;. For example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+extraConfig: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+timeout.reconciliation: 180s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Special extraConfig key with an example setting&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The operator will automatically merge the &lt;code&gt;spec.extraConfig&lt;/code&gt; with the &lt;code&gt;argocd-cm&lt;/code&gt; ConfigMap.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, to keep it confusing, some parameters are set under &lt;code&gt;spec.controller&lt;/code&gt;. For example, &lt;code&gt;spec.controller.processors.status&lt;/code&gt; and &lt;code&gt;spec.controller.processors.operation&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+processors:
+status: 50&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you do not use the Operator, set the parameter directly in the ConfigMap.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: ConfigMap
+apiVersion: v1
+metadata:
+name: argocd-cm &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: openshift-gitops
+data:
+[...truncated...]
+timeout.reconciliation: 180s &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Special ConfigMap name for the Argo CD configuration&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Special timeout.reconciliation key with an example setting&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Several ConfigMaps are involved in controller configuration. The &lt;code&gt;argocd-cm&lt;/code&gt; ConfigMap is the main ConfigMap for the Argo CD instance. The &lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; ConfigMap supplies controller command-line parameters. Each subsection below states which ConfigMap applies. When you use the Operator, map these keys through the appropriate section where noted.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-timeout-reconciliation"&gt;timeout.reconciliation (Default: 3m)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cm&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.extraConfig&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With this setting you control the &lt;strong&gt;default polling interval&lt;/strong&gt; for Argo CD. It defines how often Argo CD wakes up to compare the desired state in Git with the live state in your Kubernetes cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you do not have Git webhooks configured, Argo CD relies on a pull-based mechanism. By default, every three minutes the application controller connects to the repo server to check Git for new commits. In a cluster with thousands of applications, polling every three minutes creates a sustained, heavy baseline load on both the application controller (CPU and memory) and the repo server (network and Git API traffic), even when nothing has changed in your repositories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By increasing this value (for example, &lt;code&gt;600s&lt;/code&gt; for 10 minutes, or even &lt;code&gt;3600s&lt;/code&gt; for one hour), you reduce that background load and CPU overhead on the controller and repo server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;In combination with Git webhooks&lt;/strong&gt;, this setting is one of the most important performance tweaks you can apply.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If you do not use Git webhooks, new commits are detected and applied more slowly (by up to the reconciliation interval).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: A large reduction in baseline CPU, memory, and network usage—a crucial performance tweak for large clusters.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Only increase this value if you have &lt;strong&gt;Git webhooks&lt;/strong&gt; configured so Argo CD is notified as soon as changes are pushed. With webhooks in place, the controller does not need to poll as aggressively, so longer reconciliation intervals are usually safe.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/faq/#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository" target="_blank" rel="noopener"&gt;Argo CD: FAQ&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-timeout-reconciliation-jitter"&gt;timeout.reconciliation.jitter (Default: 60s)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cm&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.extraConfig&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting works together with &lt;a href="#setting-timeout-reconciliation"&gt;timeout.reconciliation&lt;/a&gt;. It defines the &lt;strong&gt;maximum random delay&lt;/strong&gt; (a jitter) that Argo CD may add when scheduling each application’s periodic Git poll. The controller picks a value between zero and this maximum so that not every Application wakes up at the same instant.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If thousands of applications share the same base reconciliation interval, their refresh work can &lt;strong&gt;align in time&lt;/strong&gt;. That creates &lt;strong&gt;periodic spikes&lt;/strong&gt; of load on the application controller, the repo server, and your Git provider — even when nothing has changed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Keep a &lt;strong&gt;non-zero&lt;/strong&gt; jitter that is a reasonable fraction of timeout.reconciliation (upstream examples often use 60s jitter alongside a 120s base interval; see the &lt;a href="https://argo-cd.readthedocs.io/en/stable/faq/#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository" target="_blank" rel="noopener"&gt;FAQ&lt;/a&gt;). When you increase the poll interval for performance, adjust jitter so you still spread work rather than synchronizing every long interval.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Each app’s next poll is a bit less predictable.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Smoother average load and fewer peak loads than setting jitter to 0s.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/faq/#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository" target="_blank" rel="noopener"&gt;Argo CD: FAQ&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_controller_performance_tuning_command_line_parameters"&gt;Controller: Performance tuning (Command line parameters)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a while I was unsure where to place the following settings, because the Operator configures them differently from a plain install. I ended up giving command-line parameters their own subsection.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you are &lt;strong&gt;not&lt;/strong&gt; using the Operator, configure these values in the &lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; ConfigMap. That part is straightforward.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you use the Operator, set them under &lt;code&gt;spec.controller.processors&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+processors: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+status: 20
+operation: 10&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Special processors key with the default settings&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This differs from the section above, where such parameters were set at &lt;code&gt;spec.extraConfig&lt;/code&gt;.
+The reason is, that the Operator sets these parameters directly as a switch in the execution command of the container and does not read it from the ConfigMap.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I am sure there is a design decision behind this …​&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-status-processors"&gt;controller.status.processors (Default: 20)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cmd-params-cm&lt;/strong&gt; (if not using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.controller.processor.status&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting controls the &lt;strong&gt;number of concurrent status processors&lt;/strong&gt;. That is, how many applications the controller can compare at once.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you have 500 applications, a default of 20 processors means the controller evaluates only 20 at a time. During a mass reconciliation (for example, a webhook firing for a monorepo), the remaining 480 applications wait in the reconciliation queue.
+You will notice drift detection becoming very slow.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Increase this value (for example, to &lt;code&gt;50&lt;/code&gt; or &lt;code&gt;100&lt;/code&gt; when you run more than 1,000 applications) so the controller can drain the queue faster, especially if refreshes in the UI feel slow.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Higher CPU and memory use on the application controller Pod.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Argo CD detects drift and refreshes status in the UI much faster in large environments.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#controller-options" target="_blank" rel="noopener"&gt;Argo CD Operator: Reference&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-operation-processors"&gt;controller.operation.processors (Default: 10)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cmd-params-cm&lt;/strong&gt; (if not using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.controller.processor.operation&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While status processors compare desired and live state, this setting controls the &lt;strong&gt;number of concurrent operation processors&lt;/strong&gt; for actual sync runs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you trigger a mass sync of 100 applications at once but only 10 operation processors are configured, Argo CD runs 10 syncs, waits for them to finish, starts the next 10, and so on.
+Applications stay in &lt;code&gt;Waiting&lt;/code&gt; or &lt;code&gt;Pending&lt;/code&gt; in the UI until their turn starts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Increase this value when many applications sync or run operations at the same time and the operation queue backs up (pending syncs, slow operation phase). Monitor controller CPU and memory — you need headroom for the extra parallelism.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Higher CPU and memory use on the application controller Pod.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Argo CD can apply manifests to the Kubernetes API for many applications at the same time.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is independent of status processors: you might have heavy refresh traffic (status) and lighter sync traffic (operations), or the opposite—tune each side to match your workload.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#controller-options" target="_blank" rel="noopener"&gt;Argo CD Operator: Reference&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-controller-repo-server-timeout"&gt;ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS - controller.repo.server.timeout.seconds (Default: 60)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cmd-params-cm&lt;/strong&gt; (if not using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.controller.env&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This sets &lt;strong&gt;how long the application controller waits&lt;/strong&gt; for the repo server to finish generating manifests before it stops and returns a &lt;strong&gt;context deadline exceeded&lt;/strong&gt; error.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not put this key in &lt;code&gt;spec.extraConfig&lt;/code&gt;. On OpenShift GitOps, set it under &lt;code&gt;spec.controller.env&lt;/code&gt; in the Argo CD custom resource.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Heavy charts, large repositories, slow Git, or a busy repo server may need more than 60 seconds for a single &lt;code&gt;GenerateManifests&lt;/code&gt; (or similar) RPC. If the deadline is too short, applications show comparison failures even when the repo server would eventually succeed.
+If you raised &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt; on the repo server so a chart can render for 180 seconds, but leave this controller deadline at 60 seconds, the controller cancels the request while the repo server is still working, and the sync fails.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Raise the value (for example to &lt;strong&gt;&lt;code&gt;180&lt;/code&gt;&lt;/strong&gt;) so legitimately slow manifest generation can finish. Size it so the controller allows at least as long as the &lt;strong&gt;worst-case repo-server work&lt;/strong&gt; you expect for one RPC.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: A hung repo server holds work longer before the client fails.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Fewer false failures from an overly aggressive deadline; large environments often use &lt;strong&gt;120–300&lt;/strong&gt; seconds or more.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This controls only the &lt;strong&gt;controller → repo-server&lt;/strong&gt; gRPC client. It does &lt;strong&gt;not&lt;/strong&gt; replace &lt;strong&gt;&lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt;&lt;/strong&gt; (child processes on the repo server) or &lt;strong&gt;&lt;code&gt;ARGOCD_REPO_SERVER_PARALLELISM_LIMIT&lt;/code&gt;&lt;/strong&gt; (concurrent manifest work).
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/" target="_blank" rel="noopener"&gt;Argo CD: Command line parameters&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-kubectl-parallelism"&gt;ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT - controller.kubectl.parallelism.limit (Default: 20)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cmd-params-cm&lt;/strong&gt; (if not using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.controller.env&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting controls the &lt;strong&gt;maximum number of concurrent &lt;code&gt;kubectl&lt;/code&gt; child processes&lt;/strong&gt; the application controller may spawn at once.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you raise &lt;code&gt;controller.operation.processors&lt;/code&gt; (for example to &lt;code&gt;50&lt;/code&gt; to run 50 syncs at once), you can hit a hidden bottleneck. This &lt;code&gt;kubectl&lt;/code&gt; limit defaults to &lt;code&gt;20&lt;/code&gt;, so the extra operation processors wait for a free slot.
+Without any limit, running dozens of concurrent &lt;code&gt;kubectl&lt;/code&gt; processes could spike memory and CPU and risk OOM-killing the controller Pod.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you increase &lt;code&gt;controller.operation.processors&lt;/code&gt; to speed up mass syncs, raise this limit to match or sit slightly below that value (for example set it to &lt;code&gt;50&lt;/code&gt;). That lets the controller run sync commands in parallel without stalling on the process limit.
+Raise the limit in steps (for example &lt;code&gt;50&lt;/code&gt;, or &lt;code&gt;100&lt;/code&gt; at very large scale). After each change, watch the Kubernetes API server (request rate and latency), etcd, and application-controller CPU and memory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: More overlapping &lt;code&gt;kubectl&lt;/code&gt; work increases API traffic and process pressure. On a stressed control plane that can make things worse.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Less time waiting for a free &lt;code&gt;kubectl&lt;/code&gt; slot when the cluster can absorb the extra concurrency.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not set this far above &lt;code&gt;controller.operation.processors&lt;/code&gt;; extra headroom does not increase throughput and only wastes memory. The two settings are meant to move together.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/" target="_blank" rel="noopener"&gt;Argo CD: Command line parameters&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenShift GitOps performance is rarely fixed by a single knob. The repo server, application controller, API server, Redis, and your Git provider all interact: a slow manifest render stresses the repo server; an aggressive client timeout fails the UI even when rendering would succeed; unbounded parallelism can OOM the repo server; tight kubectl concurrency can leave sync operations queued on an otherwise healthy controller.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A practical approach is to work in order of leverage: reduce unnecessary Git and render work (for example shallow clones, cache TTLs, and webhooks so you are not polling blindly), then align related timeouts (ARGOCD_EXEC_TIMEOUT, controller and API server deadlines to the repo server), then bound concurrency (repo-server parallelism, Git ls-remote limits, status and operation processors, kubectl parallelism) before you scale out with sharding and replicas.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On OpenShift GitOps, the same upstream settings appear in different places spec.repo.env, spec.controller.env, spec.extraConfig, spec.controller.processors, and spec.controller.sharding so always map each variable to the right field in the Argo CD custom resource (or the equivalent ConfigMaps in a plain install).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, treat tuning as evidence-led: change one major setting at a time, watch controller and repo-server memory, reconcile duration, API rates, and Git rate limits. What works for a small instance will not automatically transfer to thousands of applications or many managed clusters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_references"&gt;References&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/reconcile/" target="_blank" rel="noopener"&gt;Argo CD — Reconcile optimization&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/" target="_blank" rel="noopener"&gt;Argo CD — High availability / scaling&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/1.20/html-single/managing_resource_use/" target="_blank" rel="noopener"&gt;Red Hat OpenShift GitOps 1.20 — Managing resource use&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/1.20/html-single/argo_cd_instance/index/" target="_blank" rel="noopener"&gt;Red Hat OpenShift GitOps 1.20 — Argo CD instance / CR properties&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argocd-operator.readthedocs.io/en/stable/usage/extra-config/" target="_blank" rel="noopener"&gt;Argo CD Operator — ExtraConfig&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>[Ep.14] Reusable Argo CD Application Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><pubDate>Thu, 17 Jul 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><description>&lt;div class="paragraph"&gt;
@@ -11406,321 +13045,6 @@ The App-of-Apps is the only Argo CD Application (at this moment) that has automa
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;A deep dive into the argocd-resources-manager will be topic of a different episode of this serie.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>[Ep.2] Choosing the right Git repository structure</title><link>https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/</link><pubDate>Thu, 28 Dec 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;One of the most popular questions asked before adopting the GitOps approach is how to deploy an application to different environments (Test, Dev, Production, etc.) in a safe and repeatable way.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Each organisation has different requirements, and the choice will depend on a multitude of factors that also include non-technical aspects.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Therefore, it is important to state: &amp;#34;&lt;strong&gt;There is no unique “right” way, there are common practices&lt;/strong&gt;&amp;#34;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-In this series, I will focus on cluster configuration.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_git_repository_strategy_options"&gt;Git Repository Strategy - Options&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As written in the introduction: There is no unique “right” way, there are common practices. But how shall the Git repository structure look like? How shall the folder structure look like? Multiple options might be considered. Each has advantages and disadvantages, some I would recommend, some I would not recommend.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It is important to understand that:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;The Git repository structure will depend heavily on how the organisation is laid out.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The final repo and directory structure is unique for every organisation, as such the right one will be a discovery process within the organisation and the teams involved in the GitOps engineering process.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before I describe what I usually try to leverage, let’s see the different options.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_environment_per_branch"&gt;Environment-per-branch&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this case, there is a Git branch for each environment. A “Dev” branch holds the configuration for the DEV environments, a “production” branch for production and so on. This approach is very popular and will be familiar to people who have adopted git flow in the past. However, it is focused on application source code and not environment configuration and is best used when you need to support multiple versions of your application in production. I do not recommend this approach for GitOps, the main reasons are that pull requests and merges will be very complex and promotions between environments are a hurdle. The whole life cycle of a cluster configuration will be very complex.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_environment_per_folder_monorepo"&gt;Environment-per-folder - Monorepo&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this case, all environments are in a &lt;strong&gt;single&lt;/strong&gt; Git repository, and all are in the same branch. The filesystem has different folders that hold configuration files for each environment. The configuration of the “DEV” environment is described by a “DEV” folder, the “production” environment is found in a “production” folder and so on.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/2_repostructure/monorepo.png" alt="GitOps Monorepo Approach"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. GitOps Monorepo Approach&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This is the approach I usually recommend, especially when someone is new to the whole GitOps workflow and because of the simplicity of setting up such a repository.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following advantages and disadvantages should be considered:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Pros&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Provides a central location for configuration changes.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;This simplicity enabled straightforward Git workflows that will be centrally visible to the entire organisation, allowing a smoother and clearer approval process and merging.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Better suitable for small teams that are managing the cluster and easy to read and understand&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Easy to debug problems.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Cons&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Scalability &amp;gt;&amp;gt; Increase complexity &amp;gt;&amp;gt; Management&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Performance for huge repositories&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Challenging to control access permissions on a single repository&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_environment_per_repository_multirepo"&gt;Environment-per-repository - Multirepo&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this case, each environment is on its separate git repository. So, the DEV environment is in a git repository called “DEV”, the “production” environment is in a “production” git repository and so on. The GitOps agent (OpenShift GitOps) connects to multiple repositories and takes care to apply the correct configuration to the correct target cluster.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/2_repostructure/multirepo.png" alt="GitOps Multirepo Approach"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. GitOps Multirepo Approach&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Like the Monorepo approach, Multirepo comes with some advantages and disadvantages:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Pros&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Allows separating concerns between different departments of organisations (a repository for the security team, a repository for the operations team, etc.)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Cons&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;More complex to manage&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Harder to understand and read the configuration (what is coming from where)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Argo CD Application dependencies might not be solved (i.e., Security tries to manage the same object as the operating team. Who is the leader?)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_example_setup"&gt;Example Setup&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_the_approach_i_choose"&gt;The Approach I choose&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I usually use and recommend &lt;strong&gt;Monorepo&lt;/strong&gt; approach.
-The &lt;strong&gt;environment-per-folder&lt;/strong&gt; approach is a very good way to organise your GitOps applications. Not only is it very simple to implement and maintain, but it is also the optimal method for promoting releases between different GitOps environments. This approach can also work for any number of environments without any additional effort. Cluster configurations (for multiple clusters) are typically done by one team, therefore controlling access permissions in Git is not a big issue.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_example_folder_structure"&gt;Example Folder Structure&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Over time the following folder structure evolved or my repository:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;├── base &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-│   ├── argocd-resources-manager &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-│   └── init_app_of_apps &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-├── charts &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-├── clusters &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-│   ├── all &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-│   │   ├── base-operators
-│   │   ├── etcd-encryption
-│   ├── management-cluster &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-│   │   ├── branding
-│   │   ├── generic-cluster-config
-│   │   ├── management-gitops
-│   │   ├── node-labels
-│   │   ├── openshift-data-foundation
-│   │   ├── setup-acm
-│   │   ├── setup-acs
-│   │   ├── setup-compliance-oeprator
-│   │   ├── setup-openshift-logging
-│   │   └── setup-quay
-│   └── production-cluster &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
-│   │   ├── branding
-│   │   ├── generic-cluster-config
-│   │   ├── node-labels
-│   │   ├── openshift-data-foundation
-│   │   ├── setup-acs
-│   │   ├── setup-compliance-oeprator
-│   │   └── setup-openshift-logging
-├── init_GitOps.sh &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
-├── scripts &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
-│   ├── example_htpasswd
-│   ├── sealed_secrets
-├── tenant-projects &lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;(11)&lt;/b&gt;
-   ├── my-main-app
-   └── my-second-app&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The &lt;code&gt;base&lt;/code&gt; folder contains basic configurations or Argo CD itself.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The &lt;code&gt;argocd-resources-manager&lt;/code&gt; is a Helm Chart that configures Applications and ApplicationSets or Argo CD using a single configuration file.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The &lt;code&gt;init_app_of_apps&lt;/code&gt; is used during the initial installation of OpenShift GitOps and installs the App-of-Apps that manages other Applications or Argo CD. This Application automatically synchronises and watches for changes in the folder &lt;code&gt;argocd-resources-manager&lt;/code&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The &lt;code&gt;charts&lt;/code&gt; folder is &lt;strong&gt;optional&lt;/strong&gt; and can store local Helm Charts. Usually, it is better to release the Charts in a Helm repository, where they can be managed independently to the cluster configuration repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The folder for the different clusters.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configurations that are equal for all clusters and simple to achieve without any deeper configuration. Currently, for example, the activation of the etcd encryption and the deployment of base Operators that every cluster will require. In this case, the Operators are installed only, without further configuration.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configuration for the &lt;code&gt;management-cluster&lt;/code&gt;. For example, deploying ACM, ACS, Quay or any generic cluster configuration. Here we see immediately what is deployed and where I can modify the configuration for that cluster.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configuration for the &lt;code&gt;production-clusters&lt;/code&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The deployment script to install and configure the OpenShift GitOps Operator. This might be replaced or at least modified in the future once &lt;a href="https://docs.openshift.com/container-platform/4.14/operators/admin/olm-managing-po.html#platform-operators_olm-managing-po" target="_blank" rel="noopener"&gt;PlatformOperators&lt;/a&gt; are generally available and not in a technology preview state anymore.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The &lt;code&gt;scripts&lt;/code&gt; folder simply contains some shell scripts that might be useful. For example, to backup a Sealed Secrets key or generate a htpasswd file.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;11&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The &lt;code&gt;tenant-projects&lt;/code&gt; folder is a special folder to store the configuration or projects. Any project onboarding is configured here, such as Quota, LimitRanges, NetworkPolicies etc.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_why_the_repeating_folders"&gt;Why the repeating folders?&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Some may argue why certain folders are equal for management and production clusters, for example, &amp;#34;setup-compliance-operator&amp;#34;, when this could be done more easily by defining such folder only once and using different overlays (using Kustomize) or different values-files (using Helm Charts). However, while this is a very valid question, I personally, like to see immediately what is configured on each cluster. I see, based on the folders, what is configured on the management cluster and where I could modify the configuration.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Using Kustomize overlays, for example, would mean recreating the overlays for each configuration (if you want to have a clean separation and not combine all manifests into one overlay). Using different values-files is again a valid option, but (also again), you do not see what is configured on which cluster with one look.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Therefore, I like this folder structure, even if it may look weird (especially if you are used to Kustomize overlays). However, everyone is invited to define their very own structure :)&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_managing_kubernetes_manifests"&gt;Managing Kubernetes Manifests&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Kubernetes manifests (the yaml files) must be managed in a way Argo CD can read and synchronise them.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Three &lt;strong&gt;main&lt;/strong&gt; options are commonly used:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Helm&lt;/strong&gt;: Helm uses a packaging format called charts. A chart is a collection of files that describe a related set of Kubernetes resources.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Kustomize&lt;/strong&gt;: A Template-free way to customise application configuration that simplifies the use of off-the-shelf applications.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Plain Text&lt;/strong&gt;: Plain text Kubernetes objects provided in YAML of JSON format.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Argo CD also understands &lt;strong&gt;jsonnet&lt;/strong&gt; or even custom plugins. However, I had no customer up until now, who wanted to use something else than Kustomize or Helm.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The different tools are not explained in detail in this article, but the choice of the tool highly depends on the existing knowledge and individual preferences inside the company. Every option has advantages and disadvantages that will become visible when they are used.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I have seen companies tend to use Helm Charts or Plain Text, especially when they are new to the tools.
-However, no tool is better than the other. Instead, the tools can be combined which might be useful for some use cases.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Kustomize and Helm do not exclude each other and can be combined. However, for the start, a single tool should be selected.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>

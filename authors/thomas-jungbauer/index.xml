@@ -13146,6 +13146,1645 @@ Maybe I will cover some of these things in a future article.&lt;/p&gt;
 &lt;p&gt;Happy tracing! 🚀&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>[Ep.16] Tuning OpenShift GitOps for performance at scale</title><link>https://blog.stderr.at/gitopscollection/2026-03-27-openshift-gitops-performance-tuning/</link><pubDate>Wed, 15 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2026-03-27-openshift-gitops-performance-tuning/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Argo CD is a powerhouse for GitOps. It is easy to get started with and helps you manage clusters and applications. As the number of clusters, applications, and repositories grows, performance can suffer: refreshes take longer, the UI may feel sluggish, and the experience turns frustrating.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article is about performance tuning: which options exist, which scenarios matter, and which settings might help in your environment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;GitOps has become a common way to manage configuration drift, and Argo CD is one of the most widely used tools for it. It keeps the desired state defined in Git aligned with what actually runs in the cluster. On Kubernetes you can use Argo CD to manage multiple clusters from a single management cluster (other topologies exist) and to synchronise multiple repositories. A typical pattern is two Argo CD instances: one for cluster configuration and one for application rollout (though many variants work).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;What holds across setups is that Argo CD tends to slow down as its configuration grows and as the repositories it syncs from get larger and busier.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, imagine you have a single repository with thousands of commits. By default, Argo CD synchronises the whole repository, including the history. This is one screw that can be tightened.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_argo_cd_components"&gt;Argo CD Components&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Argo CD is made up of several cooperating components. In rough data-flow order, they are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Repo Server&lt;/strong&gt;: Connects to Git repositories, clones and syncs them, and generates manifests (for example with Helm or Kustomize). It uses &lt;strong&gt;Redis&lt;/strong&gt; for caching.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Redis&lt;/strong&gt;: Caches generated manifests and other data the other components reuse (default 24h).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Server&lt;/strong&gt;: Exposes the API and UI; it reads from Redis to verify if it is still valid.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;ApplicationSet Controller&lt;/strong&gt;: Reconciles &lt;code&gt;ApplicationSet&lt;/code&gt; resources and creates &lt;code&gt;Application&lt;/code&gt; objects that the application controller picks up.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Application Controller&lt;/strong&gt;: Reconciles desired state with live state in the cluster—creating, updating, and deleting resources as needed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+You may also see extra pods (for example Dex or a GitOps plugin). They are not central to the core sync path covered here; tuning them is mostly a matter of resources and replicas.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_tldr_an_overview"&gt;TL;DR: an overview&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When starting with this article, I did not expect to fall down into the rabbit hole. The article became bigger and bigger and I am pretty sure that there will be settings that I missed, even though I search the actual source code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you find anything missing, please let me know. I am happy to add it.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following overview table summarises the settings discussed in this article. &lt;strong&gt;Default&lt;/strong&gt; and &lt;strong&gt;example recommended&lt;/strong&gt; values are indicative—always validate in your environment. If you want a quick overview, start here.&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch settings-overview"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 18%;"/&gt;
+&lt;col style="width: 12%;"/&gt;
+&lt;col style="width: 13%;"/&gt;
+&lt;col style="width: 22%;"/&gt;
+&lt;col style="width: 35%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Setting&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Default&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Recommended&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Standalone Argo CD&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;OpenShift GitOps (ArgoCD CR)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-git-depth"&gt;Git shallow clone (depth)&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Full history&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;1&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Repository Secret with stringData.depth / data.depth (base64).&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+kind: Secret
+metadata:
+name: my-repo
+namespace: openshift-gitops
+labels:
+argocd.argoproj.io/secret-type: repository
+stringData:
+url: https://github.com/org/repo.git
+depth: &amp;#34;1&amp;#34;
+type: git
+type: Opaque&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-repo-parallelism-limit"&gt;ARGOCD_REPO_SERVER_PARALLELISM_LIMIT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;0 (unlimited)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;20 then tune (avoid OOM)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; → reposerver.parallelism.limit, or env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+repo:
+env:
+- name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
+value: &amp;#34;20&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-git-ls-remote-parallelism"&gt;ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;0 (unlimited)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;20 when Git rate limits bite&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment (or &lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; if your version maps it).&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+repo:
+env:
+- name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
+value: &amp;#34;20&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-exec-timeout"&gt;ARGOCD_EXEC_TIMEOUT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;90s&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;180s or higher for heavy Helm/Kustomize&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_EXEC_TIMEOUT
+value: 180s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-exec-fatal-timeout"&gt;ARGOCD_EXEC_FATAL_TIMEOUT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;10s&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Leave default unless you change SIGTERM→SIGKILL grace&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_EXEC_FATAL_TIMEOUT
+value: 10s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-git-attempts-count"&gt;ARGOCD_GIT_ATTEMPTS_COUNT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;1&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;3–5 on flaky networks&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_GIT_ATTEMPTS_COUNT
+value: &amp;#34;3&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-repo-cache-expiration"&gt;ARGOCD_REPO_CACHE_EXPIRATION&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;24h&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Often keep 24h; shorten only with care&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_REPO_CACHE_EXPIRATION
+value: 24h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-revision-cache-lock-timeout"&gt;ARGOCD_REVISION_CACHE_LOCK_TIMEOUT&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;10s&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Raise if large charts hit lock timeouts (e.g. 30s)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-repo-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+repo:
+env:
+- name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+value: 30s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-server-repo-timeout"&gt;ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;60&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Align with repo render time (e.g. 180)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Env on &lt;code&gt;argocd-server&lt;/code&gt; Deployment.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+server:
+env:
+- name: ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS
+value: &amp;#34;180&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-controller-sharding"&gt;Application Controller Sharding&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Disabled / single replica&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enable for multi-cluster; algorithm + replicas&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;HA StatefulSet, argocd-cmd-params-cm controller.sharding.algorithm, ARGOCD_CONTROLLER_REPLICAS / ARGOCD_CONTROLLER_SHARD on pods.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+env:
+- name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+value: round-robin
+sharding:
+enabled: true
+replicas: 3
+minShards: 2
+maxShards: 5&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-timeout-reconciliation"&gt;timeout.reconciliation&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;3m&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;600s–3600s with webhooks&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cm&lt;/code&gt; data.timeout.reconciliation.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+extraConfig:
+timeout.reconciliation: 600s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-timeout-reconciliation-jitter"&gt;timeout.reconciliation.jitter&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;60s (if unset, controller default applies)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Keep a fraction of timeout.reconciliation (often tens of seconds); 0s = no random spread&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cm&lt;/code&gt; data.timeout.reconciliation.jitter → env ARGOCD_RECONCILIATION_JITTER on the controller.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+extraConfig:
+timeout.reconciliation: 600s
+timeout.reconciliation.jitter: 60s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-status-processors"&gt;controller.status.processors&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;20&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;50–100 at large scale&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; controller.status.processors.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+processors:
+status: 50&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-operation-processors"&gt;controller.operation.processors&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;10&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Raise when the sync queue backs up&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; controller.operation.processors.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+processors:
+operation: 25&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-controller-repo-server-timeout"&gt;ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS + controller.repo.server.timeout.seconds&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;60&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;120–300 for slow manifest RPCs&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; controller.repo.server.timeout.seconds (or env ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS on the controller).&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+env:
+- name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
+value: &amp;#34;180&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;a href="#setting-kubectl-parallelism"&gt;ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT + controller.kubectl.parallelism.limit&lt;/a&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;20&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Match or slightly below operation processors (e.g. 50)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; controller.kubectl.parallelism.limit.&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;div class="content"&gt;&lt;div class="listingblock nolangbadge"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+env:
+- name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+value: &amp;#34;50&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;Standalone Argo CD&lt;/strong&gt; uses &lt;code&gt;argocd-cm&lt;/code&gt;, &lt;code&gt;argocd-cmd-params-cm&lt;/code&gt;, and environment variables on the upstream Deployments / StatefulSets. The &lt;strong&gt;OpenShift GitOps&lt;/strong&gt; column shows &lt;code&gt;spec&lt;/code&gt; fragments merged into the &lt;code&gt;ArgoCD&lt;/code&gt; CR (&lt;code&gt;metadata.name&lt;/code&gt; / &lt;code&gt;metadata.namespace&lt;/code&gt; &lt;code&gt;openshift-gitops&lt;/code&gt;); use the same &lt;code&gt;spec&lt;/code&gt; under &lt;code&gt;metadata.name&lt;/code&gt; / &lt;code&gt;namespace&lt;/code&gt; &lt;code&gt;argocd&lt;/code&gt; for a community &lt;strong&gt;Argo CD Operator&lt;/strong&gt; install. Repository &lt;code&gt;depth&lt;/code&gt; is always a &lt;code&gt;Secret&lt;/code&gt;, not a field on &lt;code&gt;ArgoCD&lt;/code&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_lets_start_tuning"&gt;Let’s start tuning&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Before we discuss the obvious settings, like increasing replicas, resources, or configuring sharding, let’s take a look at the often-overlooked settings.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="setting-git-depth"&gt;Repo-Server: Git shallow cloning&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By default Argo CD will clone the whole repository including the history. Depending on the repository size this can take a long time. By limiting the commit history downloaded by the argocd-repo-server, you can drastically reduce fetch times, bandwidth, and resource consumption, especially for large monorepos.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To configure &lt;strong&gt;Git shallow cloning&lt;/strong&gt;, set the &lt;code&gt;depth&lt;/code&gt; parameter to the number of commits you want to clone. For example, to clone only the latest commit, set the &lt;code&gt;depth&lt;/code&gt; parameter to &lt;code&gt;1&lt;/code&gt;. This setting applies at the repository level, so you must configure it in the Secret object for each repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+When you work with &lt;strong&gt;public&lt;/strong&gt; repositories you might not have this Secret object. In that case you need to create that Secret object for the public repository.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here is an example of a Secret object for a &lt;strong&gt;public repository&lt;/strong&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Secret
+apiVersion: v1
+metadata:
+name: repo-2960947011
+namespace: openshift-gitops
+labels:
+argocd.argoproj.io/secret-type: repository &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+annotations:
+managed-by: argocd.argoproj.io
+data:
+depth: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+type: Git
+url: https://github.com/tjungbauer/openshift-clusterconfig-gitops &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+type: Opaque&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The label is used to identify the Secret object as a repository secret.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The depth parameter is the number of commits you want to clone.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The url field is the repository URL.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the logs of the repo server we can see the different calls to the Git repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock nocopy"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-log hljs" data-lang="log"&gt;# Without depth parameter
+time=&amp;#34;2026-04-12T02:42:44Z&amp;#34; level=info msg=&amp;#34;Initializing https://github.com/tjungbauer/openshift-clusterconfig-gitops to /tmp/_argocd-repo/991f2e97-c2ca-4fd0-8988-b9af2f1b228e&amp;#34;
+[...truncated...]
+time=&amp;#34;2026-04-12T02:42:45Z&amp;#34; level=info msg=Trace args=&amp;#34;[git fetch origin --tags --force --prune]&amp;#34; dir=/tmp/_argocd-repo/991f2e97-c2ca-4fd0-8988-b9af2f1b228e operation_name=&amp;#34;exec git&amp;#34; time_ms=1011.528864 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+# With depth parameter
+time=&amp;#34;2026-04-12T02:45:23Z&amp;#34; level=info msg=&amp;#34;Initializing https://github.com/tjungbauer/openshift-clusterconfig-gitops to /tmp/_argocd-repo/fcd62851-9f0f-4c0b-aa61-039327adc256&amp;#34;
+[...truncated...]
+time=&amp;#34;2026-04-12T02:45:23Z&amp;#34; level=info msg=Trace args=&amp;#34;[git fetch origin 0a2f72afe511023aa2a86560de24f6046644c286 --depth 1 --force --prune]&amp;#34; dir=/tmp/_argocd-repo/fcd62851-9f0f-4c0b-aa61-039327adc256 operation_name=&amp;#34;exec git&amp;#34; time_ms=559.205253 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Without a &lt;code&gt;depth&lt;/code&gt; value, the whole history of the repository is fetched, which takes almost twice as long.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;With &lt;code&gt;depth&lt;/code&gt; set, Git fetches only the requested shallow history.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not forget that the &lt;code&gt;depth&lt;/code&gt; parameter must be added to the Secret. If you use a public repository you might need to create the Secret object manually.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#shallow-clone" target="_blank" rel="noopener"&gt;Argo CD: Shallow clone&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_repo_server_environment_variables_to_boost_performance"&gt;Repo-Server: Environment variables to boost performance&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The repo server container can be configured with environment variables to boost performance.
+When you use the OpenShift GitOps Operator, set these variables in the &lt;code&gt;spec.repo.env&lt;/code&gt; section of the &lt;code&gt;ArgoCD&lt;/code&gt; custom resource, for example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+[...truncated...]
+repo:
+env:
+- name: ENV_NAME
+value: &amp;#34;VALUE&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you prefer to use a ConfigMap (or Secret) instead, you can do so by setting a reference:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; env:
+- valueFrom:
+configMapKeyRef:
+name: my-configmap
+key: my-key
+optional: true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The variables are passed as a simple list to the container.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you do not use the operator you can set these values in the repo server deployment or the Argo CD ConfigMap.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following environment variables might be considered:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-repo-parallelism-limit"&gt;ARGOCD_REPO_SERVER_PARALLELISM_LIMIT (Default: 0)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This variable defines the &lt;strong&gt;maximum number of parallel fetches&lt;/strong&gt; of the Git repository. The most common issue arises when the repo server crashes with &lt;strong&gt;OOM&lt;/strong&gt; errors. By default this variable is set to &lt;code&gt;0&lt;/code&gt;, which means no limit.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine you have a single repository with 500 applications. If you push new code to the repo, Argo CD detects the change and tries to generate the manifests for all applications at once. That can mean a large number of &lt;code&gt;helm template&lt;/code&gt; or &lt;code&gt;kustomize build&lt;/code&gt; commands running concurrently, which results in:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;High CPU spikes&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Very high memory use, leading to &lt;code&gt;OOMKilled&lt;/code&gt; containers and possibly a crash loop for the repo server&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you set a value greater than &lt;code&gt;0&lt;/code&gt; (for example, &lt;code&gt;20&lt;/code&gt;), you configure a strict worker pool (a semaphore).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If 500 requests arrive, the repo server only processes 20 at a time. The remaining 480 requests wait in a queue until a worker is free.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Applications might take a few extra seconds to sync during large bursts of activity.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Your argocd-repo-server stays stable, remains online, and avoids repeated OOM kills.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+There is no one-size-fits-all value here. The best approach is to start with a modest number such as &lt;code&gt;20&lt;/code&gt; and monitor the behaviour of the repo server.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-deployment.yaml#L62" target="_blank" rel="noopener"&gt;Argo CD: Repo server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-git-ls-remote-parallelism"&gt;ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT (Default: 0)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While the previous setting protects your Kubernetes cluster, this setting &lt;strong&gt;protects your Git service&lt;/strong&gt; from being overwhelmed by too many concurrent requests. Argo CD periodically runs &lt;code&gt;git ls-remote&lt;/code&gt; to check for new commits.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine that we still have 500 applications pointing to a single repository and branch (for example, main). When reconciliation runs, Argo CD runs &lt;code&gt;git ls-remote&lt;/code&gt; for each of the 500 applications at the same time to check for new commits. If your Git provider enforces a strict rate limit, this might lead to:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Request throttling by the Git provider&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Your repository or organisation being completely blocked by the Git provider&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications left in an &lt;code&gt;Unknown&lt;/code&gt; state in Argo CD&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Setting this value adds a second limit. When you set a value greater than 0 (for example, &lt;code&gt;20&lt;/code&gt;), the repo server opens at most 20 concurrent connections to the Git provider. The remaining requests wait in a queue until a connection is free.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Slower reconciliation for applications that are not yet synced.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: You are less likely to hit rate limits on your Git provider.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not set the value too low. For example, a value of &lt;code&gt;2&lt;/code&gt; might cause timeouts in the application controller if requests wait too long in the queue.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-deployment.yaml#L236" target="_blank" rel="noopener"&gt;Argo CD: Repo server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-exec-timeout"&gt;ARGOCD_EXEC_TIMEOUT (Default: 90s)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Sets the &lt;strong&gt;maximum time for child processes&lt;/strong&gt; (Helm, Kustomize, additional plugins, etc.). The repo server uses these tools to generate the final Kubernetes manifests for your applications. When the value is too low, it might lead to timeouts for slow charts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine you are deploying applications that rely on very large or complex Helm charts and Kustomize overlays. Because these charts take longer to render, the child process might need more than the default 90 seconds to complete.
+If the timeout expires before rendering finishes, you may see:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Timeouts in the application controller for slow charts.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications failing to sync and throwing rendering errors.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Frustration when heavy but valid configurations break simply because they need more time to render.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By adjusting this value (for example, configuring it to 180s) you give the repo server more time to finish rendering complex manifests. It tells Argo CD to wait longer before killing the child process.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: A higher timeout means a genuinely hung process holds resources longer before Argo CD finally terminates it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Complex, large, or slow-rendering charts have enough time to generate manifests successfully.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not set the value too high. An excessively high timeout stops Argo CD from failing fast under severe load or when a rendering process hangs.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#argocd-repo-server" target="_blank" rel="noopener"&gt;Argo CD: High Availability Guide&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-exec-fatal-timeout"&gt;ARGOCD_EXEC_FATAL_TIMEOUT (Default: 10s)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting complements &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt;. It is used to &lt;strong&gt;forcibly terminate a child process&lt;/strong&gt; (such as Helm, Kustomize, etc.) if it cannot exit gracefully.
+When execution exceeds ARGOCD_EXEC_TIMEOUT, Argo CD sends &lt;code&gt;SIGTERM&lt;/code&gt;. If the process still has not exited when the fatal timeout elapses, Argo CD sends &lt;code&gt;SIGKILL&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine a scenario where a manifest generation tool or a custom plugin gets completely stuck in an unresponsive state.
+When the standard &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt; is reached, Argo CD asks the process to stop gracefully. If the child process ignores that request or is fully deadlocked, you may see:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Zombie processes consuming memory and CPU on the repo server.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The repo server eventually running out of resources.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Subsequent application syncs failing or hanging indefinitely because the underlying tools are locked up.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Setting this value adds a strict fallback limit. When configured (for example, setting it to 120s if your regular timeout is 90s), it tells Argo CD to intervene and mercilessly terminate the process if it hasn’t exited by this hard deadline.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Force-killing a process prevents it from cleaning up after itself.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: It guarantees that a hung process will not permanently lock up the repo server’s compute resources.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+I personally would &lt;strong&gt;not set this value&lt;/strong&gt; if it is not absolutely necessary. The default 10 seconds should be enough for most cases.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#argocd-repo-server" target="_blank" rel="noopener"&gt;Argo CD: High Availability Guide&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-git-attempts-count"&gt;ARGOCD_GIT_ATTEMPTS_COUNT (Default: 1)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This variable sets the &lt;strong&gt;maximum number of retry attempts&lt;/strong&gt; for failed Git repository requests. When Argo CD interacts with your Git provider, network hiccups, temporary outages, or rate limiting or throttling by the provider can cause a Git request to fail unexpectedly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example, if multiple concurrent requests hit the provider, the provider might randomly reset the connection (often seen as a connection reset by peer or ssh: handshake failed error in the logs). With the default setting of one attempt, Argo CD fails the sync or reconciliation immediately when this happens, leaving applications in an &lt;code&gt;Unknown&lt;/code&gt; state or surfacing a sync error.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Increasing this value (for example, to &lt;code&gt;3&lt;/code&gt;, &lt;code&gt;5&lt;/code&gt;, or even &lt;code&gt;10&lt;/code&gt; in heavily throttled environments) configures Argo CD to retry the failed Git operation automatically before surfacing a hard error.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If your Git provider is genuinely down (for example, a major GitHub outage) or your credentials have expired, the repo server wastes time retrying an operation that cannot succeed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: It improves resilience against flaky network paths, temporary DNS issues, and provider rate limiting.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Avoid setting this to an unrealistically high value (such as &lt;code&gt;50&lt;/code&gt;) unless you are addressing a specific, known throttling problem. A very high retry count can leave the repo server tied up on a bad repository for minutes, and you will still hit &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt; in the end. In practice, values between &lt;code&gt;3&lt;/code&gt; and &lt;code&gt;5&lt;/code&gt; are a good balance for stability.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#argocd-repo-server" target="_blank" rel="noopener"&gt;Argo CD: High Availability Guide&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_repo_server_caching_optimizations"&gt;Repo-Server: Caching optimizations&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following additional environment variables are focused on caching optimizations.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-repo-cache-expiration"&gt;ARGOCD_REPO_CACHE_EXPIRATION (Default: 24h)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting &lt;strong&gt;controls the time-to-live (TTL) for cached repository states&lt;/strong&gt; and generated manifests in the repo server (stored in Redis). When that TTL expires, the cache is invalidated and the repo server downloads the repository and generates the manifests again.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For most environments, the default of &lt;code&gt;24h&lt;/code&gt; is a good balance between performance and freshness. You can still trigger a manual refresh when you need newer content.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When the repo server downloads a Git repository and generates Kubernetes manifests, doing so is resources expensive.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If the repo server has already downloaded a repository and the remote Git branch has not received any new commits, there is no need to re-download and re-render the same YAML. However, if you use floating tags (such as &lt;code&gt;latest&lt;/code&gt; or &lt;code&gt;main&lt;/code&gt;) or rely on remote Helm repositories where a chart can change without a version bump, an overly long cache TTL would stop Argo CD from seeing updates promptly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This value sets how long the repo server trusts its cached data before it forces a fresh download and re-renders manifests to confirm nothing changed upstream.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If set too high (for example, &lt;code&gt;48h&lt;/code&gt;), developers who use mutable image tags or update remote Helm charts without bumping versions will find that Argo CD does not pick up their changes quickly enough.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Keeps the repo server fast and efficient by serving pre-rendered manifests from Redis for most sync operations.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;Do not lower&lt;/strong&gt; this value (for example, to &lt;code&gt;5m&lt;/code&gt;) only to pick up floating tags sooner. Doing so forces the repo server to discard its cache and re-render manifests from scratch far more often, which severely degrades performance.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-deployment.yaml#L104" target="_blank" rel="noopener"&gt;Argo CD: Repo server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-revision-cache-lock-timeout"&gt;ARGOCD_REVISION_CACHE_LOCK_TIMEOUT (Default: 10s)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This variable sets the TTL used to deduplicate concurrent work on the same revision (&lt;code&gt;0&lt;/code&gt; disables deduplication). It reduces duplicate manifest generation when many applications refresh at once.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Imagine you have 100 applications pointing to the same Git repository and commit. When a webhook fires, all 100 applications try to sync at once. To save CPU, Argo CD generates the manifests for that commit once, caches the result in Redis, and serves it to every application. The first worker locks the cache key while it renders; everyone else waits.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If rendering takes a long time (for example, a very large Helm chart) and exceeds the default lock timeout, waiting workers assume the first attempt failed and all start rendering the same commit themselves, causing a sharp CPU spike. That pattern is often called a &lt;strong&gt;cache stampede&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Increasing this lock timeout gives the first worker more time to finish rendering and populate the cache. Other workers stay in the queue instead of duplicating the work.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If the first worker hangs or exits without releasing the lock, the others remain blocked until this longer timeout elapses.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Reduces cache stampedes where many workers render the same Git commit unnecessarily, which protects the repo server from sudden CPU spikes during mass reconciliations.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+As with &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt;, tune this value based on how long your slowest Helm chart or Kustomize overlay actually takes to render. The default of &lt;code&gt;10s&lt;/code&gt; is adequate for many environments; large charts or complex overlays may need a higher value.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-deployment.yaml#L224" target="_blank" rel="noopener"&gt;Argo CD: Repo server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-server-repo-timeout"&gt;ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS (Default: 60)&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This variable sets the maximum time the Argo CD &lt;strong&gt;API server waits for a response&lt;/strong&gt; from the repo server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you open the Argo CD Web UI or click on an application, the API Server has to make an internal gRPC call to the Repo Server and say, &amp;#34;Hey, please render these manifests and send them back to me so I can show them to the user.&amp;#34;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you have very large Helm charts or complex Kustomize builds, the repo server might take a long time to render them.
+However, this API server timeout defaults to 60 seconds, so the UI can give up, drop the connection, and show a &lt;strong&gt;context deadline exceeded&lt;/strong&gt; error even though the repo server is still rendering in the background.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By increasing this value you tell the API Server to be more patient. It will keep the loading spinner going until the repo server finally finishes rendering and returns the data.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If the repo server genuinely hangs or crashes, users will sit staring at a spinning wheel in the UI for a much longer time before finally receiving an error message.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Eliminates false-positive UI and CLI errors when viewing complex applications, ensuring users can actually see the manifests and diffs for heavy deployments.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Align this timeout with &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt; on the repo server. If the repo server may spend 180 seconds rendering a chart but the API server gives up after 60 seconds, the UI will keep failing for slow applications.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/server/argocd-server-deployment.yaml#L133" target="_blank" rel="noopener"&gt;Argo CD: Server deployment&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="setting-controller-sharding"&gt;Application controller: Sharding (horizontal scaling)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you investigate performance issues, &lt;strong&gt;sharding&lt;/strong&gt; is often one of the first topics you meet. Sharding scales the application controller horizontally by distributing work across multiple controller replicas automatically.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When a single application controller reconciles too many applications across too many clusters, it becomes the bottleneck: high CPU and memory use, long reconcile queues, Kubernetes API throttling, and pressure on the repo server.
+Sharding splits that work across &lt;strong&gt;multiple controller replicas&lt;/strong&gt;. Each replica has a &lt;strong&gt;shard index&lt;/strong&gt; and reconciles only &lt;strong&gt;applications whose destination clusters map to that shard&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Implicitly, this means that sharding only makes sense if you have more than one cluster in your environment.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_how_it_works_conceptually"&gt;How it works (conceptually)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;You run &lt;strong&gt;N&lt;/strong&gt; application-controller replicas (typically a StatefulSet so each pod has a stable identity).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Argo CD assigns every registered cluster (including the in-cluster deployment) to &lt;strong&gt;exactly one shard&lt;/strong&gt; using a &lt;strong&gt;distribution function&lt;/strong&gt;. The controller for shard K ignores clusters that are not mapped to K.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Applications are processed by the shard that owns their &lt;strong&gt;destination cluster&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_distribution_algorithms"&gt;Distribution algorithms&lt;/h4&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following algorithms are supported. Configure them with the &lt;strong&gt;ARGOCD_CONTROLLER_SHARDING_ALGORITHM&lt;/strong&gt; (at spec.controller.env) environment variable when you use the OpenShift GitOps Operator, or with &lt;strong&gt;controller.sharding.algorithm&lt;/strong&gt; in argocd-cmd-params-cm ConfigMap:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;legacy&lt;/code&gt;&lt;/strong&gt; — stable hash from cluster ID; simple, but shards can be unbalanced (some busier than others). Kept for compatibility.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;round-robin&lt;/code&gt;&lt;/strong&gt; — tends to spread clusters more evenly across shards; often a better default when you scale out.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;consistent-hashing&lt;/code&gt;&lt;/strong&gt; — can improve balance further in some large, multi-cluster setups; cluster placement can reshuffle when the number of shards changes.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The OpenShift GitOps documentation does not explicitly mention &lt;code&gt;consistent-hashing&lt;/code&gt;, which often indicates limited or unsupported use on that distribution. If you set &lt;code&gt;ARGOCD_CONTROLLER_SHARDING_ALGORITHM&lt;/code&gt; under &lt;code&gt;spec.controller.env&lt;/code&gt;, Argo CD still reads whatever value you supply—verify against your operator version before relying on it in production.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_why_it_improves_performance"&gt;Why it improves performance&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Parallelism across nodes: More controller pods mean more CPU and memory headroom in aggregate.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Smaller per-shard work: Each replica handles fewer clusters and fewer applications.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Better fit for hub-and-spoke: On a management cluster with many spoke clusters, sharding is the usual way to scale past what one controller can sustain.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_trade_offs"&gt;Trade-offs&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Operational complexity: More pods to monitor; you must ensure every shard stays healthy.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Not a substitute for repo-server tuning: If manifest generation or Git is the bottleneck, sharding the controller alone will not fix it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Only useful if you have more than one cluster in your environment.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="_configure_sharding"&gt;Configure Sharding&lt;/h4&gt;
+&lt;div class="sect4"&gt;
+&lt;h5 id="_openshift_gitops_argo_cd_custom_resource"&gt;OpenShift GitOps (Argo CD custom resource)&lt;/h5&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The OpenShift GitOps Operator lets you configure sharding in the Argo CD custom resource.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The following snippet shows a typical sharding configuration, including the algorithm.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+controller:
+env:
+- name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+value: round-robin &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+sharding:
+enabled: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+replicas: 3 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+minShards: 2 &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+maxShards: 5 &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The algorithm to use for sharding&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Sharding must be enabled explicitly.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Number of application-controller replicas (shards)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Minimum number of shards&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Maximum number of shards&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Sharding applies to the &lt;strong&gt;application controller&lt;/strong&gt; only. The &lt;strong&gt;repo server&lt;/strong&gt;, &lt;strong&gt;Redis&lt;/strong&gt;, and &lt;strong&gt;Argo CD server&lt;/strong&gt; scale on their own and are sized separately.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect4"&gt;
+&lt;h5 id="_standalone_argo_cd"&gt;Standalone Argo CD&lt;/h5&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Install the high-availability layout so the application controller is a StatefulSet (not a single-replica Deployment).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Set &lt;strong&gt;replicas&lt;/strong&gt; on that StatefulSet to the number of shards you want - each replica is one shard.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Configure &lt;strong&gt;&lt;code&gt;controller.sharding.algorithm&lt;/code&gt;&lt;/strong&gt; in &lt;strong&gt;&lt;code&gt;argocd-cmd-params-cm&lt;/code&gt;&lt;/strong&gt; (for example &lt;code&gt;round-robin&lt;/code&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Ensure each pod receives &lt;strong&gt;&lt;code&gt;ARGOCD_CONTROLLER_REPLICAS&lt;/code&gt;&lt;/strong&gt; (total shard count) and &lt;strong&gt;&lt;code&gt;ARGOCD_CONTROLLER_SHARD&lt;/code&gt;&lt;/strong&gt; (this pod’s index).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_controller_performance_tuning_configmap"&gt;Controller: Performance tuning (ConfigMap)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The controller container can also be configured with environment variables. However, you configure it slightly differently from the repo server. The configuration comes from a ConfigMap: either you edit that ConfigMap directly, or, if you use the OpenShift GitOps Operator, you set &lt;code&gt;spec.extraConfig&lt;/code&gt; or the appropriate setting under &lt;code&gt;spec.controller&lt;/code&gt;. Those values eventually become environment variables in the controller container.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When you use the OpenShift GitOps Operator with the Argo CD custom resource, set &lt;code&gt;spec.extraConfig&lt;/code&gt;. For example:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+extraConfig: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+timeout.reconciliation: 180s&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Special extraConfig key with an example setting&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The operator will automatically merge the &lt;code&gt;spec.extraConfig&lt;/code&gt; with the &lt;code&gt;argocd-cm&lt;/code&gt; ConfigMap.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;However, to keep it confusing, some parameters are set under &lt;code&gt;spec.controller&lt;/code&gt;. For example, &lt;code&gt;spec.controller.processors.status&lt;/code&gt; and &lt;code&gt;spec.controller.processors.operation&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+processors:
+status: 50&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you do not use the Operator, set the parameter directly in the ConfigMap.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: ConfigMap
+apiVersion: v1
+metadata:
+name: argocd-cm &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+namespace: openshift-gitops
+data:
+[...truncated...]
+timeout.reconciliation: 180s &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Special ConfigMap name for the Argo CD configuration&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Special timeout.reconciliation key with an example setting&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Several ConfigMaps are involved in controller configuration. The &lt;code&gt;argocd-cm&lt;/code&gt; ConfigMap is the main ConfigMap for the Argo CD instance. The &lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; ConfigMap supplies controller command-line parameters. Each subsection below states which ConfigMap applies. When you use the Operator, map these keys through the appropriate section where noted.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-timeout-reconciliation"&gt;timeout.reconciliation (Default: 3m)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cm&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.extraConfig&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With this setting you control the &lt;strong&gt;default polling interval&lt;/strong&gt; for Argo CD. It defines how often Argo CD wakes up to compare the desired state in Git with the live state in your Kubernetes cluster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you do not have Git webhooks configured, Argo CD relies on a pull-based mechanism. By default, every three minutes the application controller connects to the repo server to check Git for new commits. In a cluster with thousands of applications, polling every three minutes creates a sustained, heavy baseline load on both the application controller (CPU and memory) and the repo server (network and Git API traffic), even when nothing has changed in your repositories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By increasing this value (for example, &lt;code&gt;600s&lt;/code&gt; for 10 minutes, or even &lt;code&gt;3600s&lt;/code&gt; for one hour), you reduce that background load and CPU overhead on the controller and repo server.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;strong&gt;In combination with Git webhooks&lt;/strong&gt;, this setting is one of the most important performance tweaks you can apply.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: If you do not use Git webhooks, new commits are detected and applied more slowly (by up to the reconciliation interval).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: A large reduction in baseline CPU, memory, and network usage—a crucial performance tweak for large clusters.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Only increase this value if you have &lt;strong&gt;Git webhooks&lt;/strong&gt; configured so Argo CD is notified as soon as changes are pushed. With webhooks in place, the controller does not need to poll as aggressively, so longer reconciliation intervals are usually safe.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/faq/#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository" target="_blank" rel="noopener"&gt;Argo CD: FAQ&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-timeout-reconciliation-jitter"&gt;timeout.reconciliation.jitter (Default: 60s)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cm&lt;/strong&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.extraConfig&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting works together with &lt;a href="#setting-timeout-reconciliation"&gt;timeout.reconciliation&lt;/a&gt;. It defines the &lt;strong&gt;maximum random delay&lt;/strong&gt; (a jitter) that Argo CD may add when scheduling each application’s periodic Git poll. The controller picks a value between zero and this maximum so that not every Application wakes up at the same instant.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If thousands of applications share the same base reconciliation interval, their refresh work can &lt;strong&gt;align in time&lt;/strong&gt;. That creates &lt;strong&gt;periodic spikes&lt;/strong&gt; of load on the application controller, the repo server, and your Git provider — even when nothing has changed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Keep a &lt;strong&gt;non-zero&lt;/strong&gt; jitter that is a reasonable fraction of timeout.reconciliation (upstream examples often use 60s jitter alongside a 120s base interval; see the &lt;a href="https://argo-cd.readthedocs.io/en/stable/faq/#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository" target="_blank" rel="noopener"&gt;FAQ&lt;/a&gt;). When you increase the poll interval for performance, adjust jitter so you still spread work rather than synchronizing every long interval.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Each app’s next poll is a bit less predictable.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Smoother average load and fewer peak loads than setting jitter to 0s.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/faq/#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository" target="_blank" rel="noopener"&gt;Argo CD: FAQ&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_controller_performance_tuning_command_line_parameters"&gt;Controller: Performance tuning (Command line parameters)&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a while I was unsure where to place the following settings, because the Operator configures them differently from a plain install. I ended up giving command-line parameters their own subsection.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you are &lt;strong&gt;not&lt;/strong&gt; using the Operator, configure these values in the &lt;code&gt;argocd-cmd-params-cm&lt;/code&gt; ConfigMap. That part is straightforward.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you use the Operator, set them under &lt;code&gt;spec.controller.processors&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+controller:
+processors: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+status: 20
+operation: 10&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Special processors key with the default settings&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This differs from the section above, where such parameters were set at &lt;code&gt;spec.extraConfig&lt;/code&gt;.
+The reason is, that the Operator sets these parameters directly as a switch in the execution command of the container and does not read it from the ConfigMap.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I am sure there is a design decision behind this …​&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-status-processors"&gt;controller.status.processors (Default: 20)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cmd-params-cm&lt;/strong&gt; (if not using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.controller.processor.status&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting controls the &lt;strong&gt;number of concurrent status processors&lt;/strong&gt;. That is, how many applications the controller can compare at once.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you have 500 applications, a default of 20 processors means the controller evaluates only 20 at a time. During a mass reconciliation (for example, a webhook firing for a monorepo), the remaining 480 applications wait in the reconciliation queue.
+You will notice drift detection becoming very slow.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Increase this value (for example, to &lt;code&gt;50&lt;/code&gt; or &lt;code&gt;100&lt;/code&gt; when you run more than 1,000 applications) so the controller can drain the queue faster, especially if refreshes in the UI feel slow.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Higher CPU and memory use on the application controller Pod.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Argo CD detects drift and refreshes status in the UI much faster in large environments.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#controller-options" target="_blank" rel="noopener"&gt;Argo CD Operator: Reference&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-operation-processors"&gt;controller.operation.processors (Default: 10)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cmd-params-cm&lt;/strong&gt; (if not using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.controller.processor.operation&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;While status processors compare desired and live state, this setting controls the &lt;strong&gt;number of concurrent operation processors&lt;/strong&gt; for actual sync runs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you trigger a mass sync of 100 applications at once but only 10 operation processors are configured, Argo CD runs 10 syncs, waits for them to finish, starts the next 10, and so on.
+Applications stay in &lt;code&gt;Waiting&lt;/code&gt; or &lt;code&gt;Pending&lt;/code&gt; in the UI until their turn starts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Increase this value when many applications sync or run operations at the same time and the operation queue backs up (pending syncs, slow operation phase). Monitor controller CPU and memory — you need headroom for the extra parallelism.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: Higher CPU and memory use on the application controller Pod.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Argo CD can apply manifests to the Kubernetes API for many applications at the same time.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This is independent of status processors: you might have heavy refresh traffic (status) and lighter sync traffic (operations), or the opposite—tune each side to match your workload.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#controller-options" target="_blank" rel="noopener"&gt;Argo CD Operator: Reference&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-controller-repo-server-timeout"&gt;ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS - controller.repo.server.timeout.seconds (Default: 60)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cmd-params-cm&lt;/strong&gt; (if not using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.controller.env&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This sets &lt;strong&gt;how long the application controller waits&lt;/strong&gt; for the repo server to finish generating manifests before it stops and returns a &lt;strong&gt;context deadline exceeded&lt;/strong&gt; error.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not put this key in &lt;code&gt;spec.extraConfig&lt;/code&gt;. On OpenShift GitOps, set it under &lt;code&gt;spec.controller.env&lt;/code&gt; in the Argo CD custom resource.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Heavy charts, large repositories, slow Git, or a busy repo server may need more than 60 seconds for a single &lt;code&gt;GenerateManifests&lt;/code&gt; (or similar) RPC. If the deadline is too short, applications show comparison failures even when the repo server would eventually succeed.
+If you raised &lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt; on the repo server so a chart can render for 180 seconds, but leave this controller deadline at 60 seconds, the controller cancels the request while the repo server is still working, and the sync fails.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Raise the value (for example to &lt;strong&gt;&lt;code&gt;180&lt;/code&gt;&lt;/strong&gt;) so legitimately slow manifest generation can finish. Size it so the controller allows at least as long as the &lt;strong&gt;worst-case repo-server work&lt;/strong&gt; you expect for one RPC.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: A hung repo server holds work longer before the client fails.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Fewer false failures from an overly aggressive deadline; large environments often use &lt;strong&gt;120–300&lt;/strong&gt; seconds or more.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+This controls only the &lt;strong&gt;controller → repo-server&lt;/strong&gt; gRPC client. It does &lt;strong&gt;not&lt;/strong&gt; replace &lt;strong&gt;&lt;code&gt;ARGOCD_EXEC_TIMEOUT&lt;/code&gt;&lt;/strong&gt; (child processes on the repo server) or &lt;strong&gt;&lt;code&gt;ARGOCD_REPO_SERVER_PARALLELISM_LIMIT&lt;/code&gt;&lt;/strong&gt; (concurrent manifest work).
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/" target="_blank" rel="noopener"&gt;Argo CD: Command line parameters&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;div class="sect3"&gt;
+&lt;h4 id="setting-kubectl-parallelism"&gt;ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT - controller.kubectl.parallelism.limit (Default: 20)&lt;/h4&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;ConfigMap: &lt;strong&gt;argocd-cmd-params-cm&lt;/strong&gt; (if not using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;ArgoCD: &lt;strong&gt;spec.controller.env&lt;/strong&gt; (if using the Operator)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This setting controls the &lt;strong&gt;maximum number of concurrent &lt;code&gt;kubectl&lt;/code&gt; child processes&lt;/strong&gt; the application controller may spawn at once.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;Problem&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you raise &lt;code&gt;controller.operation.processors&lt;/code&gt; (for example to &lt;code&gt;50&lt;/code&gt; to run 50 syncs at once), you can hit a hidden bottleneck. This &lt;code&gt;kubectl&lt;/code&gt; limit defaults to &lt;code&gt;20&lt;/code&gt;, so the extra operation processors wait for a free slot.
+Without any limit, running dozens of concurrent &lt;code&gt;kubectl&lt;/code&gt; processes could spike memory and CPU and risk OOM-killing the controller Pod.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you increase &lt;code&gt;controller.operation.processors&lt;/code&gt; to speed up mass syncs, raise this limit to match or sit slightly below that value (for example set it to &lt;code&gt;50&lt;/code&gt;). That lets the controller run sync commands in parallel without stalling on the process limit.
+Raise the limit in steps (for example &lt;code&gt;50&lt;/code&gt;, or &lt;code&gt;100&lt;/code&gt; at very large scale). After each change, watch the Kubernetes API server (request rate and latency), etcd, and application-controller CPU and memory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Disadvantage: More overlapping &lt;code&gt;kubectl&lt;/code&gt; work increases API traffic and process pressure. On a stressed control plane that can make things worse.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Advantage: Less time waiting for a free &lt;code&gt;kubectl&lt;/code&gt; slot when the cluster can absorb the extra concurrency.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not set this far above &lt;code&gt;controller.operation.processors&lt;/code&gt;; extra headroom does not increase throughput and only wastes memory. The two settings are meant to move together.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;code&gt;References&lt;/code&gt;: &lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/" target="_blank" rel="noopener"&gt;Argo CD: Command line parameters&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenShift GitOps performance is rarely fixed by a single knob. The repo server, application controller, API server, Redis, and your Git provider all interact: a slow manifest render stresses the repo server; an aggressive client timeout fails the UI even when rendering would succeed; unbounded parallelism can OOM the repo server; tight kubectl concurrency can leave sync operations queued on an otherwise healthy controller.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A practical approach is to work in order of leverage: reduce unnecessary Git and render work (for example shallow clones, cache TTLs, and webhooks so you are not polling blindly), then align related timeouts (ARGOCD_EXEC_TIMEOUT, controller and API server deadlines to the repo server), then bound concurrency (repo-server parallelism, Git ls-remote limits, status and operation processors, kubectl parallelism) before you scale out with sharding and replicas.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On OpenShift GitOps, the same upstream settings appear in different places spec.repo.env, spec.controller.env, spec.extraConfig, spec.controller.processors, and spec.controller.sharding so always map each variable to the right field in the Argo CD custom resource (or the equivalent ConfigMaps in a plain install).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Finally, treat tuning as evidence-led: change one major setting at a time, watch controller and repo-server memory, reconcile duration, API rates, and Git rate limits. What works for a small instance will not automatically transfer to thousands of applications or many managed clusters.&lt;/p&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_references"&gt;References&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/reconcile/" target="_blank" rel="noopener"&gt;Argo CD — Reconcile optimization&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/" target="_blank" rel="noopener"&gt;Argo CD — High availability / scaling&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/1.20/html-single/managing_resource_use/" target="_blank" rel="noopener"&gt;Red Hat OpenShift GitOps 1.20 — Managing resource use&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/1.20/html-single/argo_cd_instance/index/" target="_blank" rel="noopener"&gt;Red Hat OpenShift GitOps 1.20 — Argo CD instance / CR properties&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://argocd-operator.readthedocs.io/en/stable/usage/extra-config/" target="_blank" rel="noopener"&gt;Argo CD Operator — ExtraConfig&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Introduction - Part 1</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</link><pubDate>Wed, 11 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-11-openbao-part-1-introduction/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;I finally had some time to dig into Secret Management. For my demo environments, SealedSecrets is usually enough to quickly test something. But if you want to deploy a real application with Secret Management, you need to think of a more permanent solution.&lt;/p&gt;
 &lt;/div&gt;
@@ -15204,1435 +16843,6 @@ type: DistributedTracing &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&g
 &lt;div class="sectionbody"&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;The next article will cover the deployment of the Central OpenTelemetry Collector. We will configure the RBAC permissions required for the Central Collector to enrich traces with Kubernetes metadata and deploy the Central OpenTelemetry Collector with its complete configuration.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability - Central Collector - Part 3</title><link>https://blog.stderr.at/openshift-platform/observability/observability/2025-11-25-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part3/</link><pubDate>Tue, 25 Nov 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/observability/observability/2025-11-25-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part3/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;With the architecture defined in &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/"&gt;Part 1&lt;/a&gt; and TempoStack deployed in &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-24-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part2/"&gt;Part 2&lt;/a&gt;, it’s time to tackle the heart of our distributed tracing system: the &lt;strong&gt;Central OpenTelemetry Collector&lt;/strong&gt;. This is the critical component that sits between your application namespaces and TempoStack, orchestrating trace flow, metadata enrichment, and tenant routing.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this article, we’ll configure the RBAC permissions required for the Central Collector to enrich traces with Kubernetes metadata and deploy the Central OpenTelemetry Collector with its complete configuration. You’ll learn how to set up receivers for accepting traces from local collectors, configure processors to enrich traces with Kubernetes and OpenShift metadata, and implement routing connectors to direct traces to the appropriate TempoStack tenants based on namespace.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To be honest, this was the most challenging part of the entire setup to get right, as you can easily miss a setting, or misconfigure a part of the configuration. But once you understand the configuration, it becomes straightforward to extend and modify.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_central_opentelemetry_collector_step_by_step_implementation"&gt;Central OpenTelemetry Collector - Step-by-Step Implementation&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_prerequisites"&gt;Prerequisites&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before starting, ensure you have completed the previous parts and have:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Part 1 completed&lt;/strong&gt;: &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-23-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part1/"&gt;Hitchhiker’s Guide to Observability with OpenTelemetry and Tempo&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Part 2 completed&lt;/strong&gt;: &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-24-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part2/"&gt;Deploy Grafana Tempo and TempoStack&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;OpenShift cluster&lt;/strong&gt; (v4.20) with Red Hat build of OpenTelemetry Operator installed (v0.135.0-1)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Access&lt;/strong&gt; Cluster-admin access&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-For all configurations I also created a proper GitOps implementation (of course :)). However, first I would like to show the actual configuration. The GitOps implementation can be found at the end of this article.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_1_verifydeploy_red_hat_build_of_opentelemetry_operator"&gt;Step 1: Verify/Deploy Red Hat Build of OpenTelemetry Operator&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Verify if the Operator &lt;strong&gt;Red Hat Build of OpenTelemetry&lt;/strong&gt; is installed and ready. The Operator itself is deployed in the namespace &lt;strong&gt;openshift-opentelemetry-operator&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/otel-operator.png" alt="OpenTelemetry Operator"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_2_configure_rbac_for_central_collector"&gt;Step 2: Configure RBAC for Central Collector&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For the OpenTelemetry Collector to function properly with processors like k8sattributes and resourcedetection, it requires cluster-wide read access to Kubernetes resources.
-Depending on the configuration of the central collector, you might need to configure different RBAC settings to allow the collector to perform specific things. The central collector in our example uses the &lt;strong&gt;k8sattributes processor&lt;/strong&gt; and &lt;strong&gt;resourcedetection processor&lt;/strong&gt; to enrich traces with Kubernetes and OpenShift metadata. These processors require read access to cluster resources.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_why_these_permissions_are_needed"&gt;Why These Permissions Are Needed&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The k8sattributes processor enriches telemetry data by querying the Kubernetes API to add metadata such as:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Pod information&lt;/strong&gt;: Pod name, UID, start time&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Namespace details&lt;/strong&gt;: Namespace name and labels&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Deployment context&lt;/strong&gt;: ReplicaSet and Deployment names&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Node information&lt;/strong&gt;: Node name where the pod is running&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The resourcedetection processor detects the OpenShift environment by querying:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Infrastructure resources&lt;/strong&gt;: Cluster name, platform type, region (from &lt;code&gt;config.openshift.io/infrastructures&lt;/code&gt;)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Without these permissions, traces would lack critical context needed for debugging and analysis.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Always check the latest &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/red_hat_build_of_opentelemetry/index#otel-collector-receivers_otel-configuration-of-otel-collector" target="_blank" rel="noopener"&gt;documentation&lt;/a&gt; of the appropriate component to get the most up to date information. I prefer to use separate ClusterRoles for each processor to keep the permissions as granular as possible. However, that causes some overhead, so you might want to combine the permissions into a single ClusterRole.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_create_clusterrole_for_kubernetes_attributes"&gt;Create ClusterRole for Kubernetes Attributes&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following ClusterRole has been created:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-name: k8sattributes-otel-collector
-rules:
-# Permissions for k8sattributes processor
-# Allows the collector to read pod, namespace, and replicaset information
-# to enrich traces with Kubernetes metadata
-- verbs:
-- get
-- watch
-- list
-apiGroups:
-- &amp;#39;*&amp;#39;
-resources:
-- pods
-- namespaces
-- replicasets
-# Permissions for resourcedetection processor (OpenShift)
-# Allows detection of OpenShift cluster information
-# such as cluster name, platform type, and region
-- verbs:
-- get
-- watch
-- list
-apiGroups:
-- config.openshift.io
-resources:
-- infrastructures
-- infrastructures/status&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Key Points:&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Read-Only Access&lt;/strong&gt;: The collector only needs &lt;code&gt;get&lt;/code&gt;, &lt;code&gt;watch&lt;/code&gt;, and &lt;code&gt;list&lt;/code&gt; verbs (no write permissions)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Cluster-Wide Scope&lt;/strong&gt;: ClusterRole grants permissions across all namespaces, necessary for monitoring multi-tenant environments&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Essential Resources&lt;/strong&gt;:&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;code&gt;pods&lt;/code&gt;: Source of trace context (which pod generated the span)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;code&gt;namespaces&lt;/code&gt;: Namespace metadata and labels for routing&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;code&gt;replicasets&lt;/code&gt;: Determine the owning Deployment for better trace attribution&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;OpenShift Infrastructure&lt;/strong&gt;: Access to &lt;code&gt;config.openshift.io/infrastructures&lt;/code&gt; allows detection of cluster-level properties&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_create_clusterrolebinding"&gt;Create ClusterRoleBinding&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Our OpenTelemetry Collector will use the ServiceAccount &lt;strong&gt;otel-collector&lt;/strong&gt; (in the namespace tempostack) to read the Kubernetes resources. Thus, we need to create a ClusterRoleBinding to grant the necessary permissions to the ServiceAccount.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-name: k8sattributes-collector-tempo
-subjects:
-- kind: ServiceAccount
-name: otel-collector &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: tempostack &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-roleRef:
-apiGroup: rbac.authorization.k8s.io
-kind: ClusterRole
-name: k8sattributes-otel-collector &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The ServiceAccount that is allowed to write the traces. In this example: &lt;strong&gt;otel-collector&lt;/strong&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The namespace of the ServiceAccount. In this example: &lt;strong&gt;tempostack&lt;/strong&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The reference to the ClusterRole&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_security_note"&gt;Security Note&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The above permissions in the ClusterRole follow the &lt;strong&gt;principle of least privilege&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Only read operations are granted (no create, update, or delete)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Access is limited to specific resource types needed for metadata enrichment&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The ServiceAccount &lt;strong&gt;otel-collector&lt;/strong&gt; is dedicated to the collector and not shared with other applications&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_3_create_serviceaccount_for_central_opentelemetry_collector"&gt;Step 3: Create ServiceAccount for Central OpenTelemetry Collector&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The ServiceAccount used by the OpenTelemetry Collector. This is the service account that will be used to authenticate to the TempoStack instance. Thus, the Bindings created earlier to write into TempoStack and to read from Kubernetes will be required.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-In this article we are installing the central Collector into the same namespace as the TempoStack instance. However, you might want to install it in a different namespace to keep the namespaces separated. Keep an eye on possible Network Policies that might be required to allow the communication between the namespaces.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
-kind: ServiceAccount
-metadata:
-name: otel-collector
-namespace: tempostack&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_4_deploy_central_collector"&gt;Step 4: Deploy Central Collector&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The central collector receives traces from local collectors, enriches them with Kubernetes metadata, and routes them to appropriate TempoStack tenants.
-For the sake of simplicity, I have taken snippets from the whole Configuration manifest. At the end of this section you will find the &lt;a href="#_complete_opentelemetry_collector_manifest"&gt;whole manifest&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_basic_configuration"&gt;Basic Configuration&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The very basic settings of the OpenTelemetry Collector, are the amount of replicas, the ServiceAccount to use and the deployment mode.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Collector can be deployed in one of the following modes:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Deployment&lt;/strong&gt; (default) - Creates a Deployment with the given numbers of replicas.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;StatefulSet&lt;/strong&gt; - Creates a StatefulSet with the given numbers of replicas. Useful for stateful workloads, for example when using the Collector’s File Storage Extension or Tail Sampling Processor.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;DaemonSet&lt;/strong&gt; - Creates a DaemonSet with the given numbers of replicas. Useful for scraping telemetry data from every node, for example by using the Collector’s Filelog Receiver to read container logs.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Sidecar&lt;/strong&gt; - Injects the Collector as a sidecar into the pod. Useful for accessing log files inside a container, for example by using the Collector’s Filelog Receiver and a shared volume such as emptyDir.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In the examples in this series of articles we will use the modes: &lt;strong&gt;deployment&lt;/strong&gt; and &lt;strong&gt;sidecar&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: opentelemetry.io/v1beta1
-kind: OpenTelemetryCollector
-metadata:
-name: otel
-namespace: tempostack
-spec:
-mode: deployment &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-replicas: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-serviceAccount: otel-collector &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-[...]&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The deployment mode to use.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The number of replicas to use.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The ServiceAccount to use, created in the previous step.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_receivers"&gt;Receivers&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Receivers are the components that &lt;strong&gt;receive&lt;/strong&gt; the traces from the local collectors. Receivers accept data in a specified format and translate it into the internal format. In our example we want to receive the traces from the local collectors. For our tests we are using the &lt;strong&gt;oltp&lt;/strong&gt; Receiver, which is collecting traces, metrics and logs by using the OpenTelemetry Protocol (OTLP).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The easiest configuration is:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; receivers:
-otlp: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-protocols:
-grpc:
-endpoint: 0.0.0.0:4317 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-http:
-endpoint: 0.0.0.0:4318 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the receiver.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The gRPC endpoint to receive.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The http endpoint to receive.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Besides the otlp receiver, there are other receivers available. For example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Jaeger&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Kubernetes Object Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Kubelet Stats Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Prometheus Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Filelog Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Journald Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Kubernetes Events Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Kubernetes Cluster Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;OpenCensus Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Zipkin Receiver&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Kafka Receiver.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Please check the &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/red_hat_build_of_opentelemetry/index#otel-collector-receivers_otel-configuration-of-otel-collector" target="_blank" rel="noopener"&gt;OpenShift OTEL Receivers&lt;/a&gt; documentation for more details.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_processors"&gt;Processors&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Processors are the components that &lt;strong&gt;process&lt;/strong&gt; the data after it is received and before it is exported. Processors are completely optional, but they are useful to transform, enrich, or filter traces.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The order of processors matters.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The example configuration is using the following processors:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;k8sattributes&lt;/strong&gt;: Can add Kubernetes metadata to the traces.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;resourcedetection&lt;/strong&gt;: Can detect OpenShift/K8s environment info.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;memory_limiter&lt;/strong&gt;: Periodically checks the Collector’s memory usage and pauses data processing when the soft memory limit is reached.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;batch&lt;/strong&gt;: Batches the traces for efficiency. This is a very important processor to improve the performance of the Collector.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Additional processors are available. Please check the &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/red_hat_build_of_opentelemetry/index#otel-collector-processors" target="_blank" rel="noopener"&gt;OpenShift OTEL Processors&lt;/a&gt; documentation for more details.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Some processors will requires additional ClusterRole configuration.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; # Processors - enrich and batch traces
-processors:
-# Add Kubernetes metadata
-k8sattributes: {} &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-# Detect OpenShift/K8s environment info
-resourcedetection: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-detectors:
-- openshift
-timeout: 2s
-# Memory protection
-memory_limiter: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-check_interval: 1s
-limit_percentage: 75
-spike_limit_percentage: 15
-# Batch for efficiency
-batch: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-send_batch_size: 10000
-timeout: 10s&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The k8sattributes processor to add Kubernetes metadata to the traces.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The resourcedetection processor to detect OpenShift/K8s environment info.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The memory_limiter processor to protect the Collector’s memory usage.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The batch processor to batch the traces for efficiency.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_connectors"&gt;Connectors&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A Connector joins two pipelines together. It consumes data as an exporter at the end of one pipeline and emits data as a receiver at the start of another pipeline. It can consume and emit data of the same or different data type. It can generate and emit data to summarize the consumed data, or it can merely replicate or route data.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Several Connectors are available, for example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Count Connector&lt;/strong&gt;: Counts traces spans, trace span events, metrics, metric data points, and log records.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Routing Connector&lt;/strong&gt;: Routes the traces to different pipelines.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Forward Connector&lt;/strong&gt;: Merges two pipelines of the same type.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Spanmetrics Connector&lt;/strong&gt;: Aggregates Request, Error, and Duration (R.E.D) OpenTelemetry metrics from span data.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/red_hat_build_of_opentelemetry/index#otel-collector-connectors" target="_blank" rel="noopener"&gt;OpenShift OTEL Connectors&lt;/a&gt; documentation lists all available Connectors and their configuration options.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In our example we are using the &lt;strong&gt;routing&lt;/strong&gt; Connector, which is able to route the traces to different pipelines based on the namespace.
-This helps to route the traces to the correct tenant, without the need to configure this in the local OpenTelemetry Collector. (In other words, the project cannot change this setting, because it is configured in the central OpenTelemetry Collector.)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this example traces from the namespace &amp;#34;team-a&amp;#34; will be routed to the pipeline &amp;#34;tenantA&amp;#34;, traces from the namespace &amp;#34;team-b&amp;#34; will be routed to the pipeline &amp;#34;tenantB&amp;#34;, and so on.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; # Connectors - route traces to different pipelines
-connectors:
-routing/traces:
-default_pipelines: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-- traces/Default
-error_mode: ignore &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-table:
-# Route team-a namespace to tenantA
-- statement: route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-a&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-pipelines:
-- traces/tenantA
-# Route team-b namespace to tenantB
-- statement: route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-b&amp;#34;
-pipelines:
-- traces/tenantB
-# Route team-c namespace to tenantC
-- statement: route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-c&amp;#34;
-pipelines:
-- traces/tenantC&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Destination pipelines for routing the telemetry data for which no routing condition is satisfied.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;&lt;strong&gt;Error-handling mode&lt;/strong&gt;: Defines how the connector handles routing errors:
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;code&gt;propagate&lt;/code&gt;: Logs an error and drops the payload (stops processing)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;code&gt;ignore&lt;/code&gt;: Logs the error but continues attempting to match subsequent routing rules&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;code&gt;silent&lt;/code&gt;: Same as &lt;code&gt;ignore&lt;/code&gt; but without logging&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Default: &lt;code&gt;propagate&lt;/code&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Route traces from namespace &lt;strong&gt;team-a&lt;/strong&gt; to the pipeline &lt;strong&gt;tenantA&lt;/strong&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_exporters"&gt;Exporters&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Exporters are the components that &lt;strong&gt;export&lt;/strong&gt; the traces to a destination. Exporters accept data in a specified format and translate it into the destination format. In our example we want to export the traces to the TempoStack instance. The X-Scope-OrgID header is used to identify the tenant and is sent to the TempoStack instance.
-The authentication is done by using the ServiceAccount token.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Many different Exporters are available. The &lt;a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/red_hat_build_of_opentelemetry/index#otel-collector-exporters" target="_blank" rel="noopener"&gt;OpenShift OTEL Exporters&lt;/a&gt; documentation lists all available Exporters and their configuration options.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For our tests we are using the &lt;strong&gt;otlp&lt;/strong&gt; Exporter, which will export using the OpenTelemetry Protocol (OTLP):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; exporters:
-# Tenant A exporter
-otlp/tenantA: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-endpoint: tempo-simplest-gateway:8090 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-auth:
-authenticator: bearertokenauth
-headers:
-X-Scope-OrgID: tenantA &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure_skip_verify: true &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Protocol/name of the exporter.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The endpoint to export to. Here, the endpoint is the address of the TempoStack instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The scope org ID to use.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Whether to skip certificate verification. I did not bother with certificates in this example.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The server name override to use. This was just for testing purposes and can be omitted.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_extensions"&gt;Extensions&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Extensions extend the Collector capabilities. In our example we are using the &lt;strong&gt;bearertokenauth&lt;/strong&gt; Extension, which is used to authenticate to the TempoStack instance.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; # Extensions - authentication
-extensions:
-bearertokenauth:
-filename: /var/run/secrets/kubernetes.io/serviceaccount/token&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_service"&gt;Service:&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Components are enabled by adding them into a &lt;strong&gt;Pipeline&lt;/strong&gt;. If a component is not configured in a pipeline, it is not enabled.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this example we are using the following pipelines (snippets):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;traces/in&lt;/strong&gt;: The incoming traces pipeline.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;traces/tenantA&lt;/strong&gt;: The tenant A pipeline.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;strong&gt;traces/in&lt;/strong&gt; pipeline is the incoming traces pipeline. It is used to receive the traces from the local collectors. It leverages the &lt;strong&gt;otlp&lt;/strong&gt; Receiver to receive the traces. It uses the &lt;strong&gt;resourcedetection&lt;/strong&gt;, &lt;strong&gt;k8sattributes&lt;/strong&gt;, &lt;strong&gt;memory_limiter&lt;/strong&gt;, and &lt;strong&gt;batch&lt;/strong&gt; processors to process the traces. And finally, it uses the &lt;strong&gt;routing/traces&lt;/strong&gt; Connector to route the traces.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;strong&gt;routing/traces&lt;/strong&gt; Connector is used to route the traces to the correct tenant based on the namespace.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;strong&gt;traces/tenantA&lt;/strong&gt; Pipeline will receive the traces from &lt;strong&gt;routing/traces&lt;/strong&gt; and export the traces to &lt;strong&gt;otlp/tenantA&lt;/strong&gt; which then sends everything to TempoStack to store the traces using the header &lt;strong&gt;X-Scope-OrgID: tenantA&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; # Service pipelines
-service:
-extensions:
-- bearertokenauth
-pipelines:
-# Incoming traces pipeline
-traces/in: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-receivers: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-- otlp
-processors: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-- resourcedetection
-- k8sattributes
-- memory_limiter
-- batch
-exporters: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- routing/traces
-# Tenant A pipeline
-traces/tenantA: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-receivers: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-- routing/traces
-exporters: &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-- otlp/tenantA&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The incoming traces pipeline. It takes the traces from the otlp receiver.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The receivers to use.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The processors to use.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The exporters to use. It is exporting the data to the routing connector.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The tenant A pipeline.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The receivers to use.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The exporters to use. It is exporting to the exporter, that will send the data to TempoStack.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The service automatically creates Kubernetes Services for the receivers. The Central Collector will be accessible at &lt;code&gt;otel-collector.tempostack.svc.cluster.local:4317&lt;/code&gt; (gRPC) and &lt;code&gt;:4318&lt;/code&gt; (HTTP) for local collectors to send traces.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_data_flow_visualization"&gt;Data Flow Visualization&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To better understand how traces flow through the Central Collector, the following Mermaid diagram visualizes the complete journey from application to storage using &lt;strong&gt;team-a&lt;/strong&gt; as an example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-mermaid {align=" center"="" zoom="true" }="" hljs"="" data-lang="mermaid {align=" center"="" zoom="true" }"=""&gt;---
-title: &amp;#34;Central Collector Data Flow (Wrapped Layout)&amp;#34;
-config:
-theme: &amp;#39;dark&amp;#39;
----
-flowchart LR
-%% --------------------------
-%% Column 1: Local Collector
-%% --------------------------
-subgraph local[&amp;#34;(team-a namespace)&amp;#34;]
-app[&amp;#34;Application&amp;lt;br/&amp;gt;(team-a)&amp;#34;]
-end
-%% --------------------------
-%% Column 2: Central Collector
-%% --------------------------
-subgraph central[&amp;#34;Central Collector (tempostack namespace)&amp;#34;]
-%% We force this specific column to stack vertically (Top-Bottom)
-direction TB
-%% --- ROW 1: Receiver + Processors ---
-subgraph row1[&amp;#34; &amp;#34;]
-direction LR
-receiver[&amp;#34;OTLP Receiver&amp;lt;br/&amp;gt;Port: 4317/4318&amp;#34;]
-subgraph pipeline_in[&amp;#34;traces/in Processors&amp;#34;]
-proc1[&amp;#34;resourcedetection&amp;lt;br/&amp;gt;(Detect OpenShift)&amp;#34;]
-proc2[&amp;#34;k8sattributes&amp;lt;br/&amp;gt;(Add K8s metadata)&amp;#34;]
-proc3[&amp;#34;memory_limiter&amp;lt;br/&amp;gt;(Protect memory)&amp;#34;]
-proc4[&amp;#34;batch&amp;lt;br/&amp;gt;(Batch traces)&amp;#34;]
-end
-end
-%% --- ROW 2: Connector + Tenant Pipeline ---
-subgraph row2[&amp;#34; &amp;#34;]
-direction LR
-exporter_routing[&amp;#34;Exporter: to connector&amp;#34;]
-connector[&amp;#34;Export to routing/traces Connector&amp;lt;br/&amp;gt;(Route by namespace)&amp;#34;]
-subgraph pipeline_tenant[&amp;#34;Pipeline: traces/tenantA&amp;#34;]
-receiver_tenant[&amp;#34;Receiver:&amp;lt;br/&amp;gt;routing/traces&amp;#34;]
-exporter_tenant[&amp;#34;Exporter:&amp;lt;br/&amp;gt;otlp/tenantA&amp;#34;]
-end
-end
-end
-%% --------------------------
-%% Column 3: TempoStack
-%% --------------------------
-subgraph tempo[&amp;#34;TempoStack&amp;#34;]
-gateway[&amp;#34;Tempo Gateway&amp;lt;br/&amp;gt;(X-Scope-OrgID: tenantA)&amp;#34;]
-storage[&amp;#34;S3 Storage&amp;lt;br/&amp;gt;(tenantA traces)&amp;#34;]
-end
-%% --------------------------
-%% Connections
-%% --------------------------
-app --&amp;gt;|&amp;#34;OTLP traces&amp;#34;| receiver
-receiver --&amp;gt; proc1 --&amp;gt; proc2 --&amp;gt; proc3 --&amp;gt; proc4
-%% The Wrap: Connect end of Row 1 to start of Row 2
-proc4 --&amp;gt; exporter_routing
-exporter_routing --&amp;gt; connector
-connector --&amp;gt;|&amp;#34;Route by namespace=team-a&amp;lt;br/&amp;gt;→ tenantA&amp;#34;| receiver_tenant
-receiver_tenant --&amp;gt; exporter_tenant
-exporter_tenant --&amp;gt;|&amp;#34;OTLP + bearer token&amp;lt;br/&amp;gt;Header: X-Scope-OrgID&amp;#34;| gateway
-gateway --&amp;gt; storage
-%% --------------------------
-%% Styles
-%% --------------------------
-classDef appStyle fill:#2f652a,stroke:#2f652a,stroke-width:2px
-classDef receiverStyle fill:#425cc6,stroke:#425cc6,stroke-width:2px
-classDef processorStyle fill:#4a90e2,stroke:#4a90e2,stroke-width:2px
-classDef connectorStyle fill:#906403,stroke:#906403,stroke-width:2px
-classDef exporterStyle fill:#7b4397,stroke:#7b4397,stroke-width:2px
-classDef tempoStyle fill:#d35400,stroke:#d35400,stroke-width:2px
-class app appStyle
-class receiver,receiver_tenant receiverStyle
-class proc1,proc2,proc3,proc4 processorStyle
-class connector connectorStyle
-class exporter_tenant exporterStyle
-class exporter_routing exporterStyle
-class gateway,storage tempoStyle
-%% Hide the structural boxes for the rows so they look seamless
-style row1 fill:none,stroke:none
-style row2 fill:none,stroke:none&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Key Points in the Flow:&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Application&lt;/strong&gt; in team-a namespace sends traces to local collector&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Local Collector&lt;/strong&gt; forwards to &lt;strong&gt;Central Collector’s OTLP receiver&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Pipeline traces/in&lt;/strong&gt; processes the traces sequentially:&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Detects OpenShift environment info&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Adds Kubernetes metadata (namespace, pod, labels)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Applies memory limits&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Batches traces for efficiency&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Routing Connector&lt;/strong&gt; examines the namespace attribute and routes to the correct tenant pipeline&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Pipeline traces/tenantA&lt;/strong&gt; receives from connector and exports to TempoStack&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Exporter&lt;/strong&gt; adds authentication (bearer token) and tenant ID header (X-Scope-OrgID: tenantA)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;TempoStack&lt;/strong&gt; receives and stores traces in the appropriate tenant storage&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This architecture ensures complete isolation between tenants while maintaining a single, centralized collection point.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_complete_opentelemetry_collector_manifest"&gt;Complete OpenTelemetry Collector Manifest&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s put everything together in the complete OpenTelemetry Collector Manifest. The following defines the Central OpenTelemetry Collector:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;mode&lt;/strong&gt;: The deployment mode to use.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;replicas&lt;/strong&gt;: The number of replicas to use.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;serviceAccount&lt;/strong&gt;: The ServiceAccount to use, created in the previous step.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;config&lt;/strong&gt;: The configuration of the OpenTelemetry Collector.&lt;/p&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;receivers&lt;/strong&gt;: The receivers to use.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;processors&lt;/strong&gt;: The processors to use.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;connectors&lt;/strong&gt;: The connectors to use.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;exporters&lt;/strong&gt;: The exporters to use.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;extensions&lt;/strong&gt;: The extensions to use.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;service&lt;/strong&gt;: The service to use.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: opentelemetry.io/v1beta1
-kind: OpenTelemetryCollector
-metadata:
-name: otel
-namespace: tempostack
-spec:
-mode: deployment
-replicas: 1
-serviceAccount: otel-collector
-config:
-# Receivers - accept traces from local collectors
-receivers:
-otlp:
-protocols:
-grpc:
-endpoint: 0.0.0.0:4317
-http:
-endpoint: 0.0.0.0:4318
-# Processors - enrich and batch traces
-processors:
-# Add Kubernetes metadata
-k8sattributes: {}
-# Detect OpenShift/K8s environment info
-resourcedetection:
-detectors:
-- openshift
-timeout: 2s
-# Memory protection
-memory_limiter:
-check_interval: 1s
-limit_percentage: 75
-spike_limit_percentage: 15
-# Batch for efficiency
-batch:
-send_batch_size: 10000
-timeout: 10s
-# Connectors - route traces to different pipelines
-connectors:
-routing/traces:
-default_pipelines:
-- traces/Default
-error_mode: ignore
-table:
-# Route team-a namespace to tenantA
-- statement: route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-a&amp;#34;
-pipelines:
-- traces/tenantA
-# Route team-b namespace to tenantB
-- statement: route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-b&amp;#34;
-pipelines:
-- traces/tenantB
-# Exporters - send to TempoStack
-exporters:
-# Default tenant exporter
-otlp/Default:
-endpoint: tempo-simplest-gateway:8090
-auth:
-authenticator: bearertokenauth
-headers:
-X-Scope-OrgID: dev
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure_skip_verify: true
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local
-# Tenant A exporter
-otlp/tenantA:
-endpoint: tempo-simplest-gateway:8090
-auth:
-authenticator: bearertokenauth
-headers:
-X-Scope-OrgID: tenantA
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure_skip_verify: true
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local
-# Tenant B exporter
-otlp/tenantB:
-endpoint: tempo-simplest-gateway:8090
-auth:
-authenticator: bearertokenauth
-headers:
-X-Scope-OrgID: tenantB
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure_skip_verify: true
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local
-# Extensions - authentication
-extensions:
-bearertokenauth:
-filename: /var/run/secrets/kubernetes.io/serviceaccount/token
-# Service pipelines
-service:
-extensions:
-- bearertokenauth
-pipelines:
-# Incoming traces pipeline
-traces/in:
-receivers:
-- otlp
-processors:
-- resourcedetection
-- k8sattributes
-- memory_limiter
-- batch
-exporters:
-- routing/traces
-# Default tenant pipeline
-traces/Default:
-receivers:
-- routing/traces
-exporters:
-- otlp/Default
-# Tenant A pipeline
-traces/tenantA:
-receivers:
-- routing/traces
-exporters:
-- otlp/tenantA
-# Tenant B pipeline
-traces/tenantB:
-receivers:
-- routing/traces
-exporters:
-- otlp/tenantB&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;hr/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_gitops_deployment"&gt;GitOps Deployment&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;While the above is good for quick tests, it always makes sense to have a proper GitOps deployment. I have created a Chart and GitOps configuration that will:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Deploy the OTEL Operator&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configure the the Central Collector instance&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following sources will be used:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://charts.stderr.at/" target="_blank" rel="noopener"&gt;Helm Repository&lt;/a&gt; - to fetch the Helm Chart for the OTEL Operator including required Sub-Charts.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/setup-otel-operator" target="_blank" rel="noopener"&gt;Setup OTEL Operator&lt;/a&gt; - To deploy and configure the OpenTelemetry Operator.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Feel free to clone or use whatever you need.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following Sub-Charts are used:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" target="_blank" rel="noopener"&gt;helper-operator&lt;/a&gt; (version ~1.0.18) - Installs the OpenTelemetry Operator&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" target="_blank" rel="noopener"&gt;helper-status-checker&lt;/a&gt; (version ~4.0.0) - Verifies the status of the OpenTelemetry Operator&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rh-build-of-opentelemetry" target="_blank" rel="noopener"&gt;opentelemetry-collector&lt;/a&gt; (version ~1.0.0) - Creates the Central OpenTelemetry Collector instance&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/tpl" target="_blank" rel="noopener"&gt;tpl&lt;/a&gt; (version ~1.0.0) - Template Library&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following Argo CD Application will deploy the OTEL Operator:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-name: setup-otel-operator
-namespace: openshift-gitops
-spec:
-destination:
-name: in-cluster &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: openshift-opentelemetry-operator &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-info:
-- name: Description
-value: ApplicationSet that Deploys on Management Cluster Configuration (using Git Generator)
-project: in-cluster &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-source:
-path: clusters/management-cluster/setup-otel-operator &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-targetRevision: main
-syncPolicy:
-retry:
-backoff:
-duration: 5s
-factor: 2
-maxDuration: 3m
-limit: 5&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Target cluster, here the local cluster&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Namespace of the target cluster, here the Operator will be installed.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Project of the target cluster&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Path to the Git repository&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;URL to the Git repository&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will create the Argo CD Application that can be synchronized with the cluster:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/otel-argocd.png?width=640px" alt="OTEL Deployment via Argo CD"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_complete_values_file"&gt;Complete values file&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To see the whole file expand the code:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;---
-otel: &amp;amp;channel-otel stable
-otel-namespace: &amp;amp;otel-namespace openshift-opentelemetry-operator
-######################################
-# SUBCHART: helper-operator
-# Operators that shall be installed.
-######################################
-helper-operator:
-operators:
-opentelemetry-product:
-enabled: true
-namespace:
-name: *otel-namespace
-create: true
-subscription:
-channel: *channel-otel
-approval: Automatic
-operatorName: opentelemetry-product
-source: redhat-operators
-sourceNamespace: openshift-marketplace
-operatorgroup:
-create: true
-notownnamespace: true
-########################################
-# SUBCHART: helper-status-checker
-# Verify the status of a given operator.
-########################################
-helper-status-checker:
-enabled: true
-approver: false
-checks:
-- operatorName: opentelemetry-product
-namespace:
-name: *otel-namespace
-syncwave: 1
-serviceAccount:
-name: &amp;#34;status-checker-otel&amp;#34;
-rh-build-of-opentelemetry:
-#########################################################################################
-# namespace ... disabled here, since we deployed it via Tempo already
-#########################################################################################
-namespace:
-name: tempostack
-create: false
-#########################################################################################
-# OPENTELEMETRY COLLECTOR - Production Configuration
-#########################################################################################
-collector:
-enabled: true
-name: otel
-mode: deployment
-replicas: 1
-serviceAccount: otel-collector
-managementState: managed
-resources: {}
-tolerations: []
-config:
-connectors:
-routing/traces:
-default_pipelines:
-- traces/Default
-error_mode: ignore
-table:
-- pipelines:
-- traces/tenantA
-statement: &amp;#39;route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-a&amp;#34;&amp;#39;
-- pipelines:
-- traces/tenantB
-statement: &amp;#39;route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-b&amp;#34;&amp;#39;
-- pipelines:
-- traces/tenantC
-statement: &amp;#39;route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-c&amp;#34;&amp;#39;
-- pipelines:
-- traces/tenantD
-statement: &amp;#39;route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;team-d&amp;#34;&amp;#39;
-- pipelines:
-- traces/tenantX
-statement: &amp;#39;route() where attributes[&amp;#34;k8s.namespace.name&amp;#34;] == &amp;#34;mockbin-1&amp;#34;&amp;#39;
-receivers:
-# OTLP receivers for traces, metrics, and logs
-otlp:
-protocols:
-grpc:
-endpoint: 0.0.0.0:4317
-http:
-endpoint: 0.0.0.0:4318
-# Jaeger receiver (if migrating from Jaeger)
-jaeger:
-protocols:
-grpc:
-endpoint: 0.0.0.0:14250
-thrift_http:
-endpoint: 0.0.0.0:14268
-processors:
-batch:
-send_batch_size: 10000
-timeout: 10s
-k8sattributes: {}
-memory_limiter:
-check_interval: 1s
-limit_percentage: 75
-spike_limit_percentage: 15
-resourcedetection:
-detectors:
-- openshift
-timeout: 2s
-exporters:
-otlp/tenantX:
-auth:
-authenticator: bearertokenauth
-endpoint: &amp;#39;tempo-simplest-gateway:8090&amp;#39;
-headers:
-X-Scope-OrgID: tenantX
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure: true
-insecure_skip_verify: true
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local
-otlp:
-auth:
-authenticator: bearertokenauth
-endpoint: &amp;#39;tempo-simplest-gateway:8090&amp;#39;
-headers:
-X-Scope-OrgID: prod
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure: true
-insecure_skip_verify: true
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local
-otlp/tenantA:
-auth:
-authenticator: bearertokenauth
-endpoint: &amp;#39;tempo-simplest-gateway:8090&amp;#39;
-headers:
-X-Scope-OrgID: tenantA
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure: true
-insecure_skip_verify: true
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local
-otlp/tenantB:
-auth:
-authenticator: bearertokenauth
-endpoint: &amp;#39;tempo-simplest-gateway:8090&amp;#39;
-headers:
-X-Scope-OrgID: tenantB
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure: true
-insecure_skip_verify: true
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local
-otlp/Default:
-auth:
-authenticator: bearertokenauth
-endpoint: &amp;#39;tempo-simplest-gateway:8090&amp;#39;
-headers:
-X-Scope-OrgID: dev
-tls:
-ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
-insecure: true
-insecure_skip_verify: true
-server_name_override: tempo-simplest-gateway.tempostack.svc.cluster.local
-extensions:
-bearertokenauth:
-filename: /var/run/secrets/kubernetes.io/serviceaccount/token
-service:
-extensions:
-- bearertokenauth
-pipelines:
-traces/Default:
-exporters:
-- otlp/Default
-receivers:
-- routing/traces
-traces/in:
-exporters:
-- routing/traces
-processors:
-- resourcedetection
-- k8sattributes
-- memory_limiter
-- batch
-receivers:
-- otlp
-traces/tenantA:
-exporters:
-- otlp/tenantA
-receivers:
-- routing/traces
-traces/tenantB:
-exporters:
-- otlp/tenantB
-receivers:
-- routing/traces&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_the_central_opentelemetry_collector"&gt;The Central OpenTelemetry Collector&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With this deployment a single Pod (because we have set the replica count to 1) is running in the namespace &lt;strong&gt;tempostack&lt;/strong&gt; with the name &lt;strong&gt;otel-collector&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n tempostack | grep otel-col
-otel-collector-75f8794dc6-rbq26 1/1 Running 0 52m&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_stay_tuned"&gt;Stay Tuned&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The next article will cover deploying an example application (Mockbin) and configuring &lt;strong&gt;Local OpenTelemetry Collectors&lt;/strong&gt; in application namespaces to send traces to this Central Collector. We’ll also demonstrate how the namespace-based routing automatically directs traces to the correct TempoStack tenants.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
