@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Collections on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/collections/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Tue, 19 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/collections/index.xml" rel="self" type="application/rss+xml"/><item><title>Using a local Renovate bot to manage collection dependencies</title><link>https://blog.stderr.at/ansible/2026/05/using-a-local-renovate-bot-to-manage-collection-dependencies/</link><pubDate>Tue, 19 May 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2026/05/using-a-local-renovate-bot-to-manage-collection-dependencies/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;We wanted to use &lt;a href="https://github.com/renovatebot/renovate"&gt;renovate&lt;/a&gt; bot
+to automatically update collection dependencies for one of our
+Ansible playbook repositories. This blog post describes the basics of
+renovate, how we configured it and how we actually run renovate
+locally.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_understanding_renovate"&gt;Understanding renovate&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As this was our first try of using renovate for dependency updates, we
+struggled to understand how renovate works and how it is configured.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Renovate is a bot that is able to scan multiple repositories for
+dependencies and create pull/merge requests with updated dependencies.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Configuration is split between a configuration for the bot and a local
+one for each repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So you basically have&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;One or more global configuration files that configure the bot
+(&lt;em&gt;config.js&lt;/em&gt;) written in JavaScript or TypeScript&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;One configuration file per repository (renovate.json) written in
+JSON that contains local configuration options just for this
+repository.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Renovate is very flexible on how to structure the configuration. For
+more information see
+&lt;a href="https://docs.renovatebot.com/config-overview/"&gt;config-overview&lt;/a&gt; in the
+docs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Renovate also supports multiple platforms, like GitHub, GitLab or
+Forgejo. For a complete list see
+&lt;a href="https://docs.renovatebot.com/modules/platform/"&gt;renovate platforms&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The idea is that you run the bot once, it scans all configured
+repositories and creates pull requests in every repository with
+dependency updates.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If your projects are hosted on GitHub and you would like to use GitHub
+Actions for running renovate the straight forward solution is to
+follow &lt;a href="https://github.com/marketplace/renovate"&gt;Mend Renovate on GitHub
+Marketplace&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But we wanted more control and tried to&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;run renovate on a local machine. This should be migrated to a Job Template or
+Kubernetes CronJob later (might be worth another post)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;use a private Automation Hub for hosting dependencies. So renovate
+should query collections on our Private Automation Hub for
+dependency updates&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;credentials should be made available via environment variables to the bot&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configuring_and_running_renovate"&gt;Configuring and running renovate&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As a first test we created a local bot configuration file &lt;em&gt;config.js&lt;/em&gt;
+in our home directory. The GIT repository we used for testing is
+&lt;a href="https://github.com/tosmi-ansible/aap-setup" class="bare"&gt;https://github.com/tosmi-ansible/aap-setup&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first thing to be aware of is that the renovate bot by default
+&lt;strong&gt;always&lt;/strong&gt; searches the repository configuration file (&lt;em&gt;renovate.json&lt;/em&gt;)
+in the &lt;strong&gt;upstream&lt;/strong&gt; repository. Changes to local files are ignored.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One way to avoid this is using &lt;em&gt;--platform=local&lt;/em&gt;. This actually uses
+the local &lt;em&gt;renovate.json&lt;/em&gt; file, but has the caveat that not all
+renovate functionality is available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But in our case this was good enough as we just wanted to test AAP Hub
+authentication.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It is also helpful to run renovate with debugging enabled, this dumps
+the configuration currently used to STDOUT.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For example we had the following &lt;em&gt;renovate.json&lt;/em&gt; config for testing:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;$schema&amp;#34;: &amp;#34;https://docs.renovatebot.com/renovate-schema.json&amp;#34;,
+&amp;#34;extends&amp;#34;: [
+&amp;#34;config:best-practices&amp;#34;
+],
+&amp;#34;timezone&amp;#34;: &amp;#34;Europe/London&amp;#34;,
+&amp;#34;schedule&amp;#34;: [
+&amp;#34;at any time&amp;#34;
+],
+&amp;#34;packageRules&amp;#34;: [
+{
+&amp;#34;matchDatasources&amp;#34;: [&amp;#34;galaxy-collection&amp;#34;]
+},
+{
+&amp;#34;matchDatasources&amp;#34;: [&amp;#34;github-tags&amp;#34;],
+&amp;#34;enabled&amp;#34;: &amp;#34;false&amp;#34;
+}
+],
+&amp;#34;hostRules&amp;#34;: [
+{
+&amp;#34;matchHost&amp;#34;: &amp;#34;aap.apps.hub.aws.tntinfra.net&amp;#34;,
+&amp;#34;token&amp;#34;: &amp;#34;Token &amp;lt;the token&amp;gt;&amp;#34;,
+&amp;#34;authType&amp;#34;: &amp;#34;Token-Only&amp;#34;
+}
+]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But running renovate with &lt;em&gt;LOG_LEVEL=debug&lt;/em&gt; set in the environment
+revealed the following settings:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;DEBUG: Repository config (repository=tosmi-ansible/aap-setup)
+&amp;#34;fileName&amp;#34;: &amp;#34;renovate.json&amp;#34;,
+&amp;#34;config&amp;#34;: {
+&amp;#34;$schema&amp;#34;: &amp;#34;https://docs.renovatebot.com/renovate-schema.json&amp;#34;,
+&amp;#34;extends&amp;#34;: [&amp;#34;config:recommended&amp;#34;]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The configuration above is the configuration available in the remote
+GIT repository and not our local configuration.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Renovate does not use a local &lt;em&gt;renovate.json&lt;/em&gt; repository config
+by default. It always pulls the configuration from the remote
+repository except when you use _—​platform=local.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Furthermore renovate heavily relies on local caching. We wanted to test
+if renovate is using our hub token for connecting to the Hub, but we
+could not see any log entry in the AAP Hub container.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Renovate creates its cache files in a directory called &lt;em&gt;baseDir&lt;/em&gt;. You
+can specify the location (and later wipe the cache) with the
+&lt;em&gt;--base-dir&lt;/em&gt; option.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As we are using a self signed certificate in our AAP Hub test
+installation we had to specify &lt;em&gt;NODE_TLS_REJECT_UNAUTHORIZED=0&lt;/em&gt; to
+disable TLS verification.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To summarize our test configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We used the following &lt;em&gt;config.js&lt;/em&gt; global renovate configuration file:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-javascript hljs" data-lang="javascript"&gt;module.exports = {
+token: &amp;#39;&amp;lt;github token&amp;gt;&amp;#39;,
+platform: &amp;#39;github&amp;#39;,
+onboardingConfig: {
+extends: [&amp;#39;config:recommended&amp;#39;],
+},
+//repositories: [&amp;#39;tosmi-ansible/aap-setup&amp;#39;], &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+};&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Repository listing is not allowed when using &lt;em&gt;--platform=local&lt;/em&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In the repository where we want to test automatic dependency updates
+we used the following &lt;em&gt;renovate.json&lt;/em&gt; configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;$schema&amp;#34;: &amp;#34;https://docs.renovatebot.com/renovate-schema.json&amp;#34;,
+&amp;#34;extends&amp;#34;: [
+&amp;#34;config:best-practices&amp;#34;
+],
+&amp;#34;timezone&amp;#34;: &amp;#34;Europe/London&amp;#34;,
+&amp;#34;schedule&amp;#34;: [
+&amp;#34;at any time&amp;#34;
+],
+&amp;#34;packageRules&amp;#34;: [
+{
+&amp;#34;matchDatasources&amp;#34;: [&amp;#34;galaxy-collection&amp;#34;]
+},
+{
+&amp;#34;matchDatasources&amp;#34;: [&amp;#34;github-tags&amp;#34;],
+&amp;#34;enabled&amp;#34;: &amp;#34;false&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+}
+],
+&amp;#34;hostRules&amp;#34;: [
+{
+&amp;#34;matchHost&amp;#34;: &amp;#34;aap.apps.hub.aws.tntinfra.net&amp;#34;,
+&amp;#34;token&amp;#34;: &amp;#34;Token &amp;lt;the token&amp;gt;&amp;#34;,
+&amp;#34;authType&amp;#34;: &amp;#34;Token-Only&amp;#34;
+}
+]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We disabled GitHub tag lookup explicitly as renovate would find some of our dependencies on GitHub&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is our &lt;em&gt;collections/requirements.yaml&lt;/em&gt; file with a test dependency:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;roles:
+collections:
+- name: kubernetes.core
+version: 6.3.0
+source: https://aap.apps.hub.aws.tntinfra.net/api/galaxy/content/rh-certified/&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On our AAP Private Automation Hub we had &lt;em&gt;kubernetes.core&lt;/em&gt; version
+6.4.0 available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So to run and test renovate locally we used the following command line:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;NODE_TLS_REJECT_UNAUTHORIZED=0 LOG_LEVEL=debug RENOVATE_CONFIG_FILE=~/config.js renovate --platform=github --repository-cache=disabled --base-dir=/tmp/cache&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_secret_management_and_configuration_cleanup"&gt;Secret management and configuration cleanup&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The next step is to remove the hard-coded tokens from our
+configuration. We wanted to use environment variables, as this allows
+us to run renovate as:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;A Kubernetes &lt;em&gt;CronJob&lt;/em&gt; with a &lt;em&gt;Pod&lt;/em&gt;. We could inject the token via a &lt;em&gt;Secret&lt;/em&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;As a job template within AAP with tokens stored as AAP credentials or&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A normal Unix cron job with environment variables set&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As the global renovate configuration &lt;em&gt;config.js&lt;/em&gt; is written in
+JavaScript we could leverage &lt;em&gt;process.env&lt;/em&gt; to retrieve required tokens
+from environment variables.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here is our modified &lt;em&gt;config.js&lt;/em&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-javascript hljs" data-lang="javascript"&gt;module.exports = {
+platform: &amp;#39;github&amp;#39;,
+onboardingConfig: {
+extends: [&amp;#39;config:recommended&amp;#39;],
+},
+// repositories: [&amp;#39;tosmi-ansible/aap-setup&amp;#39;], &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+secrets: {
+AAP_HUB_TOKEN: process.env.AAP_HUB_TOKEN, &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+},
+hostRules: [
+{
+matchHost: &amp;#34;aap.apps.hub.aws.tntinfra.net&amp;#34;,
+token: &amp;#34;{{ secrets.AAP_HUB_TOKEN }}&amp;#34;, &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+authType: &amp;#34;Token&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+},
+],
+};&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We disable repository listing for &lt;em&gt;--platform=local&lt;/em&gt;. Otherwise renovate will raise an error.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We define a new secret AAP_HUB_TOKEN and read the value from the environment variable AAP_HUB_TOKEN&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We use the secret as our token for authenticating to AAP Hub&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The &lt;em&gt;authType&lt;/em&gt; setting is a little bit special, see the following section&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A few words about the &lt;em&gt;authType&lt;/em&gt; setting. AAP Hub requires the
+following authorization header in the HTTP request for authentication:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;Authorization: Token &amp;lt;the token&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With renovate we have two options to achieve this:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Either set &lt;em&gt;authType&lt;/em&gt; to &amp;#34;Token-Only&amp;#34; and specify the token as
+&amp;#34;Token &amp;lt;the token&amp;gt;&amp;#34;. So with token-only renovate takes the token
+string verbatim&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Or set the &lt;em&gt;authType&lt;/em&gt; to the string we would like to prepend to the
+token as we did&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We had to dig into the
+&lt;a href="https://github.com/renovatebot/renovate/blob/6c6a6b793d6f339a18222e6aec851df77ceaa8f4/lib/util/http/auth.ts#L33"&gt;source code&lt;/a&gt;
+of renovate to understand how it functions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;And here is the &lt;em&gt;renovate.json&lt;/em&gt; repository configuration that we used:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;$schema&amp;#34;: &amp;#34;https://docs.renovatebot.com/renovate-schema.json&amp;#34;,
+&amp;#34;extends&amp;#34;: [
+&amp;#34;config:best-practices&amp;#34;
+],
+&amp;#34;timezone&amp;#34;: &amp;#34;Europe/London&amp;#34;,
+&amp;#34;schedule&amp;#34;: [
+&amp;#34;at any time&amp;#34;
+],
+&amp;#34;packageRules&amp;#34;: [
+{
+&amp;#34;matchDatasources&amp;#34;: [&amp;#34;galaxy-collection&amp;#34;]
+},
+{
+&amp;#34;matchDatasources&amp;#34;: [&amp;#34;github-tags&amp;#34;],
+&amp;#34;enabled&amp;#34;: &amp;#34;false&amp;#34;
+}
+]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You could also move the &lt;em&gt;hostRules&lt;/em&gt; to the repository local
+&lt;em&gt;renovate.json&lt;/em&gt; file and still use &lt;em&gt;secrets.AAP_HUB_TOKEN&lt;/em&gt;, but as
+this is going to be our global configuration for Ansible code base
+covering multiple repositories our current idea is to store the
+authentication in the global configuration.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_integration_with_github"&gt;Integration with GitHub&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So the last step is to store everything (the global and local
+configuration) on GitHub.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For the global repository we created the
+&lt;a href="https://github.com/tosmi-ansible/renovate-config"&gt;tosmi-ansible/renovate-config&lt;/a&gt;
+repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here is our final &lt;em&gt;config.js&lt;/em&gt; global configuration file in this repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-javascript hljs" data-lang="javascript"&gt;module.exports = {
+platform: &amp;#39;github&amp;#39;,
+gitAuthor: &amp;#34;Renovate Bot &amp;lt;renovate-bot@stderr.at&amp;gt;&amp;#34;,
+dryRun: null,
+onboardingConfig: {
+extends: [&amp;#39;config:recommended&amp;#39;],
+},
+repositories: [&amp;#39;tosmi-ansible/aap-setup&amp;#39;], &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+secrets: {
+AAP_HUB_TOKEN: process.env.AAP_HUB_TOKEN,
+},
+hostRules: [
+{
+matchHost: &amp;#34;aap.apps.hub.aws.tntinfra.net&amp;#34;,
+token: &amp;#34;{{ secrets.AAP_HUB_TOKEN }}&amp;#34;,
+authType: &amp;#34;Token&amp;#34;
+},
+],
+};&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This time we tell renovate which repositories it should scan.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The default configuration &lt;em&gt;default.json&lt;/em&gt;, also stored in the global
+repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;$schema&amp;#34;: &amp;#34;https://docs.renovatebot.com/renovate-schema.json&amp;#34;,
+&amp;#34;extends&amp;#34;: [
+&amp;#34;config:best-practices&amp;#34;
+],
+&amp;#34;timezone&amp;#34;: &amp;#34;Europe/London&amp;#34;,
+&amp;#34;schedule&amp;#34;: [
+&amp;#34;at any time&amp;#34;
+],
+&amp;#34;enabledManagers&amp;#34;: [&amp;#34;ansible&amp;#34;, &amp;#34;ansible-galaxy&amp;#34;], &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+&amp;#34;packageRules&amp;#34;: [
+{
+&amp;#34;matchDatasources&amp;#34;: [&amp;#34;galaxy-collection&amp;#34;]
+},
+{
+&amp;#34;matchDatasources&amp;#34;: [&amp;#34;github-tags&amp;#34;],
+&amp;#34;enabled&amp;#34;: &amp;#34;false&amp;#34;
+}
+]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We only enable ansible and ansible-galaxy managers. Otherwise renovate would search for various other sources for dependencies.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;a href="https://github.com/tosmi-ansible/aap-setup"&gt;tosmi-ansible/aap-setup&lt;/a&gt; contains our local configuration:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
+&amp;#34;$schema&amp;#34;: &amp;#34;https://docs.renovatebot.com/renovate-schema.json&amp;#34;,
+&amp;#34;extends&amp;#34;: [
+&amp;#34;tosmi-ansible/renovate-config&amp;#34;,
+&amp;#34;config:best-practices&amp;#34;
+]
+}&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This only contains a reference to our global configuration and we
+would like to use the
+&lt;a href="https://docs.renovatebot.com/presets-config/#configbest-practices"&gt;best-practices&lt;/a&gt;
+preset.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We can now run renovate from the &lt;em&gt;renovate-config&lt;/em&gt; repository and it
+will scan the configured repository and create a pull request with updated
+dependencies if required.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ git clone git@github.com:tosmi-ansible/renovate-config.git
+$ cd renovate-config
+$ NODE_TLS_REJECT_UNAUTHORIZED=0 renovate --platform=github --base-dir=/tmp/renovate-cache &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We still need to set &lt;em&gt;NODE_TLS_REJECT_UNAUTHORIZED&lt;/em&gt; to 0, because our AAP Hub instance uses a private certificate&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;One minor issue that we discovered is that if a pull request for an
+update already existed (even a closed one) Renovate would not open a
+new one. If you run renovate with &lt;em&gt;LOG_LEVEL=debug&lt;/em&gt; you will see the
+following message:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;DEBUG: Closed PR #19 already exists. Skipping branch. (repository=tosmi-ansible/aap-setup, branch=renovate/kubernetes.core-6.x)
+&amp;#34;prTitle&amp;#34;: &amp;#34;Update dependency kubernetes.core to v6.4.0&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To convince Renovate to create a new pull request just rename the
+closed pull request on GitHub. We just added the prefix
+&amp;#34;RENAMED&amp;#34;. After renaming the pull request, renovate will happily
+create a new one.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item></channel></rss>
