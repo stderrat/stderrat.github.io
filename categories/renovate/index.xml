@@ -350,7 +350,7 @@ authType: &amp;#34;Token&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&g
 &lt;/tbody&gt;&lt;/table&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;For GitHub authentiation renovate expects a GitHub token in the
+&lt;p&gt;For GitHub authentication renovate expects a GitHub token in the
 environment variable
 &lt;a href="https://docs.renovatebot.com/self-hosted-configuration/#token"&gt;RENOVATE_TOKEN&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
@@ -577,20 +577,90 @@ closed pull request on GitHub. We just added the prefix
 &amp;#34;RENAMED&amp;#34;. After renaming the pull request, renovate will happily
 create a new one.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_tips_and_tricks"&gt;Tips and tricks&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This section list various things we learning while running renovate locally&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_renovate_does_not_honor_new_dependencies_in_requirements_yaml"&gt;Renovate does not honor new dependencies in &lt;em&gt;requirements.yaml&lt;/em&gt;&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We had an issues with new dependencies in &lt;em&gt;requirements.yaml&lt;/em&gt;. Wiping
+the renovate cache (&lt;em&gt;/tmp/renovate_cache&lt;/em&gt;) in our case fixed this and
+renovate created new pull requests for the added dependencies.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_renovate_does_not_open_new_pr_pull_requests_for_updated_dependencies"&gt;Renovate does not open new PR (pull requests) for updated dependencies&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We double checked AAP and our renovate configuration and there was
+clearly a newer version of a collection but renovate just did not open
+a new PR.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Running renovate with &lt;em&gt;LOG_LEVEL=debug&lt;/em&gt; revealed the following message
+(we tried to update the redhat.openshift_virtualization collection):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt; {
+&amp;#34;branchName&amp;#34;: &amp;#34;renovate/redhat.openshift_virtualization-2.x&amp;#34;,
+&amp;#34;prNo&amp;#34;: null,
+&amp;#34;prTitle&amp;#34;: &amp;#34;Update dependency redhat.openshift_virtualization to v2.2.4&amp;#34;,
+&amp;#34;result&amp;#34;: &amp;#34;branch-limit-reached&amp;#34;, &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
 &lt;table&gt;
 &lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-We also had issues with new dependencies in
-&lt;em&gt;requirements.yaml&lt;/em&gt;. Wiping the renovate cache (&lt;em&gt;/tmp/renovate_cache&lt;/em&gt;)
-in our case fixed this and renovate created new pull requests for the
-added dependencies.
-&lt;/td&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;renovate does not open a new branch because of &amp;#34;branch-limit-reached&amp;#34;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We check our upstream repository on GitHub and there was just the main
+branch, hm…​&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Looking further up in the log we found:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;DEBUG: prHourlyLimit of the upgrades present in this branch (repository=tosmi-ansible/aap-setup, branch=renovate/infra.aap_utilities-3.x)
+&amp;#34;limits&amp;#34;: [{&amp;#34;depName&amp;#34;: &amp;#34;infra.aap_utilities&amp;#34;, &amp;#34;prHourlyLimit&amp;#34;: 2}]
+DEBUG: Calculated lowest prHourlyLimit among the upgrades present in this branch is 2. (repository=tosmi-ansible/aap-setup, branch=renovate/infra.aap_utilities-3.x)
+DEBUG: Hourly PRs limit reached (repository=tosmi-ansible/aap-setup, branch=renovate/infra.aap_utilities-3.x) &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+&amp;#34;hourlyPrCount&amp;#34;: 2,
+&amp;#34;hourlyPrLimit&amp;#34;: 2
+DEBUG: Reached branch limit - skipping branch creation (repository=tosmi-ansible/aap-setup, branch=renovate/infra.aap_utilities-3.x)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;There is a hourly branch limit of two in place&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As we just ran renovate to update another dependency, we seem to be
+hitting this hourly limit. The
+&lt;a href="https://docs.renovatebot.com/configuration-options/#prhourlylimit"&gt;docs&lt;/a&gt;
+mention a default of 2.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The solution was to run renovate with the option &lt;em&gt;--pr-hourly-limit=0&lt;/em&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;NODE_TLS_REJECT_UNAUTHORIZED=0 renovate --platform=github --base-dir=/tmp/renovate-cache --pr-hourly-limit=0&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
