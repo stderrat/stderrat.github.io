@@ -1,4 +1,218 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>YAUB Yet Another Useless Blog on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/index.xml" rel="self" type="application/rss+xml"/><item><title>Using a local Renovate bot to manage Ansible collection dependencies</title><link>https://blog.stderr.at/ansible/2026/05/using-a-local-renovate-bot-to-manage-ansible-collection-dependencies/</link><pubDate>Tue, 26 May 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2026/05/using-a-local-renovate-bot-to-manage-ansible-collection-dependencies/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>YAUB Yet Another Useless Blog on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/index.xml" rel="self" type="application/rss+xml"/><item><title>Creating an auditd rule to monitor Ansible Automation Platform static secrets</title><link>https://blog.stderr.at/ansible/2026/06/creating-an-auditd-rule-to-monitor-ansible-automation-platform-static-secrets/</link><pubDate>Tue, 09 Jun 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2026/06/creating-an-auditd-rule-to-monitor-ansible-automation-platform-static-secrets/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Ansible Automation Platform (AAP) comes with an elaborate credential
+management solution. All credentials within AAP are stored encrypted
+in a PostgreSQL database. But the keys used for encrypting database
+fields are currently stored on the machine(s) running AAP. In this
+blog post, we show we created an auditd rule to get at least some kind
+of monitoring if those keys are accessed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_ansible_automation_platform_local_secret_key"&gt;Ansible Automation Platform local SECRET_KEY&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;AAP comes with a
+&lt;a href="https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/secure-con_controller_how_credentials_work"&gt;credential
+management solution&lt;/a&gt;. Credentials are used to&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;access remote machines&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;provide configuration data for automation, like API keys&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;connect AAP to source code repositories and inventories&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;and much more. You can even integrate external credential management
+solutions like &lt;a href="https://www.hashicorp.com/products/vault"&gt;HashiCorp
+Vault&lt;/a&gt; or &lt;a href="https://openbao.org/"&gt;OpenBao&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;All credentials stored within AAP are saved as encrypted database
+fields in a PostgreSQL database. There is a main key and AAP creates
+for every encrypted database field a derived AES-256
+encryption key. For more details see the
+&lt;a href="https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/secure-con_controller_secret_handling#controller-secret-handling-operational-use"&gt;documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;But there is one caveat: the main secret key is stored on the local
+file system. There is currently no supported option to integrate
+something like a HSM (High Security Module) for storing the main
+secret securely.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To mitigate this issue we deployed a Linux audit rule that monitors
+read/write and attribute changes to the main secret.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_configuring_linux_auditd"&gt;Configuring Linux auditd&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We use the containerized version of AAP 2.6. In the containerized
+version of AAP those secrets are stored as &lt;em&gt;podman&lt;/em&gt; secrets as the
+user running the AAP containers.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To list AAP podman secrets execute&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;$ podman secret list
+ID NAME DRIVER CREATED UPDATED
+02a2eb397dc5cedefde6ae411 hub_resource_server file 2 hours ago 2 hours ago
+0dd84dc7b808917c4efb6ea9f controller_channels file 2 hours ago 2 hours ago
+85fb73ff57729250c019976ed hub_database_fields file 2 hours ago 2 hours ago
+c482ff7c07f908e443d327293 controller_postgres file 2 hours ago 2 hours ago
+e6750121a8997cce8185072bf gateway_admin_password file 2 hours ago 2 hours ago
+2731b2d03806f88f35809de66 eda_admin_password file 2 hours ago 2 hours ago
+31ca44577b4c5b61dd3f0a0b6 eda_secret_key file 2 hours ago 2 hours ago
+856473626bad9ff37b1b979d4 eda_resource_server file 2 hours ago 2 hours ago
+b20ec0897fc2b6533544c4441 gateway_redis_url file 2 hours ago 2 hours ago
+1dfdd812847ed4c1c01b194e2 gateway_db_password file 2 hours ago 2 hours ago
+32d04575881dd781be192ef49 eda_db_password file 2 hours ago 2 hours ago
+5102f69350717c15177b80821 hub_secret_key file 2 hours ago 2 hours ago
+d1faf92922182604cfa746318 controller_resource_server file 2 hours ago 2 hours ago
+d29f0d8c2fc709655dd918f2c postgresql_admin_password file 2 hours ago 2 hours ago
+1b3ee24261bdff50d2c70e3f0 gateway_secret_key file 2 hours ago 2 hours ago
+ae6c9e78e91dea180d22db6ee hub_settings file 2 hours ago 2 hours ago
+b348d89bfb7d3b18f33a67d07 controller_secret_key file 2 hours ago 2 hours ago &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;the controller secret key&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If we want to know where those secrets are stored we can execute&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;$ podman secret inspect controller_secret_key
+[
+{
+&amp;#34;ID&amp;#34;: &amp;#34;b348d89bfb7d3b18f33a67d07&amp;#34;,
+&amp;#34;CreatedAt&amp;#34;: &amp;#34;2026-06-09T10:57:28.278138715Z&amp;#34;,
+&amp;#34;UpdatedAt&amp;#34;: &amp;#34;2026-06-09T10:57:28.278138715Z&amp;#34;,
+&amp;#34;Spec&amp;#34;: {
+&amp;#34;Name&amp;#34;: &amp;#34;controller_secret_key&amp;#34;,
+&amp;#34;Driver&amp;#34;: {
+&amp;#34;Name&amp;#34;: &amp;#34;file&amp;#34;,
+&amp;#34;Options&amp;#34;: {
+&amp;#34;path&amp;#34;: &amp;#34;/home/admin/.local/share/containers/storage/secrets/filedriver&amp;#34;
+}
+},
+&amp;#34;Labels&amp;#34;: {}
+}
+}
+]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s see what’s in the filedriver directory:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;$ ls /home/admin/.local/share/containers/storage/secrets/filedriver
+secretsdata.json secretsdata.lock&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;we are mainly interested in the &lt;em&gt;secretsdata.json&lt;/em&gt; file&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;So the &lt;em&gt;secretsdata.json&lt;/em&gt; file stores all podman secrets that are
+using the &lt;em&gt;filedriver&lt;/em&gt;. For more information see the section
+&lt;a href="https://docs.podman.io/en/latest/markdown/podman-secret-create.1.html#secret-drivers"&gt;Secret
+Drivers&lt;/a&gt; in the podman-secrets-create(1) manpage.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Let’s create a Linux auditd rule to monitor access to this file. As we
+are using Red Hat Enterprise Linux 10 a more detailed introduction to
+the Linux audit system is available
+&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/risk_reduction_and_recovery_operations/auditing-the-system"&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;We created the file &lt;em&gt;/etc/audit/rules.d/aap_secrets.rules&lt;/em&gt; with the following content:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;-w /home/admin/.local/share/containers/storage/secrets/filedriver/secretsdata.json -p rwa -k aap_secrets &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;-p rwa means monitor read/write/attribute changes, -k tells the audit system log events with an additional key &amp;#34;aap_secrets&amp;#34;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To activate the rule we need to load the audit rule via:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;# auditctl -R /etc/audit/rules.d/aap_secrets.rules&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;You can list loaded audit rules via&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;# auditctl -l
+-w /home/admin/.local/share/containers/storage/secrets/filedriver/secretsdata.json -p rwa -k aap_secrets&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;As a test we can cat the secrets file and check if auditd logged an event:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-terminal hljs" data-lang="terminal"&gt;# cat /home/admin/.local/share/containers/storage/secrets/filedriver/secretsdata.json
+...
+# grep aap_secrets /var/log/audit/audit.log
+type=SYSCALL msg=audit(1781009319.993:204): arch=c000003e syscall=257 success=yes exit=3 a0=ffffff9c a1=7ffc5276b65c a2=0 a3=0 items=1 ppid=6186 pid=6695 auid=1000 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts2 ses=3 comm=&amp;#34;cat&amp;#34; exe=&amp;#34;/usr/bin/cat&amp;#34; subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key=&amp;#34;aap_secrets&amp;#34;ARCH=x86_64 SYSCALL=openat AUID=&amp;#34;admin&amp;#34; UID=&amp;#34;root&amp;#34; GID=&amp;#34;root&amp;#34; EUID=&amp;#34;root&amp;#34; SUID=&amp;#34;root&amp;#34; FSUID=&amp;#34;root&amp;#34; EGID=&amp;#34;root&amp;#34; SGID=&amp;#34;root&amp;#34; FSGID=&amp;#34;root&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;We can see that the &lt;em&gt;cat&lt;/em&gt; command (comm=cat) was used by the root user to display the file contents&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In this blog post we demonstrated how to configure the Linux audit
+system to log events if the AAP database secret key is accessed. The
+audit subsystem can also monitor system calls, for a detailed
+introduction see
+&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/risk_reduction_and_recovery_operations/auditing-the-system#audit-system-architecture"&gt;Audit system architecture&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Using a local Renovate bot to manage Ansible collection dependencies</title><link>https://blog.stderr.at/ansible/2026/05/using-a-local-renovate-bot-to-manage-ansible-collection-dependencies/</link><pubDate>Tue, 26 May 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/ansible/2026/05/using-a-local-renovate-bot-to-manage-ansible-collection-dependencies/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;We wanted to use &lt;a href="https://github.com/renovatebot/renovate"&gt;renovate&lt;/a&gt; bot
 to automatically update collection dependencies for one of our
 Ansible playbook repositories. This blog post describes the basics of
@@ -11625,1024 +11839,6 @@ argocd-agent-bm01 branding-banner Synced Healthy&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;While the initial setup requires several steps, especially around certificate management, the resulting architecture offers a robust foundation for GitOps at scale.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>The Hitchhiker's Guide to Observability - Here Comes Grafana - Part 7</title><link>https://blog.stderr.at/openshift-platform/observability/observability/2025-12-04-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part7/</link><pubDate>Thu, 04 Dec 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/observability/observability/2025-12-04-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part7/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;While we have been using the integrated tracing UI in OpenShift, it is time to summon &lt;strong&gt;Grafana&lt;/strong&gt;. Grafana is a visualization powerhouse that allows teams to build custom dashboards, correlate traces with logs and metrics, and gain deep insights into their applications. In this article, we’ll deploy a dedicated Grafana instance for &lt;strong&gt;team-a&lt;/strong&gt; in their namespace, configure a Tempo datasource, and create a dashboard to explore distributed traces.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before we begin, make sure you have:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;The Grafana Operator installed cluster-wide (we’ll cover this first)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;TempoStack deployed and configured (from &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-24-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part2/"&gt;Part 2&lt;/a&gt;)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Team-a namespace with traces flowing (from &lt;a href="https://blog.stderr.at/day-2/observability/2025-11-26-hitchhikers-guide-to-distributed-tracing-with-opentelemetry-and-tempostack-part4/"&gt;Part 4&lt;/a&gt;)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_the_grafana_operator"&gt;The Grafana Operator&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Grafana Operator provides Custom Resource Definitions (CRDs) for managing Grafana instances, datasources, and dashboards declaratively.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Be sure that the Operator is installed. Typically, it is installed in the &lt;code&gt;openshift-operators&lt;/code&gt; namespace. If you keep that namespace, all you need to do is create a Subscription. Otherwise you will also need to create an OperatorGroup.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-If you select a different namespace, be sure to verify possible RBAC bindings, that you might need to set up.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_install_subscription"&gt;Install Subscription&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Grafana Operator is available from the OperatorHub. Either use the UI to install it, or simply create a Subscription to install it:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-name: grafana-operator
-namespace: openshift-operators &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-spec:
-channel: v5 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-installPlanApproval: Automatic
-name: grafana-operator
-source: community-operators &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-sourceNamespace: openshift-marketplace&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Installing in &lt;code&gt;openshift-operators&lt;/code&gt; makes the operator available cluster-wide&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Use the v5 channel for the operator. This is the only available channel currently.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The source is the OperatorHub catalog. Grafana is a &lt;strong&gt;community&lt;/strong&gt; operator.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Verify the operator is running:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n openshift-operators -l app.kubernetes.io/name=grafana-operator&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You should see output similar to:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;NAME READY STATUS RESTARTS AGE
-grafana-operator-7d8f9c6b5-xyz12 1/1 Running 0 2m&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_create_grafana_instance_for_team_a"&gt;Create Grafana Instance for Team-A&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now let’s deploy a Grafana instance in the &lt;strong&gt;team-a namespace&lt;/strong&gt;. This gives the team full control over their dashboards while isolating them from other teams.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-We are logging in as the &lt;strong&gt;project admin&lt;/strong&gt; user of the &lt;strong&gt;team-a namespace&lt;/strong&gt;. So everything we do in this namespace will be done as this user.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_create_the_grafana_admin_secret"&gt;Create the Grafana Admin Secret&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;First, we need to create a secret containing the Grafana admin credentials, since we do not want to store passwords in plain text in our manifests!&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Never store passwords in plain text in your manifests and use a secrets management solution like Sealed Secrets or External Secrets Operator.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Create the following example. Replace the password with your own strong password.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
-kind: Secret
-metadata:
-name: grafana-admin-credentials
-namespace: team-a
-type: Opaque
-stringData:
-GF_SECURITY_ADMIN_USER: admin &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-GF_SECURITY_ADMIN_PASSWORD: &amp;lt;your-secure-password&amp;gt; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The admin username for Grafana&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Replace with a strong password&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_deploy_the_grafana_instance"&gt;Deploy the Grafana Instance&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Grafana Operator provides a Custom Resource Definition (CRD) for deploying Grafana instances. We can use this to deploy a Grafana instance in the &lt;strong&gt;team-a namespace&lt;/strong&gt;.
-This instance is labelled with &amp;#34;dashboards: &amp;#34;grafana-team-a&amp;#34;&amp;#34; to make it easier to target it with GrafanaDashboard resources.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: grafana.integreatly.org/v1beta1
-kind: Grafana
-metadata:
-name: grafana
-namespace: team-a
-labels:
-dashboards: &amp;#34;grafana-team-a&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-spec:
-config:
-log:
-mode: &amp;#34;console&amp;#34;
-auth:
-disable_login_form: &amp;#34;false&amp;#34;
-security:
-admin_user: ${GF_SECURITY_ADMIN_USER} &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-admin_password: ${GF_SECURITY_ADMIN_PASSWORD}
-deployment:
-spec:
-replicas: 1
-template:
-spec:
-containers:
-- name: grafana
-envFrom:
-- secretRef:
-name: grafana-admin-credentials &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-resources:
-requests:
-cpu: 100m
-memory: 256Mi
-limits:
-cpu: 500m
-memory: 512Mi
-route:
-spec:
-tls:
-termination: edge &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-disableDefaultAdminSecret: true &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Label used by GrafanaDashboard resources to target this instance. Required so that the datasource can find the instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;References environment variables from the secret&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Mounts the secret as environment variables&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Creates an OpenShift Route with TLS edge termination&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Disables the default admin secret created by the Grafana Operator. We will use our own secret and this setting prevents that the operator overwrites it.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a few moments, the Grafana pod should be ready.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n team-a -l app=grafana -w&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Get the Route URL:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get route grafana-route -n team-a -o jsonpath=&amp;#39;{.spec.host}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Use this route and the credentials from the secret to log into Grafana.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/grafana-login.png" alt="Grafana Login"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_tempo_datasource"&gt;Configure Tempo Datasource&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The datasource connects Grafana to TempoStack (or any other datasource like Loki, Prometheus, etc.), allowing you to query and visualize traces. We need to authenticate with a client certificate to TempoStack and be sure the send the tenant ID of tenantA in the header of the queries.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-When you read the previous part of this series, you saw that we created a ClusterRole to grant read access to the traces. The Binding for this role allows &lt;strong&gt;read&lt;/strong&gt; access to everybody who is &lt;strong&gt;authenticated against the system&lt;/strong&gt;. Therefore, we do not need to take care of permissions…​ at this point.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_tempostack_client_certificate_authentication"&gt;TempoStack Client Certificate Authentication&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To query the TempoStack instance, we need to authenticate with it. This is done by using a client certificate. Therefore, we need to create a secret with the client certificate and key. In addition, this secret will also contain the tenant ID, which must be sent to the TempoStack instance as a header.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;First, get the client certificate and key from the TempoStack instance:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get secret -n tempostack | grep gateway-mtls&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You should find something like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;tempo-simplest-gateway-mtls kubernetes.io/tls 2 19d&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Fetch the client certificate and key and store them in a file locally:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get secret -n tempostack tempo-simplest-gateway-mtls -o jsonpath=&amp;#39;{.data.tls\.crt}&amp;#39; | base64 -d &amp;gt; tls.crt
-oc get secret -n tempostack tempo-simplest-gateway-mtls -o jsonpath=&amp;#39;{.data.tls\.key}&amp;#39; | base64 -d &amp;gt; tls.key&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now, let’s get the tenant ID from the TempoStack instance:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get tempostack/simplest -n tempostack -o jsonpath=&amp;#39;{.spec.tenants.authentication}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You should find something like this (tenantA is the one we are interested in):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;[
-{
-&amp;#34;tenantId&amp;#34;: &amp;#34;1610b0c3-c509-4592-a256-a1871353dbfc&amp;#34;, &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-&amp;#34;tenantName&amp;#34;: &amp;#34;tenantA&amp;#34;
-},
-{
-&amp;#34;tenantId&amp;#34;: &amp;#34;1610b0c3-c509-4592-a256-a1871353dbfd&amp;#34;,
-&amp;#34;tenantName&amp;#34;: &amp;#34;tenantB&amp;#34;
-}
-]&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The tenant ID of tenantA&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now, let’s create the secret with the client certificate and key and the tenant ID:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc create secret generic tempo-auth -n team-a --from-file=tls.crt=tls.crt --from-file=tls.key=tls.key --from-literal=tenantA=&amp;#34;1610b0c3-c509-4592-a256-a1871353dbfc&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;That’s everything we need to authenticate with TempoStack for tenantA.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-As you prefer, you can create a separate secret for each tenantID. Just be sure to update the &amp;#34;valuesFrom&amp;#34; section of the GrafanaDatasource resource.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_create_the_tempo_datasource"&gt;Create the Tempo Datasource&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we can create the GrafanaDatasource that connects to TempoStack:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDatasource
-metadata:
-name: tempo-tenanta-datasource
-namespace: team-a
-spec:
-allowCrossNamespaceImport: false
-datasource:
-access: proxy
-editable: true
-isDefault: true
-jsonData:
-httpHeaderName1: X-Scope-OrgID &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-timeInterval: 5s
-tlsAuth: true
-tlsAuthWithCACert: false
-tlsSkipVerify: true
-name: tempo-tenanta &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-secureJsonData: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-httpHeaderValue1: &amp;#39;${tenantA}&amp;#39;
-tlsClientCert: &amp;#39;${tls.crt}&amp;#39;
-tlsClientKey: &amp;#39;${tls.key}&amp;#39;
-type: tempo &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-url: &amp;#39;https://tempo-simplest-query-frontend.tempostack.svc.cluster.local:3200&amp;#39; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-instanceSelector:
-matchLabels:
-dashboards: grafana-team-a &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-resyncPeriod: 10m0s
-valuesFrom: &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-- targetPath: secureJsonData.tlsClientCert
-valueFrom:
-secretKeyRef:
-key: tls.crt
-name: tempo-auth
-- targetPath: secureJsonData.tlsClientKey
-valueFrom:
-secretKeyRef:
-key: tls.key
-name: tempo-auth
-- targetPath: secureJsonData.httpHeaderValue1
-valueFrom:
-secretKeyRef:
-key: tenantA
-name: tempo-auth&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The header name for the tenant ID.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the Tempo datasource.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The reference to the client certificate, key and tenantID. They are coming from the secret we created earlier.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The type of the datasource. This type must be available in Grafana. For Tempo, the type is &lt;code&gt;tempo&lt;/code&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The URL of the Tempo query frontend. This is the URL of the Tempo query frontend service in the TempoStack namespace.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The label of the Grafana instance to target. This is the label we added to the Grafana instance when we created it.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The reference to the secrets and the keys inside the secret.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_verify_the_datasource"&gt;Verify the Datasource&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Log into Grafana and navigate to &lt;strong&gt;Connection &amp;gt; Data sources&lt;/strong&gt;. You should see the Tempo datasource listed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/grafana-data-sources-list.png" alt="Grafana Datasource"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Click on the Tempo datasource to see the details:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/grafana-datasource.png" alt="Grafana Datasource Details"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As depicted in the image above, the datasource is configured with TLS Client Authentication and a HTTP Header.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Any changes in the Grafana UI will not be synced back to the GrafanaDatasource resource. You need to update the resource manually.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To verify the datasource, we can create a test query. Navigate to &lt;strong&gt;Explore&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Enter the query &lt;strong&gt;{}&lt;/strong&gt;, which will simply get all traces from the TempoStack instance from (by default) the last minute.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-If you have multiple data sources configured already, be sure to select the correct one in the dropdown menu.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You should see the traces in the Grafana Explore UI.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/grafana-explore-metrics.png" alt="Grafana Explore Metrics"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can select any trace and see the details in the Grafana Explore UI.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/grafana-explore-trace.png" alt="Grafana Explore Trace"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_create_a_traces_dashboard"&gt;Create a Traces Dashboard&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now let’s create a dashboard to visualize and explore traces. The Grafana Operator allows us to define dashboards as Kubernetes resources.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_create_the_dashboard_configmap"&gt;Create the Dashboard ConfigMap&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To have the first showable data, we need to create a dashboard. The Grafana Operator provides a Custom Resource Definition called GrafanaDashboard for deploying such dashboards.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now, dashboards are their own beast. There are so many things to configure and set that probably a whole separate blog series is needed to cover all of it.
-I am by far not an expert in this field and I am happy that I got this one up and running, so I will just create a simple dashboard with a few panels.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Honestly, I am not sure if it is a good way to create dashboards using the CRD. It is probably better to use the Grafana UI and then export the JSON data if you want to keep it declarative.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This dashboard provides:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;A trace search panel&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Latency histogram -→ I have set this to &amp;#34;higher than 3ms&amp;#34; to at least see something.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Recent traces table&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDashboard
-metadata:
-name: grafana-team-a-traces-dashboard
-namespace: team-a
-spec:
-instanceSelector:
-matchLabels:
-dashboards: &amp;#34;grafana-team-a&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-json: | &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-{
-&amp;#34;annotations&amp;#34;: {
-&amp;#34;list&amp;#34;: [
-{
-&amp;#34;builtIn&amp;#34;: 1,
-&amp;#34;datasource&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;grafana&amp;#34;,
-&amp;#34;uid&amp;#34;: &amp;#34;-- Grafana --&amp;#34;
-},
-&amp;#34;enable&amp;#34;: true,
-&amp;#34;hide&amp;#34;: true,
-&amp;#34;iconColor&amp;#34;: &amp;#34;rgba(0, 211, 255, 1)&amp;#34;,
-&amp;#34;name&amp;#34;: &amp;#34;Annotations &amp;amp; Alerts&amp;#34;,
-&amp;#34;type&amp;#34;: &amp;#34;dashboard&amp;#34;
-}
-]
-},
-&amp;#34;editable&amp;#34;: true,
-&amp;#34;fiscalYearStartMonth&amp;#34;: 0,
-&amp;#34;graphTooltip&amp;#34;: 0,
-&amp;#34;id&amp;#34;: 1,
-&amp;#34;links&amp;#34;: [],
-&amp;#34;panels&amp;#34;: [
-{
-&amp;#34;fieldConfig&amp;#34;: {
-&amp;#34;defaults&amp;#34;: {},
-&amp;#34;overrides&amp;#34;: []
-},
-&amp;#34;gridPos&amp;#34;: {
-&amp;#34;h&amp;#34;: 4,
-&amp;#34;w&amp;#34;: 24,
-&amp;#34;x&amp;#34;: 0,
-&amp;#34;y&amp;#34;: 0
-},
-&amp;#34;id&amp;#34;: 1,
-&amp;#34;options&amp;#34;: {
-&amp;#34;code&amp;#34;: {
-&amp;#34;language&amp;#34;: &amp;#34;plaintext&amp;#34;,
-&amp;#34;showLineNumbers&amp;#34;: false,
-&amp;#34;showMiniMap&amp;#34;: false
-},
-&amp;#34;content&amp;#34;: &amp;#34;# Team-A Distributed Traces\n\nThis dashboard allows you to explore distributed traces from your applications.\n\n&amp;#34;,
-&amp;#34;mode&amp;#34;: &amp;#34;markdown&amp;#34;
-},
-&amp;#34;pluginVersion&amp;#34;: &amp;#34;12.1.0&amp;#34;,
-&amp;#34;title&amp;#34;: &amp;#34;Welcome&amp;#34;,
-&amp;#34;type&amp;#34;: &amp;#34;text&amp;#34;
-},
-{
-&amp;#34;datasource&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;tempo&amp;#34;,
-&amp;#34;uid&amp;#34;: &amp;#34;${datasource}&amp;#34;
-},
-&amp;#34;fieldConfig&amp;#34;: {
-&amp;#34;defaults&amp;#34;: {
-&amp;#34;color&amp;#34;: {
-&amp;#34;mode&amp;#34;: &amp;#34;thresholds&amp;#34;
-},
-&amp;#34;custom&amp;#34;: {
-&amp;#34;align&amp;#34;: &amp;#34;auto&amp;#34;,
-&amp;#34;cellOptions&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;auto&amp;#34;
-},
-&amp;#34;inspect&amp;#34;: false
-},
-&amp;#34;mappings&amp;#34;: [],
-&amp;#34;thresholds&amp;#34;: {
-&amp;#34;mode&amp;#34;: &amp;#34;absolute&amp;#34;,
-&amp;#34;steps&amp;#34;: [
-{
-&amp;#34;color&amp;#34;: &amp;#34;green&amp;#34;,
-&amp;#34;value&amp;#34;: 0
-},
-{
-&amp;#34;color&amp;#34;: &amp;#34;red&amp;#34;,
-&amp;#34;value&amp;#34;: 80
-}
-]
-}
-},
-&amp;#34;overrides&amp;#34;: []
-},
-&amp;#34;gridPos&amp;#34;: {
-&amp;#34;h&amp;#34;: 8,
-&amp;#34;w&amp;#34;: 12,
-&amp;#34;x&amp;#34;: 0,
-&amp;#34;y&amp;#34;: 4
-},
-&amp;#34;id&amp;#34;: 2,
-&amp;#34;options&amp;#34;: {
-&amp;#34;cellHeight&amp;#34;: &amp;#34;sm&amp;#34;,
-&amp;#34;footer&amp;#34;: {
-&amp;#34;countRows&amp;#34;: false,
-&amp;#34;fields&amp;#34;: &amp;#34;&amp;#34;,
-&amp;#34;reducer&amp;#34;: [
-&amp;#34;sum&amp;#34;
-],
-&amp;#34;show&amp;#34;: false
-},
-&amp;#34;showHeader&amp;#34;: true
-},
-&amp;#34;pluginVersion&amp;#34;: &amp;#34;12.1.0&amp;#34;,
-&amp;#34;targets&amp;#34;: [
-{
-&amp;#34;datasource&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;tempo&amp;#34;,
-&amp;#34;uid&amp;#34;: &amp;#34;${datasource}&amp;#34;
-},
-&amp;#34;filters&amp;#34;: [
-{
-&amp;#34;id&amp;#34;: &amp;#34;81ea3f00&amp;#34;,
-&amp;#34;operator&amp;#34;: &amp;#34;=&amp;#34;,
-&amp;#34;scope&amp;#34;: &amp;#34;span&amp;#34;
-}
-],
-&amp;#34;limit&amp;#34;: 20,
-&amp;#34;metricsQueryType&amp;#34;: &amp;#34;range&amp;#34;,
-&amp;#34;queryType&amp;#34;: &amp;#34;traceqlSearch&amp;#34;,
-&amp;#34;refId&amp;#34;: &amp;#34;A&amp;#34;,
-&amp;#34;tableType&amp;#34;: &amp;#34;traces&amp;#34;
-}
-],
-&amp;#34;title&amp;#34;: &amp;#34;Trace Search&amp;#34;,
-&amp;#34;type&amp;#34;: &amp;#34;table&amp;#34;
-},
-{
-&amp;#34;datasource&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;tempo&amp;#34;,
-&amp;#34;uid&amp;#34;: &amp;#34;${datasource}&amp;#34;
-},
-&amp;#34;fieldConfig&amp;#34;: {
-&amp;#34;defaults&amp;#34;: {
-&amp;#34;color&amp;#34;: {
-&amp;#34;mode&amp;#34;: &amp;#34;palette-classic&amp;#34;
-},
-&amp;#34;custom&amp;#34;: {
-&amp;#34;axisBorderShow&amp;#34;: false,
-&amp;#34;axisCenteredZero&amp;#34;: false,
-&amp;#34;axisColorMode&amp;#34;: &amp;#34;text&amp;#34;,
-&amp;#34;axisLabel&amp;#34;: &amp;#34;&amp;#34;,
-&amp;#34;axisPlacement&amp;#34;: &amp;#34;auto&amp;#34;,
-&amp;#34;barAlignment&amp;#34;: 0,
-&amp;#34;barWidthFactor&amp;#34;: 0.6,
-&amp;#34;drawStyle&amp;#34;: &amp;#34;bars&amp;#34;,
-&amp;#34;fillOpacity&amp;#34;: 100,
-&amp;#34;gradientMode&amp;#34;: &amp;#34;none&amp;#34;,
-&amp;#34;hideFrom&amp;#34;: {
-&amp;#34;legend&amp;#34;: false,
-&amp;#34;tooltip&amp;#34;: false,
-&amp;#34;viz&amp;#34;: false
-},
-&amp;#34;insertNulls&amp;#34;: false,
-&amp;#34;lineInterpolation&amp;#34;: &amp;#34;linear&amp;#34;,
-&amp;#34;lineWidth&amp;#34;: 1,
-&amp;#34;pointSize&amp;#34;: 5,
-&amp;#34;scaleDistribution&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;linear&amp;#34;
-},
-&amp;#34;showPoints&amp;#34;: &amp;#34;auto&amp;#34;,
-&amp;#34;spanNulls&amp;#34;: false,
-&amp;#34;stacking&amp;#34;: {
-&amp;#34;group&amp;#34;: &amp;#34;A&amp;#34;,
-&amp;#34;mode&amp;#34;: &amp;#34;none&amp;#34;
-},
-&amp;#34;thresholdsStyle&amp;#34;: {
-&amp;#34;mode&amp;#34;: &amp;#34;off&amp;#34;
-}
-},
-&amp;#34;mappings&amp;#34;: [],
-&amp;#34;thresholds&amp;#34;: {
-&amp;#34;mode&amp;#34;: &amp;#34;absolute&amp;#34;,
-&amp;#34;steps&amp;#34;: [
-{
-&amp;#34;color&amp;#34;: &amp;#34;green&amp;#34;,
-&amp;#34;value&amp;#34;: 0
-},
-{
-&amp;#34;color&amp;#34;: &amp;#34;red&amp;#34;,
-&amp;#34;value&amp;#34;: 80
-}
-]
-},
-&amp;#34;unit&amp;#34;: &amp;#34;ms&amp;#34;
-},
-&amp;#34;overrides&amp;#34;: []
-},
-&amp;#34;gridPos&amp;#34;: {
-&amp;#34;h&amp;#34;: 8,
-&amp;#34;w&amp;#34;: 12,
-&amp;#34;x&amp;#34;: 12,
-&amp;#34;y&amp;#34;: 4
-},
-&amp;#34;id&amp;#34;: 3,
-&amp;#34;options&amp;#34;: {
-&amp;#34;legend&amp;#34;: {
-&amp;#34;calcs&amp;#34;: [],
-&amp;#34;displayMode&amp;#34;: &amp;#34;list&amp;#34;,
-&amp;#34;placement&amp;#34;: &amp;#34;bottom&amp;#34;,
-&amp;#34;showLegend&amp;#34;: true
-},
-&amp;#34;tooltip&amp;#34;: {
-&amp;#34;hideZeros&amp;#34;: false,
-&amp;#34;mode&amp;#34;: &amp;#34;single&amp;#34;,
-&amp;#34;sort&amp;#34;: &amp;#34;none&amp;#34;
-}
-},
-&amp;#34;pluginVersion&amp;#34;: &amp;#34;12.1.0&amp;#34;,
-&amp;#34;targets&amp;#34;: [
-{
-&amp;#34;datasource&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;tempo&amp;#34;,
-&amp;#34;uid&amp;#34;: &amp;#34;${datasource}&amp;#34;
-},
-&amp;#34;filters&amp;#34;: [
-{
-&amp;#34;id&amp;#34;: &amp;#34;6ff20d0d&amp;#34;,
-&amp;#34;operator&amp;#34;: &amp;#34;=&amp;#34;,
-&amp;#34;scope&amp;#34;: &amp;#34;span&amp;#34;
-},
-{
-&amp;#34;id&amp;#34;: &amp;#34;min-duration&amp;#34;,
-&amp;#34;operator&amp;#34;: &amp;#34;&amp;gt;&amp;#34;,
-&amp;#34;tag&amp;#34;: &amp;#34;duration&amp;#34;,
-&amp;#34;value&amp;#34;: &amp;#34;0.3ms&amp;#34;,
-&amp;#34;valueType&amp;#34;: &amp;#34;duration&amp;#34;
-}
-],
-&amp;#34;limit&amp;#34;: 20,
-&amp;#34;metricsQueryType&amp;#34;: &amp;#34;range&amp;#34;,
-&amp;#34;queryType&amp;#34;: &amp;#34;traceqlSearch&amp;#34;,
-&amp;#34;refId&amp;#34;: &amp;#34;A&amp;#34;,
-&amp;#34;tableType&amp;#34;: &amp;#34;spans&amp;#34;
-}
-],
-&amp;#34;title&amp;#34;: &amp;#34;Span Duration Distribution&amp;#34;,
-&amp;#34;type&amp;#34;: &amp;#34;timeseries&amp;#34;
-},
-{
-&amp;#34;datasource&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;tempo&amp;#34;,
-&amp;#34;uid&amp;#34;: &amp;#34;${datasource}&amp;#34;
-},
-&amp;#34;fieldConfig&amp;#34;: {
-&amp;#34;defaults&amp;#34;: {
-&amp;#34;color&amp;#34;: {
-&amp;#34;mode&amp;#34;: &amp;#34;thresholds&amp;#34;
-},
-&amp;#34;custom&amp;#34;: {
-&amp;#34;align&amp;#34;: &amp;#34;auto&amp;#34;,
-&amp;#34;cellOptions&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;auto&amp;#34;
-},
-&amp;#34;inspect&amp;#34;: false
-},
-&amp;#34;mappings&amp;#34;: [],
-&amp;#34;thresholds&amp;#34;: {
-&amp;#34;mode&amp;#34;: &amp;#34;absolute&amp;#34;,
-&amp;#34;steps&amp;#34;: [
-{
-&amp;#34;color&amp;#34;: &amp;#34;green&amp;#34;,
-&amp;#34;value&amp;#34;: 0
-}
-]
-}
-},
-&amp;#34;overrides&amp;#34;: [
-{
-&amp;#34;matcher&amp;#34;: {
-&amp;#34;id&amp;#34;: &amp;#34;byName&amp;#34;,
-&amp;#34;options&amp;#34;: &amp;#34;traceID&amp;#34;
-},
-&amp;#34;properties&amp;#34;: [
-{
-&amp;#34;id&amp;#34;: &amp;#34;links&amp;#34;,
-&amp;#34;value&amp;#34;: [
-{
-&amp;#34;title&amp;#34;: &amp;#34;View Trace&amp;#34;,
-&amp;#34;url&amp;#34;: &amp;#34;/explore?orgId=1&amp;amp;left=%7B%22datasource%22:%22${datasource}%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22datasource%22:%7B%22type%22:%22tempo%22,%22uid%22:%22${datasource}%22%7D,%22queryType%22:%22traceql%22,%22limit%22:20,%22query%22:%22${__value.raw}%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D&amp;#34;
-}
-]
-}
-]
-},
-{
-&amp;#34;matcher&amp;#34;: {
-&amp;#34;id&amp;#34;: &amp;#34;byName&amp;#34;,
-&amp;#34;options&amp;#34;: &amp;#34;duration&amp;#34;
-},
-&amp;#34;properties&amp;#34;: [
-{
-&amp;#34;id&amp;#34;: &amp;#34;unit&amp;#34;,
-&amp;#34;value&amp;#34;: &amp;#34;ns&amp;#34;
-}
-]
-}
-]
-},
-&amp;#34;gridPos&amp;#34;: {
-&amp;#34;h&amp;#34;: 10,
-&amp;#34;w&amp;#34;: 24,
-&amp;#34;x&amp;#34;: 0,
-&amp;#34;y&amp;#34;: 12
-},
-&amp;#34;id&amp;#34;: 4,
-&amp;#34;options&amp;#34;: {
-&amp;#34;cellHeight&amp;#34;: &amp;#34;sm&amp;#34;,
-&amp;#34;footer&amp;#34;: {
-&amp;#34;countRows&amp;#34;: false,
-&amp;#34;fields&amp;#34;: &amp;#34;&amp;#34;,
-&amp;#34;reducer&amp;#34;: [
-&amp;#34;sum&amp;#34;
-],
-&amp;#34;show&amp;#34;: false
-},
-&amp;#34;showHeader&amp;#34;: true,
-&amp;#34;sortBy&amp;#34;: [
-{
-&amp;#34;desc&amp;#34;: true,
-&amp;#34;displayName&amp;#34;: &amp;#34;startTime&amp;#34;
-}
-]
-},
-&amp;#34;pluginVersion&amp;#34;: &amp;#34;12.1.0&amp;#34;,
-&amp;#34;targets&amp;#34;: [
-{
-&amp;#34;datasource&amp;#34;: {
-&amp;#34;type&amp;#34;: &amp;#34;tempo&amp;#34;,
-&amp;#34;uid&amp;#34;: &amp;#34;${datasource}&amp;#34;
-},
-&amp;#34;limit&amp;#34;: 50,
-&amp;#34;queryType&amp;#34;: &amp;#34;traceqlSearch&amp;#34;,
-&amp;#34;refId&amp;#34;: &amp;#34;A&amp;#34;,
-&amp;#34;tableType&amp;#34;: &amp;#34;traces&amp;#34;
-}
-],
-&amp;#34;title&amp;#34;: &amp;#34;Recent Traces&amp;#34;,
-&amp;#34;type&amp;#34;: &amp;#34;table&amp;#34;
-}
-],
-&amp;#34;preload&amp;#34;: false,
-&amp;#34;refresh&amp;#34;: &amp;#34;30s&amp;#34;,
-&amp;#34;schemaVersion&amp;#34;: 41,
-&amp;#34;tags&amp;#34;: [
-&amp;#34;tracing&amp;#34;,
-&amp;#34;tempo&amp;#34;,
-&amp;#34;team-a&amp;#34;
-],
-&amp;#34;templating&amp;#34;: {
-&amp;#34;list&amp;#34;: [
-{
-&amp;#34;current&amp;#34;: {
-&amp;#34;text&amp;#34;: &amp;#34;tempo-tenanta&amp;#34;,
-&amp;#34;value&amp;#34;: &amp;#34;90b71ee3-693a-4c41-8cdf-624a3bb78e7a&amp;#34;
-},
-&amp;#34;includeAll&amp;#34;: false,
-&amp;#34;label&amp;#34;: &amp;#34;Datasource&amp;#34;,
-&amp;#34;name&amp;#34;: &amp;#34;datasource&amp;#34;,
-&amp;#34;options&amp;#34;: [],
-&amp;#34;query&amp;#34;: &amp;#34;tempo&amp;#34;,
-&amp;#34;refresh&amp;#34;: 1,
-&amp;#34;regex&amp;#34;: &amp;#34;&amp;#34;,
-&amp;#34;type&amp;#34;: &amp;#34;datasource&amp;#34;
-}
-]
-},
-&amp;#34;time&amp;#34;: {
-&amp;#34;from&amp;#34;: &amp;#34;now-1h&amp;#34;,
-&amp;#34;to&amp;#34;: &amp;#34;now&amp;#34;
-},
-&amp;#34;timepicker&amp;#34;: {},
-&amp;#34;timezone&amp;#34;: &amp;#34;&amp;#34;,
-&amp;#34;title&amp;#34;: &amp;#34;Team-A Distributed Traces&amp;#34;,
-&amp;#34;uid&amp;#34;: &amp;#34;team-a-traces&amp;#34;,
-&amp;#34;version&amp;#34;: 3
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The label of the Grafana instance to target. This is the label we added to the Grafana instance when we created it.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The JSON data of the dashboard (yes, it’s a monster!).&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now you will see a new dashboard in the Grafana UI. Navigate to &lt;strong&gt;Dashboards&lt;/strong&gt; and find &lt;strong&gt;Team-A Distributed Traces&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/grafana-dashboard.webp" alt="Grafana Dashboard"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_next_steps"&gt;Next Steps&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Congratulations! &lt;strong&gt;The Cat has summoned Grafana&lt;/strong&gt; .&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/observability/images/observability/cat-wizard-done-its-job.png?width=400px" alt="Cat Wizard"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You now have a functional Grafana instance with Tempo integration for team-a. Here are some ideas for extending this setup:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Add Loki datasource&lt;/strong&gt;: Correlate traces with logs using derived fields&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Add Prometheus datasource&lt;/strong&gt;: Link metrics to traces for full observability&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Create alerting rules&lt;/strong&gt;: Set up alerts for high latency or error rates&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Build more dashboards&lt;/strong&gt;: Create service-specific dashboards for different applications&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As mentioned above, Grafana and its dashboards are powerful tools for visualizing and exploring traces. There are tons of things to configure and set up.
-Maybe I will cover some of these things in a future article.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Happy tracing! 🚀&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item></channel></rss>
