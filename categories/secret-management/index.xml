@@ -1,4 +1,1284 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Secret Management on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/secret-management/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 26 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/secret-management/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - Secrets Engines KV - Part 8</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/</link><pubDate>Wed, 25 Mar 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Secret Management on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/categories/secret-management/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 03 Aug 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/categories/secret-management/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - Kubernetes Integration - Part 10</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-08-03-openbao-part-10-kubernetes-integration/</link><pubDate>Mon, 03 Aug 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-08-03-openbao-part-10-kubernetes-integration/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;With authentication and secrets engines configured, the next step is enabling applications to consume secrets. This article covers three integration patterns on OpenShift:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;the &lt;strong&gt;Agent Injector&lt;/strong&gt; for sidecar injection&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the &lt;strong&gt;CSI Provider&lt;/strong&gt; for volume mounts&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the &lt;strong&gt;External Secrets Operator (ESO)&lt;/strong&gt; for syncing to native Kubernetes Secrets.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;There are three main patterns for Kubernetes workloads to consume OpenBao secrets:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 14.2857%;"/&gt;
+&lt;col style="width: 28.5714%;"/&gt;
+&lt;col style="width: 28.5714%;"/&gt;
+&lt;col style="width: 28.5715%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Method&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;How It Works&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Pros&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Cons&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Agent Injector&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Sidecar injects secrets as files under &lt;code&gt;/vault/secrets/&lt;/code&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Automatic renewal, templates, dynamic secrets&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Extra container per pod&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;CSI Provider&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Mounts secrets as volumes (optional sync to a Secret)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No sidecar needed&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No continuous auto-renewal (refresh on pod restart)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;External Secrets Operator&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Syncs to native Kubernetes Secrets&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;GitOps-friendly, standard &lt;code&gt;secretKeyRef&lt;/code&gt; / volumes&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Additional operator + NetworkPolicy considerations on OpenShift&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+OpenBao keeps a Vault-compatible API. Agent Injector annotations still use the &lt;code&gt;vault.hashicorp.com/&lt;/code&gt; prefix, and ESO uses its Vault provider. The CSI provider, however, uses &lt;code&gt;provider: openbao&lt;/code&gt; and &lt;code&gt;baoAddress&lt;/code&gt; / &lt;code&gt;baoCACertPath&lt;/code&gt; parameters. Still, it should be easy to understand the differences and map everything to HashiCorp Vault.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_lab_assumptions"&gt;Lab assumptions&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;These examples assume:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenBao is installed in namespace &lt;code&gt;openbao&lt;/code&gt; with TLS (see the series articles on OpenShift deployment and TLS, and test case &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-OCP-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-OCP-001&lt;/a&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Kubernetes auth is enabled and configured (&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-AUTH-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-AUTH-001&lt;/a&gt; / &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/" rel="noopener" target="_blank"&gt;Part 7&lt;/a&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A KV v2 mount exists at &lt;code&gt;secret/&lt;/code&gt; (&lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/" rel="noopener" target="_blank"&gt;Part 8&lt;/a&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Policy &lt;code&gt;myapp&lt;/code&gt; allows &lt;code&gt;read&lt;/code&gt; on &lt;code&gt;secret/data/myapp/*&lt;/code&gt; (and metadata list as needed).&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Related &lt;strong&gt;Test Cases&lt;/strong&gt; are:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-KV-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-KV-001&lt;/a&gt; — Enable and Use KV v2 Secrets Engine&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-KV-003?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-KV-003&lt;/a&gt; — KV Secret Rotation Pattern with CAS&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-UC-003?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-UC-003&lt;/a&gt; — Multi-Tenant Secret Isolation&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-DB-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-DB-001&lt;/a&gt; — Dynamic PostgreSQL Credentials&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;These and other test cases are available on &lt;a href="https://tests.stdin.at/" rel="noopener" target="_blank"&gt;tests.stdin.at&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create the lab namespace and ServiceAccount. This namespace will be reused for all three patterns below:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc new-project myapp
+oc create serviceaccount myapp-sa -n myapp&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Store sample secrets and bind the auth role to &lt;strong&gt;this&lt;/strong&gt; namespace:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock important"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-important" title="Important"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;OpenBao must be installed and you need proper access to the API.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Brief reminder:
+export BAO_CACERT=&amp;#34;$HOME/openbao-tests/openbao-ca.crt&amp;#34;
+export BAO_ADDR=&amp;#39;https://127.0.0.1:8200&amp;#39;
+export BAO_TOKEN=$(jq -r &amp;#39;.root_token&amp;#39; openbao-init.json)
+bao status&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Allow the myapp identity to read KV v2 data (and list metadata) under secret/myapp/
+bao policy write myapp - &amp;lt;&amp;lt;&amp;#39;EOF&amp;#39;
+path &amp;#34;secret/data/myapp/*&amp;#34; {
+capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;]
+}
+path &amp;#34;secret/metadata/myapp/*&amp;#34; {
+capabilities = [&amp;#34;list&amp;#34;]
+}
+EOF
+# Map ServiceAccount myapp-sa in namespace myapp to that policy via Kubernetes auth
+bao write auth/kubernetes/role/myapp \
+bound_service_account_names=myapp-sa \
+bound_service_account_namespaces=myapp \
+policies=myapp \
+ttl=1h
+# Seed sample secrets for Injector / CSI / ESO examples later in this article
+bao kv put secret/myapp/config db_host=pg.example.com db_password=s3cret
+bao kv put secret/myapp/api key=api-key-123&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock important"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-important" title="Important"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If &lt;code&gt;cas_required&lt;/code&gt; is enabled on the KV mount (&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-KV-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-KV-002&lt;/a&gt;), every write must include &lt;code&gt;-cas=&amp;lt;current_version&amp;gt;&lt;/code&gt;. When updating values that ESO or CSI consume, rewrite &lt;strong&gt;all&lt;/strong&gt; properties the consumer expects — a partial put replaces the whole version and drops missing keys.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_pattern_1_agent_injector"&gt;Pattern 1: Agent Injector&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Agent Injector uses a mutating webhook to &lt;strong&gt;inject an init container&lt;/strong&gt; and an optional sidecar that authenticates to OpenBao and renders secrets under &lt;code&gt;/vault/secrets/&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_how_it_works"&gt;How It Works&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-none hljs"&gt;1. Pod created with vault.hashicorp.com/* annotations
+2. Mutating webhook intercepts admission
+3. vault-agent-init (and optionally vault-agent sidecar) injected
+4. Agent authenticates with the pod ServiceAccount JWT (Kubernetes auth)
+5. Agent retrieves secrets and writes templated files
+6. Application reads from /vault/secrets/
+7. Sidecar renews tokens / leases and re-renders as needed&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_prerequisites"&gt;Prerequisites&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On the OpenShift Helm deployment used in this series, the injector is enabled with the chart (typically two replicas) as part of &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-OCP-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-OCP-001&lt;/a&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;injector:
+enabled: true
+replicas: 2&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify it is running:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n openbao -l app.kubernetes.io/name=openbao-agent-injector
+# Check webhook
+oc get mutatingwebhookconfigurations | grep openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_tls_trust_in_the_application_namespace"&gt;TLS trust in the application namespace&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With a TLS listener, the Agent must trust the OpenBao CA. Copy the CA into the app namespace and reference it from annotations (&lt;code&gt;tls-secret&lt;/code&gt; / &lt;code&gt;ca-cert&lt;/code&gt;):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc create secret generic openbao-ca -n myapp \
+--from-literal=ca.crt=&amp;#34;$(oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}&amp;#39; | base64 -d)&amp;#34; \
+--dry-run=client -o yaml | oc apply -f -&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_deploy_an_application_with_annotations"&gt;Deploy an application with annotations&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Deployment below follows &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-003?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-003&lt;/a&gt; (OpenBao Agent Sidecar Injector). That test case validates the full path: mutating webhook injection, Kubernetes auth as ServiceAccount &lt;code&gt;myapp-sa&lt;/code&gt;, OpenBao role &lt;code&gt;myapp&lt;/code&gt;, TLS trust via the &lt;code&gt;openbao-ca&lt;/code&gt; secret copied earlier, and rendered files under &lt;code&gt;/vault/secrets/&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In practical terms, the annotations tell the Agent to:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;authenticate with role &lt;code&gt;myapp&lt;/code&gt; (bound to &lt;code&gt;myapp-sa&lt;/code&gt; in namespace &lt;code&gt;myapp&lt;/code&gt;);&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;fetch KV v2 paths &lt;code&gt;secret/data/myapp/config&lt;/code&gt; and &lt;code&gt;secret/data/myapp/api&lt;/code&gt;;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;write templated output to &lt;code&gt;/vault/secrets/config.txt&lt;/code&gt; and &lt;code&gt;/vault/secrets/api-key&lt;/code&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;cat &amp;lt;&amp;lt;EOF | oc apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: myapp
+namespace: myapp
+spec:
+replicas: 1
+selector:
+matchLabels:
+app: myapp
+template:
+metadata:
+labels:
+app: myapp
+annotations:
+vault.hashicorp.com/agent-inject: &amp;#34;true&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+vault.hashicorp.com/role: &amp;#34;myapp&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+vault.hashicorp.com/tls-secret: &amp;#34;openbao-ca&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+vault.hashicorp.com/ca-cert: &amp;#34;/vault/tls/ca.crt&amp;#34;
+vault.hashicorp.com/agent-inject-secret-config.txt: &amp;#34;secret/data/myapp/config&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+vault.hashicorp.com/agent-inject-template-config.txt: |
+{{- with secret &amp;#34;secret/data/myapp/config&amp;#34; -}}
+DB_HOST={{ .Data.data.db_host }}
+DB_PASSWORD={{ .Data.data.db_password }}
+{{- end }}
+vault.hashicorp.com/agent-inject-secret-api-key: &amp;#34;secret/data/myapp/api&amp;#34;
+vault.hashicorp.com/agent-inject-template-api-key: |
+{{- with secret &amp;#34;secret/data/myapp/api&amp;#34; -}}
+{{ .Data.data.key }}
+{{- end }}
+spec:
+serviceAccountName: myapp-sa &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+securityContext:
+runAsNonRoot: true
+seccompProfile:
+type: RuntimeDefault
+containers:
+- name: app
+image: curlimages/curl:latest
+command: [&amp;#34;sleep&amp;#34;, &amp;#34;infinity&amp;#34;]
+securityContext:
+allowPrivilegeEscalation: false
+capabilities:
+drop: [&amp;#34;ALL&amp;#34;]
+runAsNonRoot: true
+seccompProfile:
+type: RuntimeDefault
+EOF&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable injection (API-compatible &lt;code&gt;vault.hashicorp.com&lt;/code&gt; annotations).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Kubernetes auth role name in OpenBao.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Secret in the app namespace that holds the OpenBao CA.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;KV v2 path includes the &lt;code&gt;/data/&lt;/code&gt; segment for the Agent template.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Must match &lt;code&gt;bound_service_account_names&lt;/code&gt; / &lt;code&gt;namespaces&lt;/code&gt; on the role.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verify_injection"&gt;Verify injection&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n myapp
+# Expect READY 2/2 (app + vault-agent) when the sidecar is enabled
+oc get pods -n myapp -o jsonpath=&amp;#39;{.items[0].spec.containers[*].name}{&amp;#34;\n&amp;#34;}&amp;#39;
+# Expected: app vault-agent
+oc get pods -n myapp -o jsonpath=&amp;#39;{.items[0].spec.initContainers[*].name}{&amp;#34;\n&amp;#34;}&amp;#39;
+# Expected: vault-agent-init
+oc exec -it deploy/myapp -c app -n myapp -- cat /vault/secrets/config.txt
+# Expected: DB_HOST=pg.example.com
+# DB_PASSWORD=s3cret
+oc exec -it deploy/myapp -c app -n myapp -- cat /vault/secrets/api-key
+# Expected: api-key-123&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_common_annotations"&gt;Common annotations&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 60%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Annotation&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Description&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/agent-inject&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enable/disable injection (&lt;code&gt;&amp;#34;true&amp;#34;&lt;/code&gt; / &lt;code&gt;&amp;#34;false&amp;#34;&lt;/code&gt;)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/role&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;OpenBao Kubernetes auth role&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/tls-secret&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Secret containing the CA used to verify OpenBao TLS&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/ca-cert&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Path to the CA file inside the Agent (for example &lt;code&gt;/vault/tls/ca.crt&lt;/code&gt;)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/agent-inject-secret-&amp;lt;name&amp;gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Secret path; creates &lt;code&gt;/vault/secrets/&amp;lt;name&amp;gt;&lt;/code&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/agent-inject-template-&amp;lt;name&amp;gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Consul Template syntax for rendering the file&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/agent-inject-status&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Set to &lt;code&gt;&amp;#34;update&amp;#34;&lt;/code&gt; to force re-injection&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/agent-pre-populate-only&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;&amp;#34;true&amp;#34;&lt;/code&gt; = init container only, no sidecar&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/agent-revoke-on-shutdown&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;code&gt;&amp;#34;true&amp;#34;&lt;/code&gt; = revoke the token when the pod terminates&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;vault.hashicorp.com/tls-skip-verify&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Skip TLS verification (lab only — prefer a real CA)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_init_container_only_mode"&gt;Init-container-only mode&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By default the injector adds both &lt;code&gt;vault-agent-init&lt;/code&gt; and a long-running &lt;code&gt;vault-agent&lt;/code&gt; sidecar. Set &lt;code&gt;agent-pre-populate-only: &amp;#34;true&amp;#34;&lt;/code&gt; when the application only needs secrets &lt;strong&gt;during the init phase&lt;/strong&gt; (for example: static KV, config files, API keys). The init container still authenticates, renders files under &lt;code&gt;/vault/secrets/&lt;/code&gt;, then exits; the sidecar is omitted, so the pod stays &lt;code&gt;1/1&lt;/code&gt; Ready and uses less CPU and memory.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Trade-off: there is &lt;strong&gt;no&lt;/strong&gt; continuous lease renewal or re-render. If OpenBao rotates a secret or a dynamic credential expires, the application will not see the update until the pod restarts.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Minimal annotations for this mode:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;annotations:
+vault.hashicorp.com/agent-inject: &amp;#34;true&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+vault.hashicorp.com/agent-pre-populate-only: &amp;#34;true&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+vault.hashicorp.com/role: &amp;#34;myapp&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+vault.hashicorp.com/tls-secret: &amp;#34;openbao-ca&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+vault.hashicorp.com/ca-cert: &amp;#34;/vault/tls/ca.crt&amp;#34;
+vault.hashicorp.com/agent-inject-secret-config.txt: &amp;#34;secret/data/myapp/config&amp;#34; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Enable the mutating webhook for this pod.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Init container only — skip the sidecar.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Kubernetes auth role (must match SA name/namespace bindings).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;CA Secret in the app namespace so the Agent trusts OpenBao TLS.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;KV v2 path to render as &lt;code&gt;/vault/secrets/config.txt&lt;/code&gt; (add further &lt;code&gt;agent-inject-secret-*&lt;/code&gt; / template annotations as needed).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock tip"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-tip" title="Tip"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For dynamic database credentials with lease renewal, prefer the full sidecar mode, see &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-UC-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-UC-002&lt;/a&gt; (Agent sidecar + PostgreSQL role).
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_pattern_2_csi_provider"&gt;Pattern 2: CSI Provider&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Secrets Store CSI Driver mounts secrets as files without an application sidecar. On OpenShift the lab flow is: install the driver (OperatorHub/Software Catalog preferred), manage &lt;code&gt;ClusterCSIDriver&lt;/code&gt;, grant the provider SCC, enable the OpenBao CSI DaemonSet on the existing Helm release, then create a &lt;code&gt;SecretProviderClass&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This section aligns with &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-002&lt;/a&gt; and the &lt;a href="https://openbao.org/docs/platform/k8s/csi/" rel="noopener" target="_blank"&gt;OpenBao CSI documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_installing_the_secrets_store_csi_driver"&gt;Installing the Secrets Store CSI Driver&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Prefer the OpenShift Operator:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Install &lt;strong&gt;Secrets Store CSI Driver for Red Hat OpenShift&lt;/strong&gt; from OperatorHub. Search for &amp;#34;Secrets Store CSI Driver for Red Hat OpenShift&amp;#34; and install the operator with the default settings.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part10_CSIStorageOperator.png?width=840px" alt="OperatorHub/Software Catalog — Secrets Store CSI Driver for Red Hat OpenShift"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On OpenShift, each CSI driver is switched on with a cluster-scoped &lt;code&gt;ClusterCSIDriver&lt;/code&gt; whose &lt;code&gt;metadata.name&lt;/code&gt; must match the driver identifier — here it is &lt;code&gt;secrets-store.csi.k8s.io&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Create that object next:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: operator.openshift.io/v1
+kind: ClusterCSIDriver
+metadata:
+name: secrets-store.csi.k8s.io &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+managementState: Managed&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Must equal the Secrets Store CSI driver name&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_openbao_csi_provider_on_openshift"&gt;OpenBao CSI provider on OpenShift&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The provider uses &lt;code&gt;hostPath&lt;/code&gt; and needs the privileged SCC:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc adm policy add-scc-to-user privileged -z openbao-csi-provider -n openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Enable CSI on the existing OpenBao Helm release (chart &lt;strong&gt;0.18.0+&lt;/strong&gt;), mounting the OpenBao CA into the DaemonSet — same steps (Step 4) as &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-002&lt;/a&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If this was done already, you can skip this step. The important part here is to enable the CSI part in OpenBao.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;helm upgrade --install openbao openbao/openbao -n openbao --reuse-values \
+--set csi.enabled=true \
+--set csi.daemonSet.securityContext.container.privileged=true \
+--set &amp;#39;csi.volumes[0].name=openbao-ca&amp;#39; \
+--set &amp;#39;csi.volumes[0].secret.secretName=openbao-ca-secret&amp;#39; \
+--set &amp;#39;csi.volumeMounts[0].name=openbao-ca&amp;#39; \
+--set &amp;#39;csi.volumeMounts[0].mountPath=/openbao/tls&amp;#39; \
+--set &amp;#39;csi.volumeMounts[0].readOnly=true&amp;#39; \
+--set &amp;#39;csi.agent.extraArgs[0]=-ca-path=/openbao/tls/ca.crt&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get ds -n openbao openbao-csi-provider
+# Desired/Ready should match the node count&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_creating_a_secretproviderclass"&gt;Creating a SecretProviderClass&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A &lt;code&gt;SecretProviderClass&lt;/code&gt; tells the Secrets Store CSI driver &lt;strong&gt;which provider&lt;/strong&gt; to call and &lt;strong&gt;which secrets to mount&lt;/strong&gt;. The CSI node plugin talks to the OpenBao CSI provider DaemonSet over gRPC; that provider then authenticates to OpenBao (Kubernetes auth role &lt;code&gt;myapp&lt;/code&gt; in our test case) and fetches the listed objects.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Unlike the Agent Injector annotations and ESO’s Vault provider, the CSI parameters are OpenBao-specific. The CA file path must match the volume mounted into the provider DaemonSet in the Helm step above (&lt;code&gt;/openbao/tls/ca.crt&lt;/code&gt;), so TLS verification succeeds.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+name: openbao-secrets
+namespace: myapp
+spec:
+provider: openbao &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+parameters:
+baoAddress: &amp;#34;https://openbao.openbao.svc:8200&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+baoCACertPath: &amp;#34;/openbao/tls/ca.crt&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+roleName: &amp;#34;myapp&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+objects: |
+- objectName: &amp;#34;db_password&amp;#34;
+secretPath: &amp;#34;secret/data/myapp/config&amp;#34;
+secretKey: &amp;#34;db_password&amp;#34;
+- objectName: &amp;#34;api_key&amp;#34;
+secretPath: &amp;#34;secret/data/myapp/api&amp;#34;
+secretKey: &amp;#34;key&amp;#34;
+secretObjects: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+- secretName: myapp-synced
+type: Opaque
+data:
+- objectName: db_password
+key: db_password
+- objectName: api_key
+key: api_key&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;OpenBao CSI provider name — do not use &lt;code&gt;vault&lt;/code&gt; here.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;In-cluster Service DNS and HTTPS listener; avoid the public Route for node-local mounts.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;CA path &lt;strong&gt;inside the CSI provider DaemonSet&lt;/strong&gt; (from the Helm &lt;code&gt;csi.volumeMounts&lt;/code&gt;), not a path in the app pod.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Kubernetes auth role; the mounting pod’s ServiceAccount must match the role bindings.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Optional: also sync mounted files into a native Secret (&lt;code&gt;myapp-synced&lt;/code&gt;) for &lt;code&gt;secretKeyRef&lt;/code&gt; / env vars.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_using_csi_in_a_pod"&gt;Using CSI in a Pod&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The application pod does &lt;strong&gt;not&lt;/strong&gt; talk to OpenBao itself. It mounts an ephemeral CSI volume that references the &lt;code&gt;SecretProviderClass&lt;/code&gt;. On start, kubelet asks the Secrets Store CSI driver; the driver calls the OpenBao provider, which logs in with the pod’s ServiceAccount JWT and writes the secret objects into the volume (and, if configured, into the synced Secret).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use the same ServiceAccount (&lt;code&gt;myapp-sa&lt;/code&gt;) that the OpenBao role allows. Unlike the Agent Injector, there is no sidecar — the pod stays a single container, and secret files appear under the mount path you choose (here &lt;code&gt;/mnt/secrets&lt;/code&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This time a simple Pod …​ because I am too lazy to create a Deployment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+kind: Pod
+metadata:
+name: myapp-pod
+namespace: myapp
+spec:
+serviceAccountName: myapp-sa &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+securityContext:
+runAsNonRoot: true
+seccompProfile:
+type: RuntimeDefault
+containers:
+- name: app
+image: curlimages/curl:latest
+command: [&amp;#34;sleep&amp;#34;, &amp;#34;infinity&amp;#34;]
+securityContext:
+allowPrivilegeEscalation: false
+capabilities:
+drop: [&amp;#34;ALL&amp;#34;]
+runAsNonRoot: true
+seccompProfile:
+type: RuntimeDefault
+volumeMounts:
+- name: secrets
+mountPath: /mnt/secrets &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+readOnly: true
+env:
+- name: DB_PASSWORD
+valueFrom:
+secretKeyRef:
+name: myapp-synced &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+key: db_password
+volumes:
+- name: secrets
+csi:
+driver: secrets-store.csi.k8s.io &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+readOnly: true
+volumeAttributes:
+secretProviderClass: openbao-secrets &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Must match &lt;code&gt;bound_service_account_names&lt;/code&gt; / &lt;code&gt;namespaces&lt;/code&gt; on role &lt;code&gt;myapp&lt;/code&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Files such as &lt;code&gt;db_password&lt;/code&gt; and &lt;code&gt;api_key&lt;/code&gt; appear here (&lt;code&gt;objectName&lt;/code&gt; from the SecretProviderClass).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Optional env consumption via the synced Secret from &lt;code&gt;secretObjects&lt;/code&gt; — only works if that block was defined.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Driver registered by the &lt;code&gt;ClusterCSIDriver&lt;/code&gt; earlier in this section.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Links this volume to the &lt;code&gt;SecretProviderClass&lt;/code&gt; in the same namespace.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc exec -it myapp-pod -n myapp -- ls -la /mnt/secrets/
+oc exec -it myapp-pod -n myapp -- cat /mnt/secrets/db_password&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;hr/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_pattern_3_external_secrets_operator_eso"&gt;Pattern 3: External Secrets Operator (ESO)&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The External Secrets Operator (ESO) synchronises secrets from OpenBao into native Kubernetes Secrets. It is a controller that talks to an external secrets backend (OpenBao here) and creates a native Secret in the namespace for the application to consume. The OpenShift lab path is &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-001&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_installing_external_secrets_operator"&gt;Installing External Secrets Operator&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;On OpenShift, install &lt;strong&gt;External Secrets Operator for Red Hat OpenShift&lt;/strong&gt; from OperatorHub/Software Catalog. After the Operator is installed, create an &lt;code&gt;ExternalSecretsConfig&lt;/code&gt; named &lt;code&gt;cluster&lt;/code&gt;. This is a cluster-scoped object and will start the controller.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock important"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-important" title="Important"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The default NetworkPolicies for the Red Hat ESO operand deny egress. Without an allow rule to OpenBao on TCP/8200, SecretStore login fails with &lt;code&gt;context deadline exceeded&lt;/code&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: operator.openshift.io/v1alpha1
+kind: ExternalSecretsConfig
+metadata:
+name: cluster
+spec:
+controllerConfig:
+networkPolicies:
+- name: allow-openbao-egress
+componentName: ExternalSecretsCoreController
+egress:
+- ports:
+- protocol: TCP
+port: 8200
+to:
+- namespaceSelector:
+matchLabels:
+kubernetes.io/metadata.name: openbao&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify the deployment:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods -n external-secrets&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_creating_a_secretstore"&gt;Creating a SecretStore&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A &lt;code&gt;SecretStore&lt;/code&gt; is a &lt;strong&gt;namespaced&lt;/strong&gt; object that defines the connection to OpenBao: it tells ESO how to reach OpenBao and how to authenticate. It does not create application Secrets by itself — that is the job of an &lt;code&gt;ExternalSecret&lt;/code&gt; in the next step.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Because the lab uses TLS, first fetch the CA certificate from the OpenBao CA Secret and use it for the &lt;strong&gt;SecretStore&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Base64 CA PEM (one line) for caBundle
+oc get secret openbao-ca-secret -n openbao -o jsonpath=&amp;#39;{.data.ca\.crt}{&amp;#34;\n&amp;#34;}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;ESO has no separate “OpenBao” provider. Use the &lt;strong&gt;Vault&lt;/strong&gt; provider against OpenBao’s compatible API, with Kubernetes auth and the same &lt;code&gt;myapp&lt;/code&gt; / &lt;code&gt;myapp-sa&lt;/code&gt; bindings as Injector and CSI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock important"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-important" title="Important"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Replace the &lt;code&gt;&amp;lt;BASE64_CA_PEM&amp;gt;&lt;/code&gt; with the base64 encoded CA certificate.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+name: openbao-backend
+namespace: myapp
+spec:
+provider:
+vault: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+server: &amp;#34;https://openbao.openbao.svc:8200&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+path: &amp;#34;secret&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+version: &amp;#34;v2&amp;#34;
+caBundle: &amp;#34;&amp;lt;BASE64_CA_PEM&amp;gt;&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+auth:
+kubernetes:
+mountPath: &amp;#34;kubernetes&amp;#34;
+role: &amp;#34;myapp&amp;#34; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+serviceAccountRef:
+name: myapp-sa&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Vault provider → OpenBao’s compatible HTTP API (there is no &lt;code&gt;openbao:&lt;/code&gt; block in ESO yet).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;In-cluster Service over HTTPS; the ESO controller must be allowed to reach it (NetworkPolicy above).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;KV mount path &lt;strong&gt;without trailing slash&lt;/strong&gt;; version.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Paste the base64 value from &lt;code&gt;openbao-ca-secret&lt;/code&gt; (do not wrap or re-encode).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Role and SA must match OpenBao’s Kubernetes auth bindings for namespace &lt;code&gt;myapp&lt;/code&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get secretstore openbao-backend -n myapp
+# STATUS should indicate Ready / Valid&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If the store stays Not Ready, check NetworkPolicy egress to OpenBao, the &lt;code&gt;caBundle&lt;/code&gt;, and that role &lt;code&gt;myapp&lt;/code&gt; still allows &lt;code&gt;myapp-sa&lt;/code&gt; in &lt;code&gt;myapp&lt;/code&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For cluster-wide access, use a &lt;code&gt;ClusterSecretStore&lt;/code&gt; with a ServiceAccount that OpenBao trusts (role + policy bound to that SA/namespace).
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_creating_an_externalsecret"&gt;Creating an ExternalSecret&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;An &lt;code&gt;ExternalSecret&lt;/code&gt; maps remote OpenBao keys onto a &lt;strong&gt;native&lt;/strong&gt; Kubernetes Secret. ESO periodically authenticates via the &lt;code&gt;SecretStore&lt;/code&gt;, reads the listed properties, and writes (or updates) the target Secret. Applications then use ordinary &lt;code&gt;secretKeyRef&lt;/code&gt; or volume mounts — they never call OpenBao directly. This keeps applications secret-agnostic so developers can keep using ordinary Kubernetes Secret consumption.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+name: myapp-secrets
+namespace: myapp
+spec:
+refreshInterval: &amp;#34;5m&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+secretStoreRef:
+name: openbao-backend
+kind: SecretStore
+target:
+name: myapp-secrets &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+creationPolicy: Owner
+template:
+type: Opaque
+data:
+- secretKey: db_host &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+remoteRef:
+key: myapp/config &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
+property: db_host
+- secretKey: db_password
+remoteRef:
+key: myapp/config
+property: db_password
+- secretKey: api_key
+remoteRef:
+key: myapp/api
+property: key&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;How often ESO re-reads OpenBao; use &lt;code&gt;force-sync&lt;/code&gt; (below) for an immediate refresh in the lab.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Name of the Kubernetes Secret that ESO creates or owns in this namespace.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Key name &lt;strong&gt;inside&lt;/strong&gt; the Kubernetes Secret (what the app will reference).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Path relative to the store’s &lt;code&gt;path: secret&lt;/code&gt; — &lt;strong&gt;without&lt;/strong&gt; the KV v2 &lt;code&gt;/data/&lt;/code&gt; segment.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+For KV v2, ESO’s &lt;code&gt;remoteRef.key&lt;/code&gt; is typically &lt;code&gt;myapp/config&lt;/code&gt;, while Agent/CSI templates use &lt;code&gt;secret/data/myapp/config&lt;/code&gt;. Mixing the two path styles is a common source of sync errors.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first command will show the status of the sync process. The second command will fetch the actual generated secret and show the keys and values.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get ExternalSecret myapp-secrets -n myapp
+# STATUS should be SecretSynced
+oc get secret myapp-secrets -n myapp -o jsonpath=&amp;#39;{.data}&amp;#39; | \
+jq &amp;#39;to_entries[] | {key: .key, value: (.value | @base64d)}&amp;#39;
+# Should show db_host, db_password, api_key&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_fetching_all_keys_from_a_specific_path"&gt;Fetching all keys from a specific path&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;When every field under one OpenBao secret should become a Kubernetes Secret key, use &lt;code&gt;dataFrom.extract&lt;/code&gt; instead of listing each &lt;code&gt;property&lt;/code&gt;. Here all keys from &lt;code&gt;secret/myapp/config&lt;/code&gt; (for example &lt;code&gt;db_host&lt;/code&gt;, &lt;code&gt;db_password&lt;/code&gt;) are copied into &lt;code&gt;myapp-all-config&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+name: myapp-all-config
+namespace: myapp
+spec:
+refreshInterval: 1h
+secretStoreRef:
+name: openbao-backend
+kind: SecretStore
+target:
+name: myapp-all-config
+dataFrom:
+- extract:
+key: myapp/config&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_using_the_generated_secret"&gt;Using the generated Secret&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Once the ExternalSecret is synced, treat &lt;code&gt;myapp-secrets&lt;/code&gt; like any other Opaque Secret: environment variables via &lt;code&gt;secretKeyRef&lt;/code&gt;, or files via a &lt;code&gt;secret&lt;/code&gt; volume. No Injector annotations or CSI &lt;code&gt;SecretProviderClass&lt;/code&gt; are required on the workload.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: myapp-eso
+namespace: myapp
+spec:
+replicas: 1
+selector:
+matchLabels:
+app: myapp-eso
+template:
+metadata:
+labels:
+app: myapp-eso
+spec:
+containers:
+- name: app
+image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+command: [&amp;#34;sleep&amp;#34;, &amp;#34;infinity&amp;#34;] &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+env:
+- name: DB_HOST
+valueFrom:
+secretKeyRef:
+name: myapp-secrets &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+key: db_host
+- name: DB_PASSWORD
+valueFrom:
+secretKeyRef:
+name: myapp-secrets
+key: db_password
+volumeMounts:
+- name: config
+mountPath: /etc/config
+readOnly: true
+volumes:
+- name: config
+secret:
+secretName: myapp-secrets &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Keeps the lab Pod running so &lt;code&gt;oc exec&lt;/code&gt; verification works; replace with the real application entrypoint in production.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Keys match &lt;code&gt;secretKey&lt;/code&gt; values from the ExternalSecret &lt;code&gt;data&lt;/code&gt; list.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Same Secret mounted as files under &lt;code&gt;/etc/config&lt;/code&gt; (one file per key).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Environment variables from secretKeyRef
+oc exec -n myapp deploy/myapp-eso -- printenv DB_HOST DB_PASSWORD
+# Expect the decoded values from myapp-secrets
+# Files from the secret volume (one file per key)
+oc exec -n myapp deploy/myapp-eso -- ls -l /etc/config
+# Expect db_host, db_password, api_key&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_refresh_after_an_openbao_update"&gt;Refresh after an OpenBao update&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;KV v2 writes replace the &lt;strong&gt;entire&lt;/strong&gt; version. When you rotate a password, rewrite every property the ExternalSecret still expects, or those keys disappear from the synced Secret. If &lt;code&gt;cas_required&lt;/code&gt; is enabled, include &lt;code&gt;-cas=&amp;lt;current_version&amp;gt;&lt;/code&gt; (see &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-KV-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-KV-002&lt;/a&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Rewrite all fields the ExternalSecret reads (KV v2 put replaces the version)
+bao kv put --cas=&amp;lt;latest_version&amp;gt; secret/myapp/config \
+db_host=pg.example.com \
+db_password=newP@ssw0rd
+# Force an immediate sync (do not wait for refreshInterval)
+oc annotate externalsecret myapp-secrets -n myapp force-sync=$(date +%s) --overwrite&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_verifying_externalsecret_status"&gt;Verifying ExternalSecret status&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Confirm both the ExternalSecret condition and the materialised Secret contents:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get externalsecret -n myapp
+# Expect SecretSynced / Ready
+oc get secret myapp-secrets -n myapp -o jsonpath=&amp;#39;{.data}&amp;#39; | \
+jq &amp;#39;to_entries[] | {key: .key, value: (.value | @base64d)}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_comparing_integration_methods"&gt;Comparing integration methods&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 25%;"/&gt;
+&lt;col style="width: 25%;"/&gt;
+&lt;col style="width: 25%;"/&gt;
+&lt;col style="width: 25%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Feature&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Agent Injector&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;CSI Provider&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;ESO&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Auto-renewal&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No (pod lifecycle)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (refresh interval / force-sync)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Sidecar needed&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;GitOps-friendly&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Annotations on workloads&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;SecretProviderClass + pod volume&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (ExternalSecret CRs)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Standard K8s Secret&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No (files; optional app logic)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Optional via &lt;code&gt;secretObjects&lt;/code&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Dynamic secrets&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Limited&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Limited&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Template support&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (Agent templates)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;No&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Yes (ESO templates)&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;OpenShift extras&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Injector CA secret&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;ClusterCSIDriver, SCC, Helm CSI&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;ExternalSecretsConfig + NetworkPolicy&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_best_practices"&gt;Best practices&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_choose_the_right_pattern"&gt;Choose the right pattern&lt;/h3&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent Injector&lt;/strong&gt;: auto-renewal, dynamic secrets, or Consul Template-style files (&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-003?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-003&lt;/a&gt;, &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-UC-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-UC-002&lt;/a&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;CSI Provider&lt;/strong&gt;: simple file mounts or synced Secrets without a sidecar (&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-002&lt;/a&gt;).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;ESO&lt;/strong&gt;: GitOps and native &lt;code&gt;Secret&lt;/code&gt; consumption (&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-001&lt;/a&gt;); combine with Sealed Secrets migration patterns in &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-004?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-004&lt;/a&gt; if you are moving off Bitnami Sealed Secrets.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_security_considerations"&gt;Security considerations&lt;/h3&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Bind roles to a single namespace and SA
+bao write auth/kubernetes/role/myapp \
+bound_service_account_names=myapp-sa \
+bound_service_account_namespaces=myapp \
+policies=myapp \
+ttl=1h
+# Prefer short TTLs for dynamic database roles
+bao write database/roles/myapp-readonly \
+default_ttl=1h \
+max_ttl=4h&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Always trust OpenBao TLS with a real CA (&lt;code&gt;caBundle&lt;/code&gt;, &lt;code&gt;baoCACertPath&lt;/code&gt;, or &lt;code&gt;tls-secret&lt;/code&gt;) instead of &lt;code&gt;tls-skip-verify&lt;/code&gt; outside throwaway labs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This article covered three patterns for integrating OpenBao with Kubernetes and OpenShift:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Agent Injector&lt;/strong&gt;: dynamic secrets and auto-renewal via annotated pods&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;CSI Provider&lt;/strong&gt;: volume mounts (and optional synced Secrets) with the OpenBao CSI provider&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;External Secrets Operator&lt;/strong&gt;: GitOps-friendly native Secrets, including OpenShift NetworkPolicy and TLS details&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Choose the pattern that fits each workload, or combine them. Step-by-step validation lives in the OpenBao plan on &lt;a href="https://tests.stdin.at/?product=openbao" rel="noopener" target="_blank"&gt;tests.stdin.at&lt;/a&gt;: &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-001 — ESO&lt;/a&gt;, &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-002 — CSI&lt;/a&gt;, &lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-003?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-003 — Injector&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/injector" rel="noopener" target="_blank"&gt;Agent Injector documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/csi" rel="noopener" target="_blank"&gt;CSI Provider documentation&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://external-secrets.io/latest/provider/hashicorp-vault/" rel="noopener" target="_blank"&gt;External Secrets Operator — Vault provider&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-001?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-001 — ESO&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-002?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-002 — CSI&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href="https://tests.stdin.at/tests/TC-OPENBAO-INT-003?product=openbao" rel="noopener" target="_blank"&gt;TC-OPENBAO-INT-003 — Injector&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Secrets Engines KV - Part 8</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/</link><pubDate>Wed, 25 Mar 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-25-openbao-part-8-secrets-engines-kv/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;Secrets engines are the heart of OpenBao’s functionality. They store, generate, or encrypt data. This article covers the most commonly used secrets engine: KV for static secrets. It will demonstrate how to use the KV secrets engine to store and retrieve secrets. Upcoming articles will cover the PKI secrets engine and the integration with &lt;strong&gt;cert-manager&lt;/strong&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="sect1"&gt;
@@ -164,7 +1444,7 @@ The following example will use KV v2.
 &lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
 &lt;/td&gt;
 &lt;td class="content"&gt;
-KV v1 can be upgraded to KV v2 by using the following command as described in the documentation: &lt;a href="https://openbao.org/docs/secrets/kv/kv-v2/#upgrading-from-version-1" target="_blank" rel="noopener"&gt;Upgrading from version 1&lt;/a&gt;
+KV v1 can be upgraded to KV v2 by using the following command as described in the documentation: &lt;a href="https://openbao.org/docs/secrets/kv/kv-v2/#upgrading-from-version-1" rel="noopener" target="_blank"&gt;Upgrading from version 1&lt;/a&gt;
 &lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
@@ -581,7 +1861,7 @@ capabilities = [&amp;#34;read&amp;#34;, &amp;#34;list&amp;#34;, &amp;#34;delete&
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/secrets/kv/kv-v2" target="_blank" rel="noopener"&gt;KV Secrets Engine v2&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/secrets/kv/kv-v2" rel="noopener" target="_blank"&gt;KV Secrets Engine v2&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
@@ -671,7 +1951,7 @@ bao login&lt;/code&gt;&lt;/pre&gt;
 &lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
 &lt;/td&gt;
 &lt;td class="content"&gt;
-&lt;em&gt;Note that individual roles can restrict this value to be shorter on a per-certificate basis. This just configures the global maximum for this secrets engine.&lt;/em&gt; Source: &lt;a href="https://openbao.org/docs/secrets/pki/setup/" target="_blank" rel="noopener"&gt;PKI secrets engine - setup and usage&lt;/a&gt;
+&lt;em&gt;Note that individual roles can restrict this value to be shorter on a per-certificate basis. This just configures the global maximum for this secrets engine.&lt;/em&gt; Source: &lt;a href="https://openbao.org/docs/secrets/pki/setup/" rel="noopener" target="_blank"&gt;PKI secrets engine - setup and usage&lt;/a&gt;
 &lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
@@ -1036,7 +2316,7 @@ ext_key_usage=&amp;#34;ClientAuth&amp;#34;&lt;/code&gt;&lt;/pre&gt;
 &lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
 &lt;/td&gt;
 &lt;td class="content"&gt;
-Check out the official documentation for more details of possible options: &lt;a href="https://openbao.org/docs/" target="_blank" rel="noopener"&gt;https://openbao.org/docs/&lt;/a&gt;
+Check out the official documentation for more details of possible options: &lt;a href="https://openbao.org/docs/" rel="noopener" target="_blank"&gt;https://openbao.org/docs/&lt;/a&gt;
 &lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
@@ -1173,7 +2453,7 @@ bao policy read pki-int-workload&lt;/code&gt;&lt;/pre&gt;
 &lt;h2 id="sect-cert-manager"&gt;Integration with cert-manager&lt;/h2&gt;
 &lt;div class="sectionbody"&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://cert-manager.io/" target="_blank" rel="noopener"&gt;cert-manager&lt;/a&gt; requests TLS certificates inside Kubernetes and stores them in Secrets.
+&lt;p&gt;&lt;a href="https://cert-manager.io/" rel="noopener" target="_blank"&gt;cert-manager&lt;/a&gt; requests TLS certificates inside Kubernetes and stores them in Secrets.
 It includes a &lt;strong&gt;Vault&lt;/strong&gt; issuer that talks to HashiCorp Vault’s HTTP API; OpenBao exposes the same API for PKI and auth, so you can point that issuer at OpenBao instead of Vault.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
@@ -1213,7 +2493,7 @@ If OpenBao runs &lt;strong&gt;inside&lt;/strong&gt; the cluster (the setup assum
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;strong&gt;&lt;code&gt;kubernetes_host&lt;/code&gt;&lt;/strong&gt; — API URL reachable from the OpenBao pods (typically &lt;code&gt;&lt;a href="https://kubernetes.default.svc:443" class="bare"&gt;https://kubernetes.default.svc:443&lt;/a&gt;&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;kubernetes_host&lt;/code&gt;&lt;/strong&gt; — API URL reachable from the OpenBao pods (typically &lt;code&gt;&lt;a class="bare" href="https://kubernetes.default.svc:443"&gt;https://kubernetes.default.svc:443&lt;/a&gt;&lt;/code&gt;).&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
 &lt;p&gt;&lt;strong&gt;&lt;code&gt;kubernetes_ca_cert&lt;/code&gt;&lt;/strong&gt; — PEM of the cluster CA that signs the API server certificate (same material as in the service-account token Secret).&lt;/p&gt;
@@ -1361,7 +2641,7 @@ On plain Kubernetes, replace &lt;code&gt;oc&lt;/code&gt; with &lt;code&gt;kubect
 &lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
 &lt;/td&gt;
 &lt;td class="content"&gt;
-If logins fail after cluster upgrades or with projected service-account tokens, check whether you must set &lt;code&gt;issuer&lt;/code&gt; or related options; see &lt;a href="https://openbao.org/docs/auth/kubernetes/" target="_blank" rel="noopener"&gt;OpenBao Kubernetes auth&lt;/a&gt; and &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/"&gt;Part 7&lt;/a&gt;.
+If logins fail after cluster upgrades or with projected service-account tokens, check whether you must set &lt;code&gt;issuer&lt;/code&gt; or related options; see &lt;a href="https://openbao.org/docs/auth/kubernetes/" rel="noopener" target="_blank"&gt;OpenBao Kubernetes auth&lt;/a&gt; and &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-03-09-openbao-part-7-authentication-methods/"&gt;Part 7&lt;/a&gt;.
 &lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
@@ -1447,7 +2727,7 @@ bao write -format=json auth/kubernetes/login role=cert-manager jwt=&amp;#34;$JWT
 &lt;p&gt;The ClusterIssuer manifest below must use the same OpenBao role name in &lt;code&gt;spec.vault.auth.kubernetes.role&lt;/code&gt; (here &lt;code&gt;cert-manager&lt;/code&gt;).&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The server URL in the issuer must be reachable &lt;strong&gt;from the cert-manager pods&lt;/strong&gt; (in-cluster Service DNS is typical), for example &lt;a href="https://openbao.openbao.svc:8200" class="bare"&gt;https://openbao.openbao.svc:8200&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The server URL in the issuer must be reachable &lt;strong&gt;from the cert-manager pods&lt;/strong&gt; (in-cluster Service DNS is typical), for example &lt;a class="bare" href="https://openbao.openbao.svc:8200"&gt;https://openbao.openbao.svc:8200&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;The following is an example of a ClusterIssuer manifest.&lt;/p&gt;
@@ -1680,7 +2960,7 @@ tls.crt: 3631 bytes&lt;/code&gt;&lt;/pre&gt;
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/secrets/pki" target="_blank" rel="noopener"&gt;PKI Secrets Engine&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/secrets/pki" rel="noopener" target="_blank"&gt;PKI Secrets Engine&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
@@ -1742,7 +3022,7 @@ tls.crt: 3631 bytes&lt;/code&gt;&lt;/pre&gt;
 &lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
 &lt;/td&gt;
 &lt;td class="content"&gt;
-The full documentation of the authentication methods and the list of available methods (for example Radius) can be found here: &lt;a href="https://openbao.org/docs/auth/" target="_blank" rel="noopener"&gt;OpenBao Authentication Methods&lt;/a&gt;.
+The full documentation of the authentication methods and the list of available methods (for example Radius) can be found here: &lt;a href="https://openbao.org/docs/auth/" rel="noopener" target="_blank"&gt;OpenBao Authentication Methods&lt;/a&gt;.
 &lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
@@ -2171,7 +3451,7 @@ kubernetes_host=&amp;#34;$KUBERNETES_HOST&amp;#34;&lt;/code&gt;&lt;/pre&gt;
 &lt;table&gt;
 &lt;tbody&gt;&lt;tr&gt;
 &lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Get the Kubernetes API server address. This will use something like &lt;a href="https://api.cluster.example.com:6443" class="bare"&gt;https://api.cluster.example.com:6443&lt;/a&gt;&lt;/td&gt;
+&lt;td&gt;Get the Kubernetes API server address. This will use something like &lt;a class="bare" href="https://api.cluster.example.com:6443"&gt;https://api.cluster.example.com:6443&lt;/a&gt;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
@@ -2346,7 +3626,7 @@ bao kv put secret/expense/database password=&amp;#34;my-super-secret-db-password
 &lt;div class="sect2"&gt;
 &lt;h3 id="_step_6_create_the_expense_namespace_and_demo_application"&gt;Step 6: Create the expense namespace and demo application&lt;/h3&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;Apply the following manifests to create the namespace, service account, optional long-lived token (Kubernetes 1.24+), and a demo deployment that authenticates to OpenBao and fetches the database secret. Adjust the OpenBao URL if your OpenBao is in another namespace or uses HTTPS (e.g. &lt;code&gt;&lt;a href="https://openbao.openbao.svc:8200" class="bare"&gt;https://openbao.openbao.svc:8200&lt;/a&gt;&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;Apply the following manifests to create the namespace, service account, optional long-lived token (Kubernetes 1.24+), and a demo deployment that authenticates to OpenBao and fetches the database secret. Adjust the OpenBao URL if your OpenBao is in another namespace or uses HTTPS (e.g. &lt;code&gt;&lt;a class="bare" href="https://openbao.openbao.svc:8200"&gt;https://openbao.openbao.svc:8200&lt;/a&gt;&lt;/code&gt;).&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="admonitionblock warning"&gt;
 &lt;table&gt;
@@ -2861,19 +4141,19 @@ bao token revoke &amp;lt;old-token&amp;gt;&lt;/code&gt;&lt;/pre&gt;
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/kubernetes" target="_blank" rel="noopener"&gt;Kubernetes Auth Method&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/kubernetes" rel="noopener" target="_blank"&gt;Kubernetes Auth Method&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/jwt" target="_blank" rel="noopener"&gt;JWT/OIDC Auth Method&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/jwt" rel="noopener" target="_blank"&gt;JWT/OIDC Auth Method&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/ldap" target="_blank" rel="noopener"&gt;LDAP Auth Method&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/ldap" rel="noopener" target="_blank"&gt;LDAP Auth Method&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/approle" target="_blank" rel="noopener"&gt;AppRole Auth Method&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/auth/approle" rel="noopener" target="_blank"&gt;AppRole Auth Method&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/concepts/policies" target="_blank" rel="noopener"&gt;Policies Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/concepts/policies" rel="noopener" target="_blank"&gt;Policies Documentation&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
@@ -2902,7 +4182,7 @@ bao token revoke &amp;lt;old-token&amp;gt;&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;div class="listingblock"&gt;
 &lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-mermaid {align=" center"="" zoom="true" }="" hljs"="" data-lang="mermaid {align=" center"="" zoom="true" }"=""&gt;---
+&lt;pre class="highlightjs highlight"&gt;&lt;code center"="" class="language-mermaid {align=" data-lang="mermaid {align=" hljs"="" zoom="true" }="" }"=""&gt;---
 title: &amp;#34;Unseal Workflow&amp;#34;
 config:
 theme: &amp;#39;dark&amp;#39;
@@ -3845,7 +5125,7 @@ Be sure to update the region and key ID.
 &lt;/tbody&gt;&lt;/table&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The values file we used for Argo CD can be found at: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/openbao/values.yaml" target="_blank" rel="noopener"&gt;OpenBao Argo CD values file&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;The values file we used for Argo CD can be found at: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/openbao/values.yaml" rel="noopener" target="_blank"&gt;OpenBao Argo CD values file&lt;/a&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="listingblock"&gt;
 &lt;div class="content"&gt;
@@ -4028,7 +5308,7 @@ mount_path = &amp;#34;transit/&amp;#34;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;See the &lt;a href="https://openbao.org/docs/configuration/seal/transit/" target="_blank" rel="noopener"&gt;OpenBao transit seal&lt;/a&gt; documentation for further details.&lt;/p&gt;
+&lt;p&gt;See the &lt;a href="https://openbao.org/docs/configuration/seal/transit/" rel="noopener" target="_blank"&gt;OpenBao transit seal&lt;/a&gt; documentation for further details.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="sect4"&gt;
 &lt;h5 id="_dedicated_unseal_service_seal_only_openbao"&gt;Dedicated unseal service (seal-only OpenBao)&lt;/h5&gt;
@@ -4128,25 +5408,25 @@ Do NOT re-run init.
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/concepts/seal/" target="_blank" rel="noopener"&gt;OpenBao seal concepts&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/concepts/seal/" rel="noopener" target="_blank"&gt;OpenBao seal concepts&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/" target="_blank" rel="noopener"&gt;OpenBao on Kubernetes&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/" rel="noopener" target="_blank"&gt;OpenBao on Kubernetes&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/awskms/" target="_blank" rel="noopener"&gt;AWS KMS seal&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/awskms/" rel="noopener" target="_blank"&gt;AWS KMS seal&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/azurekeyvault/" target="_blank" rel="noopener"&gt;Azure Key Vault seal&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/azurekeyvault/" rel="noopener" target="_blank"&gt;Azure Key Vault seal&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/gcpckms/" target="_blank" rel="noopener"&gt;Google Cloud KMS seal&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/gcpckms/" rel="noopener" target="_blank"&gt;Google Cloud KMS seal&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/static/" target="_blank" rel="noopener"&gt;Static seal&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/static/" rel="noopener" target="_blank"&gt;Static seal&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/transit/" target="_blank" rel="noopener"&gt;Transit seal&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration/seal/transit/" rel="noopener" target="_blank"&gt;Transit seal&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
@@ -4237,7 +5517,7 @@ This article will focus on the deployment of the applicaiotns for the OpenBao de
 &lt;h2 id="_the_wrapper_helm_chart"&gt;The (Wrapper) Helm Chart&lt;/h2&gt;
 &lt;div class="sectionbody"&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The official OpenBao Helm Chart works well for deploying OpenBao itself. However, additional settings such as certificates are not covered there. Therefore, I created a (wrapper) Helm Chart that includes the official OpenBao Helm Chart, a &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; that I created a while ago, and allows you to add additional objects in the templates folder.&lt;/p&gt;
+&lt;p&gt;The official OpenBao Helm Chart works well for deploying OpenBao itself. However, additional settings such as certificates are not covered there. Therefore, I created a (wrapper) Helm Chart that includes the official OpenBao Helm Chart, a &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" rel="noopener" target="_blank"&gt;Cert-Manager Helm Chart&lt;/a&gt; that I created a while ago, and allows you to add additional objects in the templates folder.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;I will follow the same setup as discussed in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-17-openbao-part-4-enabling-tls"&gt;Part 4&lt;/a&gt;. This means:&lt;/p&gt;
@@ -4273,7 +5553,7 @@ This article will focus on the deployment of the applicaiotns for the OpenBao de
 &lt;div class="sect2"&gt;
 &lt;h3 id="_helm_chart_for_the_ca_certificate"&gt;Helm Chart for the CA Certificate&lt;/h3&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;Create a new Helm Chart for the CA certificate. This will use the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; as a dependency and will create the:&lt;/p&gt;
+&lt;p&gt;Create a new Helm Chart for the CA certificate. This will use the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" rel="noopener" target="_blank"&gt;Cert-Manager Helm Chart&lt;/a&gt; as a dependency and will create the:&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
@@ -4289,7 +5569,7 @@ This article will focus on the deployment of the applicaiotns for the OpenBao de
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The example I am using can be found at &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/openbao-ca-certificate" target="_blank" rel="noopener"&gt;GitOps openbao-ca-certificate&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The example I am using can be found at &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/openbao-ca-certificate" rel="noopener" target="_blank"&gt;GitOps openbao-ca-certificate&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="admonitionblock note"&gt;
 &lt;table&gt;
@@ -4298,7 +5578,7 @@ This article will focus on the deployment of the applicaiotns for the OpenBao de
 &lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
 &lt;/td&gt;
 &lt;td class="content"&gt;
-Please check the &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/" target="_blank" rel="noopener"&gt;GitOps Repository Structure&lt;/a&gt; and subsequent articles for more information on how to structure your Git repository.
+Please check the &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/" rel="noopener" target="_blank"&gt;GitOps Repository Structure&lt;/a&gt; and subsequent articles for more information on how to structure your Git repository.
 &lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
@@ -4327,7 +5607,7 @@ condition: cert-manager.enabled&lt;/code&gt;&lt;/pre&gt;
 &lt;/tbody&gt;&lt;/table&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;strong&gt;tpl&lt;/strong&gt; dependency is a library that contains templates for the namespace and other shared components (I keep this library in my &lt;a href="https://blog.stderr.at/helm-charts/" target="_blank" rel="noopener"&gt;Helm Charts&lt;/a&gt; repository). The &lt;strong&gt;cert-manager&lt;/strong&gt; dependency is the Cert-Manager Helm Chart.&lt;/p&gt;
+&lt;p&gt;The &lt;strong&gt;tpl&lt;/strong&gt; dependency is a library that contains templates for the namespace and other shared components (I keep this library in my &lt;a href="https://blog.stderr.at/helm-charts/" rel="noopener" target="_blank"&gt;Helm Charts&lt;/a&gt; repository). The &lt;strong&gt;cert-manager&lt;/strong&gt; dependency is the Cert-Manager Helm Chart.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;The &lt;strong&gt;values.yaml&lt;/strong&gt; file below contains the configuration for the Cert-Manager:&lt;/p&gt;
@@ -4447,7 +5727,7 @@ This chart creates the &lt;strong&gt;openbao&lt;/strong&gt; namespace, which is 
 &lt;div class="sect2"&gt;
 &lt;h3 id="_helm_chart_for_the_openbao_deployment"&gt;Helm Chart for the OpenBao Deployment&lt;/h3&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;Create a new Helm Chart for the OpenBao deployment. This will use the official &lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm chart&lt;/a&gt; and the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" target="_blank" rel="noopener"&gt;Cert-Manager Helm Chart&lt;/a&gt; as dependencies and will create the:&lt;/p&gt;
+&lt;p&gt;Create a new Helm Chart for the OpenBao deployment. This will use the official &lt;a href="https://github.com/openbao/openbao-helm" rel="noopener" target="_blank"&gt;OpenBao Helm chart&lt;/a&gt; and the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/cert-manager" rel="noopener" target="_blank"&gt;Cert-Manager Helm Chart&lt;/a&gt; as dependencies and will create the:&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
@@ -4463,7 +5743,7 @@ This chart creates the &lt;strong&gt;openbao&lt;/strong&gt; namespace, which is 
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;I have added the full values.yaml file below. Please check the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/openbao/values.yaml" target="_blank" rel="noopener"&gt;GitOps openbao/values.yaml&lt;/a&gt; to fetch the full chart.&lt;/p&gt;
+&lt;p&gt;I have added the full values.yaml file below. Please check the &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/openbao/values.yaml" rel="noopener" target="_blank"&gt;GitOps openbao/values.yaml&lt;/a&gt; to fetch the full chart.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="admonitionblock note"&gt;
 &lt;table&gt;
@@ -4719,7 +5999,7 @@ enabled: true&lt;/code&gt;&lt;/pre&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;Whilst the Helm Charts are ready, we need to create the Argo CD Applications for the CA certificate and the OpenBao deployment.
 If you read our blog carefully, you will notice that these Application resources are created automatically when I add something to the folder clusters/management-cluster :)
-This is done by leveraging ApplicationSet resources and is fully described in the &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/" target="_blank" rel="noopener"&gt;GitOps Repository Structure&lt;/a&gt; and subsequent articles.&lt;/p&gt;
+This is done by leveraging ApplicationSet resources and is fully described in the &lt;a href="https://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/" rel="noopener" target="_blank"&gt;GitOps Repository Structure&lt;/a&gt; and subsequent articles.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;For the sake of simplicity, I will show the created Application resources below. The setup is the same for both; they simply target a different path in the Git repository.&lt;/p&gt;
@@ -4903,13 +6183,13 @@ The ApplicationSet adds the prefix &lt;strong&gt;in-cluster-&lt;/strong&gt; to e
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/" target="_blank" rel="noopener"&gt;Configure App-of-Apps&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/" rel="noopener" target="_blank"&gt;Configure App-of-Apps&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/helm/" target="_blank" rel="noopener"&gt;Argo CD Helm Support&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/helm/" rel="noopener" target="_blank"&gt;Argo CD Helm Support&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/" target="_blank" rel="noopener"&gt;Argo CD Sync Waves&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/" rel="noopener" target="_blank"&gt;Argo CD Sync Waves&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
@@ -5880,19 +7160,19 @@ oc rollout restart statefulset/openbao -n openbao&lt;/code&gt;&lt;/pre&gt;
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/configuration/" target="_blank" rel="noopener"&gt;OpenBao Helm configuration&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/configuration/" rel="noopener" target="_blank"&gt;OpenBao Helm configuration&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/examples/injector-tls-cert-manager/" target="_blank" rel="noopener"&gt;OpenBao Agent Injector TLS with cert-manager&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/examples/injector-tls-cert-manager/" rel="noopener" target="_blank"&gt;OpenBao Agent Injector TLS with cert-manager&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://cert-manager.io/docs/" target="_blank" rel="noopener"&gt;cert-manager documentation&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://cert-manager.io/docs/" rel="noopener" target="_blank"&gt;cert-manager documentation&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;</description></item><item><title>The Guide to OpenBao - OpenShift Deployment with Helm - Part 3</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/</link><pubDate>Fri, 13 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-13-openbao-part-3-openshift-deployment/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;After understanding standalone installation in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/" target="_blank" rel="noopener"&gt;Part 2&lt;/a&gt;, it is time to deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This approach provides high availability, Kubernetes-native management, and seamless integration with the OpenShift ecosystem.&lt;/p&gt;
+&lt;p&gt;After understanding standalone installation in &lt;a href="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/" rel="noopener" target="_blank"&gt;Part 2&lt;/a&gt;, it is time to deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This approach provides high availability, Kubernetes-native management, and seamless integration with the OpenShift ecosystem.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="sect1"&gt;
 &lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
@@ -5920,7 +7200,7 @@ oc rollout restart statefulset/openbao -n openbao&lt;/code&gt;&lt;/pre&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The official &lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm chart&lt;/a&gt; supports multiple deployment modes:&lt;/p&gt;
+&lt;p&gt;The official &lt;a href="https://github.com/openbao/openbao-helm" rel="noopener" target="_blank"&gt;OpenBao Helm chart&lt;/a&gt; supports multiple deployment modes:&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
@@ -5974,7 +7254,7 @@ oc rollout restart statefulset/openbao -n openbao&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;code&gt;oc&lt;/code&gt; or &lt;code&gt;kubectl&lt;/code&gt; CLI configured&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;The OpenBao CLI (&lt;code&gt;bao&lt;/code&gt;) for initialization and unsealing (see &lt;a href="https://openbao.org/docs/install/" target="_blank" rel="noopener"&gt;OpenBao installation&lt;/a&gt;)&lt;/p&gt;
+&lt;p&gt;The OpenBao CLI (&lt;code&gt;bao&lt;/code&gt;) for initialization and unsealing (see &lt;a href="https://openbao.org/docs/install/" rel="noopener" target="_blank"&gt;OpenBao installation&lt;/a&gt;)&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
 &lt;p&gt;Cluster-admin privileges (for initial setup)&lt;/p&gt;
@@ -6075,7 +7355,7 @@ The following values definitions will use OpenShift specific settings. I will ma
 &lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
 &lt;/td&gt;
 &lt;td class="content"&gt;
-The values file is based on the official &lt;a href="https://github.com/openbao/openbao-helm/blob/main/charts/openbao/values.yaml" target="_blank" rel="noopener"&gt;values file from that chart&lt;/a&gt;, but only modified values or important changes are listed here.
+The values file is based on the official &lt;a href="https://github.com/openbao/openbao-helm/blob/main/charts/openbao/values.yaml" rel="noopener" target="_blank"&gt;values file from that chart&lt;/a&gt;, but only modified values or important changes are listed here.
 &lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;&lt;/table&gt;
@@ -6699,13 +7979,13 @@ oc exec -it openbao-0 -n openbao -- wget -O- http://openbao-1.openbao-internal:8
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm" target="_blank" rel="noopener"&gt;OpenBao Helm Chart Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm" rel="noopener" target="_blank"&gt;OpenBao Helm Chart Documentation&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/openbao/openbao-helm" target="_blank" rel="noopener"&gt;OpenBao Helm Chart GitHub&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://github.com/openbao/openbao-helm" rel="noopener" target="_blank"&gt;OpenBao Helm Chart GitHub&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/run" target="_blank" rel="noopener"&gt;Running OpenBao on Kubernetes&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/platform/k8s/helm/run" rel="noopener" target="_blank"&gt;Running OpenBao on Kubernetes&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
@@ -6940,7 +8220,7 @@ This is NOT suitable for production, it is just a test to evaluate the basic con
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;This will start the server. The UI is accessible at &lt;a href="http://localhost:8200" class="bare"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;This will start the server. The UI is accessible at &lt;a class="bare" href="http://localhost:8200"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
@@ -6949,7 +8229,7 @@ This is NOT suitable for production, it is just a test to evaluate the basic con
 &lt;h2 id="_method_2_container_image"&gt;Method 2: Container Image&lt;/h2&gt;
 &lt;div class="sectionbody"&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;For quick testing or isolated environments, container images are ideal. Luckily, OpenBao offers several types of containers suitable for any environment. We will use the image hosted on &lt;strong&gt;quay.io&lt;/strong&gt;, which is based on &lt;strong&gt;RHEL UBI&lt;/strong&gt; and can be found at: &lt;a href="https://quay.io/openbao/openbao-ubi" target="_blank" rel="noopener"&gt;quay.io/openbao/openbao-ubi&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;For quick testing or isolated environments, container images are ideal. Luckily, OpenBao offers several types of containers suitable for any environment. We will use the image hosted on &lt;strong&gt;quay.io&lt;/strong&gt;, which is based on &lt;strong&gt;RHEL UBI&lt;/strong&gt; and can be found at: &lt;a href="https://quay.io/openbao/openbao-ubi" rel="noopener" target="_blank"&gt;quay.io/openbao/openbao-ubi&lt;/a&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="sect2"&gt;
 &lt;h3 id="_using_podman"&gt;Using Podman&lt;/h3&gt;
@@ -6986,7 +8266,7 @@ podman logs -f openbao-dev&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;This will start the server. The UI is accessible at &lt;a href="http://localhost:8200" class="bare"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;This will start the server. The UI is accessible at &lt;a class="bare" href="http://localhost:8200"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="admonitionblock note"&gt;
 &lt;table&gt;
@@ -7120,7 +8400,7 @@ HA Enabled false&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;As I am testing on macOS, the swap space is encrypted out of the box.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;However, OpenBao has documented what must be done for various operating systems at &lt;a href="https://openbao.org/docs/install/#post-installation-hardening" target="_blank" rel="noopener"&gt;Post-installation hardening&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;However, OpenBao has documented what must be done for various operating systems at &lt;a href="https://openbao.org/docs/install/#post-installation-hardening" rel="noopener" target="_blank"&gt;Post-installation hardening&lt;/a&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
@@ -7587,7 +8867,7 @@ ui = true&lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;The UI is accessible at &lt;a href="http://openbao.example.com:8200" class="bare"&gt;http://openbao.example.com:8200&lt;/a&gt;. You can login with the root token from the initialization.&lt;/p&gt;
+&lt;p&gt;The UI is accessible at &lt;a class="bare" href="http://openbao.example.com:8200"&gt;http://openbao.example.com:8200&lt;/a&gt;. You can login with the root token from the initialization.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="imageblock"&gt;
 &lt;div class="content"&gt;
@@ -7723,13 +9003,13 @@ We can retrieve it now:&lt;/p&gt;
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/install" target="_blank" rel="noopener"&gt;OpenBao Installation Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/install" rel="noopener" target="_blank"&gt;OpenBao Installation Documentation&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration" target="_blank" rel="noopener"&gt;OpenBao Configuration Reference&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration" rel="noopener" target="_blank"&gt;OpenBao Configuration Reference&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/commands" target="_blank" rel="noopener"&gt;OpenBao CLI Reference&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs/commands" rel="noopener" target="_blank"&gt;OpenBao CLI Reference&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
@@ -7770,7 +9050,7 @@ Base64 is not an encryption format. It is an encoding format.
 &lt;h2 id="_what_is_openbao"&gt;What is OpenBao?&lt;/h2&gt;
 &lt;div class="sectionbody"&gt;
 &lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://openbao.org" target="_blank" rel="noopener"&gt;OpenBao&lt;/a&gt; is an identity-based secrets and encryption management system. It is an open-source, community driven fork of HashiCorp Vault and provides secure storage, fine-grained access control, and lifecycle management for secrets such as API or SSH keys, passwords, certificates, and encryption keys.&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org" rel="noopener" target="_blank"&gt;OpenBao&lt;/a&gt; is an identity-based secrets and encryption management system. It is an open-source, community driven fork of HashiCorp Vault and provides secure storage, fine-grained access control, and lifecycle management for secrets such as API or SSH keys, passwords, certificates, and encryption keys.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="paragraph"&gt;
 &lt;p&gt;The core OpenBao workflow consists of four stages:&lt;/p&gt;
@@ -8292,16 +9572,16 @@ capabilities = [&amp;#34;read&amp;#34;]
 &lt;div class="ulist"&gt;
 &lt;ul&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org" target="_blank" rel="noopener"&gt;OpenBao Official Website&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org" rel="noopener" target="_blank"&gt;OpenBao Official Website&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs" target="_blank" rel="noopener"&gt;OpenBao Documentation&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://openbao.org/docs" rel="noopener" target="_blank"&gt;OpenBao Documentation&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/openbao/openbao" target="_blank" rel="noopener"&gt;OpenBao GitHub Repository&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://github.com/openbao/openbao" rel="noopener" target="_blank"&gt;OpenBao GitHub Repository&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href="https://www.linuxfoundation.org/press/linux-foundation-launches-openbao" target="_blank" rel="noopener"&gt;Linux Foundation OpenBao Announcement&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://www.linuxfoundation.org/press/linux-foundation-launches-openbao" rel="noopener" target="_blank"&gt;Linux Foundation OpenBao Announcement&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
