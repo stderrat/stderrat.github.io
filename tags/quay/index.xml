@@ -1,4 +1,1203 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Quay on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/quay/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 19 Sep 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/quay/index.xml" rel="self" type="application/rss+xml"/><item><title>Quay</title><link>https://blog.stderr.at/openshift-platform/quay/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/quay/</guid><description/></item><item><title>Red Hat Quay Registry - Integrate Keycloak</title><link>https://blog.stderr.at/openshift-platform/quay/2025-09-19-quay-integrate-keycloak/</link><pubDate>Fri, 19 Sep 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/quay/2025-09-19-quay-integrate-keycloak/</guid><description>&lt;div class="paragraph"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Quay on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/quay/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sun, 06 Sep 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/quay/index.xml" rel="self" type="application/rss+xml"/><item><title>Quay</title><link>https://blog.stderr.at/openshift-platform/quay/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/quay/</guid><description/></item><item><title>[Ep.17] Closing the gap between CI and CD with the Argo CD Image Updater</title><link>https://blog.stderr.at/gitopscollection/2026-09-06-argocd-image-updater/</link><pubDate>Sun, 06 Sep 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2026-09-06-argocd-image-updater/</guid><description>&lt;div class="paragraph"&gt;
+&lt;p&gt;Argo CD is very good at one thing: making sure that whatever is stored in Git is what is running on the cluster. It compares both things and updates the cluster accordingly. It is not good at noticing that a CI pipeline has just published a new container image (into the registry). That is the gap between Continuous Integration and Continuous Delivery, and most of us have closed it with a small piece of glue: a pipeline task that clones the configuration repository, patches a tag and pushes the change. I did exactly that in &lt;a href="https://blog.stderr.at/securesupplychain/2023-06-23-securesupplychain-step8"&gt;Step 8 of the Secure Supply Chain series&lt;/a&gt; with a Tekton task.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;With OpenShift GitOps 1.21 the &lt;strong&gt;Argo CD Image Updater&lt;/strong&gt; became generally available. This controller aims to close the gap between CI and CD.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Instead of a hand-written pipeline task, you describe what you would like to do in an &lt;code&gt;ImageUpdater&lt;/code&gt; custom resource: which applications to watch, which images to track, which versions are acceptable and where the result should be written.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;I tried to create a full walkthrough with this article. We will build a tiny container image, deploy it with Argo CD, let the Image Updater track it, and then push a new version and watch what happens.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_what_the_image_updater_does"&gt;What the Image Updater does&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;Image Updater&lt;/strong&gt; is a controller running next to Argo CD. It runs a reconciliation loop that watches the Argo CD applications you selected and queries the container registries for newer tags of the images you configured. When it finds a version that satisfies your constraints, it instructs Argo CD to use the new image.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;There are two properties that should be considered before we start.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;The Image Updater does not deploy anything. It only changes the desired state, &lt;strong&gt;either&lt;/strong&gt; the &lt;strong&gt;Application&lt;/strong&gt; resource or a file in Git. Whether that change is rolled out depends on the sync policy of your application. With an automated sync policy the new image goes live. Without it, the application turns &lt;strong&gt;OutOfSync&lt;/strong&gt; and waits for manual input.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;The Image Updater needs &lt;strong&gt;a parameterised manifest&lt;/strong&gt;, such as Kustomize or Helm. Plain YAML with a hard-coded image in a Deployment is not supported, because there is no parameter for the controller to &lt;strong&gt;override&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The supported registries that can be observed for changes, include Docker Hub, Red Hat Quay, GitHub Container Registry, GitLab Container Registry, Google Container Registry, Azure Container Registry, JFrog Artifactory and anything else that implements the Docker Registry v2 API.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_why_not_just_use_a_pipeline_task"&gt;Why not just use a pipeline task?&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A pipeline task that patches a tag and pushes the change works. I used it myself and it is fine for a single pipeline. But as the number of applications and environments grows, the approach has a few rough edges:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;The CI pipeline needs write access to the configuration repository.&lt;/strong&gt; That is a privilege most pipelines should not have. A compromised build could push any image tag it wants. With the Image Updater, only the controller writes to the configuration repository and the CI pipeline only needs push access to the registry.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Every pipeline has to carry the same glue code.&lt;/strong&gt; Cloning a second repository, running &lt;code&gt;kustomize edit set image&lt;/code&gt; or &lt;code&gt;yq&lt;/code&gt;, committing and pushing: that logic lives in every pipeline, often copy-pasted, and it drifts over time. The Image Updater replaces all of it with a single custom resource.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;The pipeline only runs when you trigger it.&lt;/strong&gt; If somebody pushes an image outside of the pipeline, nothing happens. The Image Updater polls the registry independently, so it catches every new tag that matches the constraint, no matter who pushed it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Version constraints are built in.&lt;/strong&gt; A pipeline task blindly writes the tag it just built. The Image Updater evaluates semantic version ranges, tag filters and ignore lists before it acts. You define what is acceptable once and the controller enforces it.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Pull request support comes for free.&lt;/strong&gt; Opening a pull request from a pipeline task means scripting the GitHub or GitLab API. The Image Updater has it built in.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In short: the pipeline task is imperative glue that couples CI to the configuration repository. The Image Updater is a declarative controller that removes that coupling.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_a_word_about_the_setup"&gt;A word about the setup&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Everything below was done on a single OpenShift cluster with the default &lt;strong&gt;openshift-gitops&lt;/strong&gt; Argo CD instance. You need:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;OpenShift Container Platform with the Red Hat OpenShift GitOps Operator 1.21 or later. The &lt;code&gt;ImageUpdater&lt;/code&gt; custom resource does not exist in earlier versions.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;cluster-admin&lt;/strong&gt; privileges, or at least permission to modify the &lt;strong&gt;ArgoCD&lt;/strong&gt; custom resource.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A Git repository for the configuration. I use &lt;a class="bare" href="https://github.com/tjungbauer/argocd-image-updater-demo.git"&gt;https://github.com/tjungbauer/argocd-image-updater-demo.git&lt;/a&gt; in this article. Replace it with your own.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;A registry account you can push to. I use Quay.io, because you can create a public repository in a few clicks and push a new tag whenever you want to trigger an update.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;podman&lt;/strong&gt; (or &lt;strong&gt;docker&lt;/strong&gt;) on your workstation.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not run OpenShift GitOps 1.21.0. Several issues relevant to this article, including a goroutine leak in the Image Updater, were fixed in 1.21.1. Check your version with &lt;strong&gt;oc get csv -n openshift-gitops-operator | grep gitops&lt;/strong&gt;.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_building_a_test_image"&gt;Building a test image&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The first thing we need to see an update happen is an image whose tags we can control. This can be any image. I have created a simple image for testing purposes: BusyBox with its built-in HTTP server, serving a single page that displays its own version.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Containerfile&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-dockerfile hljs" data-lang="dockerfile"&gt;FROM docker.io/library/busybox:1.37
+ARG APP_VERSION=0.0.0 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+RUN mkdir -p /www &amp;amp;&amp;amp; \
+printf &amp;#39;&amp;lt;html&amp;gt;&amp;lt;body style=&amp;#34;font-family:sans-serif&amp;#34;&amp;gt;\n&amp;lt;h1&amp;gt;simple-app&amp;lt;/h1&amp;gt;\n&amp;lt;p&amp;gt;version: %s&amp;lt;/p&amp;gt;\n&amp;lt;/body&amp;gt;&amp;lt;/html&amp;gt;\n&amp;#39; \
+&amp;#34;${APP_VERSION}&amp;#34; &amp;gt; /www/index.html &amp;amp;&amp;amp; \
+chmod 0755 /www &amp;amp;&amp;amp; chmod 0644 /www/index.html &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+EXPOSE 8080
+USER 1001 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+ENTRYPOINT [&amp;#34;/bin/busybox&amp;#34;, &amp;#34;httpd&amp;#34;, &amp;#34;-f&amp;#34;, &amp;#34;-v&amp;#34;, &amp;#34;-p&amp;#34;, &amp;#34;8080&amp;#34;, &amp;#34;-h&amp;#34;, &amp;#34;/www&amp;#34;] &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The version is baked in at build time so that you can see in the browser which image is running.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The files must be readable by any user ID. OpenShift runs the container with a random UID from the namespace range, not with the UID from the image.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A non-root user. OpenShift would enforce this anyway through the restricted-v2 security context constraint, but declaring it makes the image usable elsewhere as well.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;BusyBox httpd in foreground mode on port 8080. Ports below 1024 would require root privileges, which you do not get.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Build and push the first version. Replace &lt;strong&gt;&amp;lt;tjungbau&amp;gt;&lt;/strong&gt; with your own namespace. (If you use a different registry, replace the registry name accordingly):&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman build --build-arg APP_VERSION=1.0.0 --platform linux/amd64 -t quay.io/tjungbau/simple-app:1.0.0 .
+podman push quay.io/tjungbau/simple-app:1.0.0&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Make the Quay repository public. A private repository works too, but then you need a pull secret for the cluster and registry credentials for the Image Updater, which adds two moving parts to the first test. There is a section on private registries further down.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Verify that the image runs locally before you involve a cluster:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman run --rm -p 8080:8080 quay.io/tjungbau/simple-app:1.0.0
+curl -s http://localhost:8080&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;It should return the HTML page with the version number.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-text hljs" data-lang="text"&gt;&amp;lt;html&amp;gt;&amp;lt;body style=&amp;#34;font-family:sans-serif&amp;#34;&amp;gt;
+&amp;lt;h1&amp;gt;simple-app&amp;lt;/h1&amp;gt;
+&amp;lt;p&amp;gt;version: 1.0.0&amp;lt;/p&amp;gt;
+&amp;lt;/body&amp;gt;&amp;lt;/html&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_kubernetes_manifests"&gt;The Kubernetes manifests&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The configuration repository &lt;a class="bare" href="https://github.com/tjungbauer/argocd-image-updater-demo.git"&gt;https://github.com/tjungbauer/argocd-image-updater-demo.git&lt;/a&gt; holds a Kustomize overlay. The layout is deliberately small:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Repository layout&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-text hljs" data-lang="text"&gt;argocd-image-updater-demo/
+└── overlays
+└── dev
+├── deployment.yaml
+├── service.yaml
+├── route.yaml
+└── kustomization.yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Change the repository URL to your own, if you want to use a different repository.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;overlays/dev/deployment.yaml&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: simple-app
+labels:
+app: simple-app
+spec:
+replicas: 1
+selector:
+matchLabels:
+app: simple-app
+template:
+metadata:
+labels:
+app: simple-app
+spec:
+containers:
+- name: simple-app
+image: quay.io/tjungbau/simple-app:1.0.0 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+ports:
+- name: http
+containerPort: 8080
+readinessProbe:
+httpGet:
+path: /
+port: http
+resources:
+requests:
+cpu: 10m
+memory: 16Mi
+limits:
+cpu: 100m
+memory: 64Mi
+securityContext: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+allowPrivilegeEscalation: false
+runAsNonRoot: true
+capabilities:
+drop:
+- ALL
+seccompProfile:
+type: RuntimeDefault&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The tag written here is only the starting point. Kustomize overrides it, and later the Image Updater overrides the Kustomize value.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This block satisfies the &lt;strong&gt;restricted-v2&lt;/strong&gt; security context constraint explicitly. OpenShift would inject most of it, but if the namespace enforces the restricted Pod Security Standard, the manifest has to carry it.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;overlays/dev/service.yaml&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+kind: Service
+metadata:
+name: simple-app
+spec:
+selector:
+app: simple-app
+ports:
+- name: http
+port: 8080
+targetPort: http&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;overlays/dev/route.yaml&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+name: simple-app
+spec:
+to:
+kind: Service
+name: simple-app
+port:
+targetPort: http
+tls:
+termination: edge
+insecureEdgeTerminationPolicy: Redirect&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;overlays/dev/kustomization.yaml&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: image-updater-demo
+resources:
+- deployment.yaml
+- service.yaml
+- route.yaml
+images: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+- name: quay.io/tjungbau/simple-app
+newTag: &amp;#34;1.0.0&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;This is the parameter the Image Updater will modify. Without an &lt;strong&gt;images&lt;/strong&gt; section, Kustomize has nothing to override and the Image Updater has nothing to write to.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Be sure that the above manifests are pushed to your repository.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_argo_cd_application"&gt;The Argo CD application&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD application is a normal one. No annotations, no special fields. As repository, we use the one we just created.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Argo CD Application&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+name: image-updater-demo
+namespace: openshift-gitops &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+project: default
+source:
+repoURL: https://github.com/tjungbauer/argocd-image-updater-demo.git
+targetRevision: main
+path: overlays/dev
+destination:
+server: https://kubernetes.default.svc
+namespace: image-updater-demo
+syncPolicy:
+automated: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+prune: true
+selfHeal: true
+syncOptions:
+- CreateNamespace=true&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Remember this namespace. The &lt;strong&gt;ImageUpdater&lt;/strong&gt; resource has to live in the same namespace as the applications it references.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;With an automated sync policy an image update is rolled out immediately. Leave it out if you want a human to press the button.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply the application and check that it comes up:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f application.yaml
+oc get application image-updater-demo -n openshift-gitops
+oc get pods,route -n image-updater-demo&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Open the route in a browser. It should show &lt;code&gt;version: 1.0.0&lt;/code&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_enabling_the_argo_cd_image_updater"&gt;Enabling the Argo CD Image Updater&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The controller is enabled per Argo CD instance in the &lt;strong&gt;ArgoCD&lt;/strong&gt; custom resource. By default, it is not enabled.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Enable the Image Updater&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+imageUpdater:
+enabled: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Deploys the Image Updater controller for this Argo CD instance.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you manage the Argo CD instance declaratively, and you should (see &lt;a href="https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd"&gt;Ep.3&lt;/a&gt;), add the block to your existing manifest. For a quick test, patch the resource:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc patch argocd openshift-gitops -n openshift-gitops \
+--type merge \
+-p &amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;imageUpdater&amp;#34;:{&amp;#34;enabled&amp;#34;:true}}}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Wait for the controller to appear. The Operator names the deployment after the Argo CD instance, so for the default instance it is &lt;strong&gt;openshift-gitops-argocd-image-updater-controller&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get deployment -n openshift-gitops | grep image-updater&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Example output&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-text hljs" data-lang="text"&gt;openshift-gitops-argocd-image-updater-controller 1/1 1 1 2m&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If you use a differently named Argo CD instance, the deployment name changes with it. The commands in this article use the default name. Store it in a variable if you work on a custom instance.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Keep the log open in a second terminal for the rest of this article:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc logs -n openshift-gitops \
+deployment/openshift-gitops-argocd-image-updater-controller -f&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_which_namespaces_are_watched"&gt;Which namespaces are watched&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By default the controller only looks at the namespace it was installed in. As soon as you use applications in any namespace, you have to tell it where else to look. This is done with environment variables in the same block:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Watching several namespaces and tuning the controller&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+name: openshift-gitops
+namespace: openshift-gitops
+spec:
+imageUpdater:
+enabled: true
+env:
+- name: IMAGE_UPDATER_LOGLEVEL &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+value: info
+- name: IMAGE_UPDATER_WATCH_NAMESPACES &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+value: &amp;#34;openshift-gitops,image-updater-demo&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Log level of the controller. Valid values are &lt;strong&gt;debug&lt;/strong&gt;, &lt;strong&gt;info&lt;/strong&gt;, &lt;strong&gt;warn&lt;/strong&gt; and &lt;strong&gt;error&lt;/strong&gt;. Set it to &lt;strong&gt;debug&lt;/strong&gt; while you build your first &lt;strong&gt;ImageUpdater&lt;/strong&gt; resources. It tells you which tags were considered and why they were rejected.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Comma-separated list of namespaces watched for &lt;strong&gt;ImageUpdater&lt;/strong&gt; resources and for Argo CD applications.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_the_first_imageupdater_resource"&gt;The first ImageUpdater resource&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The &lt;strong&gt;ImageUpdater&lt;/strong&gt; custom resource answers three questions:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="olist arabic"&gt;
+&lt;ol class="arabic"&gt;
+&lt;li&gt;
+&lt;p&gt;which applications&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;which images&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;where does the result go&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;imageupdater.yaml&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+name: image-updater-demo
+namespace: openshift-gitops &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+spec:
+applicationRefs:
+- namePattern: &amp;#34;image-updater-demo&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+images:
+- alias: &amp;#34;simple-app&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+imageName: &amp;#34;quay.io/tjungbau/simple-app:~1.0&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The controller uses &lt;strong&gt;metadata.namespace&lt;/strong&gt; to decide where to search for applications. A resource in &lt;strong&gt;openshift-gitops&lt;/strong&gt; will never find an application in &lt;strong&gt;image-updater-demo&lt;/strong&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Glob pattern matching the application name.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;A name for this image inside the resource. You need it when you map Helm parameters later.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The image, including a version constraint. &lt;strong&gt;~1.0&lt;/strong&gt; allows patch releases inside 1.0, so 1.0.1 and 1.0.7 are accepted while 1.1.0 is not.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Apply it and check the status:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc apply -f imageupdater.yaml
+oc get imageupdater image-updater-demo -n openshift-gitops -o yaml&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If this returns &lt;strong&gt;1&lt;/strong&gt;, the selector works. If it returns &lt;strong&gt;0&lt;/strong&gt; or nothing, the resource is in the wrong namespace or the name pattern does not match.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Always set a version constraint. Without one, the Image Updater may move to any newer version it finds, including a major release. In 1.21 the field &lt;strong&gt;spec.namespace&lt;/strong&gt; was removed from this API. A resource that still contains it fails validation.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+A second rule that is easy to break in a large repository: never let two &lt;strong&gt;ImageUpdater&lt;/strong&gt; resources match the same application. Both will update it and overwrite each other, and the image version will keep flipping back and forth.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_triggering_the_first_update"&gt;Triggering the first update&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now build and push a new patch version:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman build --build-arg APP_VERSION=1.0.1 --platform linux/amd64 -t quay.io/tjungbau/simple-app:1.0.1 .
+podman push quay.io/tjungbau/simple-app:1.0.1&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The controller polls the registry, so the update appears after the reconciliation interval. Watch the log, then confirm the result on the &lt;strong&gt;Application&lt;/strong&gt; resource:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get application image-updater-demo -n openshift-gitops \
+-o jsonpath=&amp;#39;{.spec.source.kustomize.images}{&amp;#34;\n&amp;#34;}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Example output&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-text hljs" data-lang="text"&gt;[&amp;#34;quay.io/tjungbau/simple-app:1.0.1&amp;#34;]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This is the default write-back method at work: the controller wrote a Kustomize parameter override into the &lt;strong&gt;Application&lt;/strong&gt; resource on the cluster. Because the application has an automated sync policy, Argo CD rolls it out. Reload the route and the page shows &lt;strong&gt;version: 1.0.1&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The update history in the status tells you what happened and when:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get imageupdater image-updater-demo -n openshift-gitops -o jsonpath=&amp;#39;{.status.recentUpdates}{&amp;#34;\n&amp;#34;}&amp;#39;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Example output&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;[{&amp;#34;alias&amp;#34;:&amp;#34;simple-app&amp;#34;,&amp;#34;applicationsUpdated&amp;#34;:1,&amp;#34;image&amp;#34;:&amp;#34;quay.io/tjungbau/simple-app&amp;#34;,&amp;#34;message&amp;#34;:&amp;#34;Updated from 1.0.0 to 1.0.1.&amp;#34;,&amp;#34;newVersion&amp;#34;:&amp;#34;1.0.1&amp;#34;,&amp;#34;updatedAt&amp;#34;:&amp;#34;2026-09-15T15:36:07Z&amp;#34;}]&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Now look at the repository. Nothing changed there. The &lt;code&gt;kustomization.yaml&lt;/code&gt; still says &lt;code&gt;1.0.0&lt;/code&gt;, and the cluster runs &lt;code&gt;1.0.1&lt;/code&gt;. Argo CD simply overrides the value with the new one. That is the reason the next section exists.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_write_back_methods"&gt;Write-back methods&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_method_1_argo_cd_api_the_default"&gt;Method 1: Argo CD API, the default&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The controller writes the new image into the &lt;strong&gt;Application&lt;/strong&gt; resource, which is what you just saw. No configuration is needed. If you omit &lt;strong&gt;writeBackConfig&lt;/strong&gt;, this is what you get.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;&lt;strong&gt;It is quick and it is simple&lt;/strong&gt;. It also has a failure mode that costs people an afternoon: if the &lt;strong&gt;Application&lt;/strong&gt; itself is managed in Git, for example through an App-of-Apps pattern (see &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps"&gt;Ep.4&lt;/a&gt;), the next sync from Git overwrites the parameter override. The cluster falls back to the old image and the reason is not obvious.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Use this method for applications created through the UI or the CLI, and for experiments like the one above.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock warning"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Do not treat this method as a production-ready solution.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_method_2_git_write_back"&gt;Method 2: Git write-back&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Git method fits the idea that the repository is the single source of truth. The controller clones the repository, checks out the branch, writes the change and pushes it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Here a secret must be created that holds credentials with &lt;strong&gt;write access&lt;/strong&gt; to the configuration repository. For HTTPS the secret needs the keys &lt;strong&gt;username&lt;/strong&gt; and &lt;strong&gt;password&lt;/strong&gt;, and the password should be a personal access token:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc create secret generic git-creds -n openshift-gitops \
+--from-literal=username=my-bot-user \
+--from-literal=password=&amp;lt;personal_access_token&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Then extend the &lt;code&gt;ImageUpdater&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Git write-back&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+name: my-app-updater
+namespace: openshift-gitops
+spec:
+applicationRefs:
+- namePattern: &amp;#34;my-app-dev&amp;#34;
+images:
+- alias: &amp;#34;simple-app&amp;#34;
+imageName: &amp;#34;quay.io/tjungbau/simple-app:~1.0&amp;#34;
+writeBackConfig:
+method: &amp;#34;git:secret:openshift-gitops/git-creds&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+gitConfig:
+repository: &amp;#34;https://github.com/tjungbauer/argocd-image-updater-demo.git&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+branch: &amp;#34;main&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Use the Git method with the credentials from the referenced secret. Plain &lt;strong&gt;method: &amp;#34;git&amp;#34;&lt;/strong&gt; reuses the credentials Argo CD already has for the repository, which are often read-only.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The repository that receives the commit.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The target branch.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock important"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-important" title="Important"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+The secret has to live in the same namespace as the &lt;strong&gt;ImageUpdater&lt;/strong&gt; resource (here: &lt;strong&gt;openshift-gitops&lt;/strong&gt;). Cross-namespace references are rejected, so that a team cannot read a secret it does not own.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Push version 1.0.2 and watch the repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman build --build-arg APP_VERSION=1.0.2 --platform linux/amd64 -t quay.io/tjungbau/simple-app:1.0.2 .
+podman push quay.io/tjungbau/simple-app:1.0.2&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;By default the controller does not touch your &lt;strong&gt;kustomization.yaml&lt;/strong&gt;. It creates or updates a file called &lt;strong&gt;.argocd-source-image-updater-demo.yaml&lt;/strong&gt; in the application path. That file contains a parameter override which Argo CD merges on top of the rendered manifests. Your own files stay untouched, which is safe, but it also means the repository now contains two statements about the image version: &lt;strong&gt;kustomization.yaml&lt;/strong&gt; says 1.0.0 and the generated file says 1.0.2.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you prefer the commit to change the source of truth itself, set a write-back target:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Kustomize write-back&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; writeBackConfig:
+method: &amp;#34;git:secret:openshift-gitops/git-creds&amp;#34;
+gitConfig:
+repository: &amp;#34;https://github.com/mycompany/my-app-config.git&amp;#34;
+branch: &amp;#34;main&amp;#34;
+writeBackTarget: &amp;#34;kustomization&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The change is committed as a &lt;code&gt;kustomize edit set image&lt;/code&gt; operation, so &lt;code&gt;kustomization.yaml&lt;/code&gt; carries the new tag.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For Helm applications the equivalent target is a values file:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Helm write-back&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; writeBackConfig:
+method: &amp;#34;git:secret:openshift-gitops/git-creds&amp;#34;
+gitConfig:
+branch: &amp;#34;main&amp;#34;
+writeBackTarget: &amp;#34;helmvalues:/helm/config/values.yaml&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+after switching from the API method to a Git method, remove the leftover override from the &lt;strong&gt;Application&lt;/strong&gt; resource once, otherwise the old value stays in &lt;strong&gt;spec.source.kustomize.images&lt;/strong&gt; and keeps winning: &lt;strong&gt;oc patch application my-app-dev -n openshift-gitops --type json -p &amp;#39;[{&amp;#34;op&amp;#34;:&amp;#34;remove&amp;#34;,&amp;#34;path&amp;#34;:&amp;#34;/spec/source/kustomize/images&amp;#34;}]&amp;#39;&lt;/strong&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_method_3_pull_request_or_merge_request"&gt;Method 3: Pull request or merge request&lt;/h3&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If your &lt;strong&gt;main&lt;/strong&gt; branch is protected, which makes sense, the controller cannot push to it. The pull request method extends the Git method. The commit goes to a generated branch named &lt;strong&gt;image-updater-&amp;lt;namespace&amp;gt;-&amp;lt;appName&amp;gt;-&amp;lt;sha256&amp;gt;&lt;/strong&gt;, and a pull or merge request is opened against the base branch. If a request for the same branch pair already exists, no duplicate is created.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;GitHub pull request&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; writeBackConfig:
+method: &amp;#34;git:secret:openshift-gitops/git-creds&amp;#34;
+gitConfig:
+repository: &amp;#34;https://github.com/mycompany/my-app-config.git&amp;#34;
+branch: &amp;#34;main&amp;#34;
+pullRequest:
+github: {} &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;For GitLab, use &lt;strong&gt;gitlab: {}&lt;/strong&gt; instead.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Push version 1.0.3 and watch the repository:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman build --build-arg APP_VERSION=1.0.3 --platform linux/amd64 -t quay.io/tjungbau/simple-app:1.0.3 .
+podman push quay.io/tjungbau/simple-app:1.0.3&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;And once the Controller has created the pull request, you can see it in the GitHub UI:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="imageblock"&gt;
+&lt;div class="content"&gt;
+&lt;img src="https://blog.stderr.at/gitopscollection/images/ep-17-git-pullrequest.png?width=800" alt="Pull Request"/&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;This pull request can now be reviewed and merged (or rejected).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock caution"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Creating a pull request requires credentials with a bearer token, so a personal access token or GitHub App credentials. SSH keys do not work here, because the controller has to call the SCM API over HTTP and an SSH key provides no token for that.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect2"&gt;
+&lt;h3 id="_choosing_a_method"&gt;Choosing a method&lt;/h3&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;col style="width: 40%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Method&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Use it when&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Consequence&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Argo CD API&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Playgrounds, demos, applications not managed in Git&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;A sync from Git reverts the update&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Git, direct push&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Development and test environments&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;A bot account with write access to the configuration repository&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Git, pull request&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Production and protected branches&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Somebody has to merge the request, otherwise nothing is deployed&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_update_strategies"&gt;Update strategies&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;A tag like &lt;code&gt;v1.0.0-3f2a1b&lt;/code&gt; is not a semantic version, and &lt;code&gt;latest&lt;/code&gt; never changes its name. Four strategies are available, configured with &lt;strong&gt;commonUpdateSettings.updateStrategy&lt;/strong&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;table class="tableblock frame-all grid-all stretch"&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 25%;"/&gt;
+&lt;col style="width: 75%;"/&gt;
+&lt;/colgroup&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Strategy&lt;/th&gt;
+&lt;th class="tableblock halign-left valign-top"&gt;Description&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;strong&gt;semver&lt;/strong&gt; (default)&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Updates to the highest version matching the semantic version constraint. The right choice when the pipeline produces release tags, as in the example above.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;strong&gt;newest-build&lt;/strong&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Updates to the tag with the most recent creation timestamp, regardless of version numbering. This is the strategy for pipelines that tag with a build ID or a commit SHA.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;strong&gt;alphabetical&lt;/strong&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Updates to the last tag when sorted alphabetically. Useful for date-based tags such as &lt;code&gt;2026-09-06&lt;/code&gt;.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;&lt;strong&gt;digest&lt;/strong&gt;&lt;/p&gt;&lt;/td&gt;
+&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Tracks a mutable tag such as &lt;code&gt;latest&lt;/code&gt; by its SHA256 digest and updates when the digest changes.&lt;/p&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;In practice a strategy is combined with a tag filter, because registries contain plenty of tags you usually do not want to deploy:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;newest-build with a tag filter&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+applicationRefs:
+- namePattern: &amp;#34;image-updater-demo&amp;#34;
+images:
+- alias: &amp;#34;simple-app&amp;#34;
+imageName: &amp;#34;quay.io/tjungbau/simple-app&amp;#34;
+commonUpdateSettings:
+updateStrategy: &amp;#34;newest-build&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+allowTags: &amp;#34;regexp:^build-[0-9]+$&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Take the most recently built image instead of the highest number.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Only tags matching this regular expression are considered.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Two parameters control the filtering:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="dlist"&gt;
+&lt;dl&gt;
+&lt;dt class="hdlist1"&gt;&lt;strong&gt;allowTags&lt;/strong&gt;&lt;/dt&gt;
+&lt;dd&gt;
+&lt;p&gt;A match function applied to every tag. Supports &lt;strong&gt;regexp:&amp;lt;expression&amp;gt;&lt;/strong&gt; and &lt;strong&gt;any&lt;/strong&gt;, which is the default.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;dt class="hdlist1"&gt;&lt;strong&gt;ignoreTags&lt;/strong&gt;&lt;/dt&gt;
+&lt;dd&gt;
+&lt;p&gt;A comma-separated list of glob patterns that are excluded.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Allowing release tags and ignoring release candidates&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; commonUpdateSettings:
+allowTags: &amp;#34;regexp:^[0-9]+\\.[0-9]+\\.[0-9]+$&amp;#34;
+ignoreTags: &amp;#34;*-rc*&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock tip"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-tip" title="Tip"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+If a filter does not behave as expected, set &lt;strong&gt;IMAGE_UPDATER_LOGLEVEL&lt;/strong&gt; to &lt;strong&gt;debug&lt;/strong&gt;. The log shows which tags were fetched and which ones survived the filter. That is faster than guessing at the regular expression.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;To try the &lt;strong&gt;newest-build&lt;/strong&gt; strategy with the demo image, push a few tags in a row:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;for i in 1 2 3; do
+podman build --build-arg APP_VERSION=&amp;#34;build-${i}&amp;#34; -t quay.io/tjungbau/simple-app:build-${i} .
+podman push quay.io/tjungbau/simple-app:build-${i}
+done&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_selecting_applications"&gt;Selecting applications&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Name patterns are convenient, but in a fleet generated by an ApplicationSet, labels scale better:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Selecting applications by label&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+applicationRefs:
+- labelSelectors:
+matchLabels:
+tier: &amp;#34;frontend&amp;#34;
+matchExpressions:
+- key: env
+operator: In
+values:
+- staging
+- production
+images:
+- alias: &amp;#34;simple-app&amp;#34;
+imageName: &amp;#34;quay.io/&amp;lt;your_quay_account&amp;gt;/simple-app:~1.0&amp;#34;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Name pattern and label selector can be combined, in which case both have to match.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;There is a third variant meant for ApplicationSets. If every generated application should carry its own image configuration, set &lt;strong&gt;useAnnotations: true&lt;/strong&gt;. The controller then reads the configuration from the &lt;strong&gt;argocd-image-updater.argoproj.io/image-list&lt;/strong&gt; annotation of each application instead of from the resource:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Reading the image configuration from the applications&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+applicationRefs:
+- namePattern: &amp;#34;generated-app-*&amp;#34;
+useAnnotations: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;With this enabled, an &lt;strong&gt;images&lt;/strong&gt; block in the resource is ignored for this &lt;strong&gt;applicationRef&lt;/strong&gt;. Only &lt;strong&gt;namePattern&lt;/strong&gt; and &lt;strong&gt;labelSelectors&lt;/strong&gt; remain effective.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="admonitionblock note"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td class="icon"&gt;
+&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
+&lt;/td&gt;
+&lt;td class="content"&gt;
+Combining &lt;code&gt;useAnnotations: true&lt;/code&gt; with &lt;code&gt;namePattern: &amp;#34;*&amp;#34;&lt;/code&gt; and no label selector means every application in the namespace is processed. That works, but it costs performance on a large instance.
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_private_registries"&gt;Private registries&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Public registries work without configuration. For a private one you have two options.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;Per image, reference a pull secret in the &lt;code&gt;ImageUpdater&lt;/code&gt;:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Using a pull secret for one image&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
+applicationRefs:
+- namePattern: &amp;#34;my-app-dev&amp;#34;
+images:
+- alias: &amp;#34;simple-app&amp;#34;
+imageName: &amp;#34;registry.example.com/mycompany/simple-app:~1.0&amp;#34;
+pullSecret: &amp;#34;pullsecret:openshift-gitops/myregistry-pull-secret&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Uses a Docker-style pull secret with a &lt;strong&gt;.dockerconfigjson&lt;/strong&gt; key.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The well-known registries are supported out of the box.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;For a registry that is not known out of the box, describe it once in the &lt;strong&gt;argocd-image-updater-config&lt;/strong&gt; config map in the namespace of the Argo CD instance:&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="listingblock"&gt;
+&lt;div class="title"&gt;Registering a custom registry&lt;/div&gt;
+&lt;div class="content"&gt;
+&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+kind: ConfigMap
+metadata:
+name: argocd-image-updater-config
+namespace: openshift-gitops
+data:
+registries.conf: |
+registries:
+- name: My Private Registry
+prefix: myregistry.example.com &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+api_url: https://myregistry.example.com &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+credentials: secret:openshift-gitops/registry-creds#creds &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+default: false &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="colist arabic"&gt;
+&lt;table&gt;
+&lt;tbody&gt;&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The prefix that image names start with.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;The registry API endpoint.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Credentials for querying the registry API.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
+&lt;td&gt;Whether this registry is used for images without a registry prefix.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_practical_considerations"&gt;Practical considerations&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;These are the questions that come up in customer workshops.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="dlist"&gt;
+&lt;dl&gt;
+&lt;dt class="hdlist1"&gt;&lt;strong&gt;Who is committing to our repository?&lt;/strong&gt;&lt;/dt&gt;
+&lt;dd&gt;
+&lt;p&gt;A bot account with a personal access token. Treat it like any other privileged identity: a dedicated account, minimal scope, rotated regularly, and no administrator rights. If branch protection requires signed commits, the git command line inside the controller has to sign them, which means providing a GPG or SSH signing key to the pod. Upstream this is configured with &lt;strong&gt;git.commit-signing-key&lt;/strong&gt; and &lt;strong&gt;git.commit-signing-method&lt;/strong&gt; in the &lt;strong&gt;argocd-image-updater-config&lt;/strong&gt; config map. I was not able to test this yet, but it should be considered for production use.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;dt class="hdlist1"&gt;&lt;strong&gt;Does this break our Secure Supply Chain?&lt;/strong&gt;&lt;/dt&gt;
+&lt;dd&gt;
+&lt;p&gt;No, but it changes where the gate sits. Previously the pipeline was the only writer, and it had already verified signatures, scanned the image with ACS and generated an SBOM (see &lt;a href="https://blog.stderr.at/securesupplychain/2023-06-15-securesupplychain-intro"&gt;the Secure Supply Chain series&lt;/a&gt;). If the Image Updater now picks images directly from the registry, the tag itself becomes the contract. Let the pipeline push a release tag such as &lt;strong&gt;1.2.3&lt;/strong&gt; only after all checks passed, and restrict the Image Updater with &lt;strong&gt;allowTags: &amp;#34;regexp:^&lt;span class="0-9"&gt;\\.[0-9]&lt;/span&gt;\\.[0-9]+$&amp;#34;&lt;/strong&gt;. Everything that failed a check never gets a tag that the Image Updater accepts.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;dt class="hdlist1"&gt;&lt;strong&gt;Can we roll back?&lt;/strong&gt;&lt;/dt&gt;
+&lt;dd&gt;
+&lt;p&gt;With a Git write-back method, a rollback is a &lt;strong&gt;git revert&lt;/strong&gt;. With the API method there is nothing to revert.&lt;/p&gt;
+&lt;/dd&gt;
+&lt;/dl&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_limitations"&gt;Limitations&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="ulist"&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Only Kustomize-rendered and Helm-rendered manifests are supported. A Helm chart has to expose parameters for the image.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Image pull secrets have to exist on the cluster where the controller runs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;One application has to be targeted by exactly one &lt;strong&gt;ImageUpdater&lt;/strong&gt; resource.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="sect1"&gt;
+&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
+&lt;div class="sectionbody"&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;The Argo CD Image Updater replaces a piece of glue that most of us wrote ourselves, and it does so declaratively. An &lt;strong&gt;ImageUpdater&lt;/strong&gt; resource states which applications are watched, which images are tracked, which versions are acceptable and where the result is persisted. Since OpenShift GitOps 1.21 it is generally available and enabled with one flag in the &lt;strong&gt;ArgoCD&lt;/strong&gt; custom resource.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;If you take one thing from this article, let it be the write-back decision. The default API method is the fastest way to a working demo and the fastest way to a confusing incident. For anything that matters, write back to Git: directly on a development branch, and through a pull request wherever the branch is protected. The repository stays the source of truth, a rollback stays a &lt;strong&gt;git revert&lt;/strong&gt;, and the audit trail stays intact.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="paragraph"&gt;
+&lt;p&gt;And as always: &lt;strong&gt;If it is not in Git, it does not exist.&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;</description></item><item><title>Red Hat Quay Registry - Integrate Keycloak</title><link>https://blog.stderr.at/openshift-platform/quay/2025-09-19-quay-integrate-keycloak/</link><pubDate>Fri, 19 Sep 2025 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/quay/2025-09-19-quay-integrate-keycloak/</guid><description>&lt;div class="paragraph"&gt;
 &lt;p&gt;This guide shows you how to configure Keycloak as an OpenID Connect (OIDC) provider for Red Hat Quay Registry. It covers what to configure in Keycloak, what to put into Quay’s config.yaml (or Operator config), how to verify the login flow, and how to switch your Quay initial/admin account (stored locally in Quay’s DB) to an admin user that authenticates via Keycloak.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="sect1"&gt;
