@@ -1,631 +1,631 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>SSL on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/ssl/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 16 Feb 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/ssl/index.xml" rel="self" type="application/rss+xml"/><item><title>Certificates</title><link>https://blog.stderr.at/openshift-platform/security/certificates/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/certificates/</guid><description/></item><item><title>SSL Certificate Management for OpenShift on AWS</title><link>https://blog.stderr.at/openshift-platform/security/certificates/2023-02-16-ssl-certificate-management/</link><pubDate>Thu, 16 Feb 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/certificates/2023-02-16-ssl-certificate-management/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally, after a long time on my backlog, I had some time to look into the &lt;strong&gt;Cert-Manager Operator&lt;/strong&gt; and use this Operator to automatically issue new SSL certificates.
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>SSL – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/ssl/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 16 Feb 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/ssl/index.xml" rel="self" type="application/rss+xml"/><item><title>SSL Certificate Management for OpenShift on AWS</title><link>https://blog.stderr.at/openshift-platform/security/certificates/2023-02-16-ssl-certificate-management/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/certificates/2023-02-16-ssl-certificate-management/</guid><pubDate>Thu, 16 Feb 2023 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><description>Using cert-manager to automatically issue new certificates</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Finally, after a long time on my backlog, I had some time to look into the <strong>Cert-Manager Operator</strong> and use this Operator to automatically issue new SSL certificates.
 This article shall show step-by-step how to create a certificate request and use this certificate for a Route and access a service via your Browser.
-I will focus on the technical part, using a given domain on AWS Route53.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a new OpenShift Cluster has been deployed, self-signed certificates are used to access the Routes (for example the console) and the API. Typically, an application is exposed to the world using the schema &lt;em&gt;&amp;lt;app-name&amp;gt;-&amp;lt;namespace-name&amp;gt;.apps.&amp;lt;clusterdomain&amp;gt;&lt;/em&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We will try to create a certificate for a specific application with a custom domain name and for the cluster domains: *.apps.clusterdomain and api.clusterdomain.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The domain is already available and delegated to AWS Route53. As certificate authority, I am using &lt;a href="https://letsencrypt.org/"&gt;Let’s Encrypt&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We will install 2 operators:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Cert Manager&lt;/strong&gt;: to issue new certificates.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Cert Utils Operator&lt;/strong&gt;: injects the certificate into a Route object.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The &lt;strong&gt;Cert Utils Operator&lt;/strong&gt; can provide additional information for a certificate and monitors the expiration date. Here we mainly use it to automatically inject Route objects by defining specific annotations.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift cluster with a user that has privileges to install Operators.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;A domain hosted for example at Route 53&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Credentials for your Cloud Provider (AWS)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_deploy_an_example_application"&gt;Deploy an Example Application&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s use the super complex demo application &lt;strong&gt;bookimport&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc new-project bookimport
+I will focus on the technical part, using a given domain on AWS Route53.</p>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After a new OpenShift Cluster has been deployed, self-signed certificates are used to access the Routes (for example the console) and the API. Typically, an application is exposed to the world using the schema <em>&lt;app-name&gt;-&lt;namespace-name&gt;.apps.&lt;clusterdomain&gt;</em>.</p>
+</div>
+<div class="paragraph">
+<p>We will try to create a certificate for a specific application with a custom domain name and for the cluster domains: *.apps.clusterdomain and api.clusterdomain.</p>
+</div>
+<div class="paragraph">
+<p>The domain is already available and delegated to AWS Route53. As certificate authority, I am using <a href="https://letsencrypt.org/">Let’s Encrypt</a>.</p>
+</div>
+<div class="paragraph">
+<p>We will install 2 operators:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>Cert Manager</strong>: to issue new certificates.</p>
+</li>
+<li>
+<p><strong>Cert Utils Operator</strong>: injects the certificate into a Route object.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The <strong>Cert Utils Operator</strong> can provide additional information for a certificate and monitors the expiration date. Here we mainly use it to automatically inject Route objects by defining specific annotations.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>OpenShift cluster with a user that has privileges to install Operators.</p>
+</li>
+<li>
+<p>A domain hosted for example at Route 53</p>
+</li>
+<li>
+<p>Credentials for your Cloud Provider (AWS)</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_deploy_an_example_application">Deploy an Example Application</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s use the super complex demo application <strong>bookimport</strong>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc new-project bookimport
 oc apply -f https://raw.githubusercontent.com/tjungbauer/book-import/master-no-pre-post/book-import/deployment.yaml -n bookimport
 oc apply -f https://raw.githubusercontent.com/tjungbauer/book-import/master-no-pre-post/book-import/service.yaml -n bookimport
 oc expose service book-import -n bookimport
-oc get route -n bookimport&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The last command will print you an URL which, copied into the browser, will open our application:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/bookimport.png?width=480px" alt="Bookimport"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Application Book Import using HTTP&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see in the address line the connection is not secured (&lt;em&gt;Nicht sicher&lt;/em&gt; in German) and my domain is &lt;strong&gt;*.apps.ocp.aws.ispworld.at&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_an_aws_user_for_accessing_route_53"&gt;Configure an AWS user for accessing Route 53&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;On AWS I have currently 2 Zones, the public &lt;strong&gt;aws.ispworld.at&lt;/strong&gt; and a private zone, created by the OpenShift Installer.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/hostedzones.png?width=340px" alt="DomainZones"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. Domain Zones&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before you can manage your domains a user with appropriate privileges must be created.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Store the following in the file &lt;code&gt;policy.json&lt;/code&gt;. This will allow a user to perform DNS Upgrades.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
-&amp;#34;Version&amp;#34;: &amp;#34;2012-10-17&amp;#34;,
-&amp;#34;Statement&amp;#34;: [
+oc get route -n bookimport</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The last command will print you an URL which, copied into the browser, will open our application:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/bookimport.png?width=480px" alt="Bookimport"/>
+</div>
+<div class="title">Figure 1. Application Book Import using HTTP</div>
+</div>
+<div class="paragraph">
+<p>As you can see in the address line the connection is not secured (<em>Nicht sicher</em> in German) and my domain is <strong>*.apps.ocp.aws.ispworld.at</strong></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_an_aws_user_for_accessing_route_53">Configure an AWS user for accessing Route 53</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>On AWS I have currently 2 Zones, the public <strong>aws.ispworld.at</strong> and a private zone, created by the OpenShift Installer.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/hostedzones.png?width=340px" alt="DomainZones"/>
+</div>
+<div class="title">Figure 2. Domain Zones</div>
+</div>
+<div class="paragraph">
+<p>Before you can manage your domains a user with appropriate privileges must be created.</p>
+</div>
+<div class="paragraph">
+<p>Store the following in the file <code>policy.json</code>. This will allow a user to perform DNS Upgrades.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+   &#34;Version&#34;: &#34;2012-10-17&#34;,
+   &#34;Statement&#34;: [
+       {
+           &#34;Effect&#34;: &#34;Allow&#34;,
+           &#34;Action&#34;: &#34;route53:GetChange&#34;,
+           &#34;Resource&#34;: &#34;arn:aws:route53:::change/*&#34;
+       },
+       {
+           &#34;Effect&#34;: &#34;Allow&#34;,
+           &#34;Action&#34;: [
+               &#34;route53:ChangeResourceRecordSets&#34;,
+               &#34;route53:ListResourceRecordSets&#34;
+           ],
+           &#34;Resource&#34;: &#34;arn:aws:route53:::hostedzone/*&#34;
+       },
+       {
+           &#34;Effect&#34;: &#34;Allow&#34;,
+           &#34;Action&#34;: [
+               &#34;route53:ListHostedZones&#34;,
+               &#34;route53:ListResourceRecordSets&#34;,
+               &#34;route53:ListHostedZonesByName&#34;
+           ],
+           &#34;Resource&#34;: &#34;*&#34;
+       }
+   ]
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Apply the new policy to AWS and store the ARN into a variable:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">aws iam create-policy --policy-name AllowDNSUpdates --policy-document  file://policy.json
+export POLICY_ARN=$(aws iam list-policies --query &#39;Policies[?PolicyName==`AllowDNSUpdates`].Arn&#39; --output text)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Create the user <code>route53-openshift</code> and assign the policy to that user:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">aws iam create-user --user-name route53-openshift
+aws iam attach-user-policy --policy-arn $POLICY_ARN --user-name route53-openshift</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Finally, create the access key and store the <strong>AccessKeyId</strong> and the <strong>SecretAccessKey</strong> for later use:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">aws iam create-access-key --user-name route53-openshift --output json
+
 {
-&amp;#34;Effect&amp;#34;: &amp;#34;Allow&amp;#34;,
-&amp;#34;Action&amp;#34;: &amp;#34;route53:GetChange&amp;#34;,
-&amp;#34;Resource&amp;#34;: &amp;#34;arn:aws:route53:::change/*&amp;#34;
-},
-{
-&amp;#34;Effect&amp;#34;: &amp;#34;Allow&amp;#34;,
-&amp;#34;Action&amp;#34;: [
-&amp;#34;route53:ChangeResourceRecordSets&amp;#34;,
-&amp;#34;route53:ListResourceRecordSets&amp;#34;
-],
-&amp;#34;Resource&amp;#34;: &amp;#34;arn:aws:route53:::hostedzone/*&amp;#34;
-},
-{
-&amp;#34;Effect&amp;#34;: &amp;#34;Allow&amp;#34;,
-&amp;#34;Action&amp;#34;: [
-&amp;#34;route53:ListHostedZones&amp;#34;,
-&amp;#34;route53:ListResourceRecordSets&amp;#34;,
-&amp;#34;route53:ListHostedZonesByName&amp;#34;
-],
-&amp;#34;Resource&amp;#34;: &amp;#34;*&amp;#34;
-}
-]
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Apply the new policy to AWS and store the ARN into a variable:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;aws iam create-policy --policy-name AllowDNSUpdates --policy-document file://policy.json
-export POLICY_ARN=$(aws iam list-policies --query &amp;#39;Policies[?PolicyName==`AllowDNSUpdates`].Arn&amp;#39; --output text)&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Create the user &lt;code&gt;route53-openshift&lt;/code&gt; and assign the policy to that user:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;aws iam create-user --user-name route53-openshift
-aws iam attach-user-policy --policy-arn $POLICY_ARN --user-name route53-openshift&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally, create the access key and store the &lt;strong&gt;AccessKeyId&lt;/strong&gt; and the &lt;strong&gt;SecretAccessKey&lt;/strong&gt; for later use:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;aws iam create-access-key --user-name route53-openshift --output json
-{
-&amp;#34;AccessKey&amp;#34;: {
-&amp;#34;UserName&amp;#34;: &amp;#34;route53-openshift&amp;#34;,
-&amp;#34;AccessKeyId&amp;#34;: &amp;#34;XXXXXXXXXXXXXX&amp;#34;,
-&amp;#34;Status&amp;#34;: &amp;#34;Active&amp;#34;,
-&amp;#34;SecretAccessKey&amp;#34;: &amp;#34;XXXXXXXXXXXXXXXXXXX&amp;#34;,
-&amp;#34;CreateDate&amp;#34;: &amp;#34;2023-02-15T12:34:06+00:00&amp;#34;
-}
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_installing_operators_to_openshift"&gt;Installing Operators to OpenShift&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We will install 2 Operators to our cluster:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;cert-manager Operator for Red Hat OpenShift&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Cert Utils Operator&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Simply search both on OLM and install them keeping the default values.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The Cert Utils Operator is a &lt;strong&gt;Community&lt;/strong&gt; Operator.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/operators.png?width=480px" alt="Operators"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. Operators&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will install the Cert-Manager into the namespace &lt;strong&gt;openshift-cert-manager&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_the_cert_manager_operator"&gt;Configure the Cert-Manager Operator&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before we can issue a certificate, we need to create a secret with our AWS SecretAccessKey (see above):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc create secret generic prod-route53-credentials-secret --from-literal secret-access-key=&amp;#34;XXXXXXXXXXXXXXXXXXX&amp;#34; -n openshift-cert-manager&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As next step, we create a &lt;strong&gt;ClusterIssuer&lt;/strong&gt; that will be available cluster-wide using &lt;strong&gt;Let’s Encrypt&lt;/strong&gt; as certificate authority:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The connection to Let’s Encrypt is using the &lt;strong&gt;productive&lt;/strong&gt; API. If you would like to use the staging environment instead, change the server URL to &lt;a class="bare" href="https://acme-staging-v02.api.letsencrypt.org/directory"&gt;https://acme-staging-v02.api.letsencrypt.org/directory&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+    &#34;AccessKey&#34;: {
+        &#34;UserName&#34;: &#34;route53-openshift&#34;,
+        &#34;AccessKeyId&#34;: &#34;XXXXXXXXXXXXXX&#34;,
+        &#34;Status&#34;: &#34;Active&#34;,
+        &#34;SecretAccessKey&#34;: &#34;XXXXXXXXXXXXXXXXXXX&#34;,
+        &#34;CreateDate&#34;: &#34;2023-02-15T12:34:06+00:00&#34;
+    }
+}</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_installing_operators_to_openshift">Installing Operators to OpenShift</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>We will install 2 Operators to our cluster:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>cert-manager Operator for Red Hat OpenShift</p>
+</li>
+<li>
+<p>Cert Utils Operator</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Simply search both on OLM and install them keeping the default values.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The Cert Utils Operator is a <strong>Community</strong> Operator.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/operators.png?width=480px" alt="Operators"/>
+</div>
+<div class="title">Figure 3. Operators</div>
+</div>
+<div class="paragraph">
+<p>This will install the Cert-Manager into the namespace <strong>openshift-cert-manager</strong></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_the_cert_manager_operator">Configure the Cert-Manager Operator</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before we can issue a certificate, we need to create a secret with our AWS SecretAccessKey (see above):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc create secret generic prod-route53-credentials-secret --from-literal secret-access-key=&#34;XXXXXXXXXXXXXXXXXXX&#34; -n openshift-cert-manager</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As next step, we create a <strong>ClusterIssuer</strong> that will be available cluster-wide using <strong>Let’s Encrypt</strong> as certificate authority:</p>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+The connection to Let’s Encrypt is using the <strong>productive</strong> API. If you would like to use the staging environment instead, change the server URL to <a class="bare" href="https://acme-staging-v02.api.letsencrypt.org/directory">https://acme-staging-v02.api.letsencrypt.org/directory</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-name: letsencrypt-prod
+  name: letsencrypt-prod
 spec:
-acme:
-email: your@email.com &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-preferredChain: &amp;#39;&amp;#39;
-privateKeySecretRef:
-name: letsencrypt-account-key
-server: &amp;#39;https://acme-v02.api.letsencrypt.org/directory&amp;#39;
-solvers:
-- dns01:
-route53:
-accessKeyID: XXXXXXXXXXXXXX &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-region: eu-central-1 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-secretAccessKeySecretRef:
-key: secret-access-key
-name: prod-route53-credentials-secret &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-selector:
-dnsZones:
-- your-domain &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Change your email address&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Use the &lt;strong&gt;AccessKeyId&lt;/strong&gt; created above&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Using AWS you need to define a region&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the secret created during the step before&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Your &lt;strong&gt;public&lt;/strong&gt; domain, for example aws.ispworld.at.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Once created the &lt;strong&gt;ClusterIssuer&lt;/strong&gt; should switch to the status &amp;#34;Ready&amp;#34;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc describe clusterissuer letsencrypt-prod
+  acme:
+    email: your@email.com <i class="conum" data-value="1"></i><b>(1)</b>
+    preferredChain: &#39;&#39;
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    server: &#39;https://acme-v02.api.letsencrypt.org/directory&#39;
+    solvers:
+      - dns01:
+          route53:
+            accessKeyID: XXXXXXXXXXXXXX <i class="conum" data-value="2"></i><b>(2)</b>
+            region: eu-central-1 <i class="conum" data-value="3"></i><b>(3)</b>
+            secretAccessKeySecretRef:
+              key: secret-access-key
+              name: prod-route53-credentials-secret <i class="conum" data-value="4"></i><b>(4)</b>
+        selector:
+          dnsZones:
+            - your-domain <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Change your email address</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Use the <strong>AccessKeyId</strong> created above</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Using AWS you need to define a region</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>The name of the secret created during the step before</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Your <strong>public</strong> domain, for example aws.ispworld.at.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Once created the <strong>ClusterIssuer</strong> should switch to the status &#34;Ready&#34;</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc describe clusterissuer letsencrypt-prod
+
 Status:
 ...
-Conditions:
-Last Transition Time: 2023-02-16T13:54:49Z
-Message: The ACME account was registered with the ACME server
-Observed Generation: 1
-Reason: ACMEAccountRegistered
-Status: True
-Type: Ready&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_optional_when_using_private_domains_or_firewalls"&gt;OPTIONAL: When using private Domains or Firewalls&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see in one of the images above, I have two domains:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;aws.ispworld.at&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;ocp.aws.ispworld.at&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first one is marked as &lt;strong&gt;public&lt;/strong&gt;, that means everybody can resolve names. The second one is set to &lt;strong&gt;private&lt;/strong&gt; and only define VPCs (in this case the cluster itself) can resolve hostnames.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In case of the following error:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="literalblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre&gt;E0216 15:27:29.513080 1 controller.go:163] cert-manager/challenges &amp;#34;msg&amp;#34;=&amp;#34;re-queuing item due to error processing&amp;#34; &amp;#34;error&amp;#34;=&amp;#34;failed to determine Route 53 hosted zone ID: zone not found in Route 53 for domain _acme-challenge.bookimport.apps.ocp.aws.ispworld.at.&amp;#34; &amp;#34;key&amp;#34;=&amp;#34;bookimport/bookimport-cert-jbmh6-2173685137-2399596362&amp;#34;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Add the following into &lt;strong&gt;ClusterManager&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;oc edit CertManager.operator.openshift.io/cluster
-unsupportedConfigOverrides:
-controller:
-args:
-- --v=2
-- --cluster-resource-namespace=$(POD_NAMESPACE)
-- --leader-election-namespace=kube-system
-- --dns01-recursive-nameservers-only
-- --dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of nameserver the PUBLIC domain is hosted on.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Operator will then try to resolve the names using the specified nameserver only.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_issue_a_new_certificate"&gt;Issue a new certificate&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;At this step, we can create a Certificate:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+  Conditions:
+    Last Transition Time:  2023-02-16T13:54:49Z
+    Message:               The ACME account was registered with the ACME server
+    Observed Generation:   1
+    Reason:                ACMEAccountRegistered
+    Status:                True
+    Type:                  Ready</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_optional_when_using_private_domains_or_firewalls">OPTIONAL: When using private Domains or Firewalls</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As you can see in one of the images above, I have two domains:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>aws.ispworld.at</p>
+</li>
+<li>
+<p>ocp.aws.ispworld.at</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The first one is marked as <strong>public</strong>, that means everybody can resolve names. The second one is set to <strong>private</strong> and only define VPCs (in this case the cluster itself) can resolve hostnames.</p>
+</div>
+<div class="paragraph">
+<p>In case of the following error:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>E0216 15:27:29.513080 1 controller.go:163] cert-manager/challenges &#34;msg&#34;=&#34;re-queuing item due to error processing&#34; &#34;error&#34;=&#34;failed to determine Route 53 hosted zone ID: zone not found in Route 53 for domain _acme-challenge.bookimport.apps.ocp.aws.ispworld.at.&#34; &#34;key&#34;=&#34;bookimport/bookimport-cert-jbmh6-2173685137-2399596362&#34;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Add the following into <strong>ClusterManager</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">oc edit CertManager.operator.openshift.io/cluster
+
+  unsupportedConfigOverrides:
+    controller:
+      args:
+      - --v=2
+      - --cluster-resource-namespace=$(POD_NAMESPACE)
+      - --leader-election-namespace=kube-system
+      - --dns01-recursive-nameservers-only
+      - --dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53 <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>List of nameserver the PUBLIC domain is hosted on.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The Operator will then try to resolve the names using the specified nameserver only.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_issue_a_new_certificate">Issue a new certificate</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>At this step, we can create a Certificate:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-name: bookimport-cert &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: bookimport &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+ name: bookimport-cert <i class="conum" data-value="1"></i><b>(1)</b>
+ namespace: bookimport <i class="conum" data-value="2"></i><b>(2)</b>
 spec:
-dnsNames:
-- bookimport.apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-secretName: bookimport.apps.ocp.aws.ispworld.at-certificate &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the certificate objects&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Application namespace&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of domain names&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Issuer that shall be used&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Secret that will be created and hold the certificate information&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_create_a_route"&gt;Create a Route&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a while the certificate will be &lt;strong&gt;Ready&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get certificate/bookimport-cert -n bookimport
-NAME READY SECRET AGE
-bookimport-cert True bookimport.apps.ocp.aws.ispworld.at-certificate 87m&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we can create a Route object to configure the IngressController. The important part here is the annotation, which will tell the Cert Utils Operator to automatically inject the certificate.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Route
+ dnsNames:
+   - bookimport.apps.ocp.aws.ispworld.at <i class="conum" data-value="3"></i><b>(3)</b>
+ issuerRef:
+   kind: ClusterIssuer
+   name: letsencrypt-prod <i class="conum" data-value="4"></i><b>(4)</b>
+ secretName: bookimport.apps.ocp.aws.ispworld.at-certificate <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name of the certificate objects</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Application namespace</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>List of domain names</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Issuer that shall be used</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Name of the Secret that will be created and hold the certificate information</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_create_a_route">Create a Route</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After a while the certificate will be <strong>Ready</strong>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get certificate/bookimport-cert -n bookimport
+
+NAME              READY   SECRET                                            AGE
+bookimport-cert   True    bookimport.apps.ocp.aws.ispworld.at-certificate   87m</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now we can create a Route object to configure the IngressController. The important part here is the annotation, which will tell the Cert Utils Operator to automatically inject the certificate.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: Route
 apiVersion: route.openshift.io/v1
 metadata:
-name: bookimport-tls
-namespace: bookimport
-annotations:
-cert-utils-operator.redhat-cop.io/certs-from-secret: bookimport.apps.ocp.aws.ispworld.at-certificate &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+  name: bookimport-tls
+  namespace: bookimport
+  annotations:
+    cert-utils-operator.redhat-cop.io/certs-from-secret: bookimport.apps.ocp.aws.ispworld.at-certificate <i class="conum" data-value="1"></i><b>(1)</b>
 spec:
-host: bookimport.apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-to:
-kind: Service
-name: book-import
-weight: 100
-tls:
-termination: edge
-port:
-targetPort: web
-wildcardPolicy: None&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Annotation that points to the Secret which stored the certificate. The values of this Secret will be automatically injected into this Route object.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The hostname for our Route&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see, the Browser will show no warning when opening the URL.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/bookimport-tls.png?width=480px" alt="BookimportTLS"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 4. Book Import using HTTPS&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_cluster_default_certificates"&gt;Cluster Default Certificates&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;During a cluster deployment, OpenShift will create self-signed certificates for its API and for the default IngressController *.apps.clusterdomain.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Usually, we want to change them as well. So why not use the Cert-Manager to issue the appropriate certificates?&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_default_ingresscontroller"&gt;Default IngressController&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For the default IngressController I create a certificate request with 2 domain names: the wildcard and the base domain (just to be sure, actually the wildcard should be enough)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+  host: bookimport.apps.ocp.aws.ispworld.at <i class="conum" data-value="2"></i><b>(2)</b>
+  to:
+    kind: Service
+    name: book-import
+    weight: 100
+  tls:
+    termination: edge
+  port:
+    targetPort: web
+  wildcardPolicy: None</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Annotation that points to the Secret which stored the certificate. The values of this Secret will be automatically injected into this Route object.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The hostname for our Route</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>As you can see, the Browser will show no warning when opening the URL.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/bookimport-tls.png?width=480px" alt="BookimportTLS"/>
+</div>
+<div class="title">Figure 4. Book Import using HTTPS</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_cluster_default_certificates">Cluster Default Certificates</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>During a cluster deployment, OpenShift will create self-signed certificates for its API and for the default IngressController *.apps.clusterdomain.</p>
+</div>
+<div class="paragraph">
+<p>Usually, we want to change them as well. So why not use the Cert-Manager to issue the appropriate certificates?</p>
+</div>
+<div class="sect2">
+<h3 id="_default_ingresscontroller">Default IngressController</h3>
+<div class="paragraph">
+<p>For the default IngressController I create a certificate request with 2 domain names: the wildcard and the base domain (just to be sure, actually the wildcard should be enough)</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-name: router-certificate
-namespace: openshift-ingress &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+  name: router-certificate
+  namespace: openshift-ingress <i class="conum" data-value="1"></i><b>(1)</b>
 spec:
-dnsNames:
-- apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-- &amp;#39;*.apps.ocp.aws.ispworld.at&amp;#39;
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-secretName: router-certificate &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The default IngressController runs in the namespace &lt;strong&gt;openshift-ingress&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of domains&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Secret that will be created once the Certificate has been approved.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a while, the certificate request should be &lt;strong&gt;Ready&lt;/strong&gt; again. In the namespace &lt;em&gt;openshift-ingress&lt;/em&gt; a Secret will be available with the name &lt;em&gt;router-certificate&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_api"&gt;API&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For the API URL we do the same. This time it is stored in the namepsace &lt;strong&gt;openshift-config&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+  dnsNames:
+   - apps.ocp.aws.ispworld.at <i class="conum" data-value="2"></i><b>(2)</b>
+   - &#39;*.apps.ocp.aws.ispworld.at&#39;
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: router-certificate <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The default IngressController runs in the namespace <strong>openshift-ingress</strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>List of domains</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Name of the Secret that will be created once the Certificate has been approved.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>After a while, the certificate request should be <strong>Ready</strong> again. In the namespace <em>openshift-ingress</em> a Secret will be available with the name <em>router-certificate</em></p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_api">API</h3>
+<div class="paragraph">
+<p>For the API URL we do the same. This time it is stored in the namepsace <strong>openshift-config</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-name: api-certificate
-namespace: openshift-config
+  name: api-certificate
+  namespace: openshift-config
 spec:
-dnsNames:
-- api.ocp.aws.ispworld.at
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-secretName: api-certificate&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  dnsNames:
+   - api.ocp.aws.ispworld.at
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: api-certificate</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 It is possible to create one certificate with all required Domainnames. Just be sure that the Secret is available in the appropriate Namespace.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_patching_api_server_and_ingresscontroller"&gt;Patching API Server and IngressController&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a final step we need to patch the IngressController and the API server so they will use the correct Secrets with the officially signed certificates.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# IngressController
-oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch=&amp;#39;{&amp;#34;spec&amp;#34;: { &amp;#34;defaultCertificate&amp;#34;: { &amp;#34;name&amp;#34;: &amp;#34;router-certificate&amp;#34; }}}&amp;#39;
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_patching_api_server_and_ingresscontroller">Patching API Server and IngressController</h3>
+<div class="paragraph">
+<p>As a final step we need to patch the IngressController and the API server so they will use the correct Secrets with the officially signed certificates.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># IngressController
+oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch=&#39;{&#34;spec&#34;: { &#34;defaultCertificate&#34;: { &#34;name&#34;: &#34;router-certificate&#34; }}}&#39;
+
 # API Server
-oc patch apiserver cluster --type=merge -p &amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;servingCerts&amp;#34;: {&amp;#34;namedCertificates&amp;#34;: [{&amp;#34;names&amp;#34;: [&amp;#34;api.ocp.aws.ispworld.at&amp;#34;], &amp;#34;servingCertificate&amp;#34;: {&amp;#34;name&amp;#34;: &amp;#34;api-certificate&amp;#34;}}]}}}&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Be sure to use the correct URL for the API&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will restart a bunch of services. Once everything is up and running again (your can watch using the command &lt;code&gt;watch oc get co&lt;/code&gt;), the correct certificate will be shown in the browser:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/console-cert.png?width=340px" alt="UI"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 5. UI&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;or via curl:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl -v https://api.ocp.aws.ispworld.at:6443
+oc patch apiserver cluster --type=merge -p &#39;{&#34;spec&#34;:{&#34;servingCerts&#34;: {&#34;namedCertificates&#34;: [{&#34;names&#34;: [&#34;api.ocp.aws.ispworld.at&#34;], &#34;servingCertificate&#34;: {&#34;name&#34;: &#34;api-certificate&#34;}}]}}}&#39; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Be sure to use the correct URL for the API</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>This will restart a bunch of services. Once everything is up and running again (your can watch using the command <code>watch oc get co</code>), the correct certificate will be shown in the browser:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/console-cert.png?width=340px" alt="UI"/>
+</div>
+<div class="title">Figure 5. UI</div>
+</div>
+<div class="paragraph">
+<p>or via curl:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -v https://api.ocp.aws.ispworld.at:6443
+
 * Connected to api.ocp.aws.ispworld.at (13.52.208.31) port 6443
 [...]
 * Server certificate:
-* subject: CN=api.ocp.aws.ispworld.at
-* start date: Feb 16 15:11:36 2023 GMT
-* expire date: May 17 15:11:35 2023 GMT
-* subjectAltName: host &amp;#34;api.ocp.aws.ispworld.at&amp;#34; matched cert&amp;#39;s &amp;#34;api.ocp.aws.ispworld.at&amp;#34;
-* issuer: C=US; O=Let&amp;#39;s Encrypt; CN=R3
-* SSL certificate verify ok.&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now with these steps, it is possible to issue new Certificates. Of course, there I many more options to configure a certificate. I encourage everybody to read the official documentation of the &lt;a href="https://cert-manager.io/docs/"&gt;Cert Manager&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Especially, if you are interested in the whole certificate &lt;a href="https://cert-manager.io/docs/concepts/certificate/#certificate-lifecycle"&gt;Certificate Lifecycle&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>&lt;h1 class="blog-title gradient-header"&gt;Welcome to Yet Another Useless Blog&lt;/h1&gt;
-&lt;p class="intro-tagline"&gt;Despite the name, we hope you'll find these articles genuinely helpful! 😊&lt;/p&gt;
-&lt;h4&gt;Who are we?&lt;/h4&gt;
-&lt;p&gt;We're &lt;strong&gt;Thomas Jungbauer&lt;/strong&gt; and &lt;strong&gt;Toni Schmidbauer&lt;/strong&gt; — two seasoned IT professionals with over 20 years of experience each. Currently, we work as architects at &lt;strong&gt;Red Hat Austria&lt;/strong&gt;, helping customers design and implement OpenShift and Ansible solutions.&lt;/p&gt;
-&lt;h4&gt;What's this blog about?&lt;/h4&gt;
-&lt;p&gt;Real-world problems, practical solutions. We document issues we've encountered in the field along with step-by-step guides to reproduce and resolve them. Our goal: save you hours of frustrating documentation searches and trial-and-error testing.&lt;/p&gt;
-&lt;p&gt;Feel free to send us an e-mail or &lt;a href="https://github.com/stderrat/stderrat.github.io/issues"&gt;open a GitHub issue&lt;/a&gt;.&lt;/p&gt;</description></item></channel></rss>
+*  subject: CN=api.ocp.aws.ispworld.at
+*  start date: Feb 16 15:11:36 2023 GMT
+*  expire date: May 17 15:11:35 2023 GMT
+*  subjectAltName: host &#34;api.ocp.aws.ispworld.at&#34; matched cert&#39;s &#34;api.ocp.aws.ispworld.at&#34;
+*  issuer: C=US; O=Let&#39;s Encrypt; CN=R3
+*  SSL certificate verify ok.</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now with these steps, it is possible to issue new Certificates. Of course, there I many more options to configure a certificate. I encourage everybody to read the official documentation of the <a href="https://cert-manager.io/docs/">Cert Manager</a>.</p>
+</div>
+<div class="paragraph">
+<p>Especially, if you are interested in the whole certificate <a href="https://cert-manager.io/docs/concepts/certificate/#certificate-lifecycle">Certificate Lifecycle</a></p>
+</div>
+</div>
+</div>]]></content:encoded></item></channel></rss>

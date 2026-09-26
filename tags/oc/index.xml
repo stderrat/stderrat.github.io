@@ -1,1767 +1,1796 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Oc on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/oc/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 02 Feb 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/oc/index.xml" rel="self" type="application/rss+xml"/><item><title>Fundamentals</title><link>https://blog.stderr.at/openshift-platform/day-2/fundamentals/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/day-2/fundamentals/</guid><description/></item><item><title>[Ep.3] Setup OpenShift GitOps/Argo CD</title><link>https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/</link><pubDate>Fri, 02 Feb 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;„&lt;em&gt;If it is not in GitOps, it does not exist&lt;/em&gt;“ - is a mantra I hear quite often and also try to practice at customer engagements. The idea is to have Git as the only source of truth on what happens inside the environment. That said, &lt;a href="https://openpracticelibrary.com/practice/everything-as-code/"&gt;Everything as Code&lt;/a&gt; is a practice that treats every aspect of the system as a code. Storing this code in Git provides a shared understanding, traceability and repeatability of changes.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;While there are many articles about how to get GitOps into the deployment process of applications, this one rather sets the focus on the &lt;strong&gt;cluster configuration&lt;/strong&gt; and tasks system administrators usually have to do.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Also check out the article &lt;a href="https://blog.stderr.at/openshift/2020-08-06-argocd/"&gt;GitOps Argo CD&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It all begins with an OpenShift cluster. Such a cluster must be installed and while we will not discuss a bootstrap of the whole cluster … yes, it is possible to even automate the cluster deployment using Advanced Cluster Management as an example, we will simply assume that one cluster is up and running.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For our setup, an OpenShift cluster 4.14 is deployed and we will use the repository &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops"&gt;OpenShift Cluster Configuration using GitOps&lt;/a&gt; to deploy our configuration onto this cluster. This repository shall act as the source of truth for any configuration. In the article &lt;a href="http://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/"&gt;Choosing the right Git repository structure&lt;/a&gt; I have explained the folder structure I am usually using. As tool I am usually using Helm Charts.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The &lt;strong&gt;openshift-clusterconfig-gitops&lt;/strong&gt; repository heavily uses the Helm Repository found at &lt;a class="bare" href="https://charts.stderr.at/"&gt;https://charts.stderr.at/&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_deploy_openshift_gitops"&gt;Deploy OpenShift-GitOps&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first thing we need to do is to deploy &lt;a href="https://docs.openshift.com/gitops/1.11/understanding_openshift_gitops/what-is-gitops.html" rel="noopener" target="_blank"&gt;OpenShift-GitOps&lt;/a&gt;, which is based on the &lt;a href="https://argo-cd.readthedocs.io/en/stable/" rel="noopener" target="_blank"&gt;Argo CD&lt;/a&gt; project. OpenShift-GitOps comes as an Operator and is available to all OpenShift customers. The Operator will deploy and configure Argo CD and provide several custom resources to configure Argo CD &lt;strong&gt;Applications&lt;/strong&gt; or &lt;strong&gt;ApplicationSets&lt;/strong&gt; for example.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To automate the operator deployment the following shell script can be used: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/init_GitOps.sh" rel="noopener" target="_blank"&gt;init_GitOps.sh&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Oc – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/oc/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 02 Feb 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/oc/index.xml" rel="self" type="application/rss+xml"/><item><title>[Ep.3] Setup OpenShift GitOps/Argo CD</title><link>https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/</link><guid isPermaLink="true">https://blog.stderr.at/gitopscollection/2024-02-02-setup-argocd/</guid><pubDate>Fri, 02 Feb 2024 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>GitOps</category><description>Openshift 4.x - Install GitOps to the cluster</description><content:encoded><![CDATA[<div class="paragraph">
+<p>„<em>If it is not in GitOps, it does not exist</em>“ - is a mantra I hear quite often and also try to practice at customer engagements. The idea is to have Git as the only source of truth on what happens inside the environment. That said, <a href="https://openpracticelibrary.com/practice/everything-as-code/">Everything as Code</a> is a practice that treats every aspect of the system as a code. Storing this code in Git provides a shared understanding, traceability and repeatability of changes.</p>
+</div>
+<div class="paragraph">
+<p>While there are many articles about how to get GitOps into the deployment process of applications, this one rather sets the focus on the <strong>cluster configuration</strong> and tasks system administrators usually have to do.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Also check out the article <a href="https://blog.stderr.at/openshift/2020-08-06-argocd/">GitOps Argo CD</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>It all begins with an OpenShift cluster. Such a cluster must be installed and while we will not discuss a bootstrap of the whole cluster … yes, it is possible to even automate the cluster deployment using Advanced Cluster Management as an example, we will simply assume that one cluster is up and running.</p>
+</div>
+<div class="paragraph">
+<p>For our setup, an OpenShift cluster 4.14 is deployed and we will use the repository <a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops">OpenShift Cluster Configuration using GitOps</a> to deploy our configuration onto this cluster. This repository shall act as the source of truth for any configuration. In the article <a href="http://blog.stderr.at/gitopscollection/2023-12-28-gitops-repostructure/">Choosing the right Git repository structure</a> I have explained the folder structure I am usually using. As tool I am usually using Helm Charts.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The <strong>openshift-clusterconfig-gitops</strong> repository heavily uses the Helm Repository found at <a class="bare" href="https://charts.stderr.at/">https://charts.stderr.at/</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_deploy_openshift_gitops">Deploy OpenShift-GitOps</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The first thing we need to do is to deploy <a href="https://docs.openshift.com/gitops/1.11/understanding_openshift_gitops/what-is-gitops.html" rel="noopener" target="_blank">OpenShift-GitOps</a>, which is based on the <a href="https://argo-cd.readthedocs.io/en/stable/" rel="noopener" target="_blank">Argo CD</a> project. OpenShift-GitOps comes as an Operator and is available to all OpenShift customers. The Operator will deploy and configure Argo CD and provide several custom resources to configure Argo CD <strong>Applications</strong> or <strong>ApplicationSets</strong> for example.</p>
+</div>
+<div class="paragraph">
+<p>To automate the operator deployment the following shell script can be used: <a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/init_GitOps.sh" rel="noopener" target="_blank">init_GitOps.sh</a>.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 This Shell script is the only script that is executed manually. It installs and configures Argo CD. Any other operation on the cluster must then be done using GitOps processes. I am using this to quickly install a new Demo-cluster. There are alternatives and maybe better way, but for my purpose it works pretty well.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Clone the repository to your local machine&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;git clone https://github.com/tjungbauer/openshift-clusterconfig-gitops.git&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Be sure that you are logged in the the required cluster&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc whoami --show-server&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Execute the init_GitOps.sh&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;./init_GitOps.sh&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The script will deploy the operator and configure/patch the Argo CD instance. In addition, it will create the so-called &lt;strong&gt;Application of Applications&lt;/strong&gt;, which acts as an umbrella Application, that automatically creates all other Argo CD Application(Sets).
-For now, the App of Apps is the only Argo CD Application that automatically synchronizes all changes found in Git. This is for security, purposes so you can test the cluster configuration one after another.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Clone the repository to your local machine</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git clone https://github.com/tjungbauer/openshift-clusterconfig-gitops.git</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Be sure that you are logged in the the required cluster</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc whoami --show-server</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Execute the init_GitOps.sh</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">./init_GitOps.sh</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The script will deploy the operator and configure/patch the Argo CD instance. In addition, it will create the so-called <strong>Application of Applications</strong>, which acts as an umbrella Application, that automatically creates all other Argo CD Application(Sets).
+For now, the App of Apps is the only Argo CD Application that automatically synchronizes all changes found in Git. This is for security, purposes so you can test the cluster configuration one after another.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Of course, it is up to you if you want to use the shell script. The Operator can also be installed manually, using Advanced Cluster Manager, or using Platform Operators and installing the Operating during the cluster installation (However, this feature is currently (v4.15) TechPreview)
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_what_will_this_script_do"&gt;What will this script do?&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I will not de-assemble the script line by line, but in general, the following will happen:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Adding repository &lt;a class="bare" href="https://charts.stderr.at/"&gt;https://charts.stderr.at/&lt;/a&gt; and install the Chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/openshift-gitops"&gt;openshift-gitops&lt;/a&gt;&lt;/p&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-This FIRST OpenShift-GitOps will be deployed with &lt;strong&gt;cluster-admin&lt;/strong&gt; privileges since we want to manage the whole cluster configuration. This Argo CD instance should not be used for application deployment. For that, deploy additional instances of GitOps.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Waiting for Deployments to become ready&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Deploy the &lt;strong&gt;Application of Applications&lt;/strong&gt; that is responsible for automatically deploying a set of Applications or ApplicationSets (see &lt;a href="#The Argo CD Object Manager Application"&gt;[The Argo CD Object Manager Application]&lt;/a&gt;)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following shows the output of the command:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;div class="expand"&gt;
-&lt;div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});"&gt;
-&lt;i style="font-size:x-small;" class="fas fa-chevron-right"&gt;&lt;/i&gt;
-&lt;span&gt;
-&lt;a&gt;Expand me...&lt;/a&gt;
-&lt;/span&gt;
-&lt;/div&gt;
-&lt;div class="expand-content" style="display: none;"&gt;
-&lt;div class="literalblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre&gt;❯ ./init_GitOps.sh
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect2">
+<h3 id="_what_will_this_script_do">What will this script do?</h3>
+<div class="paragraph">
+<p>I will not de-assemble the script line by line, but in general, the following will happen:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Adding repository <a class="bare" href="https://charts.stderr.at/">https://charts.stderr.at/</a> and install the Chart <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/openshift-gitops">openshift-gitops</a></p>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+This FIRST OpenShift-GitOps will be deployed with <strong>cluster-admin</strong> privileges since we want to manage the whole cluster configuration. This Argo CD instance should not be used for application deployment. For that, deploy additional instances of GitOps.
+</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>Waiting for Deployments to become ready</p>
+</li>
+<li>
+<p>Deploy the <strong>Application of Applications</strong> that is responsible for automatically deploying a set of Applications or ApplicationSets (see <a href="#_the_argo_cd_resources_manager_application">The Argo CD Resources Manager Application</a>)</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The following shows the output of the command:</p>
+</div>
+<div class="paragraph">
+
+<div class="expand">
+    <div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+        <i style="font-size:x-small;" class="fas fa-chevron-right"></i>
+        <span>
+        
+    	
+    	<a>Expand me...</a>
+    	
+    	</span>
+    </div>
+    <div class="expand-content" style="display: none;">
+        <div class="literalblock">
+<div class="content">
+<pre>❯ ./init_GitOps.sh
+
 Starting Deployment
+
 Deploying OpenShift GitOps Operator
+
 Adding Helm Repo https://charts.stderr.at/
 WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /Users/tjungbau/openshift-aws/aws/auth/kubeconfig
-&amp;#34;tjungbauer&amp;#34; has been added to your repositories
+&#34;tjungbauer&#34; has been added to your repositories
 WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /Users/tjungbau/openshift-aws/aws/auth/kubeconfig
 Hang tight while we grab the latest from your chart repositories...
-...Successfully got an update from the &amp;#34;sealed-secrets&amp;#34; chart repository
-...Successfully got an update from the &amp;#34;tjungbauer&amp;#34; chart repository
-...Successfully got an update from the &amp;#34;apache-airflow&amp;#34; chart repository
-...Successfully got an update from the &amp;#34;hashicorp&amp;#34; chart repository
-...Successfully got an update from the &amp;#34;bitnami&amp;#34; chart repository
+...Successfully got an update from the &#34;sealed-secrets&#34; chart repository
+...Successfully got an update from the &#34;tjungbauer&#34; chart repository
+...Successfully got an update from the &#34;apache-airflow&#34; chart repository
+...Successfully got an update from the &#34;hashicorp&#34; chart repository
+...Successfully got an update from the &#34;bitnami&#34; chart repository
 Update Complete. ⎈Happy Helming!⎈
 WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /Users/tjungbau/openshift-aws/aws/auth/kubeconfig
-Release &amp;#34;openshift-gitops-operator&amp;#34; has been upgraded. Happy Helming!
+Release &#34;openshift-gitops-operator&#34; has been upgraded. Happy Helming!
 NAME: openshift-gitops-operator
 LAST DEPLOYED: Mon Sep 26 13:22:33 2022
 NAMESPACE: openshift-operators
 STATUS: deployed
 REVISION: 2
 TEST SUITE: None
+
 Give the gitops-operator some time to be installed. Waiting for 45 seconds...
+
 Waiting for operator to start. Chcking every 10 seconds.
-NAME READY UP-TO-DATE AVAILABLE AGE
-gitops-operator-controller-manager 1/1 1 1 4d4h
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+gitops-operator-controller-manager   1/1     1            1           4d4h
+
 Waiting for openshift-gitops namespace to be created. Checking every 10 seconds.
-NAME STATUS AGE
-openshift-gitops Active 4d4h
+NAME               STATUS   AGE
+openshift-gitops   Active   4d4h
+
 Waiting for deployments to start. Checking every 10 seconds.
-NAME READY UP-TO-DATE AVAILABLE AGE
-cluster 1/1 1 1 4d4h
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE
+cluster   1/1     1            1           4d4h
 Waiting for all pods to be created
+
 Waiting for deployment cluster
-deployment &amp;#34;cluster&amp;#34; successfully rolled out
+deployment &#34;cluster&#34; successfully rolled out
+
 Waiting for deployment kam
-deployment &amp;#34;kam&amp;#34; successfully rolled out
+deployment &#34;kam&#34; successfully rolled out
+
 Waiting for deployment openshift-gitops-applicationset-controller
-deployment &amp;#34;openshift-gitops-applicationset-controller&amp;#34; successfully rolled out
+deployment &#34;openshift-gitops-applicationset-controller&#34; successfully rolled out
+
 Waiting for deployment openshift-gitops-redis
-deployment &amp;#34;openshift-gitops-redis&amp;#34; successfully rolled out
+deployment &#34;openshift-gitops-redis&#34; successfully rolled out
+
 Waiting for deployment openshift-gitops-repo-server
-deployment &amp;#34;openshift-gitops-repo-server&amp;#34; successfully rolled out
+deployment &#34;openshift-gitops-repo-server&#34; successfully rolled out
+
 Waiting for deployment openshift-gitops-server
-deployment &amp;#34;openshift-gitops-server&amp;#34; successfully rolled out
+deployment &#34;openshift-gitops-server&#34; successfully rolled out
 GitOps Operator ready
+
 Lets use our patched Argo CD CRD
 argocd.argoproj.io/openshift-gitops unchanged
 clusterrolebinding.rbac.authorization.k8s.io/cluster-admin-0 unchanged
+
 Waiting for deployment cluster
-deployment &amp;#34;cluster&amp;#34; successfully rolled out
+deployment &#34;cluster&#34; successfully rolled out
+
 Waiting for deployment kam
-deployment &amp;#34;kam&amp;#34; successfully rolled out
+deployment &#34;kam&#34; successfully rolled out
+
 Waiting for deployment openshift-gitops-applicationset-controller
-deployment &amp;#34;openshift-gitops-applicationset-controller&amp;#34; successfully rolled out
+deployment &#34;openshift-gitops-applicationset-controller&#34; successfully rolled out
+
 Waiting for deployment openshift-gitops-redis
-deployment &amp;#34;openshift-gitops-redis&amp;#34; successfully rolled out
+deployment &#34;openshift-gitops-redis&#34; successfully rolled out
+
 Waiting for deployment openshift-gitops-repo-server
-deployment &amp;#34;openshift-gitops-repo-server&amp;#34; successfully rolled out
+deployment &#34;openshift-gitops-repo-server&#34; successfully rolled out
+
 Waiting for deployment openshift-gitops-server
-deployment &amp;#34;openshift-gitops-server&amp;#34; successfully rolled out
+deployment &#34;openshift-gitops-server&#34; successfully rolled out
 GitOps Operator ready... again
 WARNING: Kubernetes configuration file is group-readable. This is insecure. Location: /Users/tjungbau/openshift-aws/aws/auth/kubeconfig
-Release &amp;#34;app-of-apps&amp;#34; has been upgraded. Happy Helming!
+Release &#34;app-of-apps&#34; has been upgraded. Happy Helming!
 NAME: app-of-apps
 LAST DEPLOYED: Mon Sep 26 13:23:59 2022
 NAMESPACE: openshift-gitops
 STATUS: deployed
 REVISION: 2
-TEST SUITE: None&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_logging_into_argo_cd"&gt;Logging into Argo CD&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;At this point, we have GitOps and the &amp;#34;&lt;strong&gt;App of Apps&lt;/strong&gt;&amp;#34; deployed.
-Argo CD comes with a WebUI and a command line tool. The latter must installed to your local environment. In this article, we will use the WebUI.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To access the WebUI use the applications menu of the top right corner in Openshift.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-link.png?width=340px" alt="WebUI Link"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Argo CD: WebUI Link&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Use the button &amp;#34;Login via OpenShift&amp;#34;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-login.png?width=340px" alt="Authentication"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. Argo CD: Authentication&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_the_argo_cd_resources_manager_application"&gt;The Argo CD Resources Manager Application&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;strong&gt;Application of Applications&lt;/strong&gt; (short App of Apps) is called &lt;strong&gt;Argo CD Resources Manager&lt;/strong&gt; and it is the only Argo CD application that is deployed using the init script. This single Argo CD Application has the sole purpose of deploying other Argo CD objects, such as Applications, ApplicationSets and AppProjects.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-app-of-apps.png?width=340px" alt="App of Apps"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. Argo CD: App of Apps&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It synchronizes everything that is found in the repository in the path:
-&lt;em&gt;base/argocd-resources-manager&lt;/em&gt; (main branch)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Whenever you would like to create a new Argo CD application(set) it is supposed to be done using this App-of-Apps or to be more exact: in the path mentioned above.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+TEST SUITE: None</pre>
+</div>
+</div>
+
+    </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_logging_into_argo_cd">Logging into Argo CD</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>At this point, we have GitOps and the &#34;<strong>App of Apps</strong>&#34; deployed.
+Argo CD comes with a WebUI and a command line tool. The latter must installed to your local environment. In this article, we will use the WebUI.</p>
+</div>
+<div class="paragraph">
+<p>To access the WebUI use the applications menu of the top right corner in Openshift.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-link.png?width=340px" alt="WebUI Link"/>
+</div>
+<div class="title">Figure 1. Argo CD: WebUI Link</div>
+</div>
+<div class="paragraph">
+<p>Use the button &#34;Login via OpenShift&#34;.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-login.png?width=340px" alt="Authentication"/>
+</div>
+<div class="title">Figure 2. Argo CD: Authentication</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_the_argo_cd_resources_manager_application">The Argo CD Resources Manager Application</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The <strong>Application of Applications</strong> (short App of Apps) is called <strong>Argo CD Resources Manager</strong> and it is the only Argo CD application that is deployed using the init script. This single Argo CD Application has the sole purpose of deploying other Argo CD objects, such as Applications, ApplicationSets and AppProjects.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-app-of-apps.png?width=340px" alt="App of Apps"/>
+</div>
+<div class="title">Figure 3. Argo CD: App of Apps</div>
+</div>
+<div class="paragraph">
+<p>It synchronizes everything that is found in the repository in the path:
+<em>base/argocd-resources-manager</em> (main branch)</p>
+</div>
+<div class="paragraph">
+<p>Whenever you would like to create a new Argo CD application(set) it is supposed to be done using this App-of-Apps or to be more exact: in the path mentioned above.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 The App-of-Apps is the only Argo CD Application (at this moment) that has automatic synchronization enabled. Thus any changes in the App-of-Apps will be propagated automatically as soon as GitOps syncs with Git.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The current Applications or ApplicationSets that come with the bootstrap repository are for example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Deployment of Advanced Cluster Security (RHACS)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Deployment of Advanced Cluster Management (RHACM)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Deployment of basic cluster configuration (i.e. etcd encryption, some UI tweaks …​)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Deployment of Compliance Operator&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;and many more.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Check out the deployed Argo CD objects or the openshift-clusterconfig-gitops repository.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A deep dive into the argocd-resources-manager will be topic of a different episode of this serie.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Operator installation with Argo CD</title><link>https://blog.stderr.at/openshift-platform/gitops/2023-03-20-operator-installation-with-argocd/</link><pubDate>Mon, 20 Mar 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/gitops/2023-03-20-operator-installation-with-argocd/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;GitOps for application deployment and cluster configuration is a must-have I am trying to convince every customer to follow from the very beginning when starting the Kubernetes journey. For me, as more on the infrastructure side of things, I am more focused on the configuration of an environment.
-Meaning, configuring a cluster, installing an operator etc.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this article, I would like to share how I deal with cluster configuration when certain Kubernetes objects are dependent on each other and how to use Kubernetes but also Argo CD features to resolve these dependencies.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-This article assumes that you have the &lt;strong&gt;openshift-gitops&lt;/strong&gt; Operator, which provides Argo CD, already installed, and configured. If you are new to GitOps check out this article: &lt;a href="https://blog.stderr.at/openshift/2020-08-06-argocd/"&gt;Argo CD&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_tldr"&gt;TL;DR&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;If you want to jump directly to the technical fun part, go here: &lt;a href="#source_1"&gt;Let’s start&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_the_idea"&gt;The Idea&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Everything should be seen as a code. Everything should be possible to be deployed in a repeatable way. With a GitOps approach, everything is stored naturally in Git and from there, a GitOps agent validates and synchronizes changes to one or more clusters.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When it comes to OpenShift, Red Hat supports Argo CD using the Operator &lt;strong&gt;openshift-gitops&lt;/strong&gt;. This gives you everything you need to deploy an Argo CD instance. The only thing you need to take care of is a Git repository, no matter if it is GitHub, Gitlab, Bitbucket etc.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_the_problem"&gt;The Problem&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Sometimes Kubernetes objects depend on each other. This is especially true when you would like to install and configure Operators, where the configuration, based on a Customer Resource Definition (CRD), can only happen after the Operator has been installed and is ready.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Why is that? Well, when you want to deploy an Operator, you will store a “Subscription object” in Git. Argo CD will take this object and applies it to the cluster. However, for an Operator, the creation of the Subscription object is just the first step. A lot of other steps are required until the Operator gets ready. Unfortunately, Argo CD cannot verify if the installation is successful. All it sees is that the Subscription object has been created and then it immediately tries to deploy the CRD. The CRD which is not yet available on the system because the Operator is still installing it.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Even if you use Argo CD features like Sync waves it would not wait until the Operator is successfully installed because for Argo CD the “success” is the creation of the Subscription object.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Subsequently, the Argo CD synchronisation process will fail.
-You could now try to automatically “Retry” the sync or use multiple Argo CD applications that you execute one after each other, but I was not fully happy with that and tried a different approach.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_my_solution"&gt;My Solution&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s say I would like to deploy and configure the &lt;strong&gt;Compliance Operator&lt;/strong&gt;. The steps would be:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Install the Operator.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Wait until the Operator is ready.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configure Operator specific CRDs.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This “Wait until the Operator is ready” is the tricky party for Argo CD. What I have done is the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Install the Operator, this is the first step and is done during Sync Wave 0.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a Kubernetes Job that verifies the status of the Operator. This Job additionally requires a ServiceAccount and a role with a binding. They are configured during Sync Wave is 1. Moreover, I use a &lt;strong&gt;Hook&lt;/strong&gt; (another Argo CD feature) with the deletion policy “HookSucceeded”. This makes sure that the Job, ServiceAccount, Role and RoleBinding are removed after the status has been verified.
-The verification is successful as soon as the Operator status says “Succeeded”. In fact, all the Job does is to execute some oc commands. For example,&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get clusterserviceversion openshift-gitops-operator.v1.8.0 -n openshift-gitops -o jsonpath={.status.phase}
-Succeeded&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Finally, during the next Sync Wave (2+) the CRD can be deployed. In this case, I deploy the object &lt;strong&gt;ScanSettingBinding&lt;/strong&gt;.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In Argo CD everything is correctly synchronized, and the Operator and its configuration is in place.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-If you are new to the compliance operator, I recommend the following article: &lt;a href="https://blog.stderr.at/compliance/2021/07/compliance-operator/"&gt;Compliance Operator&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I use this approach for every Operator that I would like to install and configure at the same time. For example, I do the same for Advanced Cluster Security or Advanced Cluster Management where I use the Job to verify if everything is ready before I let Argo CD continue.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-More information about Sync Waves and Hooks can be found in the official Argo CD documentation: &lt;a href="https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/"&gt;Sync Phases and Waves&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="source_1"&gt;Let’s see this in Action&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Prerequisites&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift cluster 4.x&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;openshift-gitops is installed and ready to be used.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Access to GitHub (or to your own Repository)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I will be using my Helm Chart repository at &lt;a class="bare" href="https://charts.stderr.at/"&gt;https://charts.stderr.at/&lt;/a&gt; and from there the charts:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;compliance-operator-full-stack&lt;/p&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;helper-operator (sub chart): Responsible to install the Operators.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;helper-status-checker (sub chart): Responsible to check the status of the Operator.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;Why do I use Helm charts?&lt;/strong&gt;
-There is no specific reason for that. I started with Helm for the cluster configuration and now it has evolved with a separate Chart repository and sub-charts and so on.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_argo_cd_application"&gt;Argo CD Application&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In Argo CD I have the following Application:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The current Applications or ApplicationSets that come with the bootstrap repository are for example:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Deployment of Advanced Cluster Security (RHACS)</p>
+</li>
+<li>
+<p>Deployment of Advanced Cluster Management (RHACM)</p>
+</li>
+<li>
+<p>Deployment of basic cluster configuration (i.e. etcd encryption, some UI tweaks …​)</p>
+</li>
+<li>
+<p>Deployment of Compliance Operator</p>
+</li>
+<li>
+<p>and many more.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Check out the deployed Argo CD objects or the openshift-clusterconfig-gitops repository.</p>
+</div>
+<div class="paragraph">
+<p>A deep dive into the argocd-resources-manager will be topic of a different episode of this serie.</p>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Operator installation with Argo CD</title><link>https://blog.stderr.at/openshift-platform/gitops/2023-03-20-operator-installation-with-argocd/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/gitops/2023-03-20-operator-installation-with-argocd/</guid><pubDate>Mon, 20 Mar 2023 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><description>Openshift 4.x - Using Argo CD to deploy Operators</description><content:encoded><![CDATA[<div class="paragraph">
+<p>GitOps for application deployment and cluster configuration is a must-have I am trying to convince every customer to follow from the very beginning when starting the Kubernetes journey. For me, as more on the infrastructure side of things, I am more focused on the configuration of an environment.
+Meaning, configuring a cluster, installing an operator etc.</p>
+</div>
+<div class="paragraph">
+<p>In this article, I would like to share how I deal with cluster configuration when certain Kubernetes objects are dependent on each other and how to use Kubernetes but also Argo CD features to resolve these dependencies.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+This article assumes that you have the <strong>openshift-gitops</strong> Operator, which provides Argo CD, already installed, and configured. If you are new to GitOps check out this article: <a href="https://blog.stderr.at/openshift/2020-08-06-argocd/">Argo CD</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect1">
+<h2 id="_tldr">TL;DR</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>If you want to jump directly to the technical fun part, go here: <a href="#source_1">Let’s start</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_the_idea">The Idea</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Everything should be seen as a code. Everything should be possible to be deployed in a repeatable way. With a GitOps approach, everything is stored naturally in Git and from there, a GitOps agent validates and synchronizes changes to one or more clusters.</p>
+</div>
+<div class="paragraph">
+<p>When it comes to OpenShift, Red Hat supports Argo CD using the Operator <strong>openshift-gitops</strong>. This gives you everything you need to deploy an Argo CD instance. The only thing you need to take care of is a Git repository, no matter if it is GitHub, Gitlab, Bitbucket etc.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_the_problem">The Problem</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Sometimes Kubernetes objects depend on each other. This is especially true when you would like to install and configure Operators, where the configuration, based on a Customer Resource Definition (CRD), can only happen after the Operator has been installed and is ready.</p>
+</div>
+<div class="paragraph">
+<p>Why is that? Well, when you want to deploy an Operator, you will store a “Subscription object” in Git. Argo CD will take this object and applies it to the cluster. However, for an Operator, the creation of the Subscription object is just the first step. A lot of other steps are required until the Operator gets ready. Unfortunately, Argo CD cannot verify if the installation is successful. All it sees is that the Subscription object has been created and then it immediately tries to deploy the CRD. The CRD which is not yet available on the system because the Operator is still installing it.</p>
+</div>
+<div class="paragraph">
+<p>Even if you use Argo CD features like Sync waves it would not wait until the Operator is successfully installed because for Argo CD the “success” is the creation of the Subscription object.</p>
+</div>
+<div class="paragraph">
+<p>Subsequently, the Argo CD synchronisation process will fail.
+You could now try to automatically “Retry” the sync or use multiple Argo CD applications that you execute one after each other, but I was not fully happy with that and tried a different approach.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_my_solution">My Solution</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s say I would like to deploy and configure the <strong>Compliance Operator</strong>. The steps would be:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Install the Operator.</p>
+</li>
+<li>
+<p>Wait until the Operator is ready.</p>
+</li>
+<li>
+<p>Configure Operator specific CRDs.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>This “Wait until the Operator is ready” is the tricky party for Argo CD. What I have done is the following:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Install the Operator, this is the first step and is done during Sync Wave 0.</p>
+</li>
+<li>
+<p>Create a Kubernetes Job that verifies the status of the Operator. This Job additionally requires a ServiceAccount and a role with a binding. They are configured during Sync Wave is 1. Moreover, I use a <strong>Hook</strong> (another Argo CD feature) with the deletion policy “HookSucceeded”. This makes sure that the Job, ServiceAccount, Role and RoleBinding are removed after the status has been verified.
+The verification is successful as soon as the Operator status says “Succeeded”. In fact, all the Job does is to execute some oc commands. For example,</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get clusterserviceversion openshift-gitops-operator.v1.8.0 -n openshift-gitops -o jsonpath={.status.phase}
+
+Succeeded</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Finally, during the next Sync Wave (2+) the CRD can be deployed. In this case, I deploy the object <strong>ScanSettingBinding</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>In Argo CD everything is correctly synchronized, and the Operator and its configuration is in place.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+If you are new to the compliance operator, I recommend the following article: <a href="https://blog.stderr.at/compliance/2021/07/compliance-operator/">Compliance Operator</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>I use this approach for every Operator that I would like to install and configure at the same time. For example, I do the same for Advanced Cluster Security or Advanced Cluster Management where I use the Job to verify if everything is ready before I let Argo CD continue.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+More information about Sync Waves and Hooks can be found in the official Argo CD documentation: <a href="https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/">Sync Phases and Waves</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="source_1">Let’s see this in Action</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Prerequisites</strong></p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>OpenShift cluster 4.x</p>
+</li>
+<li>
+<p>openshift-gitops is installed and ready to be used.</p>
+</li>
+<li>
+<p>Access to GitHub (or to your own Repository)</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>I will be using my Helm Chart repository at <a class="bare" href="https://charts.stderr.at/">https://charts.stderr.at/</a> and from there the charts:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>compliance-operator-full-stack</p>
+<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+<p>helper-operator (sub chart): Responsible to install the Operators.</p>
+</li>
+<li>
+<p>helper-status-checker (sub chart): Responsible to check the status of the Operator.</p>
+</li>
+</ol>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><strong>Why do I use Helm charts?</strong>
+There is no specific reason for that. I started with Helm for the cluster configuration and now it has evolved with a separate Chart repository and sub-charts and so on.</p>
+</div>
+<div class="sect2">
+<h3 id="_argo_cd_application">Argo CD Application</h3>
+<div class="paragraph">
+<p>In Argo CD I have the following Application:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-name: in-cluster-install-compliance-scans
-namespace: openshift-gitops
+  name: in-cluster-install-compliance-scans
+  namespace: openshift-gitops
 spec:
-destination:
-namespace: default
-server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-info:
-- name: Description
-value: Deploy and configure the Compliance Scan Operator
-project: in-cluster
-source:
-path: charts/compliance-operator-full-stack &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/helm-charts&amp;#39;
-targetRevision: main&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Installing on the local cluster where Argo CD is installed.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Git configuration, including path and revision.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  destination:
+    namespace: default
+    server: &#39;https://kubernetes.default.svc&#39; <i class="conum" data-value="1"></i><b>(1)</b>
+  info:
+    - name: Description
+      value: Deploy and configure the Compliance Scan Operator
+  project: in-cluster
+  source:
+    path: charts/compliance-operator-full-stack <i class="conum" data-value="2"></i><b>(2)</b>
+    repoURL: &#39;https://github.com/tjungbauer/helm-charts&#39;
+    targetRevision: main</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Installing on the local cluster where Argo CD is installed.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Git configuration, including path and revision.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Actually, this Application is created out of an ApplicationSet, but I did not want to make it too complex :)
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Application would like to synchronize the objects:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Subscription&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;OperatorGroup&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Namespace (openshift-compliance)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;ScanSettingBinding&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-operator-installation.png" alt="Installing Compliance Operator"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Argo CD: Installing Compliance Operator&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-&lt;strong&gt;Where are the objects we need for the Job?&lt;/strong&gt; Since they are only available during the Sync-Hook they will not show up here. In fact, they will only show up during the time they are alive and will disappear again after the status of the operator has been verified.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_helm_chart_configuration"&gt;Helm Chart Configuration&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/compliance-operator-full-stack"&gt;Helm Chart&lt;/a&gt; gets its configuration from a values file. You can verify the whole file on GitHub.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The important pieces here are that some variables are handed over to the appropriate Sub Charts.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_operator_configuration"&gt;Operator Configuration&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This part is handed over to the Chart “&lt;strong&gt;helper-operator&lt;/strong&gt;”.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;helper-operator:
-operators:
-compliance-operator:
-enabled: true
-syncwave: &amp;#39;0&amp;#39;
-namespace:
-name: openshift-compliance
-create: true
-subscription:
-channel: release-0.1
-approval: Automatic
-operatorName: compliance-operator
-source: redhat-operators
-sourceNamespace: openshift-marketplace
-operatorgroup:
-create: true
-notownnamespace: true&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It is executed during Sync Wave 0 and defines if a Namespace (openshift-compliance) shall be created (true) and the specification of the Operator which you need to know upfront:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;channel&lt;/strong&gt;: Defines which channel shall be used. Some operators offer different channels.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;approval&lt;/strong&gt;: Either Automatic or Manual … defines if the Operator shall be updated automatically or requires an approval.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;operatorName&lt;/strong&gt;: the actual name of the Operator (compliance-operator)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;source&lt;/strong&gt;: Where does this Operator come from (redhat-operator)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;sourceNamespace&lt;/strong&gt;: In this case openshift-marketplace&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can fetch these values by looking at the Packagemanifest:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get packagemanifest compliance-operator -o yaml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_status_checker_configuration"&gt;Status Checker Configuration&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This part is handed over to the Sub-Chart &amp;#34;&lt;strong&gt;helper-status-checker&lt;/strong&gt;&amp;#34;&amp;#34;. The main values here are the operatorName and the namespace where the Operator is installed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;What is not visible here is the Sync Wave, which is per default set to 1 inside the Helm Chart. If you need to overwrite it, it can be configured in this section as well.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;helper-status-checker:
-enabled: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-# use the value of the currentCSV (packagemanifest) but WITHOUT the version !!
-operatorName: compliance-operator &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-# where operator is installed
-namespace:
-name: openshift-compliance &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-serviceAccount:
-create: true
-name: &amp;#34;sa-compliance&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Is the status checker enabled or is it not.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the operator as it is reported by the value currentCSV inside the packageManifest&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The namespace where the Operator has been installed.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the ServiceAccount that is created temporarily.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The Application would like to synchronize the objects:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Subscription</p>
+</li>
+<li>
+<p>OperatorGroup</p>
+</li>
+<li>
+<p>Namespace (openshift-compliance)</p>
+</li>
+<li>
+<p>ScanSettingBinding</p>
+</li>
+</ol>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-operator-installation.png" alt="Installing Compliance Operator"/>
+</div>
+<div class="title">Figure 1. Argo CD: Installing Compliance Operator</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<strong>Where are the objects we need for the Job?</strong> Since they are only available during the Sync-Hook they will not show up here. In fact, they will only show up during the time they are alive and will disappear again after the status of the operator has been verified.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_helm_chart_configuration">Helm Chart Configuration</h3>
+<div class="paragraph">
+<p>The <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/compliance-operator-full-stack">Helm Chart</a> gets its configuration from a values file. You can verify the whole file on GitHub.</p>
+</div>
+<div class="paragraph">
+<p>The important pieces here are that some variables are handed over to the appropriate Sub Charts.</p>
+</div>
+<div class="sect3">
+<h4 id="_operator_configuration">Operator Configuration</h4>
+<div class="paragraph">
+<p>This part is handed over to the Chart “<strong>helper-operator</strong>”.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">helper-operator:
+  operators:
+    compliance-operator:
+      enabled: true
+      syncwave: &#39;0&#39;
+      namespace:
+        name: openshift-compliance
+        create: true
+      subscription:
+        channel: release-0.1
+        approval: Automatic
+        operatorName: compliance-operator
+        source: redhat-operators
+        sourceNamespace: openshift-marketplace
+      operatorgroup:
+        create: true
+        notownnamespace: true</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>It is executed during Sync Wave 0 and defines if a Namespace (openshift-compliance) shall be created (true) and the specification of the Operator which you need to know upfront:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>channel</strong>: Defines which channel shall be used. Some operators offer different channels.</p>
+</li>
+<li>
+<p><strong>approval</strong>: Either Automatic or Manual … defines if the Operator shall be updated automatically or requires an approval.</p>
+</li>
+<li>
+<p><strong>operatorName</strong>: the actual name of the Operator (compliance-operator)</p>
+</li>
+<li>
+<p><strong>source</strong>: Where does this Operator come from (redhat-operator)</p>
+</li>
+<li>
+<p><strong>sourceNamespace</strong>: In this case openshift-marketplace</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>You can fetch these values by looking at the Packagemanifest:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get packagemanifest compliance-operator -o yaml</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_status_checker_configuration">Status Checker Configuration</h4>
+<div class="paragraph">
+<p>This part is handed over to the Sub-Chart &#34;<strong>helper-status-checker</strong>&#34;&#34;. The main values here are the operatorName and the namespace where the Operator is installed.</p>
+</div>
+<div class="paragraph">
+<p>What is not visible here is the Sync Wave, which is per default set to 1 inside the Helm Chart. If you need to overwrite it, it can be configured in this section as well.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">helper-status-checker:
+  enabled: true <i class="conum" data-value="1"></i><b>(1)</b>
+
+  # use the value of the currentCSV (packagemanifest) but WITHOUT the version !!
+  operatorName: compliance-operator <i class="conum" data-value="2"></i><b>(2)</b>
+
+  # where operator is installed
+  namespace:
+    name: openshift-compliance <i class="conum" data-value="3"></i><b>(3)</b>
+
+  serviceAccount:
+    create: true
+    name: &#34;sa-compliance&#34; <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Is the status checker enabled or is it not.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The name of the operator as it is reported by the value currentCSV inside the packageManifest</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The namespace where the Operator has been installed.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>The name of the ServiceAccount that is created temporarily.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 The operatorName is sometimes different than the Operator name required for helper-operator chart. Here it seems the value of the currentCSV must be used but without the version number. (The Job will look up the version itself)
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_operator_crd_configuration"&gt;Operator CRD configuration&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The final section of the values file manages the configuration for the Operator itself. This section does not use a Sub Chart. Instead, the variables are used in the Main-Chart. In this example, the &lt;strong&gt;ScanSettingBinding&lt;/strong&gt; will be configured during Sync Wave 3, which is all we need to basic functionality.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;compliance:
-scansettingbinding:
-enabled: true
-syncwave: &amp;#39;3&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-profiles: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-- name: ocp4-cis-node
-- name: ocp4-cis
-scansetting: default&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Define the Sync Wave. This value must be higher than the Sync Wave of the &lt;strong&gt;helper-status-checker&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;ScanSettingBinding configuration. Two profiles are used in this example.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_synchronizing_argo_cd"&gt;Synchronizing Argo CD&lt;/h3&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Basic Application in Argo CD before it is synced:&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-operator-installation.png?width=480" alt="argocd operator installation"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. Argo CD: Application&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Sync Wave 0: Synchronization has started. Namespace and Subscription are deployed.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-starting-operator-installation.png?width=480" alt="argocd starting operator installation"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. Argo CD: Synchronization is started (Sync Wave 0)&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Sync Wave 1: Status Checker Job has started and tries to verify the Operator.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-starting-job.png?width=480" alt="argocd starting job"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 4. Argo CD: Status Checker Job started (Sync Wave 1)&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The Log output of the Operator. You can see that the status switches from Pending to Installing to Succeeded.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-status-checker-log.png?width=480" alt="argocd status checker log"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 5. Argo CD: Log of the Status Checker Pod&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;After Sync Wave 3, the whole Application has been synchronized and the Checker Job has been removed.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-operator-installed.png?width=480" alt="argocd operator installed"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 6. Argo CD: Compliance Operator is fully deployed&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>SSL Certificate Management for OpenShift on AWS</title><link>https://blog.stderr.at/openshift-platform/security/certificates/2023-02-16-ssl-certificate-management/</link><pubDate>Thu, 16 Feb 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/certificates/2023-02-16-ssl-certificate-management/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally, after a long time on my backlog, I had some time to look into the &lt;strong&gt;Cert-Manager Operator&lt;/strong&gt; and use this Operator to automatically issue new SSL certificates.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_operator_crd_configuration">Operator CRD configuration</h4>
+<div class="paragraph">
+<p>The final section of the values file manages the configuration for the Operator itself. This section does not use a Sub Chart. Instead, the variables are used in the Main-Chart. In this example, the <strong>ScanSettingBinding</strong> will be configured during Sync Wave 3, which is all we need to basic functionality.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">compliance:
+  scansettingbinding:
+    enabled: true
+    syncwave: &#39;3&#39; <i class="conum" data-value="1"></i><b>(1)</b>
+    profiles: <i class="conum" data-value="2"></i><b>(2)</b>
+      - name: ocp4-cis-node
+      - name: ocp4-cis
+    scansetting: default</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Define the Sync Wave. This value must be higher than the Sync Wave of the <strong>helper-status-checker</strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>ScanSettingBinding configuration. Two profiles are used in this example.</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_synchronizing_argo_cd">Synchronizing Argo CD</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Basic Application in Argo CD before it is synced:</p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-operator-installation.png?width=480" alt="argocd operator installation"/>
+</div>
+<div class="title">Figure 2. Argo CD: Application</div>
+</div>
+</li>
+<li>
+<p>Sync Wave 0: Synchronization has started. Namespace and Subscription are deployed.</p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-starting-operator-installation.png?width=480" alt="argocd starting operator installation"/>
+</div>
+<div class="title">Figure 3. Argo CD: Synchronization is started (Sync Wave 0)</div>
+</div>
+</li>
+<li>
+<p>Sync Wave 1: Status Checker Job has started and tries to verify the Operator.</p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-starting-job.png?width=480" alt="argocd starting job"/>
+</div>
+<div class="title">Figure 4. Argo CD: Status Checker Job started (Sync Wave 1)</div>
+</div>
+</li>
+<li>
+<p>The Log output of the Operator. You can see that the status switches from Pending to Installing to Succeeded.</p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-status-checker-log.png?width=480" alt="argocd status checker log"/>
+</div>
+<div class="title">Figure 5. Argo CD: Log of the Status Checker Pod</div>
+</div>
+</li>
+<li>
+<p>After Sync Wave 3, the whole Application has been synchronized and the Checker Job has been removed.</p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-operator-installed.png?width=480" alt="argocd operator installed"/>
+</div>
+<div class="title">Figure 6. Argo CD: Compliance Operator is fully deployed</div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>SSL Certificate Management for OpenShift on AWS</title><link>https://blog.stderr.at/openshift-platform/security/certificates/2023-02-16-ssl-certificate-management/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/certificates/2023-02-16-ssl-certificate-management/</guid><pubDate>Thu, 16 Feb 2023 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><description>Using cert-manager to automatically issue new certificates</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Finally, after a long time on my backlog, I had some time to look into the <strong>Cert-Manager Operator</strong> and use this Operator to automatically issue new SSL certificates.
 This article shall show step-by-step how to create a certificate request and use this certificate for a Route and access a service via your Browser.
-I will focus on the technical part, using a given domain on AWS Route53.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a new OpenShift Cluster has been deployed, self-signed certificates are used to access the Routes (for example the console) and the API. Typically, an application is exposed to the world using the schema &lt;em&gt;&amp;lt;app-name&amp;gt;-&amp;lt;namespace-name&amp;gt;.apps.&amp;lt;clusterdomain&amp;gt;&lt;/em&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We will try to create a certificate for a specific application with a custom domain name and for the cluster domains: *.apps.clusterdomain and api.clusterdomain.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The domain is already available and delegated to AWS Route53. As certificate authority, I am using &lt;a href="https://letsencrypt.org/"&gt;Let’s Encrypt&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We will install 2 operators:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Cert Manager&lt;/strong&gt;: to issue new certificates.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Cert Utils Operator&lt;/strong&gt;: injects the certificate into a Route object.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The &lt;strong&gt;Cert Utils Operator&lt;/strong&gt; can provide additional information for a certificate and monitors the expiration date. Here we mainly use it to automatically inject Route objects by defining specific annotations.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift cluster with a user that has privileges to install Operators.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;A domain hosted for example at Route 53&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Credentials for your Cloud Provider (AWS)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_deploy_an_example_application"&gt;Deploy an Example Application&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s use the super complex demo application &lt;strong&gt;bookimport&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc new-project bookimport
+I will focus on the technical part, using a given domain on AWS Route53.</p>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After a new OpenShift Cluster has been deployed, self-signed certificates are used to access the Routes (for example the console) and the API. Typically, an application is exposed to the world using the schema <em>&lt;app-name&gt;-&lt;namespace-name&gt;.apps.&lt;clusterdomain&gt;</em>.</p>
+</div>
+<div class="paragraph">
+<p>We will try to create a certificate for a specific application with a custom domain name and for the cluster domains: *.apps.clusterdomain and api.clusterdomain.</p>
+</div>
+<div class="paragraph">
+<p>The domain is already available and delegated to AWS Route53. As certificate authority, I am using <a href="https://letsencrypt.org/">Let’s Encrypt</a>.</p>
+</div>
+<div class="paragraph">
+<p>We will install 2 operators:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>Cert Manager</strong>: to issue new certificates.</p>
+</li>
+<li>
+<p><strong>Cert Utils Operator</strong>: injects the certificate into a Route object.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The <strong>Cert Utils Operator</strong> can provide additional information for a certificate and monitors the expiration date. Here we mainly use it to automatically inject Route objects by defining specific annotations.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>OpenShift cluster with a user that has privileges to install Operators.</p>
+</li>
+<li>
+<p>A domain hosted for example at Route 53</p>
+</li>
+<li>
+<p>Credentials for your Cloud Provider (AWS)</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_deploy_an_example_application">Deploy an Example Application</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s use the super complex demo application <strong>bookimport</strong>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc new-project bookimport
 oc apply -f https://raw.githubusercontent.com/tjungbauer/book-import/master-no-pre-post/book-import/deployment.yaml -n bookimport
 oc apply -f https://raw.githubusercontent.com/tjungbauer/book-import/master-no-pre-post/book-import/service.yaml -n bookimport
 oc expose service book-import -n bookimport
-oc get route -n bookimport&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The last command will print you an URL which, copied into the browser, will open our application:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/bookimport.png?width=480px" alt="Bookimport"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Application Book Import using HTTP&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see in the address line the connection is not secured (&lt;em&gt;Nicht sicher&lt;/em&gt; in German) and my domain is &lt;strong&gt;*.apps.ocp.aws.ispworld.at&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_an_aws_user_for_accessing_route_53"&gt;Configure an AWS user for accessing Route 53&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;On AWS I have currently 2 Zones, the public &lt;strong&gt;aws.ispworld.at&lt;/strong&gt; and a private zone, created by the OpenShift Installer.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/hostedzones.png?width=340px" alt="DomainZones"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. Domain Zones&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before you can manage your domains a user with appropriate privileges must be created.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Store the following in the file &lt;code&gt;policy.json&lt;/code&gt;. This will allow a user to perform DNS Upgrades.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
-&amp;#34;Version&amp;#34;: &amp;#34;2012-10-17&amp;#34;,
-&amp;#34;Statement&amp;#34;: [
+oc get route -n bookimport</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The last command will print you an URL which, copied into the browser, will open our application:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/bookimport.png?width=480px" alt="Bookimport"/>
+</div>
+<div class="title">Figure 1. Application Book Import using HTTP</div>
+</div>
+<div class="paragraph">
+<p>As you can see in the address line the connection is not secured (<em>Nicht sicher</em> in German) and my domain is <strong>*.apps.ocp.aws.ispworld.at</strong></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_an_aws_user_for_accessing_route_53">Configure an AWS user for accessing Route 53</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>On AWS I have currently 2 Zones, the public <strong>aws.ispworld.at</strong> and a private zone, created by the OpenShift Installer.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/hostedzones.png?width=340px" alt="DomainZones"/>
+</div>
+<div class="title">Figure 2. Domain Zones</div>
+</div>
+<div class="paragraph">
+<p>Before you can manage your domains a user with appropriate privileges must be created.</p>
+</div>
+<div class="paragraph">
+<p>Store the following in the file <code>policy.json</code>. This will allow a user to perform DNS Upgrades.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+   &#34;Version&#34;: &#34;2012-10-17&#34;,
+   &#34;Statement&#34;: [
+       {
+           &#34;Effect&#34;: &#34;Allow&#34;,
+           &#34;Action&#34;: &#34;route53:GetChange&#34;,
+           &#34;Resource&#34;: &#34;arn:aws:route53:::change/*&#34;
+       },
+       {
+           &#34;Effect&#34;: &#34;Allow&#34;,
+           &#34;Action&#34;: [
+               &#34;route53:ChangeResourceRecordSets&#34;,
+               &#34;route53:ListResourceRecordSets&#34;
+           ],
+           &#34;Resource&#34;: &#34;arn:aws:route53:::hostedzone/*&#34;
+       },
+       {
+           &#34;Effect&#34;: &#34;Allow&#34;,
+           &#34;Action&#34;: [
+               &#34;route53:ListHostedZones&#34;,
+               &#34;route53:ListResourceRecordSets&#34;,
+               &#34;route53:ListHostedZonesByName&#34;
+           ],
+           &#34;Resource&#34;: &#34;*&#34;
+       }
+   ]
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Apply the new policy to AWS and store the ARN into a variable:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">aws iam create-policy --policy-name AllowDNSUpdates --policy-document  file://policy.json
+export POLICY_ARN=$(aws iam list-policies --query &#39;Policies[?PolicyName==`AllowDNSUpdates`].Arn&#39; --output text)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Create the user <code>route53-openshift</code> and assign the policy to that user:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">aws iam create-user --user-name route53-openshift
+aws iam attach-user-policy --policy-arn $POLICY_ARN --user-name route53-openshift</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Finally, create the access key and store the <strong>AccessKeyId</strong> and the <strong>SecretAccessKey</strong> for later use:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">aws iam create-access-key --user-name route53-openshift --output json
+
 {
-&amp;#34;Effect&amp;#34;: &amp;#34;Allow&amp;#34;,
-&amp;#34;Action&amp;#34;: &amp;#34;route53:GetChange&amp;#34;,
-&amp;#34;Resource&amp;#34;: &amp;#34;arn:aws:route53:::change/*&amp;#34;
-},
-{
-&amp;#34;Effect&amp;#34;: &amp;#34;Allow&amp;#34;,
-&amp;#34;Action&amp;#34;: [
-&amp;#34;route53:ChangeResourceRecordSets&amp;#34;,
-&amp;#34;route53:ListResourceRecordSets&amp;#34;
-],
-&amp;#34;Resource&amp;#34;: &amp;#34;arn:aws:route53:::hostedzone/*&amp;#34;
-},
-{
-&amp;#34;Effect&amp;#34;: &amp;#34;Allow&amp;#34;,
-&amp;#34;Action&amp;#34;: [
-&amp;#34;route53:ListHostedZones&amp;#34;,
-&amp;#34;route53:ListResourceRecordSets&amp;#34;,
-&amp;#34;route53:ListHostedZonesByName&amp;#34;
-],
-&amp;#34;Resource&amp;#34;: &amp;#34;*&amp;#34;
-}
-]
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Apply the new policy to AWS and store the ARN into a variable:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;aws iam create-policy --policy-name AllowDNSUpdates --policy-document file://policy.json
-export POLICY_ARN=$(aws iam list-policies --query &amp;#39;Policies[?PolicyName==`AllowDNSUpdates`].Arn&amp;#39; --output text)&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Create the user &lt;code&gt;route53-openshift&lt;/code&gt; and assign the policy to that user:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;aws iam create-user --user-name route53-openshift
-aws iam attach-user-policy --policy-arn $POLICY_ARN --user-name route53-openshift&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally, create the access key and store the &lt;strong&gt;AccessKeyId&lt;/strong&gt; and the &lt;strong&gt;SecretAccessKey&lt;/strong&gt; for later use:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;aws iam create-access-key --user-name route53-openshift --output json
-{
-&amp;#34;AccessKey&amp;#34;: {
-&amp;#34;UserName&amp;#34;: &amp;#34;route53-openshift&amp;#34;,
-&amp;#34;AccessKeyId&amp;#34;: &amp;#34;XXXXXXXXXXXXXX&amp;#34;,
-&amp;#34;Status&amp;#34;: &amp;#34;Active&amp;#34;,
-&amp;#34;SecretAccessKey&amp;#34;: &amp;#34;XXXXXXXXXXXXXXXXXXX&amp;#34;,
-&amp;#34;CreateDate&amp;#34;: &amp;#34;2023-02-15T12:34:06+00:00&amp;#34;
-}
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_installing_operators_to_openshift"&gt;Installing Operators to OpenShift&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We will install 2 Operators to our cluster:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;cert-manager Operator for Red Hat OpenShift&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Cert Utils Operator&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Simply search both on OLM and install them keeping the default values.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The Cert Utils Operator is a &lt;strong&gt;Community&lt;/strong&gt; Operator.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/operators.png?width=480px" alt="Operators"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. Operators&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will install the Cert-Manager into the namespace &lt;strong&gt;openshift-cert-manager&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_the_cert_manager_operator"&gt;Configure the Cert-Manager Operator&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before we can issue a certificate, we need to create a secret with our AWS SecretAccessKey (see above):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc create secret generic prod-route53-credentials-secret --from-literal secret-access-key=&amp;#34;XXXXXXXXXXXXXXXXXXX&amp;#34; -n openshift-cert-manager&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As next step, we create a &lt;strong&gt;ClusterIssuer&lt;/strong&gt; that will be available cluster-wide using &lt;strong&gt;Let’s Encrypt&lt;/strong&gt; as certificate authority:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The connection to Let’s Encrypt is using the &lt;strong&gt;productive&lt;/strong&gt; API. If you would like to use the staging environment instead, change the server URL to &lt;a class="bare" href="https://acme-staging-v02.api.letsencrypt.org/directory"&gt;https://acme-staging-v02.api.letsencrypt.org/directory&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+    &#34;AccessKey&#34;: {
+        &#34;UserName&#34;: &#34;route53-openshift&#34;,
+        &#34;AccessKeyId&#34;: &#34;XXXXXXXXXXXXXX&#34;,
+        &#34;Status&#34;: &#34;Active&#34;,
+        &#34;SecretAccessKey&#34;: &#34;XXXXXXXXXXXXXXXXXXX&#34;,
+        &#34;CreateDate&#34;: &#34;2023-02-15T12:34:06+00:00&#34;
+    }
+}</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_installing_operators_to_openshift">Installing Operators to OpenShift</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>We will install 2 Operators to our cluster:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>cert-manager Operator for Red Hat OpenShift</p>
+</li>
+<li>
+<p>Cert Utils Operator</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Simply search both on OLM and install them keeping the default values.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The Cert Utils Operator is a <strong>Community</strong> Operator.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/operators.png?width=480px" alt="Operators"/>
+</div>
+<div class="title">Figure 3. Operators</div>
+</div>
+<div class="paragraph">
+<p>This will install the Cert-Manager into the namespace <strong>openshift-cert-manager</strong></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_the_cert_manager_operator">Configure the Cert-Manager Operator</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before we can issue a certificate, we need to create a secret with our AWS SecretAccessKey (see above):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc create secret generic prod-route53-credentials-secret --from-literal secret-access-key=&#34;XXXXXXXXXXXXXXXXXXX&#34; -n openshift-cert-manager</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As next step, we create a <strong>ClusterIssuer</strong> that will be available cluster-wide using <strong>Let’s Encrypt</strong> as certificate authority:</p>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+The connection to Let’s Encrypt is using the <strong>productive</strong> API. If you would like to use the staging environment instead, change the server URL to <a class="bare" href="https://acme-staging-v02.api.letsencrypt.org/directory">https://acme-staging-v02.api.letsencrypt.org/directory</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-name: letsencrypt-prod
+  name: letsencrypt-prod
 spec:
-acme:
-email: your@email.com &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-preferredChain: &amp;#39;&amp;#39;
-privateKeySecretRef:
-name: letsencrypt-account-key
-server: &amp;#39;https://acme-v02.api.letsencrypt.org/directory&amp;#39;
-solvers:
-- dns01:
-route53:
-accessKeyID: XXXXXXXXXXXXXX &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-region: eu-central-1 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-secretAccessKeySecretRef:
-key: secret-access-key
-name: prod-route53-credentials-secret &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-selector:
-dnsZones:
-- your-domain &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Change your email address&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Use the &lt;strong&gt;AccessKeyId&lt;/strong&gt; created above&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Using AWS you need to define a region&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the secret created during the step before&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Your &lt;strong&gt;public&lt;/strong&gt; domain, for example aws.ispworld.at.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Once created the &lt;strong&gt;ClusterIssuer&lt;/strong&gt; should switch to the status &amp;#34;Ready&amp;#34;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc describe clusterissuer letsencrypt-prod
+  acme:
+    email: your@email.com <i class="conum" data-value="1"></i><b>(1)</b>
+    preferredChain: &#39;&#39;
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    server: &#39;https://acme-v02.api.letsencrypt.org/directory&#39;
+    solvers:
+      - dns01:
+          route53:
+            accessKeyID: XXXXXXXXXXXXXX <i class="conum" data-value="2"></i><b>(2)</b>
+            region: eu-central-1 <i class="conum" data-value="3"></i><b>(3)</b>
+            secretAccessKeySecretRef:
+              key: secret-access-key
+              name: prod-route53-credentials-secret <i class="conum" data-value="4"></i><b>(4)</b>
+        selector:
+          dnsZones:
+            - your-domain <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Change your email address</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Use the <strong>AccessKeyId</strong> created above</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Using AWS you need to define a region</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>The name of the secret created during the step before</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Your <strong>public</strong> domain, for example aws.ispworld.at.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Once created the <strong>ClusterIssuer</strong> should switch to the status &#34;Ready&#34;</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc describe clusterissuer letsencrypt-prod
+
 Status:
 ...
-Conditions:
-Last Transition Time: 2023-02-16T13:54:49Z
-Message: The ACME account was registered with the ACME server
-Observed Generation: 1
-Reason: ACMEAccountRegistered
-Status: True
-Type: Ready&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_optional_when_using_private_domains_or_firewalls"&gt;OPTIONAL: When using private Domains or Firewalls&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see in one of the images above, I have two domains:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;aws.ispworld.at&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;ocp.aws.ispworld.at&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first one is marked as &lt;strong&gt;public&lt;/strong&gt;, that means everybody can resolve names. The second one is set to &lt;strong&gt;private&lt;/strong&gt; and only define VPCs (in this case the cluster itself) can resolve hostnames.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In case of the following error:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="literalblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre&gt;E0216 15:27:29.513080 1 controller.go:163] cert-manager/challenges &amp;#34;msg&amp;#34;=&amp;#34;re-queuing item due to error processing&amp;#34; &amp;#34;error&amp;#34;=&amp;#34;failed to determine Route 53 hosted zone ID: zone not found in Route 53 for domain _acme-challenge.bookimport.apps.ocp.aws.ispworld.at.&amp;#34; &amp;#34;key&amp;#34;=&amp;#34;bookimport/bookimport-cert-jbmh6-2173685137-2399596362&amp;#34;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Add the following into &lt;strong&gt;ClusterManager&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;oc edit CertManager.operator.openshift.io/cluster
-unsupportedConfigOverrides:
-controller:
-args:
-- --v=2
-- --cluster-resource-namespace=$(POD_NAMESPACE)
-- --leader-election-namespace=kube-system
-- --dns01-recursive-nameservers-only
-- --dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of nameserver the PUBLIC domain is hosted on.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Operator will then try to resolve the names using the specified nameserver only.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_issue_a_new_certificate"&gt;Issue a new certificate&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;At this step, we can create a Certificate:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+  Conditions:
+    Last Transition Time:  2023-02-16T13:54:49Z
+    Message:               The ACME account was registered with the ACME server
+    Observed Generation:   1
+    Reason:                ACMEAccountRegistered
+    Status:                True
+    Type:                  Ready</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_optional_when_using_private_domains_or_firewalls">OPTIONAL: When using private Domains or Firewalls</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As you can see in one of the images above, I have two domains:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>aws.ispworld.at</p>
+</li>
+<li>
+<p>ocp.aws.ispworld.at</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The first one is marked as <strong>public</strong>, that means everybody can resolve names. The second one is set to <strong>private</strong> and only define VPCs (in this case the cluster itself) can resolve hostnames.</p>
+</div>
+<div class="paragraph">
+<p>In case of the following error:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>E0216 15:27:29.513080 1 controller.go:163] cert-manager/challenges &#34;msg&#34;=&#34;re-queuing item due to error processing&#34; &#34;error&#34;=&#34;failed to determine Route 53 hosted zone ID: zone not found in Route 53 for domain _acme-challenge.bookimport.apps.ocp.aws.ispworld.at.&#34; &#34;key&#34;=&#34;bookimport/bookimport-cert-jbmh6-2173685137-2399596362&#34;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Add the following into <strong>ClusterManager</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">oc edit CertManager.operator.openshift.io/cluster
+
+  unsupportedConfigOverrides:
+    controller:
+      args:
+      - --v=2
+      - --cluster-resource-namespace=$(POD_NAMESPACE)
+      - --leader-election-namespace=kube-system
+      - --dns01-recursive-nameservers-only
+      - --dns01-recursive-nameservers=ns-362.awsdns-45.com:53,ns-930.awsdns-52.net:53 <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>List of nameserver the PUBLIC domain is hosted on.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The Operator will then try to resolve the names using the specified nameserver only.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_issue_a_new_certificate">Issue a new certificate</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>At this step, we can create a Certificate:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-name: bookimport-cert &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: bookimport &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+ name: bookimport-cert <i class="conum" data-value="1"></i><b>(1)</b>
+ namespace: bookimport <i class="conum" data-value="2"></i><b>(2)</b>
 spec:
-dnsNames:
-- bookimport.apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-secretName: bookimport.apps.ocp.aws.ispworld.at-certificate &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the certificate objects&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Application namespace&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of domain names&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Issuer that shall be used&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Secret that will be created and hold the certificate information&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_create_a_route"&gt;Create a Route&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a while the certificate will be &lt;strong&gt;Ready&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get certificate/bookimport-cert -n bookimport
-NAME READY SECRET AGE
-bookimport-cert True bookimport.apps.ocp.aws.ispworld.at-certificate 87m&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we can create a Route object to configure the IngressController. The important part here is the annotation, which will tell the Cert Utils Operator to automatically inject the certificate.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Route
+ dnsNames:
+   - bookimport.apps.ocp.aws.ispworld.at <i class="conum" data-value="3"></i><b>(3)</b>
+ issuerRef:
+   kind: ClusterIssuer
+   name: letsencrypt-prod <i class="conum" data-value="4"></i><b>(4)</b>
+ secretName: bookimport.apps.ocp.aws.ispworld.at-certificate <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name of the certificate objects</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Application namespace</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>List of domain names</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Issuer that shall be used</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Name of the Secret that will be created and hold the certificate information</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_create_a_route">Create a Route</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After a while the certificate will be <strong>Ready</strong>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get certificate/bookimport-cert -n bookimport
+
+NAME              READY   SECRET                                            AGE
+bookimport-cert   True    bookimport.apps.ocp.aws.ispworld.at-certificate   87m</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now we can create a Route object to configure the IngressController. The important part here is the annotation, which will tell the Cert Utils Operator to automatically inject the certificate.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: Route
 apiVersion: route.openshift.io/v1
 metadata:
-name: bookimport-tls
-namespace: bookimport
-annotations:
-cert-utils-operator.redhat-cop.io/certs-from-secret: bookimport.apps.ocp.aws.ispworld.at-certificate &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+  name: bookimport-tls
+  namespace: bookimport
+  annotations:
+    cert-utils-operator.redhat-cop.io/certs-from-secret: bookimport.apps.ocp.aws.ispworld.at-certificate <i class="conum" data-value="1"></i><b>(1)</b>
 spec:
-host: bookimport.apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-to:
-kind: Service
-name: book-import
-weight: 100
-tls:
-termination: edge
-port:
-targetPort: web
-wildcardPolicy: None&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Annotation that points to the Secret which stored the certificate. The values of this Secret will be automatically injected into this Route object.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The hostname for our Route&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see, the Browser will show no warning when opening the URL.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/bookimport-tls.png?width=480px" alt="BookimportTLS"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 4. Book Import using HTTPS&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_cluster_default_certificates"&gt;Cluster Default Certificates&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;During a cluster deployment, OpenShift will create self-signed certificates for its API and for the default IngressController *.apps.clusterdomain.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Usually, we want to change them as well. So why not use the Cert-Manager to issue the appropriate certificates?&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_default_ingresscontroller"&gt;Default IngressController&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For the default IngressController I create a certificate request with 2 domain names: the wildcard and the base domain (just to be sure, actually the wildcard should be enough)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+  host: bookimport.apps.ocp.aws.ispworld.at <i class="conum" data-value="2"></i><b>(2)</b>
+  to:
+    kind: Service
+    name: book-import
+    weight: 100
+  tls:
+    termination: edge
+  port:
+    targetPort: web
+  wildcardPolicy: None</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Annotation that points to the Secret which stored the certificate. The values of this Secret will be automatically injected into this Route object.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The hostname for our Route</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>As you can see, the Browser will show no warning when opening the URL.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/bookimport-tls.png?width=480px" alt="BookimportTLS"/>
+</div>
+<div class="title">Figure 4. Book Import using HTTPS</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_cluster_default_certificates">Cluster Default Certificates</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>During a cluster deployment, OpenShift will create self-signed certificates for its API and for the default IngressController *.apps.clusterdomain.</p>
+</div>
+<div class="paragraph">
+<p>Usually, we want to change them as well. So why not use the Cert-Manager to issue the appropriate certificates?</p>
+</div>
+<div class="sect2">
+<h3 id="_default_ingresscontroller">Default IngressController</h3>
+<div class="paragraph">
+<p>For the default IngressController I create a certificate request with 2 domain names: the wildcard and the base domain (just to be sure, actually the wildcard should be enough)</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-name: router-certificate
-namespace: openshift-ingress &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+  name: router-certificate
+  namespace: openshift-ingress <i class="conum" data-value="1"></i><b>(1)</b>
 spec:
-dnsNames:
-- apps.ocp.aws.ispworld.at &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-- &amp;#39;*.apps.ocp.aws.ispworld.at&amp;#39;
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-secretName: router-certificate &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The default IngressController runs in the namespace &lt;strong&gt;openshift-ingress&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of domains&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Secret that will be created once the Certificate has been approved.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a while, the certificate request should be &lt;strong&gt;Ready&lt;/strong&gt; again. In the namespace &lt;em&gt;openshift-ingress&lt;/em&gt; a Secret will be available with the name &lt;em&gt;router-certificate&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_api"&gt;API&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For the API URL we do the same. This time it is stored in the namepsace &lt;strong&gt;openshift-config&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: cert-manager.io/v1
+  dnsNames:
+   - apps.ocp.aws.ispworld.at <i class="conum" data-value="2"></i><b>(2)</b>
+   - &#39;*.apps.ocp.aws.ispworld.at&#39;
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: router-certificate <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The default IngressController runs in the namespace <strong>openshift-ingress</strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>List of domains</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Name of the Secret that will be created once the Certificate has been approved.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>After a while, the certificate request should be <strong>Ready</strong> again. In the namespace <em>openshift-ingress</em> a Secret will be available with the name <em>router-certificate</em></p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_api">API</h3>
+<div class="paragraph">
+<p>For the API URL we do the same. This time it is stored in the namepsace <strong>openshift-config</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-name: api-certificate
-namespace: openshift-config
+  name: api-certificate
+  namespace: openshift-config
 spec:
-dnsNames:
-- api.ocp.aws.ispworld.at
-issuerRef:
-kind: ClusterIssuer
-name: letsencrypt-prod
-secretName: api-certificate&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  dnsNames:
+   - api.ocp.aws.ispworld.at
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  secretName: api-certificate</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 It is possible to create one certificate with all required Domainnames. Just be sure that the Secret is available in the appropriate Namespace.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_patching_api_server_and_ingresscontroller"&gt;Patching API Server and IngressController&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a final step we need to patch the IngressController and the API server so they will use the correct Secrets with the officially signed certificates.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# IngressController
-oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch=&amp;#39;{&amp;#34;spec&amp;#34;: { &amp;#34;defaultCertificate&amp;#34;: { &amp;#34;name&amp;#34;: &amp;#34;router-certificate&amp;#34; }}}&amp;#39;
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_patching_api_server_and_ingresscontroller">Patching API Server and IngressController</h3>
+<div class="paragraph">
+<p>As a final step we need to patch the IngressController and the API server so they will use the correct Secrets with the officially signed certificates.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># IngressController
+oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch=&#39;{&#34;spec&#34;: { &#34;defaultCertificate&#34;: { &#34;name&#34;: &#34;router-certificate&#34; }}}&#39;
+
 # API Server
-oc patch apiserver cluster --type=merge -p &amp;#39;{&amp;#34;spec&amp;#34;:{&amp;#34;servingCerts&amp;#34;: {&amp;#34;namedCertificates&amp;#34;: [{&amp;#34;names&amp;#34;: [&amp;#34;api.ocp.aws.ispworld.at&amp;#34;], &amp;#34;servingCertificate&amp;#34;: {&amp;#34;name&amp;#34;: &amp;#34;api-certificate&amp;#34;}}]}}}&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Be sure to use the correct URL for the API&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will restart a bunch of services. Once everything is up and running again (your can watch using the command &lt;code&gt;watch oc get co&lt;/code&gt;), the correct certificate will be shown in the browser:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/certificates/images/cert-manager/console-cert.png?width=340px" alt="UI"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 5. UI&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;or via curl:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl -v https://api.ocp.aws.ispworld.at:6443
+oc patch apiserver cluster --type=merge -p &#39;{&#34;spec&#34;:{&#34;servingCerts&#34;: {&#34;namedCertificates&#34;: [{&#34;names&#34;: [&#34;api.ocp.aws.ispworld.at&#34;], &#34;servingCertificate&#34;: {&#34;name&#34;: &#34;api-certificate&#34;}}]}}}&#39; <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Be sure to use the correct URL for the API</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>This will restart a bunch of services. Once everything is up and running again (your can watch using the command <code>watch oc get co</code>), the correct certificate will be shown in the browser:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/certificates/images/cert-manager/console-cert.png?width=340px" alt="UI"/>
+</div>
+<div class="title">Figure 5. UI</div>
+</div>
+<div class="paragraph">
+<p>or via curl:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -v https://api.ocp.aws.ispworld.at:6443
+
 * Connected to api.ocp.aws.ispworld.at (13.52.208.31) port 6443
 [...]
 * Server certificate:
-* subject: CN=api.ocp.aws.ispworld.at
-* start date: Feb 16 15:11:36 2023 GMT
-* expire date: May 17 15:11:35 2023 GMT
-* subjectAltName: host &amp;#34;api.ocp.aws.ispworld.at&amp;#34; matched cert&amp;#39;s &amp;#34;api.ocp.aws.ispworld.at&amp;#34;
-* issuer: C=US; O=Let&amp;#39;s Encrypt; CN=R3
-* SSL certificate verify ok.&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now with these steps, it is possible to issue new Certificates. Of course, there I many more options to configure a certificate. I encourage everybody to read the official documentation of the &lt;a href="https://cert-manager.io/docs/"&gt;Cert Manager&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Especially, if you are interested in the whole certificate &lt;a href="https://cert-manager.io/docs/concepts/certificate/#certificate-lifecycle"&gt;Certificate Lifecycle&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Using ServerSideApply with ArgoCD</title><link>https://blog.stderr.at/openshift-platform/gitops/2022-11-04-argocd-and-serversideapply/</link><pubDate>Fri, 04 Nov 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/gitops/2022-11-04-argocd-and-serversideapply/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;„&lt;em&gt;If it is not in GitOps, it does not exist&lt;/em&gt;“ - However, managing objects partially only by Gitops was always an issue, since ArgoCD would like to manage the whole object. For example, when you tried to work with node labels and would like to manage them via Gitops, you would need to put the whole node object into ArgoCD. This is impractical since the node object is very complex and typically managed by the cluster.
-There were 3rd party solutions (like the patch operator), that helped with this issue.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;However, with the Kubernetes feature &lt;strong&gt;Server-Side Apply&lt;/strong&gt; this problem is solved. Read further to see a working example of this feature.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_is_server_side_apply_ssa"&gt;What is Server-Side Apply (SSA)&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Quoting from &lt;a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/"&gt;Kuberneted Documentation&lt;/a&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;hr/&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;em&gt;Server-Side Apply helps users and controllers manage their resources through declarative configurations. Clients can create and modify their objects declaratively by sending their fully specified intent.&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;em&gt;A fully specified intent is a partial object that only includes the fields and values for which the user has an opinion. That intent either creates a new object or is combined, by the server, with the existing object.&lt;/em&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;hr/&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In other words: you can send a snippet of an object to the cluster and the cluster will eventually combine everything on the server and not validate on the client side first. All you need is a way to identify the object. Usually, the name and maybe the namespace too.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_ssa_and_argocd"&gt;SSA and ArgoCD&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When it comes to GitOps the implementation of SSA is quite new. However, it is important to note, that (managed field) conflicts are currently not handled by ArgoCD. Instead, ArgoCD forces a change and overrides everything, even if the field is managed by somebody else. This might be improved in the future. Nevertheless …​ let’s test the feature.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The support of the Server-Side Apply feature is currently available in the &lt;strong&gt;latest&lt;/strong&gt; version of ArgoCD. This means, that the channel of the openshift-gitops operator must be changed to &amp;#34;latest&amp;#34;, which will deploy openshift-gitops version &lt;strong&gt;1.6&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A new stable version will arrive soon. :)&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_node_labelling_chart"&gt;Node Labelling Chart&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this example, I would like to use a Helm chart that will try to set two different labels on 2 nodes. This is a very easy example to demonstrate the feature.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a Helm chart, I have prepared the following: &lt;a class="bare" href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration"&gt;https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The values for this chart are straightforward: per node, a list of custom labels is defined.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;helper-server-side-apply:
-nodes: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-- name: ip-10-0-233-237.us-west-1.compute.internal &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-enabled: true
-custom_labels: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-environment: &amp;#39;Production&amp;#39;
-gpu: false
-- name: ip-10-0-193-67.us-west-1.compute.internal
-enabled: true
-custom_labels:
-environment: &amp;#39;Test&amp;#39;
-gpu: true&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of nodes&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Node name as OpenShift knows the node (&lt;em&gt;oc get nodes&lt;/em&gt;)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of labels that should be added to the node: here environment and gpu&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The Chart is using a sub-chart called &lt;strong&gt;helper-server-side-apply&lt;/strong&gt;. The source can be found at the &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-server-side-apply"&gt;Helm Repository&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The output of this Helm Chart will be the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;# Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
+*  subject: CN=api.ocp.aws.ispworld.at
+*  start date: Feb 16 15:11:36 2023 GMT
+*  expire date: May 17 15:11:35 2023 GMT
+*  subjectAltName: host &#34;api.ocp.aws.ispworld.at&#34; matched cert&#39;s &#34;api.ocp.aws.ispworld.at&#34;
+*  issuer: C=US; O=Let&#39;s Encrypt; CN=R3
+*  SSL certificate verify ok.</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now with these steps, it is possible to issue new Certificates. Of course, there I many more options to configure a certificate. I encourage everybody to read the official documentation of the <a href="https://cert-manager.io/docs/">Cert Manager</a>.</p>
+</div>
+<div class="paragraph">
+<p>Especially, if you are interested in the whole certificate <a href="https://cert-manager.io/docs/concepts/certificate/#certificate-lifecycle">Certificate Lifecycle</a></p>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Using ServerSideApply with ArgoCD</title><link>https://blog.stderr.at/openshift-platform/gitops/2022-11-04-argocd-and-serversideapply/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/gitops/2022-11-04-argocd-and-serversideapply/</guid><pubDate>Fri, 04 Nov 2022 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>GitOps</category><description>Using ServerSideApply with ArgoCD</description><content:encoded><![CDATA[<div class="paragraph">
+<p>„<em>If it is not in GitOps, it does not exist</em>“ -  However, managing objects partially only by Gitops was always an issue, since ArgoCD would like to manage the whole object. For example, when you tried to work with node labels and would like to manage them via Gitops, you would need to put the whole node object into ArgoCD. This is impractical since the node object is very complex and typically managed by the cluster.
+There were 3rd party solutions (like the patch operator), that helped with this issue.</p>
+</div>
+<div class="paragraph">
+<p>However, with the Kubernetes feature <strong>Server-Side Apply</strong> this problem is solved. Read further to see a working example of this feature.</p>
+</div>
+<div class="sect1">
+<h2 id="_what_is_server_side_apply_ssa">What is Server-Side Apply (SSA)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Quoting from <a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/">Kuberneted Documentation</a>:</p>
+</div>
+<hr/>
+<div class="paragraph">
+<p><em>Server-Side Apply helps users and controllers manage their resources through declarative configurations. Clients can create and modify their objects declaratively by sending their fully specified intent.</em></p>
+</div>
+<div class="paragraph">
+<p><em>A fully specified intent is a partial object that only includes the fields and values for which the user has an opinion. That intent either creates a new object or is combined, by the server, with the existing object.</em></p>
+</div>
+<hr/>
+<div class="paragraph">
+<p>In other words: you can send a snippet of an object to the cluster and the cluster will eventually combine everything on the server and not validate on the client side first. All you need is a way to identify the object. Usually, the name and maybe the namespace too.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_ssa_and_argocd">SSA and ArgoCD</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When it comes to GitOps the implementation of SSA is quite new. However, it is important to note, that (managed field) conflicts are currently not handled by ArgoCD. Instead, ArgoCD forces a change and overrides everything, even if the field is managed by somebody else. This might be improved in the future. Nevertheless …​ let’s test the feature.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The support of the Server-Side Apply feature is currently available in the <strong>latest</strong> version of ArgoCD. This means, that the channel of the openshift-gitops operator must be changed to &#34;latest&#34;, which will deploy openshift-gitops version <strong>1.6</strong></p>
+</div>
+<div class="paragraph">
+<p>A new stable version will arrive soon. :)</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_node_labelling_chart">Node Labelling Chart</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In this example, I would like to use a Helm chart that will try to set two different labels on 2 nodes. This is a very easy example to demonstrate the feature.</p>
+</div>
+<div class="paragraph">
+<p>As a Helm chart, I have prepared the following: <a class="bare" href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration">https://github.com/tjungbauer/openshift-clusterconfig-gitops/tree/main/clusters/management-cluster/node-configuration</a></p>
+</div>
+<div class="paragraph">
+<p>The values for this chart are straightforward: per node, a list of custom labels is defined.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">helper-server-side-apply:
+  nodes: <i class="conum" data-value="1"></i><b>(1)</b>
+    - name: ip-10-0-233-237.us-west-1.compute.internal <i class="conum" data-value="2"></i><b>(2)</b>
+      enabled: true
+      custom_labels: <i class="conum" data-value="3"></i><b>(3)</b>
+        environment: &#39;Production&#39;
+        gpu: false
+    - name: ip-10-0-193-67.us-west-1.compute.internal
+      enabled: true
+      custom_labels:
+        environment: &#39;Test&#39;
+        gpu: true</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>List of nodes</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Node name as OpenShift knows the node (<em>oc get nodes</em>)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>List of labels that should be added to the node: here environment and gpu</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The Chart is using a sub-chart called <strong>helper-server-side-apply</strong>. The source can be found at the <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-server-side-apply">Helm Repository</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The output of this Helm Chart will be the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml"># Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
 kind: Node
 apiVersion: v1
 metadata:
-name: &amp;#34;ip-10-0-233-237.us-west-1.compute.internal&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-labels:
-gitops.ownedBy: openshift-gitops
-helm.sh/chart: helper-server-side-apply-1.0.3
-app.kubernetes.io/name: helper-server-side-apply
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/managed-by: Helm
-environment: &amp;#34;Production&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-gpu: &amp;#34;false&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+  name: &#34;ip-10-0-233-237.us-west-1.compute.internal&#34; <i class="conum" data-value="1"></i><b>(1)</b>
+  labels:
+    gitops.ownedBy: openshift-gitops
+    helm.sh/chart: helper-server-side-apply-1.0.3
+    app.kubernetes.io/name: helper-server-side-apply
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    environment: &#34;Production&#34; <i class="conum" data-value="2"></i><b>(2)</b>
+    gpu: &#34;false&#34; <i class="conum" data-value="3"></i><b>(3)</b>
 ---
 # Source: node-labels/charts/helper-server-side-apply/templates/node.yaml
 kind: Node
 apiVersion: v1
 metadata:
-name: &amp;#34;ip-10-0-193-67.us-west-1.compute.internal&amp;#34;
-labels:
-gitops.ownedBy: openshift-gitops
-helm.sh/chart: helper-server-side-apply-1.0.3
-app.kubernetes.io/name: helper-server-side-apply
-app.kubernetes.io/instance: release-name
-app.kubernetes.io/managed-by: Helm
-environment: &amp;#34;Test&amp;#34;
-gpu: &amp;#34;true&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The name of the node and our identifier&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The first label we set&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The second label we set&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  name: &#34;ip-10-0-193-67.us-west-1.compute.internal&#34;
+  labels:
+    gitops.ownedBy: openshift-gitops
+    helm.sh/chart: helper-server-side-apply-1.0.3
+    app.kubernetes.io/name: helper-server-side-apply
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    environment: &#34;Test&#34;
+    gpu: &#34;true&#34;</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The name of the node and our identifier</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The first label we set</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The second label we set</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
 This is not a full definition of a Node object. The only things defined are the node name and the labels. (Besides the customer labels we would like to add, some default labels are added automatically.)
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_argocd_application"&gt;ArgoCD Application&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So we have a Helm chart in Git. Perfect, but to automate everything with Gitops we need to create the object &lt;strong&gt;Application&lt;/strong&gt;. For example the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_argocd_application">ArgoCD Application</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>So we have a Helm chart in Git. Perfect, but to automate everything with Gitops we need to create the object <strong>Application</strong>. For example the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-name: node-labelling
-namespace: openshift-gitops
+  name: node-labelling
+  namespace: openshift-gitops
 spec:
-destination:
-namespace: default
-server: &amp;#39;https://kubernetes.default.svc&amp;#39;
-info:
-- name: Description
-value: Deploy Node Labels
-project: default
-source:
-helm:
-valueFiles:
-- values.yaml
-path: clusters/management-cluster/node-configuration &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&amp;#39;
-targetRevision: main
-syncPolicy:
-syncOptions:
-- ServerSideApply=true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-- Validate=false &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Path and URL of the node labelling Helm chart&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Must be set to &lt;strong&gt;true&lt;/strong&gt; to enable SSA&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Must be set to &lt;strong&gt;false&lt;/strong&gt; to skip schema validation&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The two &lt;strong&gt;syncOptions&lt;/strong&gt; are important to set. Since the yaml output might not pass the validation, the schema validation should be disabled.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will create the following application in ArgoCD:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/gitops/images/argocd2/argocd-app-nodelabelling.png?width=840px" alt="ApplicationSet"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Argo CD: Application&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_syncing_the_application"&gt;Syncing the Application&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When you now synchronize the ArgoCD application, ArgoCD will take the yaml and will tell Kubernetes (or OpenShift) to perform a Server-Side Apply. This will result in the following yaml for the node:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Node
+  destination:
+    namespace: default
+    server: &#39;https://kubernetes.default.svc&#39;
+  info:
+    - name: Description
+      value: Deploy Node Labels
+  project: default
+  source:
+    helm:
+      valueFiles:
+        - values.yaml
+    path: clusters/management-cluster/node-configuration <i class="conum" data-value="1"></i><b>(1)</b>
+    repoURL: &#39;https://github.com/tjungbauer/openshift-clusterconfig-gitops&#39;
+    targetRevision: main
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true <i class="conum" data-value="2"></i><b>(2)</b>
+      - Validate=false <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Path and URL of the node labelling Helm chart</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Must be set to <strong>true</strong> to enable SSA</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Must be set to <strong>false</strong> to skip schema validation</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+The two <strong>syncOptions</strong> are important to set. Since the yaml output might not pass the validation, the schema validation should be disabled.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>This will create the following application in ArgoCD:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd2/argocd-app-nodelabelling.png?width=840px" alt="ApplicationSet"/>
+</div>
+<div class="title">Figure 1. Argo CD: Application</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_syncing_the_application">Syncing the Application</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When you now synchronize the ArgoCD application, ArgoCD will take the yaml and will tell Kubernetes (or OpenShift) to perform a Server-Side Apply. This will result in the following yaml for the node:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: Node
 apiVersion: v1
 metadata:
-name: ip-10-0-193-67.us-west-1.compute.internal
-labels:
-beta.kubernetes.io/os: linux
-app.kubernetes.io/instance: node-labelling
-[...]
-node-role.kubernetes.io/worker: &amp;#39;&amp;#39;
-gitops.ownedBy: openshift-gitops
-[...]
-environment: Test
-[...]&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;That’s it …​ all the magic is done.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Helpful oc / kubectl commands</title><link>https://blog.stderr.at/openshift-platform/day-2/fundamentals/2020-04-01-oc-commands/</link><pubDate>Wed, 01 Apr 2020 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/day-2/fundamentals/2020-04-01-oc-commands/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;This is a list of useful oc and/or kubectl commands so they won’t be forgotton. No this is not a joke…​&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_list_all_pods_in_state_running"&gt;List all pods in state &lt;em&gt;Running&lt;/em&gt;&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods --field-selector=status.phase=Running&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_list_all_pods_in_state_running_and_show_there_resource_usage"&gt;List all pods in state &lt;em&gt;Running&lt;/em&gt; and show there resource usage&lt;/h3&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get pods --field-selector=status.phase=Running -o json|jq &amp;#34;.items[] | {name: .metada
-ta.name, res: .spec.containers[].resources}&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_list_events_sort_by_time_created"&gt;List events sort by time created&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt; oc get events --sort-by=&amp;#39;.lastTimestamp&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_explain_objects_while_specifing_the_api_version"&gt;Explain objects while specifing the api version&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Sometimes when you run &lt;code&gt;oc explain&lt;/code&gt; you get a message in DESCRIPTION that this particular version is deprecated, e.g. you are running &lt;code&gt;oc explain deployment&lt;/code&gt; and get&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;DESCRIPTION:
-DEPRECATED - This group version of Deployment is deprecated by
-apps/v1/Deployment. See the release notes for more information. Deployment
-enables declarative updates for Pods and ReplicaSets.&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  name: ip-10-0-193-67.us-west-1.compute.internal
+  labels:
+    beta.kubernetes.io/os: linux
+    app.kubernetes.io/instance: node-labelling
+    [...]
+    node-role.kubernetes.io/worker: &#39;&#39;
+    gitops.ownedBy: openshift-gitops
+    [...]
+    environment: Test
+    [...]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>That’s it …​ all the magic is done.</p>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Helpful oc / kubectl commands</title><link>https://blog.stderr.at/openshift-platform/day-2/fundamentals/2020-04-01-oc-commands/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/fundamentals/2020-04-01-oc-commands/</guid><pubDate>Wed, 01 Apr 2020 00:00:00 +0000</pubDate><dc:creator>Articles by Toni Schmidbauer</dc:creator><category>OpenShift</category><description>Openshift 4.x - Collection of usefull oc/kubectl commands.</description><content:encoded><![CDATA[<div class="paragraph">
+<p>This is a list of useful oc and/or kubectl commands so they won’t be forgotton. No this is not a joke…​</p>
+</div>
+<div class="sect1">
+<h2 id="_list_all_pods_in_state_running">List all pods in state <em>Running</em></h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods --field-selector=status.phase=Running</code></pre>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_list_all_pods_in_state_running_and_show_there_resource_usage">List all pods in state <em>Running</em> and show there resource usage</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods --field-selector=status.phase=Running -o json|jq &#34;.items[] | {name: .metada
+ta.name, res: .spec.containers[].resources}&#34;</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_list_events_sort_by_time_created">List events sort by time created</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"> oc get events --sort-by=&#39;.lastTimestamp&#39;</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_explain_objects_while_specifing_the_api_version">Explain objects while specifing the api version</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Sometimes when you run <code>oc explain</code> you get a message in DESCRIPTION that this particular version is deprecated, e.g. you are running <code>oc explain deployment</code> and get</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">DESCRIPTION:
+     DEPRECATED - This group version of Deployment is deprecated by
+     apps/v1/Deployment. See the release notes for more information. Deployment
+     enables declarative updates for Pods and ReplicaSets.</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Note the DEPRECTATED message above
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;if you want to see the documentation for the object that has not been deprecated you can use&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc explain deployment --api-version=apps/v1&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_magic_with_oc_set"&gt;Magic with oc set&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;code&gt;oc set&lt;/code&gt; is actually a very versatile command. Studying &lt;code&gt;oc set -h&lt;/code&gt; is a good idea, here are some examples&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_set_route_weights_when_alternatebackends_in_a_route_are_defined"&gt;Set route weights when alternateBackends in a route are defined&lt;/h3&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc set route-backends bluegreen blue=1 green=9&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_set_resources_on_the_command_line"&gt;Set resources on the command line&lt;/h3&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc set resources dc cakephp-mysql-example --limits=memory=1Gi,cpu=200m&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>YAUB Yet Another Useless Blog</title><link>https://blog.stderr.at/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/</guid><description>&lt;h1 class="blog-title gradient-header"&gt;Welcome to Yet Another Useless Blog&lt;/h1&gt;
-&lt;p class="intro-tagline"&gt;Despite the name, we hope you'll find these articles genuinely helpful! 😊&lt;/p&gt;
-&lt;h4&gt;Who are we?&lt;/h4&gt;
-&lt;p&gt;We're &lt;strong&gt;Thomas Jungbauer&lt;/strong&gt; and &lt;strong&gt;Toni Schmidbauer&lt;/strong&gt; — two seasoned IT professionals with over 20 years of experience each. Currently, we work as architects at &lt;strong&gt;Red Hat Austria&lt;/strong&gt;, helping customers design and implement OpenShift and Ansible solutions.&lt;/p&gt;
-&lt;h4&gt;What's this blog about?&lt;/h4&gt;
-&lt;p&gt;Real-world problems, practical solutions. We document issues we've encountered in the field along with step-by-step guides to reproduce and resolve them. Our goal: save you hours of frustrating documentation searches and trial-and-error testing.&lt;/p&gt;
-&lt;p&gt;Feel free to send us an e-mail or &lt;a href="https://github.com/stderrat/stderrat.github.io/issues"&gt;open a GitHub issue&lt;/a&gt;.&lt;/p&gt;</description></item></channel></rss>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>if you want to see the documentation for the object that has not been deprecated you can use</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc explain deployment --api-version=apps/v1</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_magic_with_oc_set">Magic with oc set</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><code>oc set</code> is actually a very versatile command. Studying <code>oc set -h</code> is a good idea, here are some examples</p>
+</div>
+<div class="sect2">
+<h3 id="_set_route_weights_when_alternatebackends_in_a_route_are_defined">Set route weights when alternateBackends in a route are defined</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc set route-backends bluegreen blue=1 green=9</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_set_resources_on_the_command_line">Set resources on the command line</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc set resources dc cakephp-mysql-example --limits=memory=1Gi,cpu=200m</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>]]></content:encoded></item></channel></rss>

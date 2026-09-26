@@ -1,811 +1,828 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Linting on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/linting/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/linting/index.xml" rel="self" type="application/rss+xml"/><item><title>Step 9 - Linting Kubernetes Manifests</title><link>https://blog.stderr.at/securesupplychain/2023-06-24-securesupplychain-step9/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-24-securesupplychain-step9/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;At this point we have checked our source code, verified that it has been signed and has no vulnerabilities, generated a SBOM and updated the Kubernetes manifests, that are responsible to deploy our application on OpenShift. As everything with OpenShift these Kubernetes objects are simple yaml files. In this step we will perform a linting on these files, to verify if they follow certain rules and best practices.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_goals"&gt;Goals&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The goals of this step are:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Clone the Kubernetes manifest into a workspace&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create Tasks that perform the linting&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;WARN when the manifests do not follow best practices (we will not let the Task fail here, because I would need to modify all manifests)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_is_linting"&gt;What is linting&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A &lt;strong&gt;linter&lt;/strong&gt; is an analysis tool that verifies if your code has any errors, bugs or stylistic errors. SonarQube could be seen as such tool. We used it to scan our source code. For Kubernetes manifests we can use tools that check the yaml files against best practices or security. For example, it could notify you if you forgot to define resources or probes in your manifests.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_tools"&gt;Tools&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In this step, I will use three linting tools. In no way, this means you need to use all three. I only use them for demonstration purposes. However, to lint your yaml files or Helm charts is a common practice you should consider.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For this demonstration I am leveraging:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://docs.kubelinter.io/#/" rel="noopener" target="_blank"&gt;KubeLinter&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://yamllint.readthedocs.io/en/stable/" rel="noopener" target="_blank"&gt;Yamllint&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://kube-score.com/" rel="noopener" target="_blank"&gt;Kube-score&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Linting – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/linting/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Wed, 28 Jun 2023 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/linting/index.xml" rel="self" type="application/rss+xml"/><item><title>Step 9 - Linting Kubernetes Manifests</title><link>https://blog.stderr.at/securesupplychain/2023-06-24-securesupplychain-step9/</link><guid isPermaLink="true">https://blog.stderr.at/securesupplychain/2023-06-24-securesupplychain-step9/</guid><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Supply Chain</category><description>Step 9 Secure Supply Chain</description><content:encoded><![CDATA[<div class="paragraph">
+<p>At this point we have checked our source code, verified that it has been signed and has no vulnerabilities, generated a SBOM and updated the Kubernetes manifests, that are responsible to deploy our application on OpenShift. As everything with OpenShift these Kubernetes objects are simple yaml files. In this step we will perform a linting on these files, to verify if they follow certain rules and best practices.</p>
+</div>
+<div class="sect1">
+<h2 id="_goals">Goals</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The goals of this step are:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Clone the Kubernetes manifest into a workspace</p>
+</li>
+<li>
+<p>Create Tasks that perform the linting</p>
+</li>
+<li>
+<p>WARN when the manifests do not follow best practices (we will not let the Task fail here, because I would need to modify all manifests)</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_is_linting">What is linting</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A <strong>linter</strong> is an analysis tool that verifies if your code has any errors, bugs or stylistic errors. SonarQube could be seen as such tool. We used it to scan our source code. For Kubernetes manifests we can use tools that check the yaml files against best practices or security. For example, it could notify you if you forgot to define resources or probes in your manifests.</p>
+</div>
+<div class="sect2">
+<h3 id="_tools">Tools</h3>
+<div class="paragraph">
+<p>In this step, I will use three linting tools. In no way, this means you need to use all three. I only use them for demonstration purposes. However, to lint your yaml files or Helm charts is a common practice you should consider.</p>
+</div>
+<div class="paragraph">
+<p>For this demonstration I am leveraging:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.kubelinter.io/#/" rel="noopener" target="_blank">KubeLinter</a></p>
+</li>
+<li>
+<p><a href="https://yamllint.readthedocs.io/en/stable/" rel="noopener" target="_blank">Yamllint</a></p>
+</li>
+<li>
+<p><a href="https://kube-score.com/" rel="noopener" target="_blank">Kube-score</a></p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 In the end, you should choose the tool that fits best for you.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_manifests"&gt;Manifests&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The manifest we are going to use can be found at my GitHub repository: &lt;a href="https://github.com/tjungbauer/securing-software-supply-chain" rel="noopener" target="_blank"&gt;Securing Software Supply Chain&lt;/a&gt;. It is a fork and the original can be found &lt;a href="https://github.com/redhat-gpte-devopsautomation/securing-software-supply-chain" rel="noopener" target="_blank"&gt;here&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prepare_pipeline"&gt;Prepare Pipeline&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Modify the TriggerTemplate and add a parameter &lt;strong&gt;LINTING_INFORM_ONLY&lt;/strong&gt; that either sets the Tasks to inform or enforce (failing when linting does find issues). In addition, we define a new workspace, where we will download and store the Kubernetes manifests.&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
-params:
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_manifests">Manifests</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The manifest we are going to use can be found at my GitHub repository: <a href="https://github.com/tjungbauer/securing-software-supply-chain" rel="noopener" target="_blank">Securing Software Supply Chain</a>. It is a fork and the original can be found <a href="https://github.com/redhat-gpte-devopsautomation/securing-software-supply-chain" rel="noopener" target="_blank">here</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prepare_pipeline">Prepare Pipeline</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Modify the TriggerTemplate and add a parameter <strong>LINTING_INFORM_ONLY</strong> that either sets the Tasks to inform or enforce (failing when linting does find issues). In addition, we define a new workspace, where we will download and store the Kubernetes manifests.</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+  params:
 ...
-- description: Only inform on linting errors (Log) but do not actually fail
-name: lintingInformOnly &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-resourcetemplates:
+    - description: Only inform on linting errors (Log) but do not actually fail
+      name: lintingInformOnly <i class="conum" data-value="1"></i><b>(1)</b>
+  resourcetemplates:
 ...
-spec:
-params:
+      spec:
+        params:
 ...
-- name: LINTING_INFORM_ONLY
-value: $(tt.params.lintingInformOnly)
+          - name: LINTING_INFORM_ONLY
+            value: $(tt.params.lintingInformOnly)
 ...
-workspaces:
+       workspaces:
 ...
-- name: shared-data-manifests &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-volumeClaimTemplate:
-metadata:
-creationTimestamp: null
-spec:
-accessModes:
-- ReadWriteOnce
-resources:
-requests:
-storage: 1Gi
-status: {}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;New parameter to either inform only when linting is unsuccessful or to enforce that the Task will end with an error.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Workspace to download and store the yaml files.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Update the TriggerBinding to set the values for the PipelineRun.&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
-params:
+          - name: shared-data-manifests <i class="conum" data-value="2"></i><b>(2)</b>
+            volumeClaimTemplate:
+              metadata:
+                creationTimestamp: null
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+              status: {}</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>New parameter to either inform only when linting is unsuccessful or to enforce that the Task will end with an error.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Workspace to download and store the yaml files.</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>Update the TriggerBinding to set the values for the PipelineRun.</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+  params:
 ...
-- name: lintingInformOnly &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-value: &amp;#39;true&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Set the parameter to &amp;#39;true&amp;#39;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Update the Pipeline object. Here we will need to add the parameter and four Tasks (clone the Git Repo, KubeLinter, Yamllint and kube-score) as well as the workspace.&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;spec:
-params:
+    - name: lintingInformOnly <i class="conum" data-value="1"></i><b>(1)</b>
+      value: &#39;true&#39;</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Set the parameter to &#39;true&#39;</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>Update the Pipeline object. Here we will need to add the parameter and four Tasks (clone the Git Repo, KubeLinter, Yamllint and kube-score) as well as the workspace.</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+  params:
 ...
-- name: LINTING_INFORM_ONLY &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-type: string
+    - name: LINTING_INFORM_ONLY <i class="conum" data-value="1"></i><b>(1)</b>
+      type: string
 ...
-- name: pull-manifests &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-params:
-- name: url
-value: $(params.MANIFEST_REPO)
-- name: revision
-value: $(params.MANIFEST_GIT_REF)
-- name: deleteExisting
-value: &amp;#39;true&amp;#39;
-runAfter:
-- update-dev-manifest &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-taskRef:
-kind: ClusterTask &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-name: git-clone
-workspaces: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-- name: output
-workspace: shared-data-manifests
-- name: kube-linter &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-params:
-- name: informLintingOnly &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-value: $(params.LINTING_INFORM_ONLY)
-runAfter:
-- pull-manifests &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
-taskRef:
-kind: Task
-name: kube-linter
-workspaces:
-- name: repository
-workspace: shared-data-manifests
-- name: kube-score &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
-params:
-- name: informLintingOnly
-value: $(params.LINTING_INFORM_ONLY)
-runAfter:
-- pull-manifests &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
-taskRef:
-kind: Task
-name: kube-score
-workspaces:
-- name: repository &lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;(11)&lt;/b&gt;
-workspace: shared-data-manifests
-- name: yaml-lint &lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;(12)&lt;/b&gt;
-params:
-- name: informLintingOnly
-value: $(params.LINTING_INFORM_ONLY)
-runAfter:
-- pull-manifests &lt;i class="conum" data-value="13"&gt;&lt;/i&gt;&lt;b&gt;(13)&lt;/b&gt;
-taskRef:
-kind: Task
-name: yaml-lint
-workspaces:
-- name: repository &lt;i class="conum" data-value="14"&gt;&lt;/i&gt;&lt;b&gt;(14)&lt;/b&gt;
-workspace: shared-data-manifests
-workspaces:
+    - name: pull-manifests <i class="conum" data-value="2"></i><b>(2)</b>
+      params:
+        - name: url
+          value: $(params.MANIFEST_REPO)
+        - name: revision
+          value: $(params.MANIFEST_GIT_REF)
+        - name: deleteExisting
+          value: &#39;true&#39;
+      runAfter:
+        - update-dev-manifest <i class="conum" data-value="3"></i><b>(3)</b>
+      taskRef:
+        kind: ClusterTask <i class="conum" data-value="4"></i><b>(4)</b>
+        name: git-clone
+      workspaces: <i class="conum" data-value="5"></i><b>(5)</b>
+        - name: output
+          workspace: shared-data-manifests
+    - name: kube-linter <i class="conum" data-value="6"></i><b>(6)</b>
+      params:
+        - name: informLintingOnly <i class="conum" data-value="7"></i><b>(7)</b>
+          value: $(params.LINTING_INFORM_ONLY)
+      runAfter:
+        - pull-manifests <i class="conum" data-value="8"></i><b>(8)</b>
+      taskRef:
+        kind: Task
+        name: kube-linter
+      workspaces:
+        - name: repository
+          workspace: shared-data-manifests
+    - name: kube-score <i class="conum" data-value="9"></i><b>(9)</b>
+      params:
+        - name: informLintingOnly
+          value: $(params.LINTING_INFORM_ONLY)
+      runAfter:
+        - pull-manifests <i class="conum" data-value="10"></i><b>(10)</b>
+      taskRef:
+        kind: Task
+        name: kube-score
+      workspaces:
+        - name: repository <i class="conum" data-value="11"></i><b>(11)</b>
+          workspace: shared-data-manifests
+    - name: yaml-lint <i class="conum" data-value="12"></i><b>(12)</b>
+      params:
+        - name: informLintingOnly
+          value: $(params.LINTING_INFORM_ONLY)
+      runAfter:
+        - pull-manifests <i class="conum" data-value="13"></i><b>(13)</b>
+      taskRef:
+        kind: Task
+        name: yaml-lint
+      workspaces:
+        - name: repository <i class="conum" data-value="14"></i><b>(14)</b>
+          workspace: shared-data-manifests
+  workspaces:
 ...
-- name: shared-data-manifests&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;New parameter assigned to the Pipeline.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Task to clone the repository to the workspace.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Will run after the Pipeline has updated the manifests with the new image.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Is a child of the ClusterTask git-clone.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The workspace to clone the repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Task to execute KubeLinter.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Parameter to either enforce or inform only.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Will run after the repository has been cloned.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Task to execute kube-score.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Will run after the repository has been cloned.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;11&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Workspace where the cloned repository can be found.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;12&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Task to execute Yamllint.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="13"&gt;&lt;/i&gt;&lt;b&gt;13&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Will run after the repository has been cloned.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="14"&gt;&lt;/i&gt;&lt;b&gt;14&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Workspace where the cloned repository can be found.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+    - name: shared-data-manifests</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>New parameter assigned to the Pipeline.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Task to clone the repository to the workspace.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Will run after the Pipeline has updated the manifests with the new image.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Is a child of the ClusterTask git-clone.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>The workspace to clone the repository.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Task to execute KubeLinter.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Parameter to either enforce or inform only.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>Will run after the repository has been cloned.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td>Task to execute kube-score.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="10"></i><b>10</b></td>
+<td>Will run after the repository has been cloned.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="11"></i><b>11</b></td>
+<td>Workspace where the cloned repository can be found.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="12"></i><b>12</b></td>
+<td>Task to execute Yamllint.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="13"></i><b>13</b></td>
+<td>Will run after the repository has been cloned.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="14"></i><b>14</b></td>
+<td>Workspace where the cloned repository can be found.</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+</ol>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 Remember: It is not required to execute three different linter tools. It is only done as a showcase. I personally like KubeLinter. Choose whatever tool is suitable for you.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Create the different Task objects for the linter tools. Each Task will execute a linter program and provides its very own Log.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-I have created the image &lt;strong&gt;linter-image&lt;/strong&gt; that contains the three required binaries. It is available at Quay.io and its original Dockerfile can be found &lt;a href="https://github.com/tjungbauer/linter-image" rel="noopener" target="_blank"&gt;here&lt;/a&gt;. Use it at your own risk :).
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;KubeLinter&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Create the different Task objects for the linter tools. Each Task will execute a linter program and provides its very own Log.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+I have created the image <strong>linter-image</strong> that contains the three required binaries. It is available at Quay.io and its original Dockerfile can be found <a href="https://github.com/tjungbauer/linter-image" rel="noopener" target="_blank">here</a>. Use it at your own risk :).
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+<p><strong>KubeLinter</strong></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-name: kube-linter
-namespace: ci
+  name: kube-linter
+  namespace: ci
 spec:
-description: &amp;gt;-
-Task to run KubeLinter and perform a linting of Kubernetes manifets.
-params:
-- default: &amp;#39;false&amp;#39;
-name: informLintingOnly
-type: string
-- default: &amp;#39;quay.io/tjungbau/linter-image:v1.0.2&amp;#39;
-name: linterImage
-type: string
-steps:
-- image: $(params.linterImage)
-name: kube-linter
-resources: {}
-script: &amp;gt;
-#!/usr/bin/env bash
-RC=0
-kube-linter lint /workspace/repository/. --config &amp;#34;/workspace/repository/.kube-linter.yaml&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-if [ $? -gt 0 ]; then
-RC=1
-fi
-# We actually do not fail but inform only
-if [ &amp;#34;$(params.informLintingOnly)&amp;#34; = &amp;#34;true&amp;#34; ]; then
-echo &amp;#34;Informing only, task will not fail. Actual return code was $RC&amp;#34;
-exit 0;
-fi
-(exit $RC)
-workingDir: /workspace/repository
-workspaces:
-- name: repository&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Execute kube-linter using the configuration stored in the repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;kube-score&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
+  description: &gt;-
+    Task to run KubeLinter and perform a linting of Kubernetes manifets.
+  params:
+    - default: &#39;false&#39;
+      name: informLintingOnly
+      type: string
+    - default: &#39;quay.io/tjungbau/linter-image:v1.0.2&#39;
+      name: linterImage
+      type: string
+  steps:
+    - image: $(params.linterImage)
+      name: kube-linter
+      resources: {}
+      script: &gt;
+        #!/usr/bin/env bash
+
+        RC=0
+
+        kube-linter lint /workspace/repository/. --config &#34;/workspace/repository/.kube-linter.yaml&#34; <i class="conum" data-value="1"></i><b>(1)</b>
+
+        if [ $? -gt 0 ]; then
+          RC=1
+        fi
+
+        # We actually do not fail but inform only
+
+        if [ &#34;$(params.informLintingOnly)&#34; = &#34;true&#34; ]; then
+          echo &#34;Informing only, task will not fail. Actual return code was $RC&#34;
+          exit 0;
+        fi
+
+        (exit $RC)
+      workingDir: /workspace/repository
+  workspaces:
+    - name: repository</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Execute kube-linter using the configuration stored in the repository.</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p><strong>kube-score</strong></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-name: kube-score
-namespace: ci
+  name: kube-score
+  namespace: ci
 spec:
-description: &amp;gt;-
-Task to run kube-score and perform a linting of Kubernetes manifets.
-params:
-- default: &amp;#39;false&amp;#39;
-name: informLintingOnly
-type: string
-- default: &amp;#39;quay.io/tjungbau/linter-image:v1.0.2&amp;#39;
-name: linterImage
-type: string
-steps:
-- image: $(params.linterImage)
-name: kube-linter
-resources: {}
-script: &amp;gt;
-#!/usr/bin/env bash
-RC=0
-KUBESCORE_IGNORE_TESTS=&amp;#34;${KUBESCORE_IGNORE_TESTS:-container-image-pull-policy,pod-networkpolicy}&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-for i in `find . -name &amp;#39;*.yaml&amp;#39; -type f`; do kube-score score
---ignore-test ${KUBESCORE_IGNORE_TESTS} $i; let RC=RC+$?; done
-if [ $? -gt 0 ]; then
-RC=1
-fi
-# We actually do not fail but inform only
-if [ &amp;#34;$(params.informLintingOnly)&amp;#34; = &amp;#34;true&amp;#34; ]; then
-echo &amp;#34;Informing only, task will not fail. Actual return code was $RC&amp;#34;
-exit 0;
-fi
-(exit $RC)
-workingDir: /workspace/repository
-workspaces:
-- name: repository&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Disable checks for Network Policies or image Pull policy for kube-score.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;Yammllint&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
+  description: &gt;-
+    Task to run kube-score and perform a linting of Kubernetes manifets.
+  params:
+    - default: &#39;false&#39;
+      name: informLintingOnly
+      type: string
+    - default: &#39;quay.io/tjungbau/linter-image:v1.0.2&#39;
+      name: linterImage
+      type: string
+  steps:
+    - image: $(params.linterImage)
+      name: kube-linter
+      resources: {}
+      script: &gt;
+        #!/usr/bin/env bash
+
+        RC=0
+
+        KUBESCORE_IGNORE_TESTS=&#34;${KUBESCORE_IGNORE_TESTS:-container-image-pull-policy,pod-networkpolicy}&#34; <i class="conum" data-value="1"></i><b>(1)</b>
+
+        for i in `find . -name &#39;*.yaml&#39; -type f`;  do kube-score score
+        --ignore-test ${KUBESCORE_IGNORE_TESTS} $i; let RC=RC+$?; done
+
+        if [ $? -gt 0 ]; then
+          RC=1
+        fi
+
+        # We actually do not fail but inform only
+
+        if [ &#34;$(params.informLintingOnly)&#34; = &#34;true&#34; ]; then
+          echo &#34;Informing only, task will not fail. Actual return code was $RC&#34;
+          exit 0;
+        fi
+
+        (exit $RC)
+      workingDir: /workspace/repository
+  workspaces:
+    - name: repository</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Disable checks for Network Policies or image Pull policy for kube-score.</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p><strong>Yammllint</strong></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-name: yaml-lint
-namespace: ci
+  name: yaml-lint
+  namespace: ci
 spec:
-description: &amp;gt;-
-Task to run yamllint and perform a linting of Kubernetes manifets.
-params:
-- default: &amp;#39;false&amp;#39;
-name: informLintingOnly
-type: string
-- default: &amp;#39;quay.io/tjungbau/linter-image:v1.0.2&amp;#39;
-name: linterImage
-type: string
-steps:
-- image: $(params.linterImage)
-name: yaml-lint
-resources: {}
-script: |
-#!/usr/bin/env bash
-for files in `find . -type f -name &amp;#39;*.yaml&amp;#39;`; do &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-yamllint -c /workspace/repository/.yamllint.yaml ${files}; let var=var+$?
-done
-# We actually do not fail but inform only
-if [ &amp;#34;$(params.informLintingOnly)&amp;#34; = &amp;#34;true&amp;#34; ]; then
-echo &amp;#34;Informing only, task will not fail. Actual return code was $var&amp;#34;
-exit 0;
-fi
-(exit $var)
-workingDir: /workspace/repository
-workspaces:
-- name: repository&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Execute kube-linter using the configuration stored in the repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_execute_the_pipeline"&gt;Execute the Pipeline&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Pipeline now looks like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step9-pipeline.png" alt="Pipeline Details"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Pipeline Details&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Remember, you typically need only one linter tool, not three different ones. Since we inform only you will see some errors in the logs. For example, for kube-linter:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step9-kubelinter.png" alt="Kube-Linter Results"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. Kube-Linter Results&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now, all our yaml manifests have been linted, with three different tools. And because we do not fail at this stage, we can continue. The next steps will be some deployment checks.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Since everything is done using Argo CD and the manifests have been updated during the step &amp;#34;update-manifest&amp;#34;, the changes will be most likely already deployed. Even if the linting-step comes later and might even fail. This is fine because we first deploy on a DEV environment. So, if linting fails, it will prohibit the rollout to production, while some application testing can still be done on DEV.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Step 10 - The Example Application</title><link>https://blog.stderr.at/securesupplychain/2023-06-25-securesupplychain-step10/</link><pubDate>Tue, 27 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-25-securesupplychain-step10/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;If you read all articles up to here (congratulations) you know that we always update the README file of &amp;#34;The Application&amp;#34;. But what is this application exactly and how can we update it like in a real-life example? The &lt;strong&gt;Globex UI&lt;/strong&gt; application is built with Angular and was prepared for this journey. It is a quite complex application and requires Kafka to be installed as well. However, since I am not a developer and this tool was already available, I forked and re-used it. The original can be found at &lt;a href="https://github.com/redhat-gpte-devopsautomation/globex-ui" rel="noopener" target="_blank"&gt;Globex UI&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_goals"&gt;Goals&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The goals of this step are:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Deploy AMQ Streams Operator&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Deploy Globex DEV&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Deploy Globex Prod&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Verify Deployments&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Globex UI, although quite complex, will provide a simple web interface. Since I do not have multiple clusters, I will use the Namespaces &lt;strong&gt;globex-dev&lt;/strong&gt; and &lt;strong&gt;globex-prod&lt;/strong&gt; to distinguish between the two environments. This means, our DEV environment will run inside globex-dev and PROD in globex-prod. Kafka related stuff will be deployed in the Namespace &lt;strong&gt;kafka&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step10-globex.png?width=600px" alt="Globex UI"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Globex UI&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The deployment will be done automatically by GitOps. As soon as our Pipeline will be executed and subsequently updates our image in the Kubernetes manifests (see step: &lt;a href="https://blog.stderr.at/openshift/securesupplychain/step9/"&gt;Linting Kubernetes Manifests&lt;/a&gt;), a new version of Globex UI will be deployed. The production update will follow in later steps in the pipeline.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;GitOps will monitor changes in our Kubernetes manifest repository. Here, we use Kustomize overlays to separate between DEV and PROD.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-As a general recommendation: Do everything with GitOps. &lt;strong&gt;If it is not in Git, it does not exist&lt;/strong&gt;.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_installation"&gt;Installation&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To install all required components, we create several GitOps Applications.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  description: &gt;-
+    Task to run yamllint and perform a linting of Kubernetes manifets.
+  params:
+    - default: &#39;false&#39;
+      name: informLintingOnly
+      type: string
+    - default: &#39;quay.io/tjungbau/linter-image:v1.0.2&#39;
+      name: linterImage
+      type: string
+  steps:
+    - image: $(params.linterImage)
+      name: yaml-lint
+      resources: {}
+      script: |
+        #!/usr/bin/env bash
+
+        for files in `find . -type f -name &#39;*.yaml&#39;`; do <i class="conum" data-value="1"></i><b>(1)</b>
+          yamllint -c /workspace/repository/.yamllint.yaml ${files}; let var=var+$?
+        done
+
+        # We actually do not fail but inform only
+
+        if [ &#34;$(params.informLintingOnly)&#34; = &#34;true&#34; ]; then
+          echo &#34;Informing only, task will not fail. Actual return code was $var&#34;
+          exit 0;
+        fi
+
+        (exit $var)
+      workingDir: /workspace/repository
+  workspaces:
+    - name: repository</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Execute kube-linter using the configuration stored in the repository.</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_execute_the_pipeline">Execute the Pipeline</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Pipeline now looks like this:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step9-pipeline.png" alt="Pipeline Details"/>
+</div>
+<div class="title">Figure 1. Pipeline Details</div>
+</div>
+<div class="paragraph">
+<p>Remember, you typically need only one linter tool, not three different ones. Since we inform only you will see some errors in the logs. For example, for kube-linter:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step9-kubelinter.png" alt="Kube-Linter Results"/>
+</div>
+<div class="title">Figure 2. Kube-Linter Results</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now, all our yaml manifests have been linted, with three different tools. And because we do not fail at this stage, we can continue. The next steps will be some deployment checks.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Since everything is done using Argo CD and the manifests have been updated during the step &#34;update-manifest&#34;, the changes will be most likely already deployed. Even if the linting-step comes later and might even fail. This is fine because we first deploy on a DEV environment. So, if linting fails, it will prohibit the rollout to production, while some application testing can still be done on DEV.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Step 10 - The Example Application</title><link>https://blog.stderr.at/securesupplychain/2023-06-25-securesupplychain-step10/</link><guid isPermaLink="true">https://blog.stderr.at/securesupplychain/2023-06-25-securesupplychain-step10/</guid><pubDate>Tue, 27 Jun 2023 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Supply Chain</category><description>Step 10 Secure Supply Chain</description><content:encoded><![CDATA[<div class="paragraph">
+<p>If you read all articles up to here (congratulations) you know that we always update the README file of &#34;The Application&#34;. But what is this application exactly and how can we update it like in a real-life example? The <strong>Globex UI</strong> application is built with Angular and was prepared for this journey. It is a quite complex application and requires Kafka to be installed as well. However, since I am not a developer and this tool was already available, I forked and re-used it. The original can be found at <a href="https://github.com/redhat-gpte-devopsautomation/globex-ui" rel="noopener" target="_blank">Globex UI</a></p>
+</div>
+<div class="sect1">
+<h2 id="_goals">Goals</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The goals of this step are:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Deploy AMQ Streams Operator</p>
+</li>
+<li>
+<p>Deploy Globex DEV</p>
+</li>
+<li>
+<p>Deploy Globex Prod</p>
+</li>
+<li>
+<p>Verify Deployments</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Globex UI, although quite complex, will provide a simple web interface. Since I do not have multiple clusters, I will use the Namespaces <strong>globex-dev</strong> and <strong>globex-prod</strong> to distinguish between the two environments. This means, our DEV environment will run inside globex-dev and PROD in globex-prod. Kafka related stuff will be deployed in the Namespace <strong>kafka</strong>.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step10-globex.png?width=600px" alt="Globex UI"/>
+</div>
+<div class="title">Figure 1. Globex UI</div>
+</div>
+<div class="paragraph">
+<p>The deployment will be done automatically by GitOps. As soon as our Pipeline will be executed and subsequently updates our image in the Kubernetes manifests (see step: <a href="/openshift/securesupplychain/step9/">Linting Kubernetes Manifests</a>), a new version of Globex UI will be deployed. The production update will follow in later steps in the pipeline.</p>
+</div>
+<div class="paragraph">
+<p>GitOps will monitor changes in our Kubernetes manifest repository. Here, we use Kustomize overlays to separate between DEV and PROD.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+As a general recommendation: Do everything with GitOps. <strong>If it is not in Git, it does not exist</strong>.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_installation">Installation</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>To install all required components, we create several GitOps Applications.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Although we create these Argo CD Applications by hand, it is recommended to put these definitions into Git also.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
 Since this is just a demo, I am using the cluster instance of OpenShift GitOps. DO NOT deploy customer workload using the default instance, since it has privileged permissions on the cluster. Instead, create a second instance (or multiple) for the developers.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following Applications will be created:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step10-argocd_apps.png" alt="GitOps Applications"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. GitOps Applications&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_install_amq_streams_operator"&gt;Install AMQ Streams Operator&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As the very first step, we need to deploy the AMQ Streams Operator. Simply search for the operator in the Operator Hub and deploy it using the default values.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The following Applications will be created:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step10-argocd_apps.png" alt="GitOps Applications"/>
+</div>
+<div class="title">Figure 2. GitOps Applications</div>
+</div>
+<div class="sect2">
+<h3 id="_install_amq_streams_operator">Install AMQ Streams Operator</h3>
+<div class="paragraph">
+<p>As the very first step, we need to deploy the AMQ Streams Operator. Simply search for the operator in the Operator Hub and deploy it using the default values.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Also, this deployment could and should be done using Argo CD. For the sake of speed, I have done this manually here.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step10-amq_streams.png?width=300px" alt="AMQ Streams Operator"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. AMQ Streams Operator&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_install_kafka_for_globex"&gt;Install Kafka for Globex&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we can deploy all Kafka-related stuff using GitOps. Let’s create the following Application object:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step10-amq_streams.png?width=300px" alt="AMQ Streams Operator"/>
+</div>
+<div class="title">Figure 3. AMQ Streams Operator</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_install_kafka_for_globex">Install Kafka for Globex</h3>
+<div class="paragraph">
+<p>Now we can deploy all Kafka-related stuff using GitOps. Let’s create the following Application object:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-name: globex-kafka
-namespace: openshift-gitops
+  name: globex-kafka
+  namespace: openshift-gitops
 spec:
-destination:
-namespace: kafka &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-project: default
-source:
-path: application/kafka/overlays/dev &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/securing-software-supply-chain&amp;#39;
-targetRevision: HEAD
-syncPolicy:
-automated: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-selfHeal: true
-syncOptions:
-- RespectIgnoreDifferences=true
-- CreateNamespace=true&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The deployment must be done in the Namespace &lt;strong&gt;kafka&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We install using the local GitOps server instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Path/URL to the GitHub Kustomize repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Auto-Update in case of changes are detected.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_install_globex_dev"&gt;Install Globex DEV&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The DEV installation will deploy the test version of our application into the Namespace &lt;strong&gt;globex-dev&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+  destination:
+    namespace: kafka <i class="conum" data-value="1"></i><b>(1)</b>
+    server: &#39;https://kubernetes.default.svc&#39; <i class="conum" data-value="2"></i><b>(2)</b>
+  project: default
+  source:
+    path: application/kafka/overlays/dev <i class="conum" data-value="3"></i><b>(3)</b>
+    repoURL: &#39;https://github.com/tjungbauer/securing-software-supply-chain&#39;
+    targetRevision: HEAD
+  syncPolicy:
+    automated: <i class="conum" data-value="4"></i><b>(4)</b>
+      selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true
+      - CreateNamespace=true</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The deployment must be done in the Namespace <strong>kafka</strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>We install using the local GitOps server instance.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Path/URL to the GitHub Kustomize repository.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Auto-Update in case of changes are detected.</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_install_globex_dev">Install Globex DEV</h3>
+<div class="paragraph">
+<p>The DEV installation will deploy the test version of our application into the Namespace <strong>globex-dev</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-name: globex-dev &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: openshift-gitops
+  name: globex-dev <i class="conum" data-value="1"></i><b>(1)</b>
+  namespace: openshift-gitops
 spec:
-destination:
-namespace: globex-dev &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-ignoreDifferences:
-- group: &amp;#39;*&amp;#39;
-jqPathExpressions:
-- &amp;#39;.imagePullSecrets[] | select(.name|test(&amp;#34;.-dockercfg-.&amp;#34;))&amp;#39;
-kind: ServiceAccount
-project: default
-source:
-path: application/globex/overlays/dev &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/securing-software-supply-chain&amp;#39;
-targetRevision: HEAD
-syncPolicy:
-automated: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-selfHeal: true
-syncOptions:
-- RespectIgnoreDifferences=true
-- CreateNamespace=true &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Globex DEV instance&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Install into the Namespace &lt;strong&gt;globex-dev&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We install using the local GitOps server instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Path/URL to the GitHub Kustomize repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Auto-Update in case of changes are detected.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Create the Namespace if it does not exist.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_install_globex_prod"&gt;Install Globex PROD&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;And finally, the same for the PROD instance:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+  destination:
+    namespace: globex-dev <i class="conum" data-value="2"></i><b>(2)</b>
+    server: &#39;https://kubernetes.default.svc&#39; <i class="conum" data-value="3"></i><b>(3)</b>
+  ignoreDifferences:
+    - group: &#39;*&#39;
+      jqPathExpressions:
+        - &#39;.imagePullSecrets[] | select(.name|test(&#34;.-dockercfg-.&#34;))&#39;
+      kind: ServiceAccount
+  project: default
+  source:
+    path: application/globex/overlays/dev <i class="conum" data-value="4"></i><b>(4)</b>
+    repoURL: &#39;https://github.com/tjungbauer/securing-software-supply-chain&#39;
+    targetRevision: HEAD
+  syncPolicy:
+    automated: <i class="conum" data-value="5"></i><b>(5)</b>
+      selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true
+      - CreateNamespace=true <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Globex DEV instance</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Install into the Namespace <strong>globex-dev</strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>We install using the local GitOps server instance.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Path/URL to the GitHub Kustomize repository.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Auto-Update in case of changes are detected.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Create the Namespace if it does not exist.</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_install_globex_prod">Install Globex PROD</h3>
+<div class="paragraph">
+<p>And finally, the same for the PROD instance:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-name: globex-prod &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: openshift-gitops
+  name: globex-prod <i class="conum" data-value="1"></i><b>(1)</b>
+  namespace: openshift-gitops
 spec:
-destination:
-namespace: globex-prod &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-ignoreDifferences:
-- group: &amp;#39;*&amp;#39;
-jqPathExpressions:
-- &amp;#39;.imagePullSecrets[] | select(.name|test(&amp;#34;.-dockercfg-.&amp;#34;))&amp;#39;
-kind: ServiceAccount
-project: default
-source:
-path: application/globex/overlays/prod &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/securing-software-supply-chain&amp;#39;
-targetRevision: HEAD
-syncPolicy:
-automated: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-selfHeal: true
-syncOptions:
-- RespectIgnoreDifferences=true
-- CreateNamespace=true &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Globex DEV instance&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Install into the Namespace &lt;strong&gt;globex-prod&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We install using the local GitOps server instance.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Path/URL to the GitHub Kustomize repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Auto-Update in case of changes are detected.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Create the Namespace if it does not exist.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;During this step we have added nothing new to our pipeline, but deployed our example application &lt;strong&gt;Globex UI&lt;/strong&gt; instead, including Kafka. The next steps will now do another verification against ACS and if the transparency logs are available, and then finally prepares everything for production deployment.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item></channel></rss>
+  destination:
+    namespace: globex-prod <i class="conum" data-value="2"></i><b>(2)</b>
+    server: &#39;https://kubernetes.default.svc&#39; <i class="conum" data-value="3"></i><b>(3)</b>
+  ignoreDifferences:
+    - group: &#39;*&#39;
+      jqPathExpressions:
+        - &#39;.imagePullSecrets[] | select(.name|test(&#34;.-dockercfg-.&#34;))&#39;
+      kind: ServiceAccount
+  project: default
+  source:
+    path: application/globex/overlays/prod <i class="conum" data-value="4"></i><b>(4)</b>
+    repoURL: &#39;https://github.com/tjungbauer/securing-software-supply-chain&#39;
+    targetRevision: HEAD
+  syncPolicy:
+    automated: <i class="conum" data-value="5"></i><b>(5)</b>
+      selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true
+      - CreateNamespace=true <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Globex DEV instance</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Install into the Namespace <strong>globex-prod</strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>We install using the local GitOps server instance.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Path/URL to the GitHub Kustomize repository.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Auto-Update in case of changes are detected.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Create the Namespace if it does not exist.</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>During this step we have added nothing new to our pipeline, but deployed our example application <strong>Globex UI</strong> instead, including Kafka. The next steps will now do another verification against ACS and if the transparency logs are available, and then finally prepares everything for production deployment.</p>
+</div>
+</div>
+</div>]]></content:encoded></item></channel></rss>

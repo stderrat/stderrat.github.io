@@ -1,839 +1,570 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Installation on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/installation/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 12 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/installation/index.xml" rel="self" type="application/rss+xml"/><item><title>OKD Single node installation in a disconnected environment</title><link>https://blog.stderr.at/openshift-platform/infrastructure/2026-02-09-okd-sno-disconnected/</link><pubDate>Mon, 09 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/infrastructure/2026-02-09-okd-sno-disconnected/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Because of reasons we had to set up a disconnected single node OKD &amp;#34;cluster&amp;#34;. This is our brain dump as the
-OKD documentation sometimes refers to OpenShift image locations, we had to read multiple sections to get it working and we
-also consulted the OpenShift documentation at &lt;a class="bare" href="https://docs.redhat.com"&gt;https://docs.redhat.com&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Updated on 2026-03-03: Fixed install-config.yaml and create manifest command
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;First we need to download the &lt;em&gt;oc&lt;/em&gt; command in the version we would like to install. OKD provides it on its release page:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a class="bare" href="https://github.com/okd-project/okd/releases/download/4.21.0-okd-scos.3/openshift-client-linux-amd64-rhel9-4.21.0-okd-scos.3.tar.gz"&gt;https://github.com/okd-project/okd/releases/download/4.21.0-okd-scos.3/openshift-client-linux-amd64-rhel9-4.21.0-okd-scos.3.tar.gz&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To get an overview of releases available for OKD see &lt;a class="bare" href="https://amd64.origin.releases.ci.openshift.org/"&gt;https://amd64.origin.releases.ci.openshift.org/&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Another option is to extract the &lt;em&gt;oc&lt;/em&gt; command from the release image, if you have a version of &lt;em&gt;oc&lt;/em&gt; already installed:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;oc adm release extract --tools quay.io/okd/scos-release:4.21.0-okd-scos.3&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will also extract the &lt;em&gt;openshift-install&lt;/em&gt; tar.gz which we need later to generate the installation manifests and ignition configs.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Next we need the &lt;em&gt;oc-mirror&lt;/em&gt; plugin, which is used to mirror the release content to our local registry. We were only able to find the plugin on &lt;em&gt;console.redhat.com&lt;/em&gt;. Another option might be to compile the plugin from source code (&lt;a class="bare" href="https://github.com/openshift/oc-mirror/"&gt;https://github.com/openshift/oc-mirror/&lt;/a&gt;).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We copied the &lt;em&gt;oc&lt;/em&gt; command and the &lt;em&gt;oc-mirror&lt;/em&gt; plugin to /usr/local/bin/ and made them executable. After that we ran &lt;em&gt;oc mirror --v2 --help&lt;/em&gt; to test the installation.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The upstream &lt;a href="https://github.com/openshift/oc-mirror/blob/main/docs/okd-mirror.md"&gt;oc-mirror&lt;/a&gt; plugin documentation was also helpful.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As our private registry required authentication, we created a .dockerconfigjson file with the registry credentials:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
-&amp;#34;auths&amp;#34;: {
-&amp;#34;internal.registry&amp;#34;: {
-&amp;#34;auth&amp;#34;: &amp;#34;&amp;lt;credentials base64 encoded&amp;gt;&amp;#34;,
-&amp;#34;email&amp;#34;: &amp;#34;you@example.com&amp;#34;
-}
-}
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can encode the credentials with:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;echo -n &amp;#34;username:password&amp;#34; | base64 -w0&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For mirroring all required OKD images to our private registry we created an &lt;em&gt;ImageSetConfiguration&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: ImageSetConfiguration
-apiVersion: mirror.openshift.io/v2alpha1
-mirror:
-platform:
-channels:
-- name: 4-scos-stable
-minVersion: 4.21.0-okd-scos.3
-maxVersion: 4.21.0-okd-scos.3
-graph: false
-operators:
-- registry: quay.io/okderators/catalog-index:testing-4.20 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-packages:
-- name: aws-load-balancer-operator
-- name: 3scale-operator
-- name: node-observability-operator
-additionalImages:
-- name: registry.redhat.io/ubi8/ubi:latest
-- name: registry.redhat.io/ubi9/ubi@sha256:20f695d2a91352d4eaa25107535126727b5945bff38ed36a3e59590f495046f0&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We used a minimal configuration without operators and additional images, because downloading additional images did not work for us:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: ImageSetConfiguration
-apiVersion: mirror.openshift.io/v2alpha1
-mirror:
-platform:
-channels:
-- name: 4-scos-stable &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-type: okd
-minVersion: 4.21.0-okd-scos.3 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-maxVersion: 4.21.0-okd-scos.3
-graph: false
-operators: []
-additionalImages: []&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The hard part for us was finding the right values for &lt;em&gt;channels&lt;/em&gt; and
-the min/max versions. Once again the OKD
-&lt;a href="https://amd64.origin.releases.ci.openshift.org/"&gt;release status page&lt;/a&gt;
-was helpful.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Our private registry is based on &lt;a href="https://goharbor.io"&gt;Harbor&lt;/a&gt; for our
-experiments, but any Docker v2 compatible registry should work. The
-only thing required is a project within Harbor called &lt;em&gt;openshift&lt;/em&gt; and
-a user/password for pulling/pushing images to this project. The
-project name might be configurable with &lt;em&gt;oc mirror&lt;/em&gt;, but this requires
-further investigation.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;em&gt;oc mirror&lt;/em&gt; wants to verify signatures so we had to download a public
-key and provide the &lt;em&gt;OCP_SIGNATURE_URL&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;curl -LO https://raw.githubusercontent.com/openshift/cluster-update-keys/master/keys/verifier-public-key-openshift-ci-4
-export OCP_SIGNATURE_URL=&amp;#34;https://storage.googleapis.com/openshift-ci-release/releases/signatures/openshift/release/&amp;#34;
-export OCP_SIGNATURE_VERIFICATION_PK=&amp;#34;verifier-public-key-openshift-ci-4&amp;#34;
-# for debugging add --log-level debug, but we had intermittent errors with this option.
-# after removing --log-level debug oc mirror ran without problems
-oc mirror -c ImageSetConfiguration.yaml --authfile docker-auth.json --workspace file:///workspace docker://internal.registry --v2&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will create the &lt;em&gt;ImageDigestMirrorSource&lt;/em&gt; in &lt;em&gt;/workspace/working-dir/cluster-resources/idms-oc-mirror.yaml&lt;/em&gt; and &lt;em&gt;ImageTagMirrorSource&lt;/em&gt; custom resources in &lt;em&gt;/workspace/working-dir/cluster-resources/itms-oc-mirror.yaml&lt;/em&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The content of &lt;em&gt;ImageDigestMirrorSource&lt;/em&gt; will be reused in
-the &lt;em&gt;install-config.yaml&lt;/em&gt;. This is required to redirect image pulls done by the node from &lt;em&gt;quay.io&lt;/em&gt; to our private registry.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Next we need DNS records for our cluster:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;api.sno.internal&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;api-int.sno.internal&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;*.apps.sno.internal (wildcard DNS entry for applications deployed on the cluster)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we prepared the required &lt;em&gt;install-config.yaml&lt;/em&gt; file to trigger the &lt;em&gt;openshift-install&lt;/em&gt; command.
-We basically followed &lt;a href="https://docs.okd.io/latest/installing/installing_sno/install-sno-installing-sno.html"&gt;Installing a Single Node OpenShift Cluster&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
-baseDomain: internal
-compute:
-- hyperthreading: Enabled
-name: worker
-replicas: 0 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-controlPlane:
-hyperthreading: Enabled
-name: master
-replicas: 1 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-metadata:
-name: okd-sno
-networking:
-clusterNetwork:
-- cidr: 10.128.0.0/14
-hostPrefix: 23
-networkType: OVNKubernetes
-serviceNetwork:
-- 172.30.0.0/16
-platform:
-none: {}
-fips: false
-sshKey: &amp;#39;the key&amp;#39;
-bootstrapInPlace: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-installationDisk: /dev/vda
-pullSecret: |
-{
-&amp;#34;auths&amp;#34;: {
-&amp;#34;registry.internal&amp;#34;: {
-&amp;#34;auth&amp;#34;: &amp;#34;&amp;lt;username:password base64 encoded&amp;gt;&amp;#34;,
-&amp;#34;email&amp;#34;: &amp;#34;some@email&amp;#34;
-}
-}
-}
-additionalTrustBundle: | &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
------BEGIN CERTIFICATE-----
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
------END CERTIFICATE-----
-ImageDigestSources: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-- mirrors:
-- registry.internal/openshift/release
-source: quay.io/okd/scos-content
-- mirrors:
-- registry.internal/openshift/release-images
-source: quay.io/okd/scos-release&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We set the number of workers to zero (0). Because this is a SNO installation. Worker nodes could be added later, even for a SNO cluster&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We set the number of master nodes to one (1)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This tells the installer that we do not have a bootstrap node and it should create one large ignition config file&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;If required the CA certificate of our registry. This is required if the registry uses an internal certificate&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;ImageDigestSources configures CRIO to redirect requests to quay.io to our private registry.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It’s time to create the installation manifests and ignition configs. We created a directory &lt;em&gt;install&lt;/em&gt;, copied the &lt;em&gt;install-config.yaml&lt;/em&gt; into this directory and triggered the &lt;em&gt;openshift-install&lt;/em&gt; command:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;$ mkdir install
-$ cp install-config.yaml install/
-$ openshift-install --dir=install create single-node-ignition-config&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We are now ready to download the installation ISO and to embed our ignition config into it. We also want
-to set kernel boot arguments to configure the network interface with a static IP address.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;curl -L $( ./openshift-install coreos print-stream-json |jq -r &amp;#34;.architectures.x86_64.artifacts.metal.formats.iso.disk.location&amp;#34; ) -o fhcos-live.iso&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The next step is to modify the ISO. We basically followed the instructions in the OKD documentation:
-&lt;a class="bare" href="https://docs.okd.io/4.14/installing/installing_sno/install-sno-installing-sno.html#generating-the-install-iso-manually_install-sno-installing-sno-with-the-assisted-installer"&gt;https://docs.okd.io/4.14/installing/installing_sno/install-sno-installing-sno.html#generating-the-install-iso-manually_install-sno-installing-sno-with-the-assisted-installer&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-shell hljs" data-lang="shell"&gt;alias coreos-installer=&amp;#39;podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release&amp;#39;
-coreos-installer iso ignition embed -fi install/bootstrap-in-place-for-live-iso.ign fcos-live.iso
-coreos-installer iso kargs modify --append &amp;#39;ip=10.0.0.99::10.0.0.1:255.255.255.0:sno.internal:ens33:none:10.0.0.255&amp;#39; fcos-live.iso&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We can take a look at the ISO bootstrap config and the kernel arguments with:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;coreos-installer iso ignition show fcos-live.iso
-coreos-installer iso kargs show fcos-live.iso&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For understanding the kernel boot arguments see &lt;a class="bare" href="https://access.redhat.com/solutions/5499911"&gt;https://access.redhat.com/solutions/5499911&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The final step is to boot the modified ISO on the target machine and wait for the installation to complete.&lt;/p&gt;
-&lt;/div&gt;</description></item><item><title>The Guide to OpenBao - Standalone Installation - Part 2</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</link><pubDate>Thu, 12 Feb 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;In the previous article, we introduced OpenBao and its core concepts. Now it is time to get our hands dirty with a standalone installation. This approach is useful for testing, development environments, edge deployments, or scenarios where Kubernetes is not available.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;While OpenBao shines in Kubernetes environments, understanding the standalone installation helps you grasp the fundamentals. This knowledge is valuable whether you are:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Learning OpenBao before deploying to production&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Running OpenBao outside of Kubernetes (edge, legacy systems)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Debugging issues in containerized deployments&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Setting up a development environment&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_installation_methods_overview"&gt;Installation Methods Overview&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;OpenBao can be installed through multiple methods:&lt;/p&gt;
-&lt;/div&gt;
-&lt;table class="tableblock frame-all grid-all stretch"&gt;
-&lt;colgroup&gt;
-&lt;col style="width: 20%;"/&gt;
-&lt;col style="width: 40%;"/&gt;
-&lt;col style="width: 40%;"/&gt;
-&lt;/colgroup&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th class="tableblock halign-left valign-top"&gt;Method&lt;/th&gt;
-&lt;th class="tableblock halign-left valign-top"&gt;Best For&lt;/th&gt;
-&lt;th class="tableblock halign-left valign-top"&gt;Complexity&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Package managers (apt, dnf, brew)&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Production Linux/macOS systems&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Container images (Podman/Docker)&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Quick testing, isolated environments&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Binary download&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Air-gapped environments&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Low&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Source compilation&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Custom builds, development&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Medium&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Installation – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/installation/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 12 Feb 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/installation/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - Standalone Installation - Part 2</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-02-12-openbao-part-2-standalone-installation/</guid><pubDate>Thu, 12 Feb 2026 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Security</category><category>Secret Management</category><description>Installing OpenBao as a standalone service outside of Kubernetes for testing and edge deployments</description><content:encoded><![CDATA[<div class="paragraph">
+<p>In the previous article, we introduced OpenBao and its core concepts. Now it is time to get our hands dirty with a standalone installation. This approach is useful for testing, development environments, edge deployments, or scenarios where Kubernetes is not available.</p>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>While OpenBao shines in Kubernetes environments, understanding the standalone installation helps you grasp the fundamentals. This knowledge is valuable whether you are:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Learning OpenBao before deploying to production</p>
+</li>
+<li>
+<p>Running OpenBao outside of Kubernetes (edge, legacy systems)</p>
+</li>
+<li>
+<p>Debugging issues in containerized deployments</p>
+</li>
+<li>
+<p>Setting up a development environment</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_installation_methods_overview">Installation Methods Overview</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>OpenBao can be installed through multiple methods:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;"/>
+<col style="width: 40%;"/>
+<col style="width: 40%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Method</th>
+<th class="tableblock halign-left valign-top">Best For</th>
+<th class="tableblock halign-left valign-top">Complexity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Package managers (apt, dnf, brew)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Production Linux/macOS systems</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Low</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Container images (Podman/Docker)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Quick testing, isolated environments</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Low</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Binary download</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Air-gapped environments</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Low</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Source compilation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Custom builds, development</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Medium</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 For this article, we will focus on macOS for local testing with binary and container image (using Podman) and Red Hat Enterprise Linux to set up an example production-ready server.
 The deployment on the Kubernetes environment will be discussed in the next article.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_method_1_package_manager_installation"&gt;Method 1: Package Manager Installation&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_rhelfedoracentos"&gt;RHEL/Fedora/CentOS&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;On RHEL or CentOS, before you can install OpenBao you need to install the EPEL repository. To do so, you first need to enable the Code Ready Repository. The following commands will do the trick. Be sure that your system is registered, in case of RHEL.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-If you get the error &amp;#34;Repositories disabled by configuration.&amp;#34; you need to tell the subscription manager that you want to manage the repositories. This can be done permanently or temporarily. You can use the command: &lt;strong&gt;sudo subscription-manager config --rhsm.manage_repos=1&lt;/strong&gt; to do so.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_rhel"&gt;RHEL&lt;/h4&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Enable Code Ready Repository&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Install EPEL Repository&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Install OpenBao&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y openbao&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_centos"&gt;CentOS&lt;/h4&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Enable Code Ready Repository on CentOS&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf config-manager --set-enabled crb&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Install EPEL Repository&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install epel-release epel-next-release&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Install OpenBao&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo dnf install -y openbao&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_macos_homebrew"&gt;macOS (Homebrew)&lt;/h3&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Install OpenBao&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;brew install openbao&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_verify_installation"&gt;Verify Installation&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After installation, verify OpenBao is available:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao version
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_method_1_package_manager_installation">Method 1: Package Manager Installation</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_rhelfedoracentos">RHEL/Fedora/CentOS</h3>
+<div class="paragraph">
+<p>On RHEL or CentOS, before you can install OpenBao you need to install the EPEL repository. To do so, you first need to enable the Code Ready Repository. The following commands will do the trick. Be sure that your system is registered, in case of RHEL.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+If you get the error &#34;Repositories disabled by configuration.&#34; you need to tell the subscription manager that you want to manage the repositories. This can be done permanently or temporarily. You can use the command: <strong>sudo subscription-manager config --rhsm.manage_repos=1</strong> to do so.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect3">
+<h4 id="_rhel">RHEL</h4>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Enable Code Ready Repository</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Install EPEL Repository</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Install OpenBao</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo dnf install -y openbao</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_centos">CentOS</h4>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Enable Code Ready Repository on CentOS</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo dnf config-manager --set-enabled crb</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Install EPEL Repository</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo dnf install epel-release epel-next-release</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Install OpenBao</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo dnf install -y openbao</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_macos_homebrew">macOS (Homebrew)</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Install OpenBao</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">brew install openbao</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_verify_installation">Verify Installation</h3>
+<div class="paragraph">
+<p>After installation, verify OpenBao is available:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao version
 # Output:
-OpenBao v2.5.0 (bcbb6036ec2b747bceb98c7706ce9b974faa1b23), built 2026-02-04T15:57:17Z (cgo)&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The OpenBao CLI command is &lt;code&gt;bao&lt;/code&gt;, not &lt;code&gt;vault&lt;/code&gt;. This distinguishes it from HashiCorp Vault.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_start_development_server"&gt;Start Development Server&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To start a development environment, you can use the following command.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+OpenBao v2.5.0 (bcbb6036ec2b747bceb98c7706ce9b974faa1b23), built 2026-02-04T15:57:17Z (cgo)</code></pre>
+</div>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+The OpenBao CLI command is <code>bao</code>, not <code>vault</code>. This distinguishes it from HashiCorp Vault.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_start_development_server">Start Development Server</h3>
+<div class="paragraph">
+<p>To start a development environment, you can use the following command.</p>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
 This is NOT suitable for production, it is just a test to evaluate the basic concepts of OpenBao.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao server -dev -dev-root-token-id=&amp;#34;dev-only-token&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will start the server. The UI is accessible at &lt;a class="bare" href="http://localhost:8200"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_method_2_container_image"&gt;Method 2: Container Image&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For quick testing or isolated environments, container images are ideal. Luckily, OpenBao offers several types of containers suitable for any environment. We will use the image hosted on &lt;strong&gt;quay.io&lt;/strong&gt;, which is based on &lt;strong&gt;RHEL UBI&lt;/strong&gt; and can be found at: &lt;a href="https://quay.io/openbao/openbao-ubi" rel="noopener" target="_blank"&gt;quay.io/openbao/openbao-ubi&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_using_podman"&gt;Using Podman&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following command will fetch the image and start the container.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao server -dev -dev-root-token-id=&#34;dev-only-token&#34;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will start the server. The UI is accessible at <a class="bare" href="http://localhost:8200">http://localhost:8200</a> where you can login using the root token <code>dev-only-token</code>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_method_2_container_image">Method 2: Container Image</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>For quick testing or isolated environments, container images are ideal. Luckily, OpenBao offers several types of containers suitable for any environment. We will use the image hosted on <strong>quay.io</strong>, which is based on <strong>RHEL UBI</strong> and can be found at: <a href="https://quay.io/openbao/openbao-ubi" rel="noopener" target="_blank">quay.io/openbao/openbao-ubi</a></p>
+</div>
+<div class="sect2">
+<h3 id="_using_podman">Using Podman</h3>
+<div class="paragraph">
+<p>The following command will fetch the image and start the container.</p>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
 This is NOT suitable for production, it is just a test to evaluate the basic concepts of OpenBao.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Run in dev mode (for testing only!)
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Run in dev mode (for testing only!)
 podman run --rm -d \
---name openbao-dev \
--p 8200:8200 \
--e &amp;#39;BAO_DEV_ROOT_TOKEN_ID=dev-only-token&amp;#39; \
--e &amp;#39;BAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200&amp;#39; \
-quay.io/openbao/openbao-ubi:latest server -dev&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Verify it is running
-podman logs -f openbao-dev&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will start the server. The UI is accessible at &lt;a class="bare" href="http://localhost:8200"&gt;http://localhost:8200&lt;/a&gt; where you can login using the root token &lt;code&gt;dev-only-token&lt;/code&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-If you prefer to use Docker, simply replace &lt;code&gt;podman&lt;/code&gt; with &lt;code&gt;docker&lt;/code&gt; in the commands.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_dev_mode_quick_start_for_testing"&gt;Dev Mode: Quick Start for Testing&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Dev mode is the fastest way to start using OpenBao for learning and testing.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The characteristics in this mode are:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;In-memory storage (data lost on restart)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Automatically initialized and unsealed&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Root token printed to stdout&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;TLS disabled&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Single server (no HA)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s create an example secret and try to retrieve it again.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Authenticate against OpenBao&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;export VAULT_TOKEN=&amp;#34;dev-only-token&amp;#34;
-export BAO_ADDR=&amp;#39;http://127.0.0.1:8200&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create Secret&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl \
---header &amp;#34;X-Vault-Token: $VAULT_TOKEN&amp;#34; \
---header &amp;#34;Content-Type: application/json&amp;#34; \
---request POST \
---data &amp;#39;{&amp;#34;data&amp;#34;: {&amp;#34;password&amp;#34;: &amp;#34;OpenBao123&amp;#34;}}&amp;#39; \
-$BAO_ADDR/v1/secret/data/my-secret-password &amp;amp;&amp;amp;
-echo &amp;#34;Secret written successfully.&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Retrieve Secret&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;curl --header &amp;#34;X-Vault-Token: $VAULT_TOKEN&amp;#34; \
-$BAO_ADDR/v1/secret/data/my-secret-password | jq &amp;#39;.data.data&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You should see the password that was created before:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
-&amp;#34;password&amp;#34;: &amp;#34;OpenBao123&amp;#34;
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_check_status_of_openbao_server"&gt;Check Status of OpenBao Server&lt;/h3&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will give you the status of your running OpenBao instance.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Key Value
---- -----
-Seal Type shamir
-Initialized true
-Sealed false
-Total Shares 1
-Threshold 1
-Version 2.5.0
-Build Date 2026-02-04T15:57:17Z
-Storage Type inmem
-Cluster Name vault-cluster-421b2431
-Cluster ID 6d42dcd2-e399-211e-999a-49b1874cc8ce
-HA Enabled false&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_hardening_your_system"&gt;Hardening your System&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;OpenBao does a good job to secure your secrets, however, memory paging (or swap) can undermine the protection. Your OS should either have swap disabled completely or encrypt the swap space.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As I am testing on macOS, the swap space is encrypted out of the box.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;However, OpenBao has documented what must be done for various operating systems at &lt;a href="https://openbao.org/docs/install/#post-installation-hardening" rel="noopener" target="_blank"&gt;Post-installation hardening&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_production_standalone_setup"&gt;Production Standalone Setup&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For a proper standalone installation, follow these steps:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_1_create_configuration_file"&gt;Step 1: Create Configuration File&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Create &lt;code&gt;/etc/openbao.d/openbao.hcl&lt;/code&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;# Full configuration for standalone OpenBao server
+  --name openbao-dev \
+  -p 8200:8200 \
+  -e &#39;BAO_DEV_ROOT_TOKEN_ID=dev-only-token&#39; \
+  -e &#39;BAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200&#39; \
+  quay.io/openbao/openbao-ubi:latest server -dev</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Verify it is running
+podman logs -f openbao-dev</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will start the server. The UI is accessible at <a class="bare" href="http://localhost:8200">http://localhost:8200</a> where you can login using the root token <code>dev-only-token</code>.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+If you prefer to use Docker, simply replace <code>podman</code> with <code>docker</code> in the commands.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_dev_mode_quick_start_for_testing">Dev Mode: Quick Start for Testing</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Dev mode is the fastest way to start using OpenBao for learning and testing.</p>
+</div>
+<div class="paragraph">
+<p>The characteristics in this mode are:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>In-memory storage (data lost on restart)</p>
+</li>
+<li>
+<p>Automatically initialized and unsealed</p>
+</li>
+<li>
+<p>Root token printed to stdout</p>
+</li>
+<li>
+<p>TLS disabled</p>
+</li>
+<li>
+<p>Single server (no HA)</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Let’s create an example secret and try to retrieve it again.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Authenticate against OpenBao</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">export VAULT_TOKEN=&#34;dev-only-token&#34;
+export BAO_ADDR=&#39;http://127.0.0.1:8200&#39;</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Create Secret</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl \
+  --header &#34;X-Vault-Token: $VAULT_TOKEN&#34; \
+  --header &#34;Content-Type: application/json&#34; \
+  --request POST \
+  --data &#39;{&#34;data&#34;: {&#34;password&#34;: &#34;OpenBao123&#34;}}&#39; \
+  $BAO_ADDR/v1/secret/data/my-secret-password &amp;&amp;
+  echo &#34;Secret written successfully.&#34;</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Retrieve Secret</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl --header &#34;X-Vault-Token: $VAULT_TOKEN&#34; \
+  $BAO_ADDR/v1/secret/data/my-secret-password | jq &#39;.data.data&#39;</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>You should see the password that was created before:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &#34;password&#34;: &#34;OpenBao123&#34;
+}</code></pre>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_check_status_of_openbao_server">Check Status of OpenBao Server</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao status</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will give you the status of your running OpenBao instance.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Key             Value
+---             -----
+Seal Type       shamir
+Initialized     true
+Sealed          false
+Total Shares    1
+Threshold       1
+Version         2.5.0
+Build Date      2026-02-04T15:57:17Z
+Storage Type    inmem
+Cluster Name    vault-cluster-421b2431
+Cluster ID      6d42dcd2-e399-211e-999a-49b1874cc8ce
+HA Enabled      false</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_hardening_your_system">Hardening your System</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>OpenBao does a good job to secure your secrets, however, memory paging (or swap) can undermine the protection. Your OS should either have swap disabled completely or encrypt the swap space.</p>
+</div>
+<div class="paragraph">
+<p>As I am testing on macOS, the swap space is encrypted out of the box.</p>
+</div>
+<div class="paragraph">
+<p>However, OpenBao has documented what must be done for various operating systems at <a href="https://openbao.org/docs/install/#post-installation-hardening" rel="noopener" target="_blank">Post-installation hardening</a></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_production_standalone_setup">Production Standalone Setup</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>For a proper standalone installation, follow these steps:</p>
+</div>
+<div class="sect2">
+<h3 id="_step_1_create_configuration_file">Step 1: Create Configuration File</h3>
+<div class="paragraph">
+<p>Create <code>/etc/openbao.d/openbao.hcl</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-ini hljs" data-lang="ini"># Full configuration for standalone OpenBao server
+
 # Cluster name for identification
-cluster_name = &amp;#34;openbao-standalone&amp;#34;
+cluster_name = &#34;openbao-standalone&#34;
+
 # Storage backend using integrated Raft
-storage &amp;#34;raft&amp;#34; {
-path = &amp;#34;/var/lib/openbao/data&amp;#34;
-node_id = &amp;#34;node1&amp;#34;
+storage &#34;raft&#34; {
+  path    = &#34;/var/lib/openbao/data&#34;
+  node_id = &#34;node1&#34;
 }
+
 # HTTP listener (for internal communication)
-listener &amp;#34;tcp&amp;#34; {
-address = &amp;#34;0.0.0.0:8200&amp;#34;
-cluster_address = &amp;#34;0.0.0.0:8201&amp;#34;
-tls_disable = false
-tls_cert_file = &amp;#34;/etc/openbao.d/tls/tls.crt&amp;#34;
-tls_key_file = &amp;#34;/etc/openbao.d/tls/tls.key&amp;#34;
+listener &#34;tcp&#34; {
+  address         = &#34;0.0.0.0:8200&#34;
+  cluster_address = &#34;0.0.0.0:8201&#34;
+  tls_disable     = false
+  tls_cert_file   = &#34;/etc/openbao.d/tls/tls.crt&#34;
+  tls_key_file    = &#34;/etc/openbao.d/tls/tls.key&#34;
 }
+
 # API address for clients
-api_addr = &amp;#34;https://openbao.example.com:8200&amp;#34;
+api_addr = &#34;https://openbao.example.com:8200&#34;
+
 # Cluster address for raft communication
-cluster_addr = &amp;#34;https://openbao.example.com:8201&amp;#34;
+cluster_addr = &#34;https://openbao.example.com:8201&#34;
+
 # UI enabled
 ui = true
+
 # Logging
-log_level = &amp;#34;info&amp;#34;
-log_file = &amp;#34;/var/log/openbao/openbao.log&amp;#34;
+log_level = &#34;info&#34;
+log_file  = &#34;/var/log/openbao/openbao.log&#34;
+
 # Disable memory locking (enable in production if possible)
 disable_mlock = true
+
 # Telemetry (optional)
 telemetry {
-prometheus_retention_time = &amp;#34;30s&amp;#34;
-disable_hostname = true
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_2_generate_tls_certificates"&gt;Step 2: Generate TLS Certificates&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For production, you should use proper certificates. For testing, create self-signed ones:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  prometheus_retention_time = &#34;30s&#34;
+  disable_hostname          = true
+}</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_step_2_generate_tls_certificates">Step 2: Generate TLS Certificates</h3>
+<div class="paragraph">
+<p>For production, you should use proper certificates. For testing, create self-signed ones:</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 This is only for testing purposes. In production, you should use proper certificates.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;First, prepare the TLS directory if it does not exist&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;sudo mkdir -p /etc/openbao.d/tls&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Then create a configuration file for the TLS certificates:&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Create TLS config
-cat &amp;lt;&amp;lt;EOF &amp;gt; openbao.cnf
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>First, prepare the TLS directory if it does not exist</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">sudo mkdir -p /etc/openbao.d/tls</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Then create a configuration file for the TLS certificates:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Create TLS config
+cat &lt;&lt;EOF &gt; openbao.cnf
 [req]
 distinguished_name = req_distinguished_name
 x509_extensions = v3_req
 prompt = no
+
 [req_distinguished_name]
 CN = openbao.example.com
+
 [v3_req]
 subjectAltName = @alt_names
+
 [alt_names]
 DNS.1 = openbao.example.com
-IP.1 = 127.0.0.1 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-EOF&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The IP address of the server. In this case we are using localhost, but you can add your IPs here.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Then generate the certificate:&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Generate private key
+IP.1 = 127.0.0.1 <i class="conum" data-value="1"></i><b>(1)</b>
+EOF</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The IP address of the server. In this case we are using localhost, but you can add your IPs here.</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>Then generate the certificate:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Generate private key
 sudo openssl genrsa -out /etc/openbao.d/tls/tls.key 4096
+
 # Generate certificate signing request
-sudo openssl req -new -key /etc/openbao.d/tls/tls.key -out /etc/openbao.d/tls/tls.csr -subj &amp;#34;/CN=openbao.example.com&amp;#34;
+sudo openssl req -new -key /etc/openbao.d/tls/tls.key -out /etc/openbao.d/tls/tls.csr -subj &#34;/CN=openbao.example.com&#34;
+
 # Generate self-signed certificate
 sudo openssl x509 -req -days 365 -in /etc/openbao.d/tls/tls.csr -signkey /etc/openbao.d/tls/tls.key -out /etc/openbao.d/tls/tls.crt -extfile openbao.cnf -extensions v3_req
+
 # Set permissions
 sudo chown -R openbao:openbao /etc/openbao.d/tls
 sudo chmod 600 /etc/openbao.d/tls/tls.key
-sudo chmod 755 /etc/openbao.d/tls&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_3_create_systemd_service"&gt;Step 3: Create Systemd Service&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Create &lt;code&gt;/etc/systemd/system/openbao.service&lt;/code&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;[Unit]
+sudo chmod 755 /etc/openbao.d/tls</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_step_3_create_systemd_service">Step 3: Create Systemd Service</h3>
+<div class="paragraph">
+<p>Create <code>/etc/systemd/system/openbao.service</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-ini hljs" data-lang="ini">[Unit]
 Description=OpenBao Secret Management
 Documentation=https://openbao.org/docs
 Requires=network-online.target
 After=network-online.target
 ConditionFileNotEmpty=/etc/openbao.d/openbao.hcl
+
 [Service]
 User=openbao
 Group=openbao
@@ -854,457 +585,752 @@ RestartSec=5
 TimeoutStopSec=30
 LimitNOFILE=65536
 LimitMEMLOCK=infinity
+
 [Install]
-WantedBy=multi-user.target&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_4_start_the_service"&gt;Step 4: Start the Service&lt;/h3&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Reload systemd
+WantedBy=multi-user.target</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_step_4_start_the_service">Step 4: Start the Service</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Reload systemd
 sudo systemctl daemon-reload
+
 # Enable and start OpenBao
 sudo systemctl enable openbao
 sudo systemctl start openbao
+
 # Check status
 sudo systemctl status openbao
+
 # View logs
-sudo journalctl -u openbao -f&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_initialize_and_unseal_openbao"&gt;Initialize and Unseal OpenBao&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After starting OpenBao for the first time, it needs to be initialized and unsealed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_set_environment_variables"&gt;Set Environment Variables&lt;/h3&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+sudo journalctl -u openbao -f</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_initialize_and_unseal_openbao">Initialize and Unseal OpenBao</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After starting OpenBao for the first time, it needs to be initialized and unsealed.</p>
+</div>
+<div class="sect2">
+<h3 id="_set_environment_variables">Set Environment Variables</h3>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 We will do the following commands as root user.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 Be sure that the hostname is resolvable. In this case I am using the test domain: openbao.example.com.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Set the OpenBao address
-export BAO_ADDR=&amp;#39;https://openbao.example.com:8200&amp;#39;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Set the OpenBao address
+export BAO_ADDR=&#39;https://openbao.example.com:8200&#39;
+
 # If using self-signed certificates
-export BAO_CACERT=&amp;#39;/etc/openbao.d/tls/tls.crt&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_check_status"&gt;Check Status&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You will see that OpenBao is running but not yet initialized. This will be the next step.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status
-Key Value
---- -----
-Seal Type shamir
-Initialized false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-Sealed true
-Total Shares 0
-Threshold 0
-Unseal Progress 0/0
-Unseal Nonce n/a
-Version 2.4.4-1.el9
-Build Date 2025-11-24
-Storage Type file
-HA Enabled false&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Not yet initialized&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_initialize_openbao"&gt;Initialize OpenBao&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before we use OpenBao, we need to initialize it. This will create the unseal keys and the root token. The unseal keys are used to … well, unseal the OpenBao service.
-The root token is used as a master key to authenticate against the OpenBao service. This token has access to ALL secrets. &lt;strong&gt;Treat this root token with care.&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We will initialize OpenBao with default options of 5 key shares and a threshold of 3. This means that we need 3 different unseal keys to unseal the OpenBao service.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao operator init -key-shares=5 -key-threshold=3 -format=json &amp;gt; /root/openbao-init.json&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+export BAO_CACERT=&#39;/etc/openbao.d/tls/tls.crt&#39;</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_check_status">Check Status</h3>
+<div class="paragraph">
+<p>You will see that OpenBao is running but not yet initialized. This will be the next step.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao status
+
+Key                Value
+---                -----
+Seal Type          shamir
+Initialized        false <i class="conum" data-value="1"></i><b>(1)</b>
+Sealed             true
+Total Shares       0
+Threshold          0
+Unseal Progress    0/0
+Unseal Nonce       n/a
+Version            2.4.4-1.el9
+Build Date         2025-11-24
+Storage Type       file
+HA Enabled         false</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Not yet initialized</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_initialize_openbao">Initialize OpenBao</h3>
+<div class="paragraph">
+<p>Before we use OpenBao, we need to initialize it. This will create the unseal keys and the root token. The unseal keys are used to … well, unseal the OpenBao service.
+The root token is used as a master key to authenticate against the OpenBao service. This token has access to ALL secrets. <strong>Treat this root token with care.</strong></p>
+</div>
+<div class="paragraph">
+<p>We will initialize OpenBao with default options of 5 key shares and a threshold of 3. This means that we need 3 different unseal keys to unseal the OpenBao service.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao operator init -key-shares=5 -key-threshold=3 -format=json &gt; /root/openbao-init.json</code></pre>
+</div>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
 Store the unseal keys and root token securely! Anyone with these can access all secrets.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The output looks like:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;{
-&amp;#34;unseal_keys_b64&amp;#34;: [
-&amp;#34;key1...&amp;#34;,
-&amp;#34;key2...&amp;#34;,
-&amp;#34;key3...&amp;#34;,
-&amp;#34;key4...&amp;#34;,
-&amp;#34;key5...&amp;#34;
-],
-&amp;#34;unseal_keys_hex&amp;#34;: [...],
-&amp;#34;unseal_shares&amp;#34;: 5,
-&amp;#34;unseal_threshold&amp;#34;: 3,
-&amp;#34;recovery_keys_b64&amp;#34;: [],
-&amp;#34;recovery_keys_hex&amp;#34;: [],
-&amp;#34;root_token&amp;#34;: &amp;#34;sbr.xxxxxxxxxxxx&amp;#34;
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_unseal_openbao"&gt;Unseal OpenBao&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now everything is set up and we can use the unseal keys to unseal the OpenBao service.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You need to provide 3 (threshold) different unseal keys:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# First key
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The output looks like:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &#34;unseal_keys_b64&#34;: [
+    &#34;key1...&#34;,
+    &#34;key2...&#34;,
+    &#34;key3...&#34;,
+    &#34;key4...&#34;,
+    &#34;key5...&#34;
+  ],
+  &#34;unseal_keys_hex&#34;: [...],
+  &#34;unseal_shares&#34;: 5,
+  &#34;unseal_threshold&#34;: 3,
+  &#34;recovery_keys_b64&#34;: [],
+  &#34;recovery_keys_hex&#34;: [],
+  &#34;root_token&#34;: &#34;sbr.xxxxxxxxxxxx&#34;
+}</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_unseal_openbao">Unseal OpenBao</h3>
+<div class="paragraph">
+<p>Now everything is set up and we can use the unseal keys to unseal the OpenBao service.</p>
+</div>
+<div class="paragraph">
+<p>You need to provide 3 (threshold) different unseal keys:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># First key
 bao operator unseal
 # Enter first unseal key
+
 # Second key
 bao operator unseal
 # Enter second unseal key
+
 # Third key
 bao operator unseal
-# Enter third unseal key&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After providing enough keys:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao status
-Key Value
---- -----
-Seal Type shamir
-Initialized true
-Sealed false &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-Total Shares 5
-Threshold 3
-Version 2.4.4-1.el9
-Build Date 2025-11-24
-Storage Type file
-Cluster Name openbao-standalone
-Cluster ID d07874ef-df52-e45f-1723-ade333c6d609
-HA Enabled false&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Now unsealed and ready&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we can login with the root token to the OpenBao service.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_login_with_root_token"&gt;Login with Root Token&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Since we have not created any users yet, we will use the root token to authenticate.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;# Enter the root token from initialization
-bao login&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_basic_verification"&gt;Basic Verification&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let us verify the installation works:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;List enabled secrets engines&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets list&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This lists the enabled secrets engines.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description
----- ---- -------- -----------
-cubbyhole/ cubbyhole cubbyhole_84c3d2a5 per-token private secret storage
-identity/ identity identity_61809171 identity store
-sys/ system system_034ae772 system endpoints used for control, policy and debugging&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;List enabled auth methods&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao auth list&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This lists the enabled authentication methods.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;Path Type Accessor Description Version
----- ---- -------- ----------- -------
-token/ token auth_token_c7feca17 token based credentials n/a&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a test secret&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao secrets enable -path=secret kv-v2&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This enables the KV (key/value) secrets engine at the path &lt;code&gt;secret&lt;/code&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao kv put secret/test message=&amp;#34;Hello from OpenBao&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This creates a test secret at the path &lt;code&gt;secret/test&lt;/code&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;bao kv get secret/test&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This retrieves the test secret from the path &lt;code&gt;secret/test&lt;/code&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;That’s it for the basic verification. You can now start to use OpenBao in your production environment. Let’s see what we can do in the UI.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_visiting_the_ui"&gt;Visiting the UI&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;If you watched the previous commands closely, you will have noticed that the UI has been enabled in the configuration file:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-ini hljs" data-lang="ini"&gt;# UI enabled
-ui = true&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The UI is accessible at &lt;a class="bare" href="http://openbao.example.com:8200"&gt;http://openbao.example.com:8200&lt;/a&gt;. You can login with the root token from the initialization.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_openbao_login_form.png?width=480px" alt="OpenBao Login Form"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. OpenBao Login Form&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Here you will see several options to explore. For now we are interested in the Secrets Engine section.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_openbao_secrets_engine.png?width=480px" alt="OpenBao Secrets Engine"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. OpenBao Secrets Engine&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We have created the path &amp;#34;secret&amp;#34; and inside it a secret called &amp;#34;test&amp;#34;.
-We can retrieve it now:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/images/part2_test_secret_retrieval.png?width=480px" alt="OpenBao Secret Retrieval"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. OpenBao Secret Retrieval&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_security_hardening_checklist"&gt;Security Hardening Checklist&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Before using OpenBao in production you should always consider the following checklist:&lt;/p&gt;
-&lt;/div&gt;
-&lt;table class="tableblock frame-all grid-all stretch"&gt;
-&lt;colgroup&gt;
-&lt;col style="width: 25%;"/&gt;
-&lt;col style="width: 75%;"/&gt;
-&lt;/colgroup&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th class="tableblock halign-left valign-top"&gt;Item&lt;/th&gt;
-&lt;th class="tableblock halign-left valign-top"&gt;Recommendation&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;TLS&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Always enable TLS with valid certificates&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Root Token&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Revoke root token after initial setup and create admin users instead&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Unseal Keys&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Distribute to different people/locations, consider auto-unseal&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Network&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Restrict access with firewall rules&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Audit&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Enable audit logging&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Backups&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Regular Raft snapshots&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Updates&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Keep OpenBao updated&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_what_is_coming_next"&gt;What is Coming Next?&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In Part 3, we will deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This provides:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;High availability out of the box&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Kubernetes-native management&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Integration with OpenShift security features&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Persistent storage via PVCs&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You now have a working standalone OpenBao installation. This forms the foundation for understanding how OpenBao operates. While standalone mode is useful for testing and edge cases, most production deployments will use Kubernetes, which we will cover next.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Key takeaways:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;OpenBao can run standalone or in containers&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Dev mode is for testing only&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Production requires proper TLS, initialization, and security hardening&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Unseal keys must be stored securely&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_resources"&gt;Resources&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/install" rel="noopener" target="_blank"&gt;OpenBao Installation Documentation&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/configuration" rel="noopener" target="_blank"&gt;OpenBao Configuration Reference&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://openbao.org/docs/commands" rel="noopener" target="_blank"&gt;OpenBao CLI Reference&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item></channel></rss>
+# Enter third unseal key</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>After providing enough keys:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao status
+
+Key             Value
+---             -----
+Seal Type       shamir
+Initialized     true
+Sealed          false <i class="conum" data-value="1"></i><b>(1)</b>
+Total Shares    5
+Threshold       3
+Version         2.4.4-1.el9
+Build Date      2025-11-24
+Storage Type    file
+Cluster Name    openbao-standalone
+Cluster ID      d07874ef-df52-e45f-1723-ade333c6d609
+HA Enabled      false</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Now unsealed and ready</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Now we can login with the root token to the OpenBao service.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_login_with_root_token">Login with Root Token</h3>
+<div class="paragraph">
+<p>Since we have not created any users yet, we will use the root token to authenticate.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Enter the root token from initialization
+bao login</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_basic_verification">Basic Verification</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let us verify the installation works:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>List enabled secrets engines</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao secrets list</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This lists the enabled secrets engines.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Path          Type         Accessor              Description
+----          ----         --------              -----------
+cubbyhole/    cubbyhole    cubbyhole_84c3d2a5    per-token private secret storage
+identity/     identity     identity_61809171     identity store
+sys/          system       system_034ae772       system endpoints used for control, policy and debugging</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>List enabled auth methods</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao auth list</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This lists the enabled authentication methods.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Path      Type     Accessor               Description                Version
+----      ----     --------               -----------                -------
+token/    token    auth_token_c7feca17    token based credentials    n/a</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Create a test secret</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao secrets enable -path=secret kv-v2</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This enables the KV (key/value) secrets engine at the path <code>secret</code>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao kv put secret/test message=&#34;Hello from OpenBao&#34;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This creates a test secret at the path <code>secret/test</code>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bao kv get secret/test</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This retrieves the test secret from the path <code>secret/test</code>.</p>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>That’s it for the basic verification. You can now start to use OpenBao in your production environment. Let’s see what we can do in the UI.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_visiting_the_ui">Visiting the UI</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>If you watched the previous commands closely, you will have noticed that the UI has been enabled in the configuration file:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-ini hljs" data-lang="ini"># UI enabled
+ui = true</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The UI is accessible at <a class="bare" href="http://openbao.example.com:8200">http://openbao.example.com:8200</a>. You can login with the root token from the initialization.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/secrets-management/openbao/images/part2_openbao_login_form.png?width=480px" alt="OpenBao Login Form"/>
+</div>
+<div class="title">Figure 1. OpenBao Login Form</div>
+</div>
+<div class="paragraph">
+<p>Here you will see several options to explore. For now we are interested in the Secrets Engine section.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/secrets-management/openbao/images/part2_openbao_secrets_engine.png?width=480px" alt="OpenBao Secrets Engine"/>
+</div>
+<div class="title">Figure 2. OpenBao Secrets Engine</div>
+</div>
+<div class="paragraph">
+<p>We have created the path &#34;secret&#34; and inside it a secret called &#34;test&#34;.
+We can retrieve it now:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/secrets-management/openbao/images/part2_test_secret_retrieval.png?width=480px" alt="OpenBao Secret Retrieval"/>
+</div>
+<div class="title">Figure 3. OpenBao Secret Retrieval</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_security_hardening_checklist">Security Hardening Checklist</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before using OpenBao in production you should always consider the following checklist:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;"/>
+<col style="width: 75%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Item</th>
+<th class="tableblock halign-left valign-top">Recommendation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">TLS</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Always enable TLS with valid certificates</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Root Token</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Revoke root token after initial setup and create admin users instead</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Unseal Keys</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Distribute to different people/locations, consider auto-unseal</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Network</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Restrict access with firewall rules</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Audit</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Enable audit logging</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Backups</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Regular Raft snapshots</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Updates</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Keep OpenBao updated</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_is_coming_next">What is Coming Next?</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In Part 3, we will deploy OpenBao on OpenShift/Kubernetes using the official Helm chart. This provides:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>High availability out of the box</p>
+</li>
+<li>
+<p>Kubernetes-native management</p>
+</li>
+<li>
+<p>Integration with OpenShift security features</p>
+</li>
+<li>
+<p>Persistent storage via PVCs</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_conclusion">Conclusion</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>You now have a working standalone OpenBao installation. This forms the foundation for understanding how OpenBao operates. While standalone mode is useful for testing and edge cases, most production deployments will use Kubernetes, which we will cover next.</p>
+</div>
+<div class="paragraph">
+<p>Key takeaways:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>OpenBao can run standalone or in containers</p>
+</li>
+<li>
+<p>Dev mode is for testing only</p>
+</li>
+<li>
+<p>Production requires proper TLS, initialization, and security hardening</p>
+</li>
+<li>
+<p>Unseal keys must be stored securely</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_resources">Resources</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://openbao.org/docs/install" rel="noopener" target="_blank">OpenBao Installation Documentation</a></p>
+</li>
+<li>
+<p><a href="https://openbao.org/docs/configuration" rel="noopener" target="_blank">OpenBao Configuration Reference</a></p>
+</li>
+<li>
+<p><a href="https://openbao.org/docs/commands" rel="noopener" target="_blank">OpenBao CLI Reference</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>OKD Single node installation in a disconnected environment</title><link>https://blog.stderr.at/openshift-platform/infrastructure/2026-02-09-okd-sno-disconnected/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/infrastructure/2026-02-09-okd-sno-disconnected/</guid><pubDate>Mon, 09 Feb 2026 00:00:00 +0000</pubDate><dc:creator>Articles by Toni Schmidbauer</dc:creator><category>OKD</category><category>Single Node</category><category>Disconnected</category><category>Installation</category><description>OKD Single node installation in a disconnected environment</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Because of reasons we had to set up a disconnected single node OKD &#34;cluster&#34;. This is our brain dump as the
+OKD documentation sometimes refers to OpenShift image locations, we had to read multiple sections to get it working and we
+also consulted the OpenShift documentation at <a class="bare" href="https://docs.redhat.com">https://docs.redhat.com</a>.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Updated on 2026-03-03: Fixed install-config.yaml and create manifest command
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>First we need to download the <em>oc</em> command in the version we would like to install. OKD provides it on its release page:</p>
+</div>
+<div class="paragraph">
+<p><a class="bare" href="https://github.com/okd-project/okd/releases/download/4.21.0-okd-scos.3/openshift-client-linux-amd64-rhel9-4.21.0-okd-scos.3.tar.gz">https://github.com/okd-project/okd/releases/download/4.21.0-okd-scos.3/openshift-client-linux-amd64-rhel9-4.21.0-okd-scos.3.tar.gz</a></p>
+</div>
+<div class="paragraph">
+<p>To get an overview of releases available for OKD see <a class="bare" href="https://amd64.origin.releases.ci.openshift.org/">https://amd64.origin.releases.ci.openshift.org/</a>.</p>
+</div>
+<div class="paragraph">
+<p>Another option is to extract the <em>oc</em> command from the release image, if you have a version of <em>oc</em> already installed:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-shell hljs" data-lang="shell">oc adm release extract --tools quay.io/okd/scos-release:4.21.0-okd-scos.3</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will also extract the <em>openshift-install</em> tar.gz which we need later to generate the installation manifests and ignition configs.</p>
+</div>
+<div class="paragraph">
+<p>Next we need the <em>oc-mirror</em> plugin, which is used to mirror the release content to our local registry. We were only able to find the plugin on <em>console.redhat.com</em>. Another option might be to compile the plugin from source code (<a class="bare" href="https://github.com/openshift/oc-mirror/">https://github.com/openshift/oc-mirror/</a>).</p>
+</div>
+<div class="paragraph">
+<p>We copied the <em>oc</em> command and the <em>oc-mirror</em> plugin to /usr/local/bin/ and made them executable. After that we ran <em>oc mirror --v2 --help</em> to test the installation.</p>
+</div>
+<div class="paragraph">
+<p>The upstream <a href="https://github.com/openshift/oc-mirror/blob/main/docs/okd-mirror.md">oc-mirror</a> plugin documentation was also helpful.</p>
+</div>
+<div class="paragraph">
+<p>As our private registry required authentication, we created a .dockerconfigjson file with the registry credentials:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &#34;auths&#34;: {
+    &#34;internal.registry&#34;: {
+      &#34;auth&#34;: &#34;&lt;credentials base64 encoded&gt;&#34;,
+      &#34;email&#34;: &#34;you@example.com&#34;
+    }
+  }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You can encode the credentials with:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-shell hljs" data-lang="shell">echo -n &#34;username:password&#34; | base64 -w0</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>For mirroring all required OKD images to our private registry we created an <em>ImageSetConfiguration</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: ImageSetConfiguration
+apiVersion: mirror.openshift.io/v2alpha1
+mirror:
+  platform:
+    channels:
+    - name: 4-scos-stable
+      minVersion: 4.21.0-okd-scos.3
+      maxVersion: 4.21.0-okd-scos.3
+    graph: false
+  operators:
+    - registry: quay.io/okderators/catalog-index:testing-4.20 <i class="conum" data-value="1"></i><b>(1)</b>
+      packages:
+       - name: aws-load-balancer-operator
+       - name: 3scale-operator
+       - name: node-observability-operator
+  additionalImages:
+   - name: registry.redhat.io/ubi8/ubi:latest
+   - name: registry.redhat.io/ubi9/ubi@sha256:20f695d2a91352d4eaa25107535126727b5945bff38ed36a3e59590f495046f0</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We used a minimal configuration without operators and additional images, because downloading additional images did not work for us:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: ImageSetConfiguration
+apiVersion: mirror.openshift.io/v2alpha1
+mirror:
+  platform:
+    channels:
+    - name: 4-scos-stable <i class="conum" data-value="1"></i><b>(1)</b>
+      type: okd
+      minVersion: 4.21.0-okd-scos.3 <i class="conum" data-value="2"></i><b>(2)</b>
+      maxVersion: 4.21.0-okd-scos.3
+    graph: false
+  operators: []
+  additionalImages: []</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The hard part for us was finding the right values for <em>channels</em> and
+the min/max versions. Once again the OKD
+<a href="https://amd64.origin.releases.ci.openshift.org/">release status page</a>
+was helpful.</p>
+</div>
+<div class="paragraph">
+<p>Our private registry is based on <a href="https://goharbor.io">Harbor</a> for our
+experiments, but any Docker v2 compatible registry should work. The
+only thing required is a project within Harbor called <em>openshift</em> and
+a user/password for pulling/pushing images to this project. The
+project name might be configurable with <em>oc mirror</em>, but this requires
+further investigation.</p>
+</div>
+<div class="paragraph">
+<p><em>oc mirror</em> wants to verify signatures so we had to download a public
+key and provide the <em>OCP_SIGNATURE_URL</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-shell hljs" data-lang="shell">curl -LO https://raw.githubusercontent.com/openshift/cluster-update-keys/master/keys/verifier-public-key-openshift-ci-4
+export OCP_SIGNATURE_URL=&#34;https://storage.googleapis.com/openshift-ci-release/releases/signatures/openshift/release/&#34;
+export OCP_SIGNATURE_VERIFICATION_PK=&#34;verifier-public-key-openshift-ci-4&#34;
+
+# for debugging add --log-level debug, but we had intermittent errors with this option.
+# after removing --log-level debug oc mirror ran without problems
+oc mirror -c ImageSetConfiguration.yaml --authfile docker-auth.json --workspace file:///workspace docker://internal.registry --v2</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will create the <em>ImageDigestMirrorSource</em> in <em>/workspace/working-dir/cluster-resources/idms-oc-mirror.yaml</em> and <em>ImageTagMirrorSource</em> custom resources in <em>/workspace/working-dir/cluster-resources/itms-oc-mirror.yaml</em>.</p>
+</div>
+<div class="paragraph">
+<p>The content of <em>ImageDigestMirrorSource</em> will be reused in
+the <em>install-config.yaml</em>. This is required to redirect image pulls done by the node from <em>quay.io</em> to our private registry.</p>
+</div>
+<div class="paragraph">
+<p>Next we need DNS records for our cluster:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>api.sno.internal</p>
+</li>
+<li>
+<p>api-int.sno.internal</p>
+</li>
+<li>
+<p>*.apps.sno.internal (wildcard DNS entry for applications deployed on the cluster)</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Now we prepared the required <em>install-config.yaml</em> file to trigger the <em>openshift-install</em> command.
+We basically followed <a href="https://docs.okd.io/latest/installing/installing_sno/install-sno-installing-sno.html">Installing a Single Node OpenShift Cluster</a>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
+baseDomain: internal
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: 0 <i class="conum" data-value="1"></i><b>(1)</b>
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: 1 <i class="conum" data-value="2"></i><b>(2)</b>
+metadata:
+  name: okd-sno
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  networkType: OVNKubernetes
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  none: {}
+fips: false
+sshKey: &#39;the key&#39;
+bootstrapInPlace: <i class="conum" data-value="3"></i><b>(3)</b>
+  installationDisk: /dev/vda
+pullSecret: |
+  {
+    &#34;auths&#34;: {
+      &#34;registry.internal&#34;: {
+        &#34;auth&#34;: &#34;&lt;username:password base64 encoded&gt;&#34;,
+        &#34;email&#34;: &#34;some@email&#34;
+      }
+    }
+  }
+additionalTrustBundle: | <i class="conum" data-value="4"></i><b>(4)</b>
+  -----BEGIN CERTIFICATE-----
+  ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+  -----END CERTIFICATE-----
+ImageDigestSources: <i class="conum" data-value="5"></i><b>(5)</b>
+- mirrors:
+  - registry.internal/openshift/release
+  source: quay.io/okd/scos-content
+- mirrors:
+  - registry.internal/openshift/release-images
+  source: quay.io/okd/scos-release</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>We set the number of workers to zero (0). Because this is a SNO installation. Worker nodes could be added later, even for a SNO cluster</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>We set the number of master nodes to one (1)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>This tells the installer that we do not have a bootstrap node and it should create one large ignition config file</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>If required the CA certificate of our registry. This is required if the registry uses an internal certificate</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>ImageDigestSources configures CRIO to redirect requests to quay.io to our private registry.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>It’s time to create the installation manifests and ignition configs. We created a directory <em>install</em>, copied the <em>install-config.yaml</em> into this directory and triggered the <em>openshift-install</em> command:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-shell hljs" data-lang="shell">$ mkdir install
+$ cp install-config.yaml install/
+$ openshift-install --dir=install create single-node-ignition-config</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We are now ready to download the installation ISO and to embed our ignition config into it. We also want
+to set kernel boot arguments to configure the network interface with a static IP address.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-shell hljs" data-lang="shell">curl -L $( ./openshift-install coreos print-stream-json |jq -r &#34;.architectures.x86_64.artifacts.metal.formats.iso.disk.location&#34; ) -o fhcos-live.iso</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The next step is to modify the ISO. We basically followed the instructions in the OKD documentation:
+<a class="bare" href="https://docs.okd.io/4.14/installing/installing_sno/install-sno-installing-sno.html#generating-the-install-iso-manually_install-sno-installing-sno-with-the-assisted-installer">https://docs.okd.io/4.14/installing/installing_sno/install-sno-installing-sno.html#generating-the-install-iso-manually_install-sno-installing-sno-with-the-assisted-installer</a></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-shell hljs" data-lang="shell">alias coreos-installer=&#39;podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release&#39;
+coreos-installer iso ignition embed -fi install/bootstrap-in-place-for-live-iso.ign fcos-live.iso
+coreos-installer iso kargs modify --append &#39;ip=10.0.0.99::10.0.0.1:255.255.255.0:sno.internal:ens33:none:10.0.0.255&#39; fcos-live.iso</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We can take a look at the ISO bootstrap config and the kernel arguments with:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">coreos-installer iso ignition show fcos-live.iso
+coreos-installer iso kargs show fcos-live.iso</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>For understanding the kernel boot arguments see <a class="bare" href="https://access.redhat.com/solutions/5499911">https://access.redhat.com/solutions/5499911</a>.</p>
+</div>
+<div class="paragraph">
+<p>The final step is to boot the modified ISO on the target machine and wait for the installation to complete.</p>
+</div>]]></content:encoded></item></channel></rss>

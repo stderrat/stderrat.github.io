@@ -1,352 +1,360 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Home Lab on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/home-lab/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 10 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/home-lab/index.xml" rel="self" type="application/rss+xml"/><item><title>Creating a customized RHEL 10 VM image with image-builder</title><link>https://blog.stderr.at/other/2026-04-10-customize-rhel-image-builder/</link><pubDate>Fri, 10 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-10-customize-rhel-image-builder/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;In the blog post
-&lt;a href="https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/"&gt;Creating a
-RHEL 10 VM on macOS with bootc-image-builder&lt;/a&gt; we described how to
-quickly create a bootc (&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/introducing-image-mode-for-rhel"&gt;image mode&lt;/a&gt;) base image on macOS. Now we would like to
-create a customized standard RHEL image.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For this exercise we re-use an already provisioned RHEL 10.1 machine, the reasons for this are&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;We are going to use the &lt;em&gt;image-builder&lt;/em&gt; command instead of &lt;em&gt;bootc
-image builder&lt;/em&gt;. If there is a container image providing this
-command, please let us know&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;We are going to install packages which requires a subscribed RHEL
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Home Lab – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/home-lab/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 10 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/home-lab/index.xml" rel="self" type="application/rss+xml"/><item><title>Creating a customized RHEL 10 VM image with image-builder</title><link>https://blog.stderr.at/other/2026-04-10-customize-rhel-image-builder/</link><guid isPermaLink="true">https://blog.stderr.at/other/2026-04-10-customize-rhel-image-builder/</guid><pubDate>Fri, 10 Apr 2026 00:00:00 +0000</pubDate><dc:creator>Articles by Toni Schmidbauer</dc:creator><category>RHEL10</category><category>Image-Builder</category><category>Virtualization</category><description>Creating a customized RHEL 10 VM image with image-builder</description><content:encoded><![CDATA[<div class="paragraph">
+<p>In the blog post
+<a href="https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/">Creating a
+RHEL 10 VM on macOS with bootc-image-builder</a> we described how to
+quickly create a bootc (<a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/introducing-image-mode-for-rhel">image mode</a>) base image on macOS. Now we would like to
+create a customized standard RHEL image.</p>
+</div>
+<div class="paragraph">
+<p>For this exercise we re-use an already provisioned RHEL 10.1 machine, the reasons for this are</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>We are going to use the <em>image-builder</em> command instead of <em>bootc
+image builder</em>. If there is a container image providing this
+command, please let us know</p>
+</li>
+<li>
+<p>We are going to install packages which requires a subscribed RHEL
 machine. A RHEL subscription for up to 16 machines is free of charge. You
-just need to register at the &lt;a href="https://developers.redhat.com/" rel="noopener" target="_blank"&gt;Red Hat developer&lt;/a&gt; site.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;First we need to install required tools onto our RHEL 10.1 host:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ sudo dnf install -y image-builder&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Next we create a blueprint file to customize the resulting qcow2
-image. We use the resulting image for a &amp;#34;services&amp;#34; machine, running
-Unifi OS, Kea for DHCP and ISC bind (dns server):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-toml hljs" data-lang="toml"&gt;name = &amp;#34;services-rhel10&amp;#34;
-description = &amp;#34;A VM running services&amp;#34;
-version = &amp;#34;0.1&amp;#34;
+just need to register at the <a href="https://developers.redhat.com/" rel="noopener" target="_blank">Red Hat developer</a> site.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>First we need to install required tools onto our RHEL 10.1 host:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ sudo dnf install -y image-builder</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Next we create a blueprint file to customize the resulting qcow2
+image. We use the resulting image for a &#34;services&#34; machine, running
+Unifi OS, Kea for DHCP and ISC bind (dns server):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">name = &#34;services-rhel10&#34;
+description = &#34;A VM running services&#34;
+version = &#34;0.1&#34;
+
 [[packages]]
-name = &amp;#34;podman&amp;#34;
-version = &amp;#34;*&amp;#34; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+name = &#34;podman&#34;
+version = &#34;*&#34; <i class="conum" data-value="1"></i><b>(1)</b>
+
 [customizations]
-hostname = &amp;#34;services&amp;#34;
+hostname = &#34;services&#34;
+
 [[customizations.filesystem]]
-mountpoint = &amp;#34;/&amp;#34;
-minsize = &amp;#34;50 GiB&amp;#34; &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+mountpoint = &#34;/&#34;
+minsize = &#34;50 GiB&#34; <i class="conum" data-value="2"></i><b>(2)</b>
+
 [customizations.kernel]
-append = &amp;#34;ip=10.0.0.144::10.0.0.1:255.255.255.0:services:ens3:none:10.0.0.255&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
+append = &#34;ip=10.0.0.144::10.0.0.1:255.255.255.0:services:ens3:none:10.0.0.255&#34; <i class="conum" data-value="3"></i><b>(3)</b>
+
 [[customizations.group]]
-name = &amp;#34;pinhead&amp;#34;
+name = &#34;pinhead&#34;
 gid = 1000
+
 [[customizations.user]]
-name = &amp;#34;pinhead&amp;#34;
-password = &amp;#34;&amp;lt;password hash&amp;gt;&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-key = &amp;#34;&amp;lt;ssh public key&amp;gt;&amp;#34; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-home = &amp;#34;/home/pinhead/&amp;#34;
-shell = &amp;#34;/usr/bin/bash&amp;#34;
-groups = [&amp;#34;users&amp;#34;, &amp;#34;wheel&amp;#34;]
+name = &#34;pinhead&#34;
+password = &#34;&lt;password hash&gt;&#34; <i class="conum" data-value="4"></i><b>(4)</b>
+key = &#34;&lt;ssh public key&gt;&#34; <i class="conum" data-value="5"></i><b>(5)</b>
+home = &#34;/home/pinhead/&#34;
+shell = &#34;/usr/bin/bash&#34;
+groups = [&#34;users&#34;, &#34;wheel&#34;]
 uid = 1000
 gid = 1000
+
 [[customizations.sshkey]]
-user = &amp;#34;root&amp;#34;
-key = &amp;#34;&amp;lt;public key&amp;gt;&amp;#34; &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;use the latest version of this package&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;resize the resulting image to 50GB&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;we configure a static ip address for this machine, our default interface is &lt;em&gt;ens3&lt;/em&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Enter the generated password hash here (see below)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;SSH public key to access this account&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;SSH public key to access the root account&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To create a password hash use:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;python3 -c &amp;#39;import crypt,getpass;pw=getpass.getpass();print(crypt.crypt(pw) if (pw==getpass.getpass(&amp;#34;Confirm: &amp;#34;)) else exit())&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For a detailed list of all customizations supported by &lt;em&gt;image-builder&lt;/em&gt;
+user = &#34;root&#34;
+key = &#34;&lt;public key&gt;&#34; <i class="conum" data-value="6"></i><b>(6)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>use the latest version of this package</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>resize the resulting image to 50GB</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>we configure a static ip address for this machine, our default interface is <em>ens3</em></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Enter the generated password hash here (see below)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>SSH public key to access this account</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>SSH public key to access the root account</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>To create a password hash use:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">python3 -c &#39;import crypt,getpass;pw=getpass.getpass();print(crypt.crypt(pw) if (pw==getpass.getpass(&#34;Confirm: &#34;)) else exit())&#39;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>For a detailed list of all customizations supported by <em>image-builder</em>
 see the
-&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/composing_a_customized_rhel_system_image/supported-image-customizations" rel="noopener" target="_blank"&gt;image builder customizations&lt;/a&gt;
-documentation.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As mentioned in the
-&lt;a href="https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/" rel="noopener" target="_blank"&gt;previous article&lt;/a&gt;
+<a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/composing_a_customized_rhel_system_image/supported-image-customizations" rel="noopener" target="_blank">image builder customizations</a>
+documentation.</p>
+</div>
+<div class="paragraph">
+<p>As mentioned in the
+<a href="https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/" rel="noopener" target="_blank">previous article</a>
 image builder provides the option to configure the resulting
-image via kickstart. A builder for kickstart files is available here:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a class="bare" href="https://access.redhat.com/labs/kickstartconfig/"&gt;https://access.redhat.com/labs/kickstartconfig/&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For a complete list of options see the &lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/automatically_installing_rhel/kickstart-commands-and-options-reference" rel="noopener" target="_blank"&gt;kickstart documentation&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;One important note from the documentation (quoted):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+image via kickstart. A builder for kickstart files is available here:</p>
+</div>
+<div class="paragraph">
+<p><a class="bare" href="https://access.redhat.com/labs/kickstartconfig/">https://access.redhat.com/labs/kickstartconfig/</a></p>
+</div>
+<div class="paragraph">
+<p>For a complete list of options see the <a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/automatically_installing_rhel/kickstart-commands-and-options-reference" rel="noopener" target="_blank">kickstart documentation</a>.</p>
+</div>
+<div class="paragraph">
+<p>One important note from the documentation (quoted):</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 The following combined customizations are not supported: [customizations.user] and [customizations.installer.kickstart]. When you add a Kickstart, use a configuration file in the TOML format, because multi-line strings are prone to error.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we are ready to run &lt;em&gt;image-builder&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;image-builder build qcow2 --distro rhel-10.1 --arch x86_64 --blueprint services-blueprint.toml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The command above failed for us with the following error message:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-console hljs" data-lang="console"&gt;Failed to open file &amp;#34;/sys/fs/selinux/checkreqprot&amp;#34;: Read-only file system
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Now we are ready to run <em>image-builder</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">image-builder build qcow2 --distro rhel-10.1 --arch x86_64 --blueprint services-blueprint.toml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The command above failed for us with the following error message:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-console hljs" data-lang="console">Failed to open file &#34;/sys/fs/selinux/checkreqprot&#34;: Read-only file system
 imported gpg key
 Signature check failed on sha256:9d0a71d87912a815f837f8427438936d6e9842834cc1f1062b90b2a41fbde594, lookup package name in manifest.
 Traceback (most recent call last):
-File &amp;#34;/run/osbuild/bin/org.osbuild.rpm&amp;#34;, line 260, in &amp;lt;module&amp;gt;
-r = main(args[&amp;#34;tree&amp;#34;], args[&amp;#34;inputs&amp;#34;], args[&amp;#34;options&amp;#34;])
+  File &#34;/run/osbuild/bin/org.osbuild.rpm&#34;, line 260, in &lt;module&gt;
+r = main(args[&#34;tree&#34;], args[&#34;inputs&#34;], args[&#34;options&#34;])
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-File &amp;#34;/run/osbuild/bin/org.osbuild.rpm&amp;#34;, line 162, in main
+  File &#34;/run/osbuild/bin/org.osbuild.rpm&#34;, line 162, in main
 subprocess.run([
-File &amp;#34;/usr/lib64/python3.12/subprocess.py&amp;#34;, line 571, in run
+  File &#34;/usr/lib64/python3.12/subprocess.py&#34;, line 571, in run
 raise CalledProcessError(retcode, process.args,
-subprocess.CalledProcessError: Command &amp;#39;[&amp;#39;rpmkeys&amp;#39;, &amp;#39;--root&amp;#39;, &amp;#39;/run/osbuild/tree&amp;#39;, &amp;#39;--checksig&amp;#39;, &amp;#39;sha256:9d0a71d87912a815f837f8427438936d6e9842834cc1f1062b90b2a41fbde594&amp;#39;]&amp;#39; returned non-zero exit status 1.
+subprocess.CalledProcessError: Command &#39;[&#39;rpmkeys&#39;, &#39;--root&#39;, &#39;/run/osbuild/tree&#39;, &#39;--checksig&#39;, &#39;sha256:9d0a71d87912a815f837f8427438936d6e9842834cc1f1062b90b2a41fbde594&#39;]&#39; returned non-zero exit status 1.
 Finished module org.osbuild.rpm
 Finished pipeline build
 manifest - failed
 Output:
-Failed&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;According to &lt;a href="https://access.redhat.com/solutions/7136467"&gt;this
-knowledge base article&lt;/a&gt; this is a bug in the current (2026-04-10)
-version of image builder.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can download an updated JSON file containing the missing RPM GPG
-keys from the article. Drop the &lt;em&gt;RHEL-10.1&lt;/em&gt; JSON file in a directory
-and run &lt;em&gt;image-builder&lt;/em&gt; again:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;image-builder --data-dir override/ build qcow2 --distro rhel-10.1 --arch x86_64 --blueprint services-blueprint.toml &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Use the &lt;em&gt;--data-dir&lt;/em&gt; option and specify the folder with the &lt;em&gt;RHEL-10.1.json&lt;/em&gt; file.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can find the resulting qcow image in the output directory under
-&lt;em&gt;rhel-10.1-qcow2-x86_64/rhel-10.1-qcow2-x86_64.qcow2&lt;/em&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A &lt;em&gt;Makefile&lt;/em&gt; to streamline image creation can be found
-&lt;a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/image-builder/Makefile" rel="noopener" target="_blank"&gt;here&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;</description></item><item><title>Creating a RHEL 10 VM on macOS with bootc-image-builder</title><link>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</link><pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Yes, we have Apple machines in our lab because why not. So we needed a
+Failed</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>According to <a href="https://access.redhat.com/solutions/7136467">this
+knowledge base article</a> this is a bug in the current (2026-04-10)
+version of image builder.</p>
+</div>
+<div class="paragraph">
+<p>You can download an updated JSON file containing the missing RPM GPG
+keys from the article. Drop the <em>RHEL-10.1</em> JSON file in a directory
+and run <em>image-builder</em> again:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">image-builder --data-dir override/ build qcow2 --distro rhel-10.1 --arch x86_64 --blueprint services-blueprint.toml <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Use the <em>--data-dir</em> option and specify the folder with the <em>RHEL-10.1.json</em> file.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>You can find the resulting qcow image in the output directory under
+<em>rhel-10.1-qcow2-x86_64/rhel-10.1-qcow2-x86_64.qcow2</em>.</p>
+</div>
+<div class="paragraph">
+<p>A <em>Makefile</em> to streamline image creation can be found
+<a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/image-builder/Makefile" rel="noopener" target="_blank">here</a>.</p>
+</div>]]></content:encoded></item><item><title>Creating a RHEL 10 VM on macOS with bootc-image-builder</title><link>https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</link><guid isPermaLink="true">https://blog.stderr.at/other/2026-04-09-macos-rhel10-bootc/</guid><pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate><dc:creator>Articles by Toni Schmidbauer</dc:creator><category>MacOS</category><category>UTM</category><category>RHEL10</category><category>Bootc</category><category>Bootc-Image-Builder</category><category>Virtualization</category><description>Creating a RHEL 10 VM on macOS with bootc-image-builder</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Yes, we have Apple machines in our lab because why not. So we needed a
 RHEL 10 VM to set up Ansible Automation Platform, which seems to
-support AARCH64 and Red Hat Enterprise Linux 10.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We need &lt;a href="https://mac.getutm.app/" rel="noopener" target="_blank"&gt;UTM&lt;/a&gt; installed on our Mac machine,
+support AARCH64 and Red Hat Enterprise Linux 10.</p>
+</div>
+<div class="paragraph">
+<p>We need <a href="https://mac.getutm.app/" rel="noopener" target="_blank">UTM</a> installed on our Mac machine,
 either
-&lt;a href="https://github.com/utmapp/UTM/releases/latest/download/UTM.dmg" rel="noopener" target="_blank"&gt;manually&lt;/a&gt;,
-via &lt;a href="https://formulae.brew.sh/cask/utm" rel="noopener" target="_blank"&gt;Homebrew&lt;/a&gt; or using a Nix
-&lt;a href="https://github.com/tosmi/nixos-config/blob/7faff0ed92d4bbefbef42641497cd2aa49c54b83/macos/fuji/flake.nix#L146" rel="noopener" target="_blank"&gt;flake&lt;/a&gt;
-(in order of increasing coolness).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Podman is also required, same rules as above apply:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://podman-desktop.io/" rel="noopener" target="_blank"&gt;manual installation&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://formulae.brew.sh/cask/podman-desktop" rel="noopener" target="_blank"&gt;Homebrew&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://github.com/tosmi/nixos-config/blob/3a6bc775d3164d080390590522956ad5399a34c6/macos/fuji/flake.nix#L147" rel="noopener" target="_blank"&gt;flake.nix&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We followed the
-&lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/creating-bootc-compatible-base-disk-images-by-using-bootc-image-builder" rel="noopener" target="_blank"&gt;RHEL documentation&lt;/a&gt; for creating a bootable qcow image from a bootc
-container image.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;According to the &lt;a href="https://github.com/osbuild/bootc-image-builder?tab=readme-ov-file#-installation" rel="noopener" target="_blank"&gt;upstream image builder docs&lt;/a&gt;, we need to make sure
-that our podman machine runs rootful. Otherwise image builder will not work. So let’s do this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ podman machine stop
+<a href="https://github.com/utmapp/UTM/releases/latest/download/UTM.dmg" rel="noopener" target="_blank">manually</a>,
+via <a href="https://formulae.brew.sh/cask/utm" rel="noopener" target="_blank">Homebrew</a> or using a Nix
+<a href="https://github.com/tosmi/nixos-config/blob/7faff0ed92d4bbefbef42641497cd2aa49c54b83/macos/fuji/flake.nix#L146" rel="noopener" target="_blank">flake</a>
+(in order of increasing coolness).</p>
+</div>
+<div class="paragraph">
+<p>Podman is also required, same rules as above apply:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://podman-desktop.io/" rel="noopener" target="_blank">manual installation</a></p>
+</li>
+<li>
+<p><a href="https://formulae.brew.sh/cask/podman-desktop" rel="noopener" target="_blank">Homebrew</a></p>
+</li>
+<li>
+<p><a href="https://github.com/tosmi/nixos-config/blob/3a6bc775d3164d080390590522956ad5399a34c6/macos/fuji/flake.nix#L147" rel="noopener" target="_blank">flake.nix</a></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>We followed the
+<a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/creating-bootc-compatible-base-disk-images-by-using-bootc-image-builder" rel="noopener" target="_blank">RHEL documentation</a> for creating a bootable qcow image from a bootc
+container image.</p>
+</div>
+<div class="paragraph">
+<p>According to the <a href="https://github.com/osbuild/bootc-image-builder?tab=readme-ov-file#-installation" rel="noopener" target="_blank">upstream image builder docs</a>, we need to make sure
+that our podman machine runs rootful. Otherwise image builder will not work. So let’s do this:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ podman machine stop
 $ podman machine set --rootful
 $ podman machine start
-$ podman machine info&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Next we need to pull the &lt;em&gt;bootc-image-builder&lt;/em&gt; image:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ podman login registry.redhat.io &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-$ podman pull registry.redhat.io/rhel10/bootc-image-builder&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;This requires a valid Red Hat account. Registration is free of charge.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Then we can pull the RHEL 10 bootc container, as &lt;em&gt;bootc-image-builder&lt;/em&gt; is not able to pull container images:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman pull registry.redhat.io/rhel10/rhel-bootc:latest&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Image builder provides the option to configure the resulting image via
-kickstart. A builder for kickstart files is available here:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a class="bare" href="https://access.redhat.com/labs/kickstartconfig/"&gt;https://access.redhat.com/labs/kickstartconfig/&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For a complete list of options see the &lt;a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/automatically_installing_rhel/kickstart-commands-and-options-reference" rel="noopener" target="_blank"&gt;kickstart documentation&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;One important note from the documentation (quoted):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+$ podman machine info</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Next we need to pull the <em>bootc-image-builder</em> image:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ podman login registry.redhat.io <i class="conum" data-value="1"></i><b>(1)</b>
+$ podman pull registry.redhat.io/rhel10/bootc-image-builder</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>This requires a valid Red Hat account. Registration is free of charge.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Then we can pull the RHEL 10 bootc container, as <em>bootc-image-builder</em> is not able to pull container images:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">podman pull registry.redhat.io/rhel10/rhel-bootc:latest</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Image builder provides the option to configure the resulting image via
+kickstart. A builder for kickstart files is available here:</p>
+</div>
+<div class="paragraph">
+<p><a class="bare" href="https://access.redhat.com/labs/kickstartconfig/">https://access.redhat.com/labs/kickstartconfig/</a></p>
+</div>
+<div class="paragraph">
+<p>For a complete list of options see the <a href="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/automatically_installing_rhel/kickstart-commands-and-options-reference" rel="noopener" target="_blank">kickstart documentation</a>.</p>
+</div>
+<div class="paragraph">
+<p>One important note from the documentation (quoted):</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 The following combined customizations are not supported: [customizations.user] and [customizations.installer.kickstart]. When you add a Kickstart, use a configuration file in the TOML format, because multi-line strings are prone to error.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For running the image builder we created a &lt;a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/bootc/config.toml" rel="noopener" target="_blank"&gt;&lt;em&gt;toml&lt;/em&gt; config file&lt;/a&gt; to configure the final qcow image:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-toml hljs" data-lang="toml"&gt;[[customizations.user]]
-name = &amp;#34;pinhead&amp;#34;
-password = &amp;#34;thepassword&amp;#34;
-key = &amp;#34;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIYhjnWzsArZVyyTa1E6sDbH06rUGDAhAF3bf3pmeBtm toni@stderr.at&amp;#34;
-groups = [&amp;#34;wheel&amp;#34;]
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>For running the image builder we created a <a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/bootc/config.toml" rel="noopener" target="_blank"><em>toml</em> config file</a> to configure the final qcow image:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[[customizations.user]]
+name = &#34;pinhead&#34;
+password = &#34;thepassword&#34;
+key = &#34;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIYhjnWzsArZVyyTa1E6sDbH06rUGDAhAF3bf3pmeBtm toni@stderr.at&#34;
+groups = [&#34;wheel&#34;]
+
 [[customizations.filesystem]]
-mountpoint = &amp;#34;/&amp;#34;
-minsize = &amp;#34;50 GiB&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we are ready to trigger &lt;em&gt;bootc-image-builder&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;podman run \
---rm \
---privileged \
---pull=newer \
---security-opt label=type:unconfined_t \
--v /var/lib/containers/storage:/var/lib/containers/storage \ &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
--v ./config.toml:/config.toml:ro \
--v ./output:/output \
-registry.redhat.io/rhel10/bootc-image-builder:latest \
---type qcow2 \
---config /config.toml \
-registry.redhat.io/rhel10/rhel-bootc:latest&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We had to map this directory into the container, maybe this is required because we run podman in a VM on macOS (podman machine).&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can find the resulting qcow image in the output directory under
-&lt;em&gt;output/qcow2/disk.qcow2&lt;/em&gt;. This image can be used to create a RHEL 10
-VM in UTM on macOS.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It is also possible to customize the container image which is used as
-an input for &lt;em&gt;bootc-image-builder&lt;/em&gt;. But this requires a valid RHEL
+mountpoint = &#34;/&#34;
+minsize = &#34;50 GiB&#34;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now we are ready to trigger <em>bootc-image-builder</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">podman run \
+    --rm \
+    --privileged \
+    --pull=newer \
+    --security-opt label=type:unconfined_t \
+    -v /var/lib/containers/storage:/var/lib/containers/storage \ <i class="conum" data-value="1"></i><b>(1)</b>
+    -v ./config.toml:/config.toml:ro \
+    -v ./output:/output \
+    registry.redhat.io/rhel10/bootc-image-builder:latest \
+    --type qcow2 \
+    --config /config.toml \
+  registry.redhat.io/rhel10/rhel-bootc:latest</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>We had to map this directory into the container, maybe this is required because we run podman in a VM on macOS (podman machine).</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>You can find the resulting qcow image in the output directory under
+<em>output/qcow2/disk.qcow2</em>. This image can be used to create a RHEL 10
+VM in UTM on macOS.</p>
+</div>
+<div class="paragraph">
+<p>It is also possible to customize the container image which is used as
+an input for <em>bootc-image-builder</em>. But this requires a valid RHEL
 subscription inside the container. The easiest way to achieve this is
-by running bootc-image-builder on an already registered RHEL machine.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A &lt;em&gt;Makefile&lt;/em&gt; to streamline image creation can be found &lt;a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/bootc/Makefile" rel="noopener" target="_blank"&gt;here&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;</description></item></channel></rss>
+by running bootc-image-builder on an already registered RHEL machine.</p>
+</div>
+<div class="paragraph">
+<p>A <em>Makefile</em> to streamline image creation can be found <a href="https://codeberg.org/tosmi/playground/src/branch/master/rhel/bootc/Makefile" rel="noopener" target="_blank">here</a>.</p>
+</div>]]></content:encoded></item></channel></rss>

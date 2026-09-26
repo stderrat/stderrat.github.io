@@ -1,1789 +1,1824 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Advanced Cluster Security on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/advanced-cluster-security/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sun, 28 Apr 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/advanced-cluster-security/index.xml" rel="self" type="application/rss+xml"/><item><title>Advanced Cluster Security</title><link>https://blog.stderr.at/openshift-platform/security/acs/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/acs/</guid><description/></item><item><title>[Ep.6] Setup &amp; Configure Advanced Cluster Security</title><link>https://blog.stderr.at/gitopscollection/2024-04-28-installing-advanced-cluster-security/</link><pubDate>Sun, 28 Apr 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-04-28-installing-advanced-cluster-security/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Today I want to demonstrate the deployment and configuration of &lt;strong&gt;Advanced Cluster Security&lt;/strong&gt; (ACS) using a GitOps approach. The required operator shall be installed, verified if it is running and then ACS shall be initialized. This initialization contains the deployment of several components:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Central - as UI and as a main component of ACS&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;SecuredClusters - installs a Scanner, Controller pods etc.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Console link into OpenShift UI - to directly access the ACS Central UI&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Job to create an initialization bundle to install the Secured Cluster&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Job to configure authentication using OpenShift&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s start …​&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Argo CD (OpenShift GitOps) deployed&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;App-Of-Apps deployed&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The main components of ACS are the two custom resources: &lt;strong&gt;Central&lt;/strong&gt; and &lt;strong&gt;SecuredCluster&lt;/strong&gt;. The recommended way to deploy ACS is to use the Operator (alternatives would be the command line or Helm Chart). When I first came across ACS I thought about how to automate the full deployment. I did not want to install the Operator, then the Central, then manually create a so-called init-bundle, then deploy the Secured Cluster, then find the route that has been used, then find the secret that stores the initial administrator credentials and then, finally, log into ACS and activate OpenShift authentication.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see there are a lot of tasks to do before I can start a customer demo.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;At the same time, I started to dig into GitOps and I thought this would be a good option to create my very first Helm Chart.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Long story short, I have now a Helm Chart (actually three, because I outsourced some of the features into sub-charts) that automatically does all these things above. Once I am synchronizing my Argo CD Application everything will happen automatically.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-02-configure_app_of_apps/"&gt;Configure App-of-Apps&lt;/a&gt; installed an Argo CD Application called &lt;strong&gt;in-cluster-setup-acs&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup-acs.png?width=720px" alt="Argo CD Application: setup-acs"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Argo CD Application: setup-acs&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This Argo CD Application used the following path to find the Helm Chart: &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-acs"&gt;setup-acs&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This Helm chart is a wrapper chart that uses sub-charts as dependencies to install and configure the operator as well as to do some OpenShift Jobs on top, for example, creating a ConsoleLink or creating an init-bundle.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Please check out the article &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-25-installing-compliance-operator/#_why_empty_helm_charts"&gt;Setup Compliance Operator&lt;/a&gt; on why I am using a wrapper chart.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_installing_advanced_cluster_security"&gt;Installing Advanced Cluster Security&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_analysing_chart_yaml"&gt;Analysing Chart.yaml&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s examine the Chart.yaml file to see which dependencies are used:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The file looks like the following. Three sub-charts are defined as required to deploy and configure the ACS. This is pretty much the same as it was for the &lt;a href="https://blog.stderr.at/gitopscollection/2024-04-25-installing-compliance-operator/#_analysing_chart_yaml"&gt;Setup Compliance Operator&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v2
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Advanced Cluster Security – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/advanced-cluster-security/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sun, 28 Apr 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/advanced-cluster-security/index.xml" rel="self" type="application/rss+xml"/><item><title>[Ep.6] Setup &amp; Configure Advanced Cluster Security</title><link>https://blog.stderr.at/gitopscollection/2024-04-28-installing-advanced-cluster-security/</link><guid isPermaLink="true">https://blog.stderr.at/gitopscollection/2024-04-28-installing-advanced-cluster-security/</guid><pubDate>Sun, 28 Apr 2024 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>GitOps</category><category>Security</category><category>Advanced Cluster Security</category><description>Installing and configuring ACS using GitOps approach.</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Today I want to demonstrate the deployment and configuration of <strong>Advanced Cluster Security</strong> (ACS) using a GitOps approach. The required operator shall be installed, verified if it is running and then ACS shall be initialized. This initialization contains the deployment of several components:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Central - as UI and as a main component of ACS</p>
+</li>
+<li>
+<p>SecuredClusters - installs a Scanner, Controller pods etc.</p>
+</li>
+<li>
+<p>Console link into OpenShift UI - to directly access the ACS Central UI</p>
+</li>
+<li>
+<p>Job to create an initialization bundle to install the Secured Cluster</p>
+</li>
+<li>
+<p>Job to configure authentication using OpenShift</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Let’s start …​</p>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Argo CD (OpenShift GitOps) deployed</p>
+</li>
+<li>
+<p>App-Of-Apps deployed</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The main components of ACS are the two custom resources: <strong>Central</strong> and <strong>SecuredCluster</strong>. The recommended way to deploy ACS is to use the Operator (alternatives would be the command line or Helm Chart). When I first came across ACS I thought about how to automate the full deployment. I did not want to install the Operator, then the Central, then manually create a so-called init-bundle, then deploy the Secured Cluster, then find the route that has been used, then find the secret that stores the initial administrator credentials and then, finally, log into ACS and activate OpenShift authentication.</p>
+</div>
+<div class="paragraph">
+<p>As you can see there are a lot of tasks to do before I can start a customer demo.</p>
+</div>
+<div class="paragraph">
+<p>At the same time, I started to dig into GitOps and I thought this would be a good option to create my very first Helm Chart.</p>
+</div>
+<div class="paragraph">
+<p>Long story short, I have now a Helm Chart (actually three, because I outsourced some of the features into sub-charts) that automatically does all these things above. Once I am synchronizing my Argo CD Application everything will happen automatically.</p>
+</div>
+<div class="paragraph">
+<p>The <a href="/gitopscollection/2024-04-02-configure_app_of_apps/">Configure App-of-Apps</a> installed an Argo CD Application called <strong>in-cluster-setup-acs</strong>:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup-acs.png?width=720px" alt="Argo CD Application: setup-acs"/>
+</div>
+<div class="title">Figure 1. Argo CD Application: setup-acs</div>
+</div>
+<div class="paragraph">
+<p>This Argo CD Application used the following path to find the Helm Chart: <a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-acs">setup-acs</a></p>
+</div>
+<div class="paragraph">
+<p>This Helm chart is a wrapper chart that uses sub-charts as dependencies to install and configure the operator as well as to do some OpenShift Jobs on top, for example, creating a ConsoleLink or creating an init-bundle.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Please check out the article <a href="/gitopscollection/2024-04-25-installing-compliance-operator/#_why_empty_helm_charts">Setup Compliance Operator</a> on why I am using a wrapper chart.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_installing_advanced_cluster_security">Installing Advanced Cluster Security</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_analysing_chart_yaml">Analysing Chart.yaml</h3>
+<div class="paragraph">
+<p>Let’s examine the Chart.yaml file to see which dependencies are used:</p>
+</div>
+<div class="paragraph">
+<p>The file looks like the following. Three sub-charts are defined as required to deploy and configure the ACS. This is pretty much the same as it was for the <a href="/gitopscollection/2024-04-25-installing-compliance-operator/#_analysing_chart_yaml">Setup Compliance Operator</a>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v2
 name: setup-acs
 description: Deploys Advanced Cluster Security (ACS) on target cluster. If enabled Central will be deployed too.
 version: 1.0.0
 dependencies:
-- name: rhacs-setup &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-version: ~1.0.0 &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-repository: https://charts.stderr.at/
-- name: helper-operator &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-version: ~1.0.23
-repository: https://charts.stderr.at/
-- name: helper-status-checker &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-version: ~4.0.0
-repository: https://charts.stderr.at/
-condition: helper-status-checker.enabled &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rhacs-setup" rel="noopener" target="_blank"&gt;RHACS Setup&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Version that will be used. The &amp;#34;~&amp;#34; means that the latest version of 1.0.X will be used.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" rel="noopener" target="_blank"&gt;Helper Operator&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Dependency: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" rel="noopener" target="_blank"&gt;Helper Status Checker&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Only use this dependency when &amp;#34;enabled&amp;#34; is set&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  - name: rhacs-setup <i class="conum" data-value="1"></i><b>(1)</b>
+    version: ~1.0.0 <i class="conum" data-value="2"></i><b>(2)</b>
+    repository: https://charts.stderr.at/
+  - name: helper-operator <i class="conum" data-value="3"></i><b>(3)</b>
+    version: ~1.0.23
+    repository: https://charts.stderr.at/
+  - name: helper-status-checker <i class="conum" data-value="4"></i><b>(4)</b>
+    version: ~4.0.0
+    repository: https://charts.stderr.at/
+    condition: helper-status-checker.enabled <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Dependency: <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rhacs-setup" rel="noopener" target="_blank">RHACS Setup</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Version that will be used. The &#34;~&#34; means that the latest version of 1.0.X will be used.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Dependency: <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" rel="noopener" target="_blank">Helper Operator</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Dependency: <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" rel="noopener" target="_blank">Helper Status Checker</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Only use this dependency when &#34;enabled&#34; is set</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Verify the READMEs of the different Charts for detailed information on how to configure them.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_configuration_of_the_chart"&gt;Configuration of the Chart&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To configure Advanced Cluster Security the &lt;strong&gt;values file&lt;/strong&gt; of the wrapper Chart must be prepared accordingly.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The important thing here is, that any value that should be bypassed to a sub-chart is defined under the name of the sub-chart. For example, everything under &lt;strong&gt;helper-operator:&lt;/strong&gt; will be sent to the helper-operator Chart and is used there for its configuration.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Check out the example &lt;a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-acs/values.yaml" rel="noopener" target="_blank"&gt;values file&lt;/a&gt; I use to configure ACS and the
-&lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rhacs-setup" rel="noopener" target="_blank"&gt;README&lt;/a&gt; to find further information about the possible settings that can be done.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s check the main example, to quickly start:&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_installing_and_verifying_the_operator"&gt;Installing and verifying the Operator&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first thing to do is to deploy the Operator and to verify if the Operator installation finished successfully.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The two Helm Charts &lt;strong&gt;helper-operator&lt;/strong&gt; and &lt;strong&gt;helper-status-checker&lt;/strong&gt; are responsible to do so.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;They are configured as follows:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;helper-operator:
-operators:
-rhacs-operator: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-enabled: true &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-syncwave: &amp;#39;0&amp;#39; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-namespace:
-name: rhacs-operator &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-create: true
-subscription:
-channel: stable &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-approval: Automatic
-operatorName: rhacs-operator
-source: redhat-operators
-sourceNamespace: openshift-marketplace
-operatorgroup: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-create: true
-# rhacs does not support to monitor own namespace,
-# therefore the spec in the OperatorGroup must be empty
-notownnamespace: true
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_configuration_of_the_chart">Configuration of the Chart</h3>
+<div class="paragraph">
+<p>To configure Advanced Cluster Security the <strong>values file</strong> of the wrapper Chart must be prepared accordingly.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+The important thing here is, that any value that should be bypassed to a sub-chart is defined under the name of the sub-chart. For example, everything under <strong>helper-operator:</strong> will be sent to the helper-operator Chart and is used there for its configuration.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Check out the example <a href="https://github.com/tjungbauer/openshift-clusterconfig-gitops/blob/main/clusters/management-cluster/setup-acs/values.yaml" rel="noopener" target="_blank">values file</a> I use to configure ACS and the
+<a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rhacs-setup" rel="noopener" target="_blank">README</a> to find further information about the possible settings that can be done.</p>
+</div>
+<div class="paragraph">
+<p>Let’s check the main example, to quickly start:</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_installing_and_verifying_the_operator">Installing and verifying the Operator</h3>
+<div class="paragraph">
+<p>The first thing to do is to deploy the Operator and to verify if the Operator installation finished successfully.</p>
+</div>
+<div class="paragraph">
+<p>The two Helm Charts <strong>helper-operator</strong> and <strong>helper-status-checker</strong> are responsible to do so.</p>
+</div>
+<div class="paragraph">
+<p>They are configured as follows:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">helper-operator:
+  operators:
+    rhacs-operator: <i class="conum" data-value="1"></i><b>(1)</b>
+      enabled: true <i class="conum" data-value="2"></i><b>(2)</b>
+      syncwave: &#39;0&#39; <i class="conum" data-value="3"></i><b>(3)</b>
+      namespace:
+        name: rhacs-operator <i class="conum" data-value="4"></i><b>(4)</b>
+        create: true
+      subscription:
+        channel: stable <i class="conum" data-value="5"></i><b>(5)</b>
+        approval: Automatic
+        operatorName: rhacs-operator
+        source: redhat-operators
+        sourceNamespace: openshift-marketplace
+      operatorgroup: <i class="conum" data-value="6"></i><b>(6)</b>
+        create: true
+        # rhacs does not support to monitor own namespace,
+        # therefore the spec in the OperatorGroup must be empty
+        notownnamespace: true
+
 # Subchart helper-status-checker
 # checks if ACS operator is ready
 helper-status-checker:
-enabled: true &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-checks: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
-- operatorName: rhacs-operator &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
-namespace:
-name: rhacs-operator &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
-syncwave: 3
-serviceAccount:
-name: &amp;#34;status-checker-acs&amp;#34; &lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;(11)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Key that can be freely defined. Theoretically, you can deploy multiple operators at once.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Is this Operator enabled yes/no.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Syncwave for the Operator deployment. (Subscription and OperatorGroup etc.)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The Namespace where the Operator shall be deployed and if this namespace shall be created.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configuration of the Subscription resource.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configuration of the OperatorGroup&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Enable status checker or not. Default: false&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of operators to check. Typically, only one is checked, but there could be more.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Operator to check (same as for helper-operator)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Namespace where the Operator has been installed (same as for helper-operator)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;11&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the ServiceAccount that will be created to check the status.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Verify the READMEs at &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" rel="noopener" target="_blank"&gt;Helper Operator&lt;/a&gt; and &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" rel="noopener" target="_blank"&gt;Helper Operator Status Checker&lt;/a&gt; to find additional possible configurations.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Also verify the separate article &lt;a href="https://blog.stderr.at/openshift/2023-03-20-operator-installation-with-argocd/"&gt;Operator Installation with Argo CD&lt;/a&gt; to understand why I am verifying the status of the Operator installation.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_configuring_advanced_cluster_security"&gt;Configuring Advanced Cluster Security&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Besides the deployment of the Operator, the configuration of ACS is the most important part here. The ACS Operator provides two custom resources: Central and SecuredCluster. On the Central cluster both CRDs are required. On any other (spoke) cluster, the SecuredCluster resource is enough.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In the following example, I am going to configure both Central and SecuredCluster. Since the values file is quite huge I removed most of the additional comments, to keep this article short and readable.
-You can read the example values file or the README at &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rhacs-setup" rel="noopener" target="_blank"&gt;Advanced Cluster Security Chart&lt;/a&gt; to find additional possible configurations. Especially, if you like to add tolerations or set resource limits.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;#########################################
+  enabled: true <i class="conum" data-value="7"></i><b>(7)</b>
+
+  checks: <i class="conum" data-value="8"></i><b>(8)</b>
+
+    - operatorName: rhacs-operator <i class="conum" data-value="9"></i><b>(9)</b>
+      namespace:
+        name: rhacs-operator <i class="conum" data-value="10"></i><b>(10)</b>
+      syncwave: 3
+
+      serviceAccount:
+        name: &#34;status-checker-acs&#34; <i class="conum" data-value="11"></i><b>(11)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Key that can be freely defined. Theoretically, you can deploy multiple operators at once.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Is this Operator enabled yes/no.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Syncwave for the Operator deployment. (Subscription and OperatorGroup etc.)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>The Namespace where the Operator shall be deployed and if this namespace shall be created.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Configuration of the Subscription resource.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Configuration of the OperatorGroup</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Enable status checker or not. Default: false</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>List of operators to check. Typically, only one is checked, but there could be more.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td>Name of the Operator to check (same as for helper-operator)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="10"></i><b>10</b></td>
+<td>Namespace where the Operator has been installed (same as for helper-operator)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="11"></i><b>11</b></td>
+<td>Name of the ServiceAccount that will be created to check the status.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Verify the READMEs at <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" rel="noopener" target="_blank">Helper Operator</a> and <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" rel="noopener" target="_blank">Helper Operator Status Checker</a> to find additional possible configurations.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Also verify the separate article <a href="https://blog.stderr.at/openshift/2023-03-20-operator-installation-with-argocd/">Operator Installation with Argo CD</a> to understand why I am verifying the status of the Operator installation.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_configuring_advanced_cluster_security">Configuring Advanced Cluster Security</h3>
+<div class="paragraph">
+<p>Besides the deployment of the Operator, the configuration of ACS is the most important part here. The ACS Operator provides two custom resources: Central and SecuredCluster. On the Central cluster both CRDs are required. On any other (spoke) cluster, the SecuredCluster resource is enough.</p>
+</div>
+<div class="paragraph">
+<p>In the following example, I am going to configure both Central and SecuredCluster. Since the values file is quite huge I removed most of the additional comments, to keep this article short and readable.
+You can read the example values file or the README at <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rhacs-setup" rel="noopener" target="_blank">Advanced Cluster Security Chart</a> to find additional possible configurations. Especially, if you like to add tolerations or set resource limits.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">#########################################
 # Settings for Advanced Cluster Security
 #########################################
 rhacs-setup:
-rhacs:
-namespace: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-name: stackrox
-syncwave: &amp;#39;0&amp;#39;
-descr: &amp;#39;Red Hat Advanced Cluster Security&amp;#39;
-################
-# CENTRAL of ACS
-################
-# Settings for the Central of ACS
-central: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-enabled: true
-syncwave: &amp;#39;3&amp;#39;
-egress:
-connectivityPolicy: Online
-###############
-# CENTRAL DB
-###############
-# Settings for Central DB, which is responsible for data persistence.
-db: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-# -- Set Central DB resources.requests for a DEMO environment to save resources.
-resources:
-requests:
-cpu: &amp;#39;1&amp;#39;
-memory: &amp;#39;1Gi&amp;#39;
-# -- If you want this component to only run on specific nodes, you can
-# configure tolerations of tainted nodes.
-tolerations: {}
-# - effect: NoSchedule
-# key: infra
-# operator: Equal
-# value: reserved
-# - effect: NoSchedule
-# key: infra
-# operator: Equal
-# value: reserved
-###############
-# SCANNER
-###############
-scanner: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-enabled: true
-analyzer:
-# The following settings are NOT suitable for a production environment
-autoscaling:
-status: &amp;#34;Disabled&amp;#34;
-max: 1
-min: 1
-# When autoscaling is disabled, the number of replicas will always be
-# configured to match this value.
-replicas: 1
-tolerations: {}
-###############
-# SCANNER DB
-###############
-db:
-tolerations: {}
-#################
-# SECURED CLUSTER
-#################
-secured_cluster: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-enabled: true
-syncwave: &amp;#39;4&amp;#39;
-clustername: local-cluster
-sensor:
-tolerations: {}
-admissioncontrol:
-listenOn:
-creates: true
-events: true
-updates: true
-tolerations: {}
-# -- Basic settings for ACS authentication
-# This configuration is done by a Job, that will configure the OpenShift oauth for ACS.
-basic_acs_settings: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-auth_provider: &amp;#39;OpenShift&amp;#39;
-auth_provider_type: &amp;#39;openshift&amp;#39;
-min_access_role: &amp;#39;None&amp;#39;
-syncwave: 5
-####################################################
-# Additional settings for Central and possible Jobs
-####################################################
-job_vars: &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-max_attempts: 20
-job_init_bundle: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
-enabled: true
-syncwave: &amp;#39;3&amp;#39;
-consolelink: &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
-enabled: true
-syncwave: &amp;#39;3&amp;#39;
-location: ApplicationMenu
-text: Advanced Cluster Security
-section: Observability&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Create the Namespace &lt;strong&gt;stackrox&lt;/strong&gt; and install the ACS resources there.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Enable the Central during Syncwave 3 and set the connectivityPolicy to Online&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The Central DB and its configuration. Here the resource requests are modified to allow a small installation on the DEMO environment. Also, tolerations might be set here, as well a PVCs etc.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Settings for the Scanner and its databases. Again, tolerations might be configurated here, but also, not shown in this example, resource limits and requests and other settings. Since I am configuring for a DEMO environment, I disabled the autoscaler and set the replica to 1.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The SecuredCluster is the 2nd CRD that is provided by ACS Operator. It is installed after the Central (thus a higher Syncwave). The most important setting here is the clustername. In our &amp;#34;local&amp;#34; example, the name is set to &lt;strong&gt;local-cluster&lt;/strong&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Some basic settings, that will configure the OpenShift authentication and the minimum role for authenticated users (None)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Some default settings for Jobs that are started by this Helm chart.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The Job that initializes the creation of the init-bundle&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The Job and its configuration to generate a direct link to ACS in the OpenShift UI.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With this ACS is about to be installed on the cluster. Let’s see what will happen during the synchronization.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_deploying_advanced_cluster_security_acs"&gt;Deploying Advanced Cluster Security (ACS)&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s hit the sync button inside OpenShift GitOps. This will start the whole process, walking through the syncwaves and the hooks that have been defined.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/syncing-argocd.png?width=720px" alt="Syncing Argo CD"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. Syncing Argo CD&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  rhacs:
+
+    namespace: <i class="conum" data-value="1"></i><b>(1)</b>
+      name: stackrox
+      syncwave: &#39;0&#39;
+      descr: &#39;Red Hat Advanced Cluster Security&#39;
+
+    ################
+    # CENTRAL of ACS
+    ################
+    # Settings for the Central of ACS
+    central: <i class="conum" data-value="2"></i><b>(2)</b>
+      enabled: true
+      syncwave: &#39;3&#39;
+      egress:
+        connectivityPolicy: Online
+
+      ###############
+      # CENTRAL DB
+      ###############
+      # Settings for Central DB, which is responsible for data persistence.
+      db: <i class="conum" data-value="3"></i><b>(3)</b>
+        # -- Set Central DB resources.requests for a DEMO environment to save resources.
+        resources:
+          requests:
+            cpu: &#39;1&#39;
+            memory: &#39;1Gi&#39;
+
+        # -- If you want this component to only run on specific nodes, you can
+        # configure tolerations of tainted nodes.
+        tolerations: {}
+        #   - effect: NoSchedule
+        #     key: infra
+        #     operator: Equal
+        #     value: reserved
+        #   - effect: NoSchedule
+        #     key: infra
+        #     operator: Equal
+        #     value: reserved
+
+    ###############
+    # SCANNER
+    ###############
+    scanner: <i class="conum" data-value="4"></i><b>(4)</b>
+      enabled: true
+
+      analyzer:
+        # The following settings are NOT suitable for a production environment
+        autoscaling:
+          status: &#34;Disabled&#34;
+          max: 1
+          min: 1
+          # When autoscaling is disabled, the number of replicas will always be
+          # configured to match this value.
+          replicas: 1
+        tolerations: {}
+
+      ###############
+      # SCANNER DB
+      ###############
+      db:
+        tolerations: {}
+
+    #################
+    # SECURED CLUSTER
+    #################
+    secured_cluster: <i class="conum" data-value="5"></i><b>(5)</b>
+      enabled: true
+      syncwave: &#39;4&#39;
+      clustername: local-cluster
+
+      sensor:
+        tolerations: {}
+
+      admissioncontrol:
+        listenOn:
+          creates: true
+          events: true
+          updates: true
+        tolerations: {}
+
+    # -- Basic settings for ACS authentication
+    # This configuration is done by a Job, that will configure the OpenShift oauth for ACS.
+    basic_acs_settings: <i class="conum" data-value="6"></i><b>(6)</b>
+      auth_provider: &#39;OpenShift&#39;
+      auth_provider_type: &#39;openshift&#39;
+      min_access_role: &#39;None&#39;
+      syncwave: 5
+
+    ####################################################
+    # Additional settings for Central and possible Jobs
+    ####################################################
+    job_vars: <i class="conum" data-value="7"></i><b>(7)</b>
+      max_attempts: 20
+
+    job_init_bundle: <i class="conum" data-value="8"></i><b>(8)</b>
+      enabled: true
+      syncwave: &#39;3&#39;
+
+    consolelink: <i class="conum" data-value="9"></i><b>(9)</b>
+      enabled: true
+      syncwave: &#39;3&#39;
+      location: ApplicationMenu
+      text: Advanced Cluster Security
+      section: Observability</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Create the Namespace <strong>stackrox</strong> and install the ACS resources there.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Enable the Central during Syncwave 3 and set the connectivityPolicy to Online</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The Central DB and its configuration. Here the resource requests are modified to allow a small installation on the DEMO environment. Also, tolerations might be set here, as well a PVCs etc.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Settings for the Scanner and its databases. Again, tolerations might be configurated here, but also, not shown in this example, resource limits and requests and other settings. Since I am configuring for a DEMO environment, I disabled the autoscaler and set the replica to 1.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>The SecuredCluster is the 2nd CRD that is provided by ACS Operator. It is installed after the Central (thus a higher Syncwave). The most important setting here is the clustername. In our &#34;local&#34; example, the name is set to <strong>local-cluster</strong>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Some basic settings, that will configure the OpenShift authentication and the minimum role for authenticated users (None)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Some default settings for Jobs that are started by this Helm chart.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>The Job that initializes the creation of the init-bundle</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td>The Job and its configuration to generate a direct link to ACS in the OpenShift UI.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>With this ACS is about to be installed on the cluster. Let’s see what will happen during the synchronization.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_deploying_advanced_cluster_security_acs">Deploying Advanced Cluster Security (ACS)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s hit the sync button inside OpenShift GitOps. This will start the whole process, walking through the syncwaves and the hooks that have been defined.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/syncing-argocd.png?width=720px" alt="Syncing Argo CD"/>
+</div>
+<div class="title">Figure 2. Syncing Argo CD</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 Since hooks are used, you must sync the whole Argo CD Application. As you can see inside Argo CD, the hooks are not shown, because they will only appear when their time has come (and will disappear afterward again). This means, that if you perform a selective sync, Argo CD does not know when it should start such a hook and they are never triggered.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Operator installation is now started. At the moment the Operator has the status &lt;strong&gt;Installing&lt;/strong&gt;. Currently, no CRDs (Central or SecuredCluster) are available yet. If we would just let Argo CD continue, it would try to create the Central configuration, based on a CRD which does not yet exist. Thus, the syncing process will fail and therefore the &lt;strong&gt;status-checker&lt;/strong&gt; is going to verify if the installation was truly successful.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/installing-operator.png?width=720px" alt="Operator is installed"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. Operator is installed&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Status Checker is a simple Pod that is triggered by a Kubernetes Job. If waits until the status of the Operator is &lt;strong&gt;Succeeded&lt;/strong&gt;. Until this is the case, Argo CD waits before it continues with the synchronization. (It waits until the hook ends the Job)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/status-checker.png?width=720px" alt="Status Checker"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 4. Status Checker&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In the logs file of the Pod, we can see that the Operator is ready.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/status-checker-logs.png?width=720px" alt="Status Checker Logs"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 5. Status Checker Logs&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;And indeed, the status of the Operator is now &lt;strong&gt;Succeeded&lt;/strong&gt;. Now it is time for Argo CD to continue the synchronization.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/operator-ready.png?width=720px" alt="Operator Ready"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 6. Operator Ready&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The next step is to create the Central CRD. This will deploy the UI of ACS and the local Scanner. You can also see two other Jobs that have been created by the Helm Charts &lt;strong&gt;create_cluster_link&lt;/strong&gt; and &lt;strong&gt;create_cluster_init_bundle&lt;/strong&gt;. They will finish when the Central becomes ready.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The Operator installation is now started. At the moment the Operator has the status <strong>Installing</strong>. Currently, no CRDs (Central or SecuredCluster) are available yet. If we would just let Argo CD continue, it would try to create the Central configuration, based on a CRD which does not yet exist. Thus, the syncing process will fail and therefore the <strong>status-checker</strong> is going to verify if the installation was truly successful.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/installing-operator.png?width=720px" alt="Operator is installed"/>
+</div>
+<div class="title">Figure 3. Operator is installed</div>
+</div>
+<div class="paragraph">
+<p>The Status Checker is a simple Pod that is triggered by a Kubernetes Job. If waits until the status of the Operator is <strong>Succeeded</strong>. Until this is the case, Argo CD waits before it continues with the synchronization. (It waits until the hook ends the Job)</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/status-checker.png?width=720px" alt="Status Checker"/>
+</div>
+<div class="title">Figure 4. Status Checker</div>
+</div>
+<div class="paragraph">
+<p>In the logs file of the Pod, we can see that the Operator is ready.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/status-checker-logs.png?width=720px" alt="Status Checker Logs"/>
+</div>
+<div class="title">Figure 5. Status Checker Logs</div>
+</div>
+<div class="paragraph">
+<p>And indeed, the status of the Operator is now <strong>Succeeded</strong>. Now it is time for Argo CD to continue the synchronization.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/operator-ready.png?width=720px" alt="Operator Ready"/>
+</div>
+<div class="title">Figure 6. Operator Ready</div>
+</div>
+<div class="paragraph">
+<p>The next step is to create the Central CRD. This will deploy the UI of ACS and the local Scanner. You can also see two other Jobs that have been created by the Helm Charts <strong>create_cluster_link</strong> and <strong>create_cluster_init_bundle</strong>. They will finish when the Central becomes ready.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 Until the Central becomes ready, these two additional Jobs may show errors. Do not worry, OpenShift will reschedule them.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/installing-central.png?width=720px" alt="Installing Central"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 7. Installing Central&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;You can also see two other Jobs that have been created by the Helm Charts &lt;strong&gt;create_cluster_link&lt;/strong&gt; and &lt;strong&gt;create_cluster_init_bundle&lt;/strong&gt;. They will finish when the Central becomes ready.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/installing-central.png?width=720px" alt="Installing Central"/>
+</div>
+<div class="title">Figure 7. Installing Central</div>
+</div>
+<div class="paragraph">
+<p>You can also see two other Jobs that have been created by the Helm Charts <strong>create_cluster_link</strong> and <strong>create_cluster_init_bundle</strong>. They will finish when the Central becomes ready.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 Until the Central becomes ready, these two additional Jobs may show errors. Do not worry, OpenShift will reschedule them.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/init-job-waits.png?width=720px" alt="Init Job is waiting for Central"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 8. Init Job is waiting for Central&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Once the Central has been deployed, the second CRD &lt;strong&gt;SecuredCluster&lt;/strong&gt; will be added. This will trigger the installation of the Collectors and other components.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/installing-securedcluster.png?width=720px" alt="Installing Secured Cluster"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 9. Installing SecuredCluster&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Eventually, all Pods are running at the end. The additional Jobs are completed and ACS is ready to take care of the cluster security.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/acs-all-pods-running.png?width=720px" alt="All Pods running"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 10. All Pods running&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We can now use the console link that was created.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/acs-consolelink.png?width=720px" alt="ACS ConsoleLink"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 11. ACS ConsoleLink&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/init-job-waits.png?width=720px" alt="Init Job is waiting for Central"/>
+</div>
+<div class="title">Figure 8. Init Job is waiting for Central</div>
+</div>
+<div class="paragraph">
+<p>Once the Central has been deployed, the second CRD <strong>SecuredCluster</strong> will be added. This will trigger the installation of the Collectors and other components.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/installing-securedcluster.png?width=720px" alt="Installing Secured Cluster"/>
+</div>
+<div class="title">Figure 9. Installing SecuredCluster</div>
+</div>
+<div class="paragraph">
+<p>Eventually, all Pods are running at the end. The additional Jobs are completed and ACS is ready to take care of the cluster security.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/acs-all-pods-running.png?width=720px" alt="All Pods running"/>
+</div>
+<div class="title">Figure 10. All Pods running</div>
+</div>
+<div class="paragraph">
+<p>We can now use the console link that was created.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/acs-consolelink.png?width=720px" alt="ACS ConsoleLink"/>
+</div>
+<div class="title">Figure 11. ACS ConsoleLink</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 If you disabled the creation of the ConsoleLink you would need to find the Route that ACS Operator created. Honestly, I do not know why the Operator does not create such ConsoleLink out of the box.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Since I am lazy I created another Job that automatically configures authentication via OpenShift for ACS. This way, we can simply use our OpenShift credentials to login.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/acs-login.png?width=720px" alt="ACS Login"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 12. ACS Login&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;And that’s it, we can now use ACS, which was deployed fully automatically.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/gitopscollection/images/setup_acs/acs.png?width=720px" alt="Advanced Cluster Security"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 13. Advanced Cluster Security&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As you can see Advanced Cluster Security was completely installed. This included the Operator, the Central, the creation and installation of an init-bundle, the creation of a ConsoleLink, the configuration of the SecuredCluster CRD and the initial configuration of the auth provider inside ACS. You can now start using ACS or add additional clusters.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Since I am lazy I created another Job that automatically configures authentication via OpenShift for ACS. This way, we can simply use our OpenShift credentials to login.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/acs-login.png?width=720px" alt="ACS Login"/>
+</div>
+<div class="title">Figure 12. ACS Login</div>
+</div>
+<div class="paragraph">
+<p>And that’s it, we can now use ACS, which was deployed fully automatically.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/setup_acs/acs.png?width=720px" alt="Advanced Cluster Security"/>
+</div>
+<div class="title">Figure 13. Advanced Cluster Security</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_conclusion">Conclusion</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As you can see Advanced Cluster Security was completely installed. This included the Operator, the Central, the creation and installation of an init-bundle, the creation of a ConsoleLink, the configuration of the SecuredCluster CRD and the initial configuration of the auth provider inside ACS. You can now start using ACS or add additional clusters.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Speaking of additional clusters: The create-cluster-init-bundle created three certificates: collector-tls, sensor-tls and admission-control-tls. They are required so that the SecuredClusters can communicate with the Central. You could now create a separate init-bundle for each SecuredCluster, which is not really easy to automate, or you simply take these created secrets and put them into your GitOps and re-use them for any other SecuredCluster.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;All these steps and configurations seem quite complicated but honestly, it is straightforward. I install any Operator using &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" rel="noopener" target="_blank"&gt;Helper Operator&lt;/a&gt; and in most cases. I also use &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" rel="noopener" target="_blank"&gt;Helper Operator Status Checker&lt;/a&gt; to find additional possible configurations. Both require simple configuration only, which you would need to know anyway when you create the Subscription object manually. Once done, you can repeat this for any other Operator.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The real magic happens when the Operator is configured at the same time because this is very individual to the Operator.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Step 6 - Scanning with ACS</title><link>https://blog.stderr.at/securesupplychain/2023-06-21-securesupplychain-step6/</link><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/securesupplychain/2023-06-21-securesupplychain-step6/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;In this step we will install &lt;strong&gt;Advanced Cluster Security&lt;/strong&gt; (ACS) and create 2 new steps in our Pipeline to scan the image for vulnerabilities and security policy. A custom security policy, configured in ACS, will verify if the image is signed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_goals"&gt;Goals&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The goals of this step are:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;Install ACS.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a custom security policy into ACS.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configure CoSign integration in ACS.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a step in the Pipeline to perform an image scan (vulnerabilities).&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a step in the Pipeline to perform an image check (security policies).&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_install_advanced_cluster_security_acs"&gt;Install Advanced Cluster Security (ACS)&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;We will install ACS on our cluster which will be called &lt;strong&gt;local-cluster&lt;/strong&gt; inside ACS.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The deployment will happen via Argo CD (OpenShift GitOps) that will use the following Helm Chart: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rhacs-full-stack" rel="noopener" target="_blank"&gt;RHACS&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Argo CD Application will trigger the deployment which will take several minutes.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>All these steps and configurations seem quite complicated but honestly, it is straightforward. I install any Operator using <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-operator" rel="noopener" target="_blank">Helper Operator</a> and in most cases. I also use <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/helper-status-checker" rel="noopener" target="_blank">Helper Operator Status Checker</a> to find additional possible configurations. Both require simple configuration only, which you would need to know anyway when you create the Subscription object manually. Once done, you can repeat this for any other Operator.</p>
+</div>
+<div class="paragraph">
+<p>The real magic happens when the Operator is configured at the same time because this is very individual to the Operator.</p>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Step 6 - Scanning with ACS</title><link>https://blog.stderr.at/securesupplychain/2023-06-21-securesupplychain-step6/</link><guid isPermaLink="true">https://blog.stderr.at/securesupplychain/2023-06-21-securesupplychain-step6/</guid><pubDate>Wed, 28 Jun 2023 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Supply Chain</category><description>Step 6 Secure Supply Chain</description><content:encoded><![CDATA[<div class="paragraph">
+<p>In this step we will install <strong>Advanced Cluster Security</strong> (ACS) and create 2 new steps in our Pipeline to scan the image for vulnerabilities and security policy. A custom security policy, configured in ACS, will verify if the image is signed.</p>
+</div>
+<div class="sect1">
+<h2 id="_goals">Goals</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The goals of this step are:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Install ACS.</p>
+</li>
+<li>
+<p>Create a custom security policy into ACS.</p>
+</li>
+<li>
+<p>Configure CoSign integration in ACS.</p>
+</li>
+<li>
+<p>Create a step in the Pipeline to perform an image scan (vulnerabilities).</p>
+</li>
+<li>
+<p>Create a step in the Pipeline to perform an image check (security policies).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_install_advanced_cluster_security_acs">Install Advanced Cluster Security (ACS)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>We will install ACS on our cluster which will be called <strong>local-cluster</strong> inside ACS.</p>
+</div>
+<div class="paragraph">
+<p>The deployment will happen via Argo CD (OpenShift GitOps) that will use the following Helm Chart: <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/rhacs-full-stack" rel="noopener" target="_blank">RHACS</a></p>
+</div>
+<div class="paragraph">
+<p>The Argo CD Application will trigger the deployment which will take several minutes.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 The deployment will install a minimal version of ACS and tries to limit the required resources and replicas. For production environments, you probably want to increase the settings.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: argoproj.io/v1alpha1
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-name: in-cluster-init-rhacs
-namespace: openshift-gitops
+  name: in-cluster-init-rhacs
+  namespace: openshift-gitops
 spec:
-destination:
-namespace: default
-server: &amp;#39;https://kubernetes.default.svc&amp;#39; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-info:
-- name: Description
-value: &amp;gt;-
-Initialize Red Hat Advanced Cluster Security and deploy Central and
-SecuredCluster
-project: in-cluster
-source:
-path: charts/rhacs-full-stack &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-repoURL: &amp;#39;https://github.com/tjungbauer/helm-charts&amp;#39; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-targetRevision: main&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Installing on the local cluster.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Path to the Helm chart.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;URL to the Helm chart repository.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-sync_acs.png?width=400px" alt="Syncing ACS Deployment Application"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. Syncing ACS Deployment Application&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This GitOps Application will start a full-stack ACS deployment. It does (in this exact order):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Installs the ACS Operator into rhacs-operator&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Verifies if the Operator is ready&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Creates the Namespace stackrox&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Adds a ConsoleLink in the upper right action menu of OpenShift&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-acs_consolelink.png?width=220px" alt="ACS ConsoleLine"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. ACS ConsoleLink&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Creates the Central custom resource with minimum resources&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Creates an init-bundle to add the first (local) cluster&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Adds the custom resource SecureCluster to install the rest of the ACS components&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;And finally, runs a basic configuration that enables authentication via OpenShift and provides the &lt;strong&gt;kubeadmin&lt;/strong&gt; user admin privileges. This can be disabled in the values file if you prefer not to configure this, or if kubeadmin does not exist anymore in your cluster.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The whole process will take a while and uses syncwaves and hooks.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_configure_acs_integration"&gt;Configure ACS Integration&lt;/h3&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_generate_authentication_token"&gt;Generate Authentication Token&lt;/h3&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Create an authentication Token in ACS&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Go to &lt;code&gt;&amp;#34;Platform Configuration &amp;gt; Integrations &amp;gt; API Token&amp;#34;&lt;/code&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-acs_token.png?width=440px" alt="ACS Generate Token"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. ACS Generate Token&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Generate a new Token with at least &lt;strong&gt;Continuous Integration&lt;/strong&gt; privileges and save the created Token.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Back in OpenShift, a Secret must be created with the key &lt;strong&gt;rox_api_token&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Secret
+  destination:
+    namespace: default
+    server: &#39;https://kubernetes.default.svc&#39; <i class="conum" data-value="1"></i><b>(1)</b>
+  info:
+    - name: Description
+      value: &gt;-
+        Initialize Red Hat Advanced Cluster Security and deploy Central and
+        SecuredCluster
+  project: in-cluster
+  source:
+    path: charts/rhacs-full-stack <i class="conum" data-value="2"></i><b>(2)</b>
+    repoURL: &#39;https://github.com/tjungbauer/helm-charts&#39; <i class="conum" data-value="3"></i><b>(3)</b>
+    targetRevision: main</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Installing on the local cluster.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Path to the Helm chart.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>URL to the Helm chart repository.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-sync_acs.png?width=400px" alt="Syncing ACS Deployment Application"/>
+</div>
+<div class="title">Figure 1. Syncing ACS Deployment Application</div>
+</div>
+<div class="paragraph">
+<p>This GitOps Application will start a full-stack ACS deployment. It does (in this exact order):</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Installs the ACS Operator into rhacs-operator</p>
+</li>
+<li>
+<p>Verifies if the Operator is ready</p>
+</li>
+<li>
+<p>Creates the Namespace stackrox</p>
+</li>
+<li>
+<p>Adds a ConsoleLink in the upper right action menu of OpenShift</p>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-acs_consolelink.png?width=220px" alt="ACS ConsoleLine"/>
+</div>
+<div class="title">Figure 2. ACS ConsoleLink</div>
+</div>
+</li>
+<li>
+<p>Creates the Central custom resource with minimum resources</p>
+</li>
+<li>
+<p>Creates an init-bundle to add the first (local) cluster</p>
+</li>
+<li>
+<p>Adds the custom resource SecureCluster to install the rest of the ACS components</p>
+</li>
+<li>
+<p>And finally, runs a basic configuration that enables authentication via OpenShift and provides the <strong>kubeadmin</strong> user admin privileges. This can be disabled in the values file if you prefer not to configure this, or if kubeadmin does not exist anymore in your cluster.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The whole process will take a while and uses syncwaves and hooks.</p>
+</div>
+<div class="sect2">
+<h3 id="_configure_acs_integration">Configure ACS Integration</h3>
+
+</div>
+<div class="sect2">
+<h3 id="_generate_authentication_token">Generate Authentication Token</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Create an authentication Token in ACS</p>
+<div class="paragraph">
+<p>Go to <code>&#34;Platform Configuration &gt; Integrations &gt; API Token&#34;</code></p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-acs_token.png?width=440px" alt="ACS Generate Token"/>
+</div>
+<div class="title">Figure 3. ACS Generate Token</div>
+</div>
+<div class="paragraph">
+<p>Generate a new Token with at least <strong>Continuous Integration</strong> privileges and save the created Token.</p>
+</div>
+</li>
+<li>
+<p>Back in OpenShift, a Secret must be created with the key <strong>rox_api_token</strong></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: Secret
 apiVersion: v1
 metadata:
-name: stackrox-secret
-namespace: ci
+  name: stackrox-secret
+  namespace: ci
 data:
-rox_api_token: &amp;lt;base 64 Token&amp;gt; &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-type: Opaque&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Base64 decoded ACS Token.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a 2nd Secret that contains the ACS endpoint and its port:&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Secret
+  rox_api_token: &lt;base 64 Token&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+type: Opaque</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Base64 decoded ACS Token.</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>Create a 2nd Secret that contains the ACS endpoint and its port:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: Secret
 apiVersion: v1
 metadata:
-name: stackrox-endpoint
-namespace: ci
+  name: stackrox-endpoint
+  namespace: ci
 stringData:
-rox_central_endpoint: central-stackrox.apps.ocp.aws.ispworld.at:443 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-type: Opaque&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The endpoint URL of my example cluster. Note: the port MUST be added here.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_integrate_cosign_with_acs"&gt;Integrate CoSign with ACS&lt;/h3&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Configure CoSign Integration&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;During &lt;a href="https://blog.stderr.at/openshift/securesupplychain/step5/" rel="noopener" target="_blank"&gt;Step 5&lt;/a&gt; we have created a CoSign key pair to sign our images. To integrate with ACS, we need to retrieve the &lt;strong&gt;public key&lt;/strong&gt;. In OpenShift, open the Secret signing-secrets in the Namespace openshift-pipelines and extract the key cosign.pub.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It will look something like tjis:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-none hljs"&gt;-----BEGIN PUBLIC KEY-----
+  rox_central_endpoint: central-stackrox.apps.ocp.aws.ispworld.at:443 <i class="conum" data-value="1"></i><b>(1)</b>
+type: Opaque</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The endpoint URL of my example cluster. Note: the port MUST be added here.</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_integrate_cosign_with_acs">Integrate CoSign with ACS</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Configure CoSign Integration</p>
+<div class="paragraph">
+<p>During <a href="/openshift/securesupplychain/step5/" rel="noopener" target="_blank">Step 5</a> we have created a CoSign key pair to sign our images. To integrate with ACS, we need to retrieve the <strong>public key</strong>. In OpenShift, open the Secret signing-secrets in the Namespace openshift-pipelines and extract the key cosign.pub.</p>
+</div>
+<div class="paragraph">
+<p>It will look something like tjis:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">-----BEGIN PUBLIC KEY-----
 key...
------END PUBLIC KEY-----&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;In ACS, go to &lt;code&gt;&amp;#34;Platform Configuration &amp;gt; Integrations &amp;gt; Signature&amp;#34;&lt;/code&gt; and create a new CoSign integration.&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-acs_cosign.png?width=440px" alt="ACS CoSign Integration"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 4. ACS CoSign Integration&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Enter a name and the public key and activate this integration&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-acs_cosign_int.png?width=600px" alt="ACS Create CoSign Integration"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 5. ACS Create CoSign Integration&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This will enable ACS to verify the CoSign signature of the image.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_create_a_custom_policy_that_verifies_the_signature"&gt;Create a Custom Policy that verifies the Signature&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Create a custom security policy, that verifies if our image has been signed or not.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To be sure that every image is correctly signed, we create a custom security policy that verifies this signature using our CoSign integration. This policy can be configured as &lt;strong&gt;inform&lt;/strong&gt; or &lt;strong&gt;enforce&lt;/strong&gt;. Enforce means that the pipeline will fail (during the Task acs-image-check) if the image signature cannot be checked.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s create our policy by hand for this time. However, it is also possible to export/import rules. The important part here is that link to the CoSign integration is valid, otherwise ACS cannot verify the signature.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Open &lt;code&gt;&amp;#34;Platform Configuration &amp;gt; Policy &amp;gt; and click the button Create Policy&amp;#34;&lt;/code&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Name: &lt;strong&gt;Trusted Signature Policy&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Severity: &lt;strong&gt;High&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Categories: &lt;strong&gt;Security Best Practices&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Click &lt;strong&gt;Next&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Lifecycle stage: check &lt;strong&gt;Build&lt;/strong&gt; and &lt;strong&gt;Deploy&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Response method: &lt;strong&gt;Inform and enforce&lt;/strong&gt; &amp;gt; This will make the Task in the Pipeline fail when the signature cannot be verified.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configure enforcement behavior:&lt;/p&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;Activate: &lt;strong&gt;Enforce on Build&lt;/strong&gt; &amp;gt; Only fail for build lifecycles.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Leave Deployment disabled for now. A good practice would be to enable it, but for other steps in this series, it will be required to keep it disabled for now.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Leave Runtime disabled.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Click &lt;strong&gt;Next&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;As policy criteria find &amp;#34;Image Registry &amp;gt; Image signature&amp;#34; and drag and drop it to the policy section&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-acs_policy_criteria.png?width=600px" alt="ACS Policy Criteria"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 6. ACS Policy Criteria&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Click on &lt;strong&gt;Select&lt;/strong&gt; and select the CoSign integration&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-acs_assign_cosign.png?width=600px" alt="ACS Assign CoSign integration to policy"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 7. ACS Assign CoSign integration to policy&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Click &lt;strong&gt;Next&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Leave the Policy scope for now and click &lt;strong&gt;Next&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Review the Policy and &lt;strong&gt;Save&lt;/strong&gt; it.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prepare_the_pipeline_tasks"&gt;Prepare the Pipeline Tasks&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now, finally, after all these preparations we are going to integrate ACS into our Pipeline. For this, we will create 2 tasks:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;acs-image-scan&lt;/strong&gt;: Will scan the image for vulnerabilities&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;acs-image-check&lt;/strong&gt;: Will verify if the image would violate any security policy, especially the custom policy we have created.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Both checks will use the &lt;strong&gt;roxctl&lt;/strong&gt; command line tool.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-It is recommended to add these two Tasks to any Pipeline system you are using when you have ACS installed to leverage the full potential of ACS. It does not matter if you are using Tekton, Jenkins or something else. You can find examples of integrations at the Git repository: &lt;a class="bare" href="https://github.com/stackrox/contributions/"&gt;https://github.com/stackrox/contributions/&lt;/a&gt;.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_task_acs_image_scan"&gt;Task acs-image-scan&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To scan for vulnerabilities, create the following Task. It leverages the command line tool &lt;strong&gt;roxctl&lt;/strong&gt; which can also be used on your local machine to perform such scans manually.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
+-----END PUBLIC KEY-----</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>In ACS, go to <code>&#34;Platform Configuration &gt; Integrations &gt; Signature&#34;</code> and create a new CoSign integration.</p>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-acs_cosign.png?width=440px" alt="ACS CoSign Integration"/>
+</div>
+<div class="title">Figure 4. ACS CoSign Integration</div>
+</div>
+<div class="paragraph">
+<p>Enter a name and the public key and activate this integration</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-acs_cosign_int.png?width=600px" alt="ACS Create CoSign Integration"/>
+</div>
+<div class="title">Figure 5. ACS Create CoSign Integration</div>
+</div>
+<div class="paragraph">
+<p>This will enable ACS to verify the CoSign signature of the image.</p>
+</div>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_create_a_custom_policy_that_verifies_the_signature">Create a Custom Policy that verifies the Signature</h3>
+<div class="paragraph">
+<p>Create a custom security policy, that verifies if our image has been signed or not.</p>
+</div>
+<div class="paragraph">
+<p>To be sure that every image is correctly signed, we create a custom security policy that verifies this signature using our CoSign integration. This policy can be configured as <strong>inform</strong> or <strong>enforce</strong>. Enforce means that the pipeline will fail (during the Task acs-image-check) if the image signature cannot be checked.</p>
+</div>
+<div class="paragraph">
+<p>Let’s create our policy by hand for this time. However, it is also possible to export/import rules. The important part here is that link to the CoSign integration is valid, otherwise ACS cannot verify the signature.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Open <code>&#34;Platform Configuration &gt; Policy &gt; and click the button Create Policy&#34;</code></p>
+</li>
+<li>
+<p>Name: <strong>Trusted Signature Policy</strong></p>
+</li>
+<li>
+<p>Severity: <strong>High</strong></p>
+</li>
+<li>
+<p>Categories: <strong>Security Best Practices</strong></p>
+</li>
+<li>
+<p>Click <strong>Next</strong></p>
+</li>
+<li>
+<p>Lifecycle stage: check <strong>Build</strong> and <strong>Deploy</strong></p>
+</li>
+<li>
+<p>Response method: <strong>Inform and enforce</strong> &gt; This will make the Task in the Pipeline fail when the signature cannot be verified.</p>
+</li>
+<li>
+<p>Configure enforcement behavior:</p>
+<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+<p>Activate: <strong>Enforce on Build</strong> &gt; Only fail for build lifecycles.</p>
+</li>
+<li>
+<p>Leave Deployment disabled for now. A good practice would be to enable it, but for other steps in this series, it will be required to keep it disabled for now.</p>
+</li>
+<li>
+<p>Leave Runtime disabled.</p>
+</li>
+</ol>
+</div>
+</li>
+<li>
+<p>Click <strong>Next</strong></p>
+</li>
+<li>
+<p>As policy criteria find &#34;Image Registry &gt; Image signature&#34; and drag and drop it to the policy section</p>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-acs_policy_criteria.png?width=600px" alt="ACS Policy Criteria"/>
+</div>
+<div class="title">Figure 6. ACS Policy Criteria</div>
+</div>
+</li>
+<li>
+<p>Click on <strong>Select</strong> and select the CoSign integration</p>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-acs_assign_cosign.png?width=600px" alt="ACS Assign CoSign integration to policy"/>
+</div>
+<div class="title">Figure 7. ACS Assign CoSign integration to policy</div>
+</div>
+</li>
+<li>
+<p>Click <strong>Next</strong></p>
+</li>
+<li>
+<p>Leave the Policy scope for now and click <strong>Next</strong></p>
+</li>
+<li>
+<p>Review the Policy and <strong>Save</strong> it.</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prepare_the_pipeline_tasks">Prepare the Pipeline Tasks</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now, finally, after all these preparations we are going to integrate ACS into our Pipeline. For this, we will create 2 tasks:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>acs-image-scan</strong>: Will scan the image for vulnerabilities</p>
+</li>
+<li>
+<p><strong>acs-image-check</strong>: Will verify if the image would violate any security policy, especially the custom policy we have created.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Both checks will use the <strong>roxctl</strong> command line tool.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+It is recommended to add these two Tasks to any Pipeline system you are using when you have ACS installed to leverage the full potential of ACS. It does not matter if you are using Tekton, Jenkins or something else. You can find examples of integrations at the Git repository: <a class="bare" href="https://github.com/stackrox/contributions/">https://github.com/stackrox/contributions/</a>.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect2">
+<h3 id="_task_acs_image_scan">Task acs-image-scan</h3>
+<div class="paragraph">
+<p>To scan for vulnerabilities, create the following Task. It leverages the command line tool <strong>roxctl</strong> which can also be used on your local machine to perform such scans manually.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-name: acs-image-scan
-namespace: ci
+  name: acs-image-scan
+  namespace: ci
 spec:
-description: &amp;gt;-
-Scan an image with StackRox/RHACS. This tasks allows you to check an
-image against vulnerabilities.
-params:
-- description: |
-Secret containing the address:port tuple for StackRox Central)
-(example - rox.stackrox.io:443)
-name: rox_central_endpoint
-type: string
-- description: Secret containing the StackRox API token with CI permissions
-name: rox_api_token
-type: string
-- description: |
-Full name of image to scan (example -- gcr.io/rox/sample:5.0-rc1)
-name: image
-type: string
-- default: &amp;#39;false&amp;#39;
-description: |
-When set to `&amp;#34;true&amp;#34;`, skip verifying the TLS certs of the Central
-endpoint. Defaults to `&amp;#34;false&amp;#34;`.
-name: insecure-skip-tls-verify
-type: string
-- default: &amp;#39;registry.access.redhat.com/ubi9@sha256:089bd3b82a78ac45c0eed231bb58bfb43bfcd0560d9bba240fc6355502c92976&amp;#39;
-name: ubi9
-type: string
-results:
-- description: Output of `roxctl image check`
-name: check_output
-type: string
-steps:
-- env: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-- name: ROX_API_TOKEN
-valueFrom:
-secretKeyRef:
-key: rox_api_token
-name: $(params.rox_api_token)
-- name: ROX_CENTRAL_ENDPOINT
-valueFrom:
-secretKeyRef:
-key: rox_central_endpoint
-name: $(params.rox_central_endpoint)
-image: $(params.ubi9)
-name: rox-image-scan
-resources: {}
-script: | &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-#!/usr/bin/env bash
-set +x
-curl -s -k -L -H &amp;#34;Authorization: Bearer $ROX_API_TOKEN&amp;#34; \
-&amp;#34;https://$ROX_CENTRAL_ENDPOINT/api/cli/download/roxctl-linux&amp;#34; \
---output ./roxctl \
-&amp;gt; /dev/null
-chmod +x ./roxctl &amp;gt; /dev/null
-if [ &amp;#34;$(params.insecure-skip-tls-verify)&amp;#34; = &amp;#34;true&amp;#34; ]; then
-export ROX_INSECURE_CLIENT_SKIP_TLS_VERIFY=true
-fi
-./roxctl image scan -e &amp;#34;$ROX_CENTRAL_ENDPOINT&amp;#34; --image &amp;#34;$(params.image)&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Token end endpoint which we defined as Secrets&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Script that downloads and executes the CLI &lt;strong&gt;roxctl&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Calling &amp;#34;&lt;em&gt;roxctl image scan&lt;/em&gt;&amp;#34;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_task_image_check"&gt;Task Image Check&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To verify the policies that are configured in ACS we create the Task &lt;strong&gt;acs-image-check&lt;/strong&gt;.
-We will use the command line tool roxctl again.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-ACS comes with several (80+) build-in policies. Some of them are activated, but none of them configured to enforce a policy. Except, the policy &lt;strong&gt;Trusted Signature Policy&lt;/strong&gt; we have created above.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: tekton.dev/v1beta1
+  description: &gt;-
+    Scan an image with StackRox/RHACS. This tasks allows you to check an
+    image against vulnerabilities.
+  params:
+    - description: |
+        Secret containing the address:port tuple for StackRox Central)
+        (example - rox.stackrox.io:443)
+      name: rox_central_endpoint
+      type: string
+    - description: Secret containing the StackRox API token with CI permissions
+      name: rox_api_token
+      type: string
+    - description: |
+        Full name of image to scan (example -- gcr.io/rox/sample:5.0-rc1)
+      name: image
+      type: string
+    - default: &#39;false&#39;
+      description: |
+        When set to `&#34;true&#34;`, skip verifying the TLS certs of the Central
+        endpoint.  Defaults to `&#34;false&#34;`.
+      name: insecure-skip-tls-verify
+      type: string
+    - default: &#39;registry.access.redhat.com/ubi9@sha256:089bd3b82a78ac45c0eed231bb58bfb43bfcd0560d9bba240fc6355502c92976&#39;
+      name: ubi9
+      type: string
+  results:
+    - description: Output of `roxctl image check`
+      name: check_output
+      type: string
+  steps:
+    - env: <i class="conum" data-value="1"></i><b>(1)</b>
+        - name: ROX_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: rox_api_token
+              name: $(params.rox_api_token)
+        - name: ROX_CENTRAL_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              key: rox_central_endpoint
+              name: $(params.rox_central_endpoint)
+      image: $(params.ubi9)
+      name: rox-image-scan
+      resources: {}
+      script: | <i class="conum" data-value="2"></i><b>(2)</b>
+        #!/usr/bin/env bash
+
+        set +x
+
+        curl -s -k -L -H &#34;Authorization: Bearer $ROX_API_TOKEN&#34; \
+          &#34;https://$ROX_CENTRAL_ENDPOINT/api/cli/download/roxctl-linux&#34; \
+          --output ./roxctl  \
+          &gt; /dev/null
+
+        chmod +x ./roxctl  &gt; /dev/null
+
+        if [ &#34;$(params.insecure-skip-tls-verify)&#34; = &#34;true&#34; ]; then
+
+          export ROX_INSECURE_CLIENT_SKIP_TLS_VERIFY=true
+
+        fi
+
+        ./roxctl image scan -e &#34;$ROX_CENTRAL_ENDPOINT&#34; --image &#34;$(params.image)&#34; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Token end endpoint which we defined as Secrets</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Script that downloads and executes the CLI <strong>roxctl</strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Calling &#34;<em>roxctl image scan</em>&#34;</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_task_image_check">Task Image Check</h3>
+<div class="paragraph">
+<p>To verify the policies that are configured in ACS we create the Task <strong>acs-image-check</strong>.
+We will use the command line tool roxctl again.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+ACS comes with several (80+) build-in policies. Some of them are activated, but none of them configured to enforce a policy. Except, the policy <strong>Trusted Signature Policy</strong> we have created above.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-name: acs-image-check
-namespace: ci
+  name: acs-image-check
+  namespace: ci
 spec:
-description: &amp;gt;-
-Policy check an image with StackRox/RHACS This tasks allows you to check an
-image against build-time policies and apply enforcement to fail builds. It&amp;#39;s
-a companion to the stackrox-image-scan task, which returns full
-vulnerability scan results for an image.
-params:
-- description: |
-Secret containing the address:port tuple for StackRox Central)
-(example - rox.stackrox.io:443)
-name: rox_central_endpoint
-type: string
-- description: Secret containing the StackRox API token with CI permissions
-name: rox_api_token
-type: string
-- description: |
-Full name of image to scan (example -- gcr.io/rox/sample:5.0-rc1)
-name: image
-type: string
-- default: &amp;#39;false&amp;#39;
-description: |
-When set to `&amp;#34;true&amp;#34;`, skip verifying the TLS certs of the Central
-endpoint. Defaults to `&amp;#34;false&amp;#34;`.
-name: insecure-skip-tls-verify
-type: string
-- default: &amp;#39;registry.access.redhat.com/ubi9@sha256:089bd3b82a78ac45c0eed231bb58bfb43bfcd0560d9bba240fc6355502c92976&amp;#39;
-name: ubi9
-type: string
-results:
-- description: Output of `roxctl image check`
-name: check_output
-type: string
-steps:
-- env: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-- name: ROX_API_TOKEN
-valueFrom:
-secretKeyRef:
-key: rox_api_token
-name: $(params.rox_api_token)
-- name: ROX_CENTRAL_ENDPOINT
-valueFrom:
-secretKeyRef:
-key: rox_central_endpoint
-name: $(params.rox_central_endpoint)
-image: $(params.ubi9)
-name: rox-image-check
-resources: {}
-script: |
-#!/usr/bin/env bash &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-set +x
-curl -s -k -L -H &amp;#34;Authorization: Bearer $ROX_API_TOKEN&amp;#34; \
-&amp;#34;https://$ROX_CENTRAL_ENDPOINT/api/cli/download/roxctl-linux&amp;#34; \
---output ./roxctl \
-&amp;gt; /dev/null
-chmod +x ./roxctl &amp;gt; /dev/null
-if [ &amp;#34;$(params.insecure-skip-tls-verify)&amp;#34; = &amp;#34;true&amp;#34; ]; then
-export ROX_INSECURE_CLIENT_SKIP_TLS_VERIFY=true
-fi
-./roxctl image check -e &amp;#34;$ROX_CENTRAL_ENDPOINT&amp;#34; --image &amp;#34;$(params.image)&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Token end endpoint which we defined as Secrets&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Script that downloads and executes the CLI &lt;strong&gt;roxctl&lt;/strong&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Calling &amp;#34;&lt;em&gt;roxctl image check&lt;/em&gt;&amp;#34;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_extend_the_pipeline"&gt;Extend the Pipeline&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now it is time to extend our Pipeline with the two tasks. Add the following blocks to the Pipeline &lt;strong&gt;secure-supply-chain&lt;/strong&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yml hljs" data-lang="yml"&gt; - name: acs-image-scan &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-params: &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-- name: rox_central_endpoint
-value: stackrox-endpoint
-- name: rox_api_token
-value: stackrox-secret
-- name: image
-value: &amp;#39;$(params.IMAGE_REPO):$(params.IMAGE_TAG)&amp;#39;
-- name: insecure-skip-tls-verify &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-value: &amp;#39;true&amp;#39;
-runAfter: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- build-sign-image
-taskRef:
-kind: Task
-name: acs-image-scan
-- name: acs-image-check &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-params: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-- name: rox_central_endpoint
-value: stackrox-endpoint
-- name: rox_api_token
-value: stackrox-secret
-- name: image
-value: &amp;#39;$(params.IMAGE_REPO):$(params.IMAGE_TAG)&amp;#39;
-- name: insecure-skip-tls-verify &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-value: &amp;#39;true&amp;#39;
-runAfter:
-- build-sign-image &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
-taskRef:
-kind: Task
-name: acs-image-check&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Scanning for vulnerabilities&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Provide parameters to the Task&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Set to &amp;#39;false&amp;#39; if you have valid certificates.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Run after the Task &amp;#34;build-sign-image&amp;#34;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Scanning security policies&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Provide parameters to the Task&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Set to &amp;#39;false&amp;#39; if you have valid certificates.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Run after the Task &amp;#34;build-sign-image&amp;#34;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Pipeline will now look like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-pipeline.png" alt="Pipeline Details"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 8. Pipeline Details&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_execute_the_pipeline"&gt;Execute the Pipeline&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s trigger another PipelineRun by updating the &lt;strong&gt;README.md&lt;/strong&gt; of our source code.
-While the previous Tasks should run successfully, let’s monitor our two ACS tasks. However, now the Pipeline is running quite long already. This means it is time for a coffee.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Still here? Good, eventually our two ACS tasks have finished successfully.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Task &lt;strong&gt;image-scan&lt;/strong&gt; is looking for vulnerabilities and did not find any high-severity issues.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-acs_scan.png?width=600px" alt="ACS Image Scan Result"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 9. ACS Image Scan Result&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Task &lt;strong&gt;image-check&lt;/strong&gt; verified the security policies. You can see in the Logs that the &lt;strong&gt;*Trusted Signature Policy&lt;/strong&gt; was not violated. Another might be shown, but since all other policies are configured to notify only (instead of &amp;#34;enforce&amp;#34;), the whole Task will end successfully. This is good enough for our first tests. The important bit is that the image has been signed.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/securesupplychain/images/step6-acs_check.png?width=600px" alt="ACS Image Check Result"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 10. ACS Image Check Result&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_summary"&gt;Summary&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now we have integrated ACS and are using its powers to scan images for vulnerabilities and check them against security policies. Two Tasks have been created that are executed after the image has been built and are leveraging ACS’s command line tool &lt;strong&gt;roxctl&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Whenever vulnerabilities are found, or security policies are violated (if the policy is set to &lt;strong&gt;enforce&lt;/strong&gt;) the Pipeline will fail.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Such tasks should be built in any pipeline you are creating, independently of using ACS or any other security verification tool.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In the next step, we will create a Task that creates a Software Bill of Material (SBOM) for us.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Advanced Cluster Security - Authentication</title><link>https://blog.stderr.at/openshift-platform/security/acs/2021-12-11-acsauth/</link><pubDate>Sat, 11 Dec 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/security/acs/2021-12-11-acsauth/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Red Hat Advanced Cluster Security (RHACS) Central is installed with one administrator user by default. Typically, customers request an integration with existing Identity Provider(s) (IDP). RHACS offers different options for such integration. In this article 2 IDPs will be configured as an example. First OpenShift Auth and second Red Hat Single Sign On (RHSSO) based on Keycloak&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;OpenShift 4 Cluster&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Advanced Cluster Security v3.66+&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Red Hat SSO Operator installed&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock warning"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-warning" title="Warning"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  description: &gt;-
+    Policy check an image with StackRox/RHACS This tasks allows you to check an
+    image against build-time policies and apply enforcement to fail builds. It&#39;s
+    a companion to the stackrox-image-scan task, which returns full
+    vulnerability scan results for an image.
+  params:
+    - description: |
+        Secret containing the address:port tuple for StackRox Central)
+        (example - rox.stackrox.io:443)
+      name: rox_central_endpoint
+      type: string
+    - description: Secret containing the StackRox API token with CI permissions
+      name: rox_api_token
+      type: string
+    - description: |
+        Full name of image to scan (example -- gcr.io/rox/sample:5.0-rc1)
+      name: image
+      type: string
+    - default: &#39;false&#39;
+      description: |
+        When set to `&#34;true&#34;`, skip verifying the TLS certs of the Central
+        endpoint.  Defaults to `&#34;false&#34;`.
+      name: insecure-skip-tls-verify
+      type: string
+    - default: &#39;registry.access.redhat.com/ubi9@sha256:089bd3b82a78ac45c0eed231bb58bfb43bfcd0560d9bba240fc6355502c92976&#39;
+      name: ubi9
+      type: string
+  results:
+    - description: Output of `roxctl image check`
+      name: check_output
+      type: string
+  steps:
+    - env: <i class="conum" data-value="1"></i><b>(1)</b>
+        - name: ROX_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: rox_api_token
+              name: $(params.rox_api_token)
+        - name: ROX_CENTRAL_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              key: rox_central_endpoint
+              name: $(params.rox_central_endpoint)
+      image: $(params.ubi9)
+      name: rox-image-check
+      resources: {}
+      script: |
+        #!/usr/bin/env bash <i class="conum" data-value="2"></i><b>(2)</b>
+
+        set +x
+
+        curl -s -k -L -H &#34;Authorization: Bearer $ROX_API_TOKEN&#34; \
+          &#34;https://$ROX_CENTRAL_ENDPOINT/api/cli/download/roxctl-linux&#34; \
+          --output ./roxctl  \
+          &gt; /dev/null
+
+        chmod +x ./roxctl  &gt; /dev/null
+
+        if [ &#34;$(params.insecure-skip-tls-verify)&#34; = &#34;true&#34; ]; then
+
+          export ROX_INSECURE_CLIENT_SKIP_TLS_VERIFY=true
+
+        fi
+
+        ./roxctl image check -e &#34;$ROX_CENTRAL_ENDPOINT&#34; --image &#34;$(params.image)&#34; <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Token end endpoint which we defined as Secrets</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Script that downloads and executes the CLI <strong>roxctl</strong></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Calling &#34;<em>roxctl image check</em>&#34;</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_extend_the_pipeline">Extend the Pipeline</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now it is time to extend our Pipeline with the two tasks. Add the following blocks to the Pipeline <strong>secure-supply-chain</strong>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yml hljs" data-lang="yml">    - name: acs-image-scan <i class="conum" data-value="1"></i><b>(1)</b>
+      params: <i class="conum" data-value="2"></i><b>(2)</b>
+        - name: rox_central_endpoint
+          value: stackrox-endpoint
+        - name: rox_api_token
+          value: stackrox-secret
+        - name: image
+          value: &#39;$(params.IMAGE_REPO):$(params.IMAGE_TAG)&#39;
+        - name: insecure-skip-tls-verify <i class="conum" data-value="3"></i><b>(3)</b>
+          value: &#39;true&#39;
+      runAfter: <i class="conum" data-value="4"></i><b>(4)</b>
+        - build-sign-image
+      taskRef:
+        kind: Task
+        name: acs-image-scan
+    - name: acs-image-check <i class="conum" data-value="5"></i><b>(5)</b>
+      params: <i class="conum" data-value="6"></i><b>(6)</b>
+        - name: rox_central_endpoint
+          value: stackrox-endpoint
+        - name: rox_api_token
+          value: stackrox-secret
+        - name: image
+          value: &#39;$(params.IMAGE_REPO):$(params.IMAGE_TAG)&#39;
+        - name: insecure-skip-tls-verify <i class="conum" data-value="7"></i><b>(7)</b>
+          value: &#39;true&#39;
+      runAfter:
+        - build-sign-image <i class="conum" data-value="8"></i><b>(8)</b>
+      taskRef:
+        kind: Task
+        name: acs-image-check</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Scanning for vulnerabilities</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Provide parameters to the Task</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Set to &#39;false&#39; if you have valid certificates.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Run after the Task &#34;build-sign-image&#34;</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Scanning security policies</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Provide parameters to the Task</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Set to &#39;false&#39; if you have valid certificates.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>Run after the Task &#34;build-sign-image&#34;</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The Pipeline will now look like this:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-pipeline.png" alt="Pipeline Details"/>
+</div>
+<div class="title">Figure 8. Pipeline Details</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_execute_the_pipeline">Execute the Pipeline</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s trigger another PipelineRun by updating the <strong>README.md</strong> of our source code.
+While the previous Tasks should run successfully, let’s monitor our two ACS tasks. However, now the Pipeline is running quite long already. This means it is time for a coffee.</p>
+</div>
+<div class="paragraph">
+<p>Still here? Good, eventually our two ACS tasks have finished successfully.</p>
+</div>
+<div class="paragraph">
+<p>The Task <strong>image-scan</strong> is looking for vulnerabilities and did not find any high-severity issues.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-acs_scan.png?width=600px" alt="ACS Image Scan Result"/>
+</div>
+<div class="title">Figure 9. ACS Image Scan Result</div>
+</div>
+<div class="paragraph">
+<p>The Task <strong>image-check</strong> verified the security policies. You can see in the Logs that the <strong>*Trusted Signature Policy</strong> was not violated. Another might be shown, but since all other policies are configured to notify only (instead of &#34;enforce&#34;), the whole Task will end successfully. This is good enough for our first tests. The important bit is that the image has been signed.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/securesupplychain/images/step6-acs_check.png?width=600px" alt="ACS Image Check Result"/>
+</div>
+<div class="title">Figure 10. ACS Image Check Result</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now we have integrated ACS and are using its powers to scan images for vulnerabilities and check them against security policies. Two Tasks have been created that are executed after the image has been built and are leveraging ACS’s command line tool <strong>roxctl</strong></p>
+</div>
+<div class="paragraph">
+<p>Whenever vulnerabilities are found, or security policies are violated (if the policy is set to <strong>enforce</strong>) the Pipeline will fail.</p>
+</div>
+<div class="paragraph">
+<p>Such tasks should be built in any pipeline you are creating, independently of using ACS or any other security verification tool.</p>
+</div>
+<div class="paragraph">
+<p>In the next step, we will create a Task that creates a Software Bill of Material (SBOM) for us.</p>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Advanced Cluster Security - Authentication</title><link>https://blog.stderr.at/openshift-platform/security/acs/2021-12-11-acsauth/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/acs/2021-12-11-acsauth/</guid><pubDate>Sat, 11 Dec 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>Security</category><category>Advanced Cluster Security</category><description>Red Hat Advanced Cluster Security - Authentication</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Red Hat Advanced Cluster Security (RHACS) Central is installed with one administrator user by default. Typically, customers request an integration with existing Identity Provider(s) (IDP). RHACS offers different options for such integration. In this article 2 IDPs will be configured as an example. First OpenShift Auth and second Red Hat Single Sign On (RHSSO) based on Keycloak</p>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>OpenShift 4 Cluster</p>
+</li>
+<li>
+<p>Advanced Cluster Security v3.66+</p>
+</li>
+<li>
+<p>Red Hat SSO Operator installed</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
 While RHSSO will be installed during this article, only default and example values are used. These are by no means examples for a production system.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Advanced Cluster Security comes with several default roles, which can be assigned to users:&lt;/p&gt;
-&lt;/div&gt;
-&lt;table class="tableblock frame-all grid-all stretch"&gt;
-&lt;colgroup&gt;
-&lt;col style="width: 33.3333%;"/&gt;
-&lt;col style="width: 66.6667%;"/&gt;
-&lt;/colgroup&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th class="tableblock halign-left valign-top"&gt;System role&lt;/th&gt;
-&lt;th class="tableblock halign-left valign-top"&gt;Description&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Admin&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role is targeted for administrators. Use it to provide read and write access to all resources.&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Analyst&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role is targeted for a user who cannot make any changes, but can view everything. Use it to provide read-only access for all resources.&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Continuous Integration&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role is targeted for CI (continuous integration) systems and includes the permission set required to enforce deployment policies.&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;None&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role has no read and write access to any resource. You can set this role as the minimum access role for all users.&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Sensor Creator&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Red Hat Advanced Cluster Security for Kubernetes uses this role to automate new cluster setups. It includes the permission set to create Sensors in secured clusters.&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;Scope Manager&lt;/p&gt;&lt;/td&gt;
-&lt;td class="tableblock halign-left valign-top"&gt;&lt;p class="tableblock"&gt;This role includes the minimum permissions required to create and modify access scopes.&lt;/p&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Advanced Cluster Security comes with several default roles, which can be assigned to users:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;"/>
+<col style="width: 66.6667%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">System role</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Admin</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">This role is targeted for administrators. Use it to provide read and write access to all resources.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Analyst</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">This role is targeted for a user who cannot make any changes, but can view everything. Use it to provide read-only access for all resources.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Continuous Integration</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">This role is targeted for CI (continuous integration) systems and includes the permission set required to enforce deployment policies.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">None</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">This role has no read and write access to any resource. You can set this role as the minimum access role for all users.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sensor Creator</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Red Hat Advanced Cluster Security for Kubernetes uses this role to automate new cluster setups. It includes the permission set to create Sensors in secured clusters.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scope Manager</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">This role includes the minimum permissions required to create and modify access scopes.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 It is possible to create custom roles.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_rhacs_authentication_openshift_auth"&gt;Configure RHACS Authentication: OpenShift Auth&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_rhacs_authentication_openshift_auth">Configure RHACS Authentication: OpenShift Auth</h2>
+<div class="sectionbody">
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 It is assumed that RHACS is already installed and login to the Central UI is available.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Login to your RHACS and select “Platform Configuration” &amp;gt; “Access Control”&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;From the drop down menu &lt;strong&gt;Add auth provider&lt;/strong&gt; select &lt;strong&gt;OpenShift Auth&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/acs/images/ACS-AuthProvider.png?width=940px" alt="ACS AuthProvider"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 1. ACS Auth Provider&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Enter a &lt;strong&gt;Name&lt;/strong&gt; for your provider and select a default role which is assigned to any user who can authenticate.&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It is recommended to select the role &lt;strong&gt;None&lt;/strong&gt;, so new accounts will have no privileges in RHACS.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For example the user with the name &lt;strong&gt;poweruser&lt;/strong&gt; gets the role &lt;strong&gt;Admin&lt;/strong&gt; assigned.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_verify_authentication_with_openshift_auth"&gt;Verify Authentication with OpenShift Auth&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Logout from the Central UI and reload the browser.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Select from the drop down &lt;strong&gt;OpenShift Auth&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/acs/images/ACS-LoginOpenShiftAuth.png?width=420px" alt="ACS LoginOpenShiftAuth"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 2. ACS Login&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Try to login with a valid OpenShift user.&lt;br/&gt;
-Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.&lt;br/&gt;
-For example: If you login as user &lt;strong&gt;poweruser&lt;/strong&gt; the role &lt;strong&gt;Admin&lt;/strong&gt; is assigned.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;hr/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_red_hat_single_sign_on"&gt;Configure Red Hat Single Sign On&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following steps will create some basic example objects to an existing RHSSO or Keycloak to test the authentication at RHACS.
-Skip to step #5 if you have Keycloak already up and running and would like to reuse an existing client.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The RHSSO operator (or Keycloak) is installed at the namespace &lt;strong&gt;single-sign-on&lt;/strong&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Create an instance of Keycloak&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: keycloak.org/v1alpha1
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Login to your RHACS and select “Platform Configuration” &gt; “Access Control”</p>
+</li>
+<li>
+<p>From the drop down menu <strong>Add auth provider</strong> select <strong>OpenShift Auth</strong></p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/acs/images/ACS-AuthProvider.png?width=940px" alt="ACS AuthProvider"/>
+</div>
+<div class="title">Figure 1. ACS Auth Provider</div>
+</div>
+</li>
+<li>
+<p>Enter a <strong>Name</strong> for your provider and select a default role which is assigned to any user who can authenticate.</p>
+<div class="paragraph">
+<p>It is recommended to select the role <strong>None</strong>, so new accounts will have no privileges in RHACS.</p>
+</div>
+<div class="paragraph">
+<p>With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.</p>
+</div>
+<div class="paragraph">
+<p>For example the user with the name <strong>poweruser</strong> gets the role <strong>Admin</strong> assigned.</p>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_verify_authentication_with_openshift_auth">Verify Authentication with OpenShift Auth</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Logout from the Central UI and reload the browser.</p>
+</li>
+<li>
+<p>Select from the drop down <strong>OpenShift Auth</strong></p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/acs/images/ACS-LoginOpenShiftAuth.png?width=420px" alt="ACS LoginOpenShiftAuth"/>
+</div>
+<div class="title">Figure 2. ACS Login</div>
+</div>
+</li>
+<li>
+<p>Try to login with a valid OpenShift user.<br/>
+Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.<br/>
+For example: If you login as user <strong>poweruser</strong> the role <strong>Admin</strong> is assigned.</p>
+</li>
+</ol>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_red_hat_single_sign_on">Configure Red Hat Single Sign On</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The following steps will create some basic example objects to an existing RHSSO or Keycloak to test the authentication at RHACS.
+Skip to step #5 if you have Keycloak already up and running and would like to reuse an existing client.</p>
+</div>
+<div class="paragraph">
+<p>The RHSSO operator (or Keycloak) is installed at the namespace <strong>single-sign-on</strong>.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Create an instance of Keycloak</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: keycloak.org/v1alpha1
 kind: Keycloak
 metadata:
-name: example-keycloak
-namespace: single-sign-on
+  name: example-keycloak
+  namespace: single-sign-on
 spec:
-externalAccess:
-enabled: true
-instances: 1&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create a Realm&lt;br/&gt;
-This will create a Realm called &lt;strong&gt;Basic&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: keycloak.org/v1alpha1
+  externalAccess:
+    enabled: true
+  instances: 1</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Create a Realm<br/>
+This will create a Realm called <strong>Basic</strong></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: keycloak.org/v1alpha1
 kind: KeycloakRealm
 metadata:
-name: example-keycloakrealm
-namespace: single-sign-on
+ name: example-keycloakrealm
+ namespace: single-sign-on
 spec:
-instanceSelector:
-matchLabels:
-app: sso
-realm:
-displayName: Basic Realm
-enabled: true
-id: basic
-realm: basic&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Login into Red Hat SSO&lt;br/&gt;
-Get the route to your RHSSO instance:&lt;/p&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc get route keycloak -n single-sign-on --template=&amp;#39;{{ .spec.host }}&amp;#39;
-# keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;and log into the Administration Interface.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Extract the admin password for Keycloak&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The secret name is build from &amp;#34;credential&amp;#34;&amp;lt;keycloak-instance-name&amp;gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc extract secret/credential-example-keycloak -n single-sign-on --to=-
+ instanceSelector:
+   matchLabels:
+     app: sso
+ realm:
+   displayName: Basic Realm
+   enabled: true
+   id: basic
+   realm: basic</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Login into Red Hat SSO<br/>
+Get the route to your RHSSO instance:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get route keycloak -n single-sign-on --template=&#39;{{ .spec.host }}&#39;
+
+# keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>and log into the Administration Interface.</p>
+</div>
+</li>
+<li>
+<p>Extract the admin password for Keycloak</p>
+<div class="paragraph">
+<p>The secret name is build from &#34;credential&#34;&lt;keycloak-instance-name&gt;</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc extract secret/credential-example-keycloak -n single-sign-on --to=-
+
 # ADMIN_PASSWORD
-&amp;lt;you password&amp;gt;
+&lt;you password&gt;
 # ADMIN_USERNAME
-admin&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Be sure to select your Realm (&lt;strong&gt;Basic&lt;/strong&gt; in our case), goto &lt;strong&gt;Clients&lt;/strong&gt; and select a ClientID.&lt;/p&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;In this example we select &lt;strong&gt;account&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/acs/images/ACS-SSOClientConfig.png?width=640px" alt="ACS SSOClientConfig"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 3. ACS Login&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+admin</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Be sure to select your Realm (<strong>Basic</strong> in our case), goto <strong>Clients</strong> and select a ClientID.</p>
+<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+<p>In this example we select <strong>account</strong></p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/acs/images/ACS-SSOClientConfig.png?width=640px" alt="ACS SSOClientConfig"/>
+</div>
+<div class="title">Figure 3. ACS Login</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Of course you can create or use any other Client.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Enable the option &lt;strong&gt;Implicit Flow&lt;/strong&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Get the &lt;strong&gt;Issuer URL&lt;/strong&gt; from your realm. This is typically your:&lt;br/&gt;
-&lt;a class="bare" href="https://&amp;lt;KEYCLOAK_URL&amp;gt;/auth/realms/&amp;lt;REALM_NAME&amp;gt;"&gt;https://&amp;lt;KEYCLOAK_URL&amp;gt;/auth/realms/&amp;lt;REALM_NAME&amp;gt;&lt;/a&gt;;&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For Example:
-&lt;a class="bare" href="https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic"&gt;https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_create_test_users"&gt;Create Test Users&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In RHSSO create 2 user accounts to test the authentication later.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Goto &lt;strong&gt;Users&lt;/strong&gt; and create the users:&lt;/p&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;User: acsadmin&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;First Name: acsadmin&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;User: user1&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;First Name: user 1&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;You can set any other values for these users. However, be sure to set a password for both, after they have been created.&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_configure_rhacs_authentication_rhsso"&gt;Configure RHACS Authentication: RHSSO&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>Enable the option <strong>Implicit Flow</strong></p>
+</li>
+</ol>
+</div>
+</li>
+<li>
+<p>Get the <strong>Issuer URL</strong>  from your realm. This is typically your:<br/>
+<a class="bare" href="https://&lt;KEYCLOAK_URL&gt;/auth/realms/&lt;REALM_NAME&gt;">https://&lt;KEYCLOAK_URL&gt;/auth/realms/&lt;REALM_NAME&gt;</a>;</p>
+<div class="paragraph">
+<p>For Example:
+<a class="bare" href="https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic">https://keycloak-single-sign-on.apps.cluster-29t8z.29t8z.sandbox677.opentlc.com/auth/realms/basic</a></p>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_create_test_users">Create Test Users</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In RHSSO create 2 user accounts to test the authentication later.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Goto <strong>Users</strong> and create the users:</p>
+<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+<p>User: acsadmin</p>
+<div class="paragraph">
+<p>First Name: acsadmin</p>
+</div>
+</li>
+<li>
+<p>User: user1</p>
+<div class="paragraph">
+<p>First Name: user 1</p>
+</div>
+</li>
+</ol>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><strong>You can set any other values for these users. However, be sure to set a password for both, after they have been created.</strong></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_rhacs_authentication_rhsso">Configure RHACS Authentication: RHSSO</h2>
+<div class="sectionbody">
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 It is assumed that RSACS is already installed and login to the Central UI is available.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Login to your RHACS and select “Platform Configuration” &amp;gt; “Access Control”&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;From the drop down menu &lt;strong&gt;Add auth provider&lt;/strong&gt; select &lt;strong&gt;OpenID Connect&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="olist loweralpha"&gt;
-&lt;ol class="loweralpha" type="a"&gt;
-&lt;li&gt;
-&lt;p&gt;Enter a “Name” for your provider i.e. “Single Sign On”&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Leave the “Callback Mode” to the “Auto-Select” setting&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Enter your Issuer URL&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;As Client ID enter &lt;strong&gt;account&lt;/strong&gt; (or the ClientID you would like to use)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Leave the Client Secret empty and select the checkbox &lt;strong&gt;Do not use Client Secret&lt;/strong&gt; which is good enough for our tests.&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Remember the two callback URL from the blue box. They must be configured in Keycloak.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Select a default role which is assigned to any user who can authenticate.&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It is recommended to select the role &lt;strong&gt;None&lt;/strong&gt;, so new accounts will have no privileges in RHACS.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;For example the user with the name &lt;strong&gt;acsadmin&lt;/strong&gt; (which have been created previously in our RHSSO) gets the role &lt;strong&gt;Admin&lt;/strong&gt; assigned.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The final settings are depict in the following image:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/acs/images/ACS-OpenIDConfig.png?width=640px" alt="ACS OpenIDConfig"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 4. ACS Login&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_continue_rhsso_configuration"&gt;Continue RHSSO Configuration&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;What is left to do is the configuration of redirect URLs. These URLs are shown in the ACS Authentication Provider configuration (see blue field in the image above)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Log back into RHSSO and select “Clients” &amp;gt; “account”&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Into &lt;strong&gt;Valid Redirect URLs&lt;/strong&gt; enter the two URLs which you saved from the blue box in the RHACS configuration.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_troubleshoot_test_login"&gt;Troubleshoot: Test Login&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In RHACS you can test the login to you SSO.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Goto &amp;#34;Platform Configuration&amp;#34; &amp;gt; &amp;#34;Access Control&amp;#34;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Click the button &amp;#34;Test login&amp;#34;&lt;/p&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;A popup will appear which asks you to enter SSO credentials. The connection to RHSSO will be validated:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/acs/images/ACS-TestSSOAuth.png?width=420px" alt="ACS TestSSOAuth"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 5. ACS Test SSO&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_verify_authentication_with_openshift_auth_2"&gt;Verify Authentication with OpenShift Auth&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Logout from the Central UI and reload the browser.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Select from the drop down &lt;strong&gt;Single Sign On&lt;/strong&gt;&lt;/p&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/security/acs/images/ACS-LoginSSOAuth.png?width=420px" alt="ACS LoginSSOAuth"/&gt;
-&lt;/div&gt;
-&lt;div class="title"&gt;Figure 6. ACS Login SSO&lt;/div&gt;
-&lt;/div&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Try to login with a valid SSO user.&lt;br/&gt;
-Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.&lt;br/&gt;
-For example: If you login as user &lt;strong&gt;acsadmin&lt;/strong&gt; the role &lt;strong&gt;Admin&lt;/strong&gt; is assigned.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item></channel></rss>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Login to your RHACS and select “Platform Configuration” &gt; “Access Control”</p>
+</li>
+<li>
+<p>From the drop down menu <strong>Add auth provider</strong> select <strong>OpenID Connect</strong></p>
+<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+<p>Enter a “Name” for your provider i.e. “Single Sign On”</p>
+</li>
+<li>
+<p>Leave the “Callback Mode” to the “Auto-Select” setting</p>
+</li>
+<li>
+<p>Enter your Issuer URL</p>
+</li>
+<li>
+<p>As Client ID enter <strong>account</strong> (or the ClientID you would like to use)</p>
+</li>
+<li>
+<p>Leave the Client Secret empty and select the checkbox <strong>Do not use Client Secret</strong> which is good enough for our tests.</p>
+<div class="paragraph">
+<p>Remember the two callback URL from the blue box. They must be configured in Keycloak.</p>
+</div>
+</li>
+<li>
+<p>Select a default role which is assigned to any user who can authenticate.</p>
+<div class="paragraph">
+<p>It is recommended to select the role <strong>None</strong>, so new accounts will have no privileges in RHACS.</p>
+</div>
+</li>
+<li>
+<p>With Rules you can assign roles to specific users, based on their userid, name, mail address or groups.</p>
+</li>
+<li>
+<p>For example the user with the name <strong>acsadmin</strong> (which have been created previously in our RHSSO) gets the role <strong>Admin</strong> assigned.</p>
+</li>
+</ol>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The final settings are depict in the following image:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/acs/images/ACS-OpenIDConfig.png?width=640px" alt="ACS OpenIDConfig"/>
+</div>
+<div class="title">Figure 4. ACS Login</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_continue_rhsso_configuration">Continue RHSSO Configuration</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>What is left to do is the configuration of redirect URLs. These URLs are shown in the ACS Authentication Provider configuration (see blue field in the image above)</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Log back into RHSSO and select “Clients” &gt; “account”</p>
+</li>
+<li>
+<p>Into <strong>Valid Redirect URLs</strong> enter the two URLs which you saved from the blue box in the RHACS configuration.</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_troubleshoot_test_login">Troubleshoot: Test Login</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In RHACS you can test the login to you SSO.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Goto &#34;Platform Configuration&#34; &gt; &#34;Access Control&#34;</p>
+</li>
+<li>
+<p>Click the button &#34;Test login&#34;</p>
+<div class="paragraph">
+<p>A popup will appear which asks you to enter SSO credentials. The connection to RHSSO will be validated:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/acs/images/ACS-TestSSOAuth.png?width=420px" alt="ACS TestSSOAuth"/>
+</div>
+<div class="title">Figure 5. ACS Test SSO</div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_verify_authentication_with_openshift_auth_2">Verify Authentication with OpenShift Auth</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Logout from the Central UI and reload the browser.</p>
+</li>
+<li>
+<p>Select from the drop down <strong>Single Sign On</strong></p>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/acs/images/ACS-LoginSSOAuth.png?width=420px" alt="ACS LoginSSOAuth"/>
+</div>
+<div class="title">Figure 6. ACS Login SSO</div>
+</div>
+</li>
+<li>
+<p>Try to login with a valid SSO user.<br/>
+Depending on the Rules which have been defined during previous steps the appropriate permissions should be assigned.<br/>
+For example: If you login as user <strong>acsadmin</strong> the role <strong>Admin</strong> is assigned.</p>
+</li>
+</ol>
+</div>
+</div>
+</div>]]></content:encoded></item></channel></rss>

@@ -20,6 +20,8 @@ cat modular/components/tags.css >> "$OUTPUT"
 cat modular/components/code.css >> "$OUTPUT"
 cat modular/components/notices.css >> "$OUTPUT"
 cat modular/components/animations.css >> "$OUTPUT"
+cat modular/components/theme-toggle.css >> "$OUTPUT" 2>/dev/null || true
+cat modular/components/yaub-additions.css >> "$OUTPUT"
 cat modular/utilities.css >> "$OUTPUT"
 cat modular/responsive.css >> "$OUTPUT"
 

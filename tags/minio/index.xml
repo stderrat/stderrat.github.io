@@ -1,858 +1,864 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>MinIO on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/minio/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 17 May 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/minio/index.xml" rel="self" type="application/rss+xml"/><item><title>[Ep.7] Configure Buckets in MinIO</title><link>https://blog.stderr.at/gitopscollection/2024-05-17-configure-minio-buckets/</link><pubDate>Fri, 17 May 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/gitopscollection/2024-05-17-configure-minio-buckets/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;a href="https://min.io/" rel="noopener" target="_blank"&gt;MinIO&lt;/a&gt; is a simple, S3-compatible object storage, built for high-performance and large-scale environments. It can be installed as an Operator to Openshift. In addition, to a command line tool, it provides a WebUI where all settings can be done, especially creating and configuring new buckets. Currently, this is not possible in a declarative GitOps-friendly way.
-Therefore, I created the Helm chart &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" rel="noopener" target="_blank"&gt;minio configurator&lt;/a&gt;, that will start a Kubernetes Job, which will take care of the configuration.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Honestly, when I say I have created it, the truth is, that it is based on an existing &lt;a href="https://github.com/bitnami/charts/tree/main/bitnami/minio" rel="noopener" target="_blank"&gt;MinIO Chart by Bitnami&lt;/a&gt;, that does much more than just set up a bucket. I took out the bucket configuration part, streamlined it a bit and added some new features, which I required.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This article shall explain how to achieve this.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Argo CD (OpenShift GitOps) deployed&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;MinIO including a deployed tenant that is waiting for buckets&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_introduction"&gt;Introduction&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After MinIO and the Tenant have been deployed, we can &lt;strong&gt;configure and update&lt;/strong&gt; a bucket, users, policies and more. Since I do not want to do this manually, the Helm Chart that will be described here creates a Kubernetes Job that leverages the &lt;strong&gt;mc command line tool&lt;/strong&gt; to execute certain tasks automatically. The chart will take care of:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;creating a lifecycle policy&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;creating an access policy&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;creating a new user/group. User credentials might be added directly to the values file or, better, are imported as a secret&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;attaching policies to a user/group&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;creating a bucket&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;set a quota for a bucket&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;set tags for a bucket&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;enable versioning for a bucket&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;enable object locking for a bucket (&lt;strong&gt;be aware&lt;/strong&gt; that this can only be enabled during the bucket creation)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;enable bucket replication to a target cluster/bucket&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;execute possible extra commands that are configured in the values file&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To perform all these tasks Bitnami released a container image: &lt;strong&gt;docker.io/bitnami/minio:2024.5.1-debian-12-r0&lt;/strong&gt;
-They are updating this image regularly.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Actually, the image can be used to deploy the minio server. At this moment, we are interested in the command line tool only. Bitnami also managing a &lt;em&gt;minio-client&lt;/em&gt; image, that can be tested and used. However, I left the original image, which is working very well.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_the_values"&gt;The Values&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-All settings are explained in more detail at: &lt;a class="bare" href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator"&gt;https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator&lt;/a&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The Job and everything that is required, are executed inside the Tenant namespace. In the following examples, this will be &lt;strong&gt;minio-tenant-namespace&lt;/strong&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_basic_settings"&gt;Basic Settings&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The basic settings are the following. They will define the namespace of the Tenant, the name of the ServiceAccount, the URL of the tenant, Argo CD Hook settings and the image that shall be used for the deployment.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;name: minio-provisioner &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: minio-tenant-namespace &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-synwave: 5 &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-argoproj: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-hook: Sync
-hook_delete_policy: HookSucceeded
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>MinIO – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/minio/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 17 May 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/tags/minio/index.xml" rel="self" type="application/rss+xml"/><item><title>[Ep.7] Configure Buckets in MinIO</title><link>https://blog.stderr.at/gitopscollection/2024-05-17-configure-minio-buckets/</link><guid isPermaLink="true">https://blog.stderr.at/gitopscollection/2024-05-17-configure-minio-buckets/</guid><pubDate>Fri, 17 May 2024 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>GitOps</category><description>Configure Buckets in MinIO using a GitOps approach.</description><content:encoded><![CDATA[<div class="paragraph">
+<p><a href="https://min.io/" rel="noopener" target="_blank">MinIO</a> is a simple, S3-compatible object storage, built for high-performance and large-scale environments. It can be installed as an Operator to Openshift. In addition, to a command line tool, it provides a WebUI where all settings can be done, especially creating and configuring new buckets. Currently, this is not possible in a declarative GitOps-friendly way.
+Therefore, I created the Helm chart <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" rel="noopener" target="_blank">minio configurator</a>, that will start a Kubernetes Job, which will take care of the configuration.</p>
+</div>
+<div class="paragraph">
+<p>Honestly, when I say I have created it, the truth is, that it is based on an existing <a href="https://github.com/bitnami/charts/tree/main/bitnami/minio" rel="noopener" target="_blank">MinIO Chart by Bitnami</a>, that does much more than just set up a bucket. I took out the bucket configuration part, streamlined it a bit and added some new features, which I required.</p>
+</div>
+<div class="paragraph">
+<p>This article shall explain how to achieve this.</p>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Argo CD (OpenShift GitOps) deployed</p>
+</li>
+<li>
+<p>MinIO including a deployed tenant that is waiting for buckets</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After MinIO and the Tenant have been deployed, we can <strong>configure and update</strong> a bucket, users, policies and more. Since I do not want to do this manually, the Helm Chart that will be described here creates a Kubernetes Job that leverages the <strong>mc command line tool</strong> to execute certain tasks automatically. The chart will take care of:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>creating a lifecycle policy</p>
+</li>
+<li>
+<p>creating an access policy</p>
+</li>
+<li>
+<p>creating a new user/group. User credentials might be added directly to the values file or, better, are imported as a secret</p>
+</li>
+<li>
+<p>attaching policies to a user/group</p>
+</li>
+<li>
+<p>creating a bucket</p>
+</li>
+<li>
+<p>set a quota for a bucket</p>
+</li>
+<li>
+<p>set tags for a bucket</p>
+</li>
+<li>
+<p>enable versioning for a bucket</p>
+</li>
+<li>
+<p>enable object locking for a bucket (<strong>be aware</strong> that this can only be enabled during the bucket creation)</p>
+</li>
+<li>
+<p>enable bucket replication to a target cluster/bucket</p>
+</li>
+<li>
+<p>execute possible extra commands that are configured in the values file</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>To perform all these tasks Bitnami released a container image: <strong>docker.io/bitnami/minio:2024.5.1-debian-12-r0</strong>
+They are updating this image regularly.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Actually, the image can be used to deploy the minio server. At this moment, we are interested in the command line tool only. Bitnami also managing a <em>minio-client</em> image, that can be tested and used. However, I left the original image, which is working very well.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_the_values">The Values</h2>
+<div class="sectionbody">
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+All settings are explained in more detail at: <a class="bare" href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator">https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator</a>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+The Job and everything that is required, are executed inside the Tenant namespace. In the following examples, this will be <strong>minio-tenant-namespace</strong>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect2">
+<h3 id="_basic_settings">Basic Settings</h3>
+<div class="paragraph">
+<p>The basic settings are the following. They will define the namespace of the Tenant, the name of the ServiceAccount, the URL of the tenant, Argo CD Hook settings and the image that shall be used for the deployment.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">name: minio-provisioner <i class="conum" data-value="1"></i><b>(1)</b>
+namespace: minio-tenant-namespace <i class="conum" data-value="2"></i><b>(2)</b>
+synwave: 5 <i class="conum" data-value="3"></i><b>(3)</b>
+
+argoproj: <i class="conum" data-value="4"></i><b>(4)</b>
+  hook: Sync
+  hook_delete_policy: HookSucceeded
+
 image:
-url: docker.io/bitnami/minio:2024.5.1-debian-12-r0 &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
+  url: docker.io/bitnami/minio:2024.5.1-debian-12-r0 <i class="conum" data-value="5"></i><b>(5)</b>
+
 # Information of the Minio Cluster
-miniocluster: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-url: minio-tenant-api-url
-port: 443
-skip_tls_verification: true &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
+miniocluster: <i class="conum" data-value="6"></i><b>(6)</b>
+  url: minio-tenant-api-url
+  port: 443
+
+skip_tls_verification: true <i class="conum" data-value="7"></i><b>(7)</b>
+
 # Specifies whether a ServiceAccount should be created
-serviceAccount: &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
-create: true
-name: &amp;#34;minio-provisioner&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Kubernetes provisioner Job resource.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Namespace of the MinIO Tenant.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Syncwave of the provisioner Job.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Possible Argo CD hook configuration.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The container image the provisioner Job will use.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The URL of the minio console. This will be used to set the &amp;#34;alias&amp;#34; for the mc command&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Skip verification of TLS for the mc command. This will disable the TLS check for any mc command the Job will execute.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Information about the ServiceAccount&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_authentication_settings"&gt;Authentication Settings&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To be able to authenticate against MinIO credentials must be provided. This happens, typically, in the form of a Secret:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;auth:
-useCredentialsFiles: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-secretName: minio-provisioner &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Shall a secret mounted as a file be used (preferred)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Secret&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The Secret itself requires specific keys and should look like the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;kind: Secret
+serviceAccount: <i class="conum" data-value="8"></i><b>(8)</b>
+  create: true
+  name: &#34;minio-provisioner&#34;</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name of the Kubernetes provisioner Job resource.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Namespace of the MinIO Tenant.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Syncwave of the provisioner Job.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Possible Argo CD hook configuration.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>The container image the provisioner Job will use.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>The URL of the minio console. This will be used to set the &#34;alias&#34; for the mc command</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Skip verification of TLS for the mc command. This will disable the TLS check for any mc command the Job will execute.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>Information about the ServiceAccount</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_authentication_settings">Authentication Settings</h3>
+<div class="paragraph">
+<p>To be able to authenticate against MinIO credentials must be provided. This happens, typically, in the form of a Secret:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">auth:
+  useCredentialsFiles: true <i class="conum" data-value="1"></i><b>(1)</b>
+  secretName: minio-provisioner <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Shall a secret mounted as a file be used (preferred)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Name of the Secret</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The Secret itself requires specific keys and should look like the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: Secret
 apiVersion: v1
 metadata:
-name: minio-provisioner &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-namespace: minio-tenant-namespace &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
+  name: minio-provisioner <i class="conum" data-value="1"></i><b>(1)</b>
+  namespace: minio-tenant-namespace <i class="conum" data-value="2"></i><b>(2)</b>
 data:
-root-password: &amp;lt;base64 string&amp;gt; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-root-user: &amp;lt;base64 string&amp;gt; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-type: Opaque&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Secret as mentioned in the minio-configurator values files&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Namespace as mentioned in the minio-configurator values files&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Password to access MinIO&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;User to access MinIO&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  root-password: &lt;base64 string&gt; <i class="conum" data-value="3"></i><b>(3)</b>
+  root-user: &lt;base64 string&gt; <i class="conum" data-value="4"></i><b>(4)</b>
+type: Opaque</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name of the Secret as mentioned in the minio-configurator values files</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Name of the Namespace as mentioned in the minio-configurator values files</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Password to access MinIO</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>User to access MinIO</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
 The Secret must exist upfront and is not created by the Helm Chart. Either pick it from a Vault or create a Sealed Secret to be able to store it in Git.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-The credentials are called &lt;strong&gt;root-&lt;/strong&gt;. Any user that has permission to configure buckets is sufficient here. Still, the keys must be named that way.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_creating_minio_policies"&gt;Creating MinIO Policies&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;MinIO uses Policy-Based Access Control to define which actions can be performed on certain resources by an authenticated user.
-A policy can be created by the command &lt;strong&gt;mc admin policy&lt;/strong&gt;. Our Kubernetes Job will take the configuration from the values file and mount the information as a JSON file, that will be imported into MinIO.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following specification shows the example for OpenShift Logging:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;provisioning:
-enabled: true &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-policies:
-- name: openshift-logging-access-policy &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-statements:
-- resources: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-- &amp;#34;arn:aws:s3:::openshift-logging&amp;#34;
-- &amp;#34;arn:aws:s3:::openshift-logging/*&amp;#34;
-effect: &amp;#34;Allow&amp;#34; &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-actions:
-- &amp;#34;s3:*&amp;#34; &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;In general, enable the provisioning or not&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the policy. Multiple can be defined and assigned to a user or group.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Define the resources the policy should manage access to.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Define the effect: Allow or Deny (default)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The actions that are allowed. Here: any s3: action&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Multiple policies can be defined in the values file, and it is very important to exactly define the resources, the effect and the actions.
-The above configuration will allow the user that has the policy assigned:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;All s3 actions to the bucket openshift-logging and everything inside this bucket (thus two resources)&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;All actions are defined at: &lt;a href="https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html#minio-policy" rel="noopener" target="_blank"&gt;MinIO Access Management&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Another example would be the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; policies:
-- name: custom-bucket-specific-policy
-statements:
-- resources:
-- &amp;#34;arn:aws:s3:::my-bucket&amp;#34;
-actions:
-- &amp;#34;s3:GetBucketLocation&amp;#34;
-- &amp;#34;s3:ListBucket&amp;#34;
-- &amp;#34;s3:ListBucketMultipartUploads&amp;#34;
-- resources:
-- &amp;#34;arn:aws:s3:::my-bucket/*&amp;#34;
-effect: &amp;#34;Allow&amp;#34;
-actions:
-- &amp;#34;s3:AbortMultipartUpload&amp;#34;
-- &amp;#34;s3:DeleteObject&amp;#34;
-- &amp;#34;s3:GetObject&amp;#34;
-- &amp;#34;s3:ListMultipartUploadParts&amp;#34;
-- &amp;#34;s3:PutObject&amp;#34;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This policy defines the actions in a fine granular way:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;To the bucket &lt;strong&gt;my-bucket&lt;/strong&gt; we have three allowed actions (GetBucketLocation, ListBucket and ListBucketMultipartUploads)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;To everything inside the bucket (/*) we can also Delete, Get, Put objects etc.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_creating_a_user"&gt;Creating a User&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The policy that has been created must be assigned to a user (or a group) to be effective. Such a user requires a username, a password and a list of policies that shall be assigned.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The required information can be added directly to the values file like this:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-&lt;strong&gt;This is NOT the recommended way!&lt;/strong&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; # users:
-# - username: test-username &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-# password: test-password &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-# disabled: false &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-# policies: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-# - readwrite
-# - consoleAdmin
-# - diagnostics
-# # When set to true, it will replace all policies with the specified.
-# # When false, the policies will be added to the existing.
-# setPolicies: false
-# @default -- []&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Username&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;clear text password&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Shall the user be created or not&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of policies that shall be assigned&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As mentioned above: Defining a list of users directly in the values file is &lt;strong&gt;not recommended&lt;/strong&gt; as it would mean that the passwords are stored in clear text.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Instead, a list of Secrets can be defined:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; usersExistingSecrets:
-- minio-users&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The defined Secrets require a specific structure and can be encrypted and stored in Git or a Vault.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The data structure is the following:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The credentials are called <strong>root-</strong>. Any user that has permission to configure buckets is sufficient here. Still, the keys must be named that way.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_creating_minio_policies">Creating MinIO Policies</h3>
+<div class="paragraph">
+<p>MinIO uses Policy-Based Access Control to define which actions can be performed on certain resources by an authenticated user.
+A policy can be created by the command <strong>mc admin policy</strong>. Our Kubernetes Job will take the configuration from the values file and mount the information as a JSON file, that will be imported into MinIO.</p>
+</div>
+<div class="paragraph">
+<p>The following specification shows the example for OpenShift Logging:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">provisioning:
+  enabled: true <i class="conum" data-value="1"></i><b>(1)</b>
+
+  policies:
+    - name: openshift-logging-access-policy <i class="conum" data-value="2"></i><b>(2)</b>
+      statements:
+        - resources: <i class="conum" data-value="3"></i><b>(3)</b>
+            - &#34;arn:aws:s3:::openshift-logging&#34;
+            - &#34;arn:aws:s3:::openshift-logging/*&#34;
+          effect: &#34;Allow&#34; <i class="conum" data-value="4"></i><b>(4)</b>
+          actions:
+            - &#34;s3:*&#34; <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>In general, enable the provisioning or not</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Name of the policy. Multiple can be defined and assigned to a user or group.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Define the resources the policy should manage access to.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Define the effect: Allow or Deny (default)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>The actions that are allowed. Here: any s3: action</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Multiple policies can be defined in the values file, and it is very important to exactly define the resources, the effect and the actions.
+The above configuration will allow the user that has the policy assigned:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>All s3 actions to the bucket openshift-logging and everything inside this bucket (thus two resources)</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>All actions are defined at: <a href="https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html#minio-policy" rel="noopener" target="_blank">MinIO Access Management</a>.</p>
+</div>
+<div class="paragraph">
+<p>Another example would be the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  policies:
+    - name: custom-bucket-specific-policy
+      statements:
+        - resources:
+            - &#34;arn:aws:s3:::my-bucket&#34;
+          actions:
+            - &#34;s3:GetBucketLocation&#34;
+            - &#34;s3:ListBucket&#34;
+            - &#34;s3:ListBucketMultipartUploads&#34;
+        - resources:
+            - &#34;arn:aws:s3:::my-bucket/*&#34;
+          effect: &#34;Allow&#34;
+          actions:
+            - &#34;s3:AbortMultipartUpload&#34;
+            - &#34;s3:DeleteObject&#34;
+            - &#34;s3:GetObject&#34;
+            - &#34;s3:ListMultipartUploadParts&#34;
+            - &#34;s3:PutObject&#34;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This policy defines the actions in a fine granular way:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>To the bucket <strong>my-bucket</strong> we have three allowed actions (GetBucketLocation, ListBucket and ListBucketMultipartUploads)</p>
+</li>
+<li>
+<p>To everything inside the bucket (/*) we can also Delete, Get, Put objects etc.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_creating_a_user">Creating a User</h3>
+<div class="paragraph">
+<p>The policy that has been created must be assigned to a user (or a group) to be effective. Such a user requires a username, a password and a list of policies that shall be assigned.</p>
+</div>
+<div class="paragraph">
+<p>The required information can be added directly to the values file like this:</p>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+<strong>This is NOT the recommended way!</strong>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  # users:
+  #   - username: test-username <i class="conum" data-value="1"></i><b>(1)</b>
+  #     password: test-password <i class="conum" data-value="2"></i><b>(2)</b>
+  #     disabled: false <i class="conum" data-value="3"></i><b>(3)</b>
+  #     policies: <i class="conum" data-value="4"></i><b>(4)</b>
+  #       - readwrite
+  #       - consoleAdmin
+  #       - diagnostics
+  #     # When set to true, it will replace all policies with the specified.
+  #     # When false, the policies will be added to the existing.
+  #     setPolicies: false
+  # @default -- []</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Username</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>clear text password</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Shall the user be created or not</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>List of policies that shall be assigned</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>As mentioned above: Defining a list of users directly in the values file is <strong>not recommended</strong> as it would mean that the passwords are stored in clear text.</p>
+</div>
+<div class="paragraph">
+<p>Instead, a list of Secrets can be defined:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  usersExistingSecrets:
+    - minio-users</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The defined Secrets require a specific structure and can be encrypted and stored in Git or a Vault.</p>
+</div>
+<div class="paragraph">
+<p>The data structure is the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
 kind: Secret
 metadata:
-name: minio-users &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
+  name: minio-users <i class="conum" data-value="1"></i><b>(1)</b>
 type: Opaque
 stringData:
-username1: | &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-username=username &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-password=password &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-disabled=false &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-policies=openshift-logging-access-policy,readwrite,consoleAdmin,diagnostics &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-setPolicies=false &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Secret as referenced in the values file.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of users, distinguished by the key &amp;#34;username1&amp;#34;, &amp;#34;username2&amp;#34;, etc.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Username&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Password&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Enabled or disabled&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of policies to assign to the user&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Replace or add the policies to an (existing) user.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_built_in_policies"&gt;Built-In Policies&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;MinIO provides several &lt;a href="https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html#built-in-policies" rel="noopener" target="_blank"&gt;Built-In Policies&lt;/a&gt; that can be attached to a user or group.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following policies will always exist: (Please verify the official documentation for further information)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;consoleAdmin&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Grants complete access to all S3 and administrative API operations against all resources on the MinIO deployment.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;s3:*&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;admin:*&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;readonly&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Grants read-only permissions on any object on the MinIO deployment. The GET action must apply to a specific object without requiring any listing.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;s3:GetBucketLocation&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;s3:GetObject&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;readwrite&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Grants read and write permissions for all buckets and objects on the MinIO server.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;s3:*&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;diagnostics&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Grants permission to perform diagnostic actions on the MinIO deployment.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;admin:ServerTrace&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;admin:Profiling&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;admin:ConsoleLog&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;admin:ServerInfo&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;admin:TopLocksInfo&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;admin:OBDInfo&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;admin:BandwidthMonitor&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;admin:Prometheus&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;&lt;strong&gt;writeonly&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Grants write-only permissions to any namespace (bucket and path to object) the MinIO deployment.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;s3:PutObject&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_provisioning_groups"&gt;Provisioning Groups&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Users can be combined into groups and instead of assigning policies to individual users, we can assign them to a whole group.
-The idea is the same as for users, except, that we define a list of members for that group:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; groups
-- name: test-group &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-disabled: false &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-members: &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-- username
-policies: &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-- readwrite
-# When set to true, it will replace all policies with the specified.
-# When false, the policies will be added to the existing.
-setPolicies: false &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the group.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Enabled or disabled.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of users that are members of this group.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;List of policies that are assigned to this group.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Replace or add the policies to an (existing) user.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_configure_the_bucket"&gt;Configure the Bucket&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally, we can configure the bucket itself. A bucket will have a specific configuration, a lifecycle a quota etc.
-A list of buckets with different configurations can be defined in the values files.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+  username1: | <i class="conum" data-value="2"></i><b>(2)</b>
+    username=username <i class="conum" data-value="3"></i><b>(3)</b>
+    password=password <i class="conum" data-value="4"></i><b>(4)</b>
+    disabled=false <i class="conum" data-value="5"></i><b>(5)</b>
+    policies=openshift-logging-access-policy,readwrite,consoleAdmin,diagnostics <i class="conum" data-value="6"></i><b>(6)</b>
+    setPolicies=false <i class="conum" data-value="7"></i><b>(7)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name of the Secret as referenced in the values file.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>List of users, distinguished by the key &#34;username1&#34;, &#34;username2&#34;, etc.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Username</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Password</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Enabled or disabled</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>List of policies to assign to the user</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Replace or add the policies to an (existing) user.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect3">
+<h4 id="_built_in_policies">Built-In Policies</h4>
+<div class="paragraph">
+<p>MinIO provides several <a href="https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html#built-in-policies" rel="noopener" target="_blank">Built-In Policies</a> that can be attached to a user or group.</p>
+</div>
+<div class="paragraph">
+<p>The following policies will always exist: (Please verify the official documentation for further information)</p>
+</div>
+<div class="paragraph">
+<p><strong>consoleAdmin</strong></p>
+</div>
+<div class="paragraph">
+<p>Grants complete access to all S3 and administrative API operations against all resources on the MinIO deployment.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>s3:*</p>
+</li>
+<li>
+<p>admin:*</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><strong>readonly</strong></p>
+</div>
+<div class="paragraph">
+<p>Grants read-only permissions on any object on the MinIO deployment. The GET action must apply to a specific object without requiring any listing.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>s3:GetBucketLocation</p>
+</li>
+<li>
+<p>s3:GetObject</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><strong>readwrite</strong></p>
+</div>
+<div class="paragraph">
+<p>Grants read and write permissions for all buckets and objects on the MinIO server.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>s3:*</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><strong>diagnostics</strong></p>
+</div>
+<div class="paragraph">
+<p>Grants permission to perform diagnostic actions on the MinIO deployment.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>admin:ServerTrace</p>
+</li>
+<li>
+<p>admin:Profiling</p>
+</li>
+<li>
+<p>admin:ConsoleLog</p>
+</li>
+<li>
+<p>admin:ServerInfo</p>
+</li>
+<li>
+<p>admin:TopLocksInfo</p>
+</li>
+<li>
+<p>admin:OBDInfo</p>
+</li>
+<li>
+<p>admin:BandwidthMonitor</p>
+</li>
+<li>
+<p>admin:Prometheus</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><strong>writeonly</strong></p>
+</div>
+<div class="paragraph">
+<p>Grants write-only permissions to any namespace (bucket and path to object) the MinIO deployment.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>s3:PutObject</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_provisioning_groups">Provisioning Groups</h3>
+<div class="paragraph">
+<p>Users can be combined into groups and instead of assigning policies to individual users, we can assign them to a whole group.
+The idea is the same as for users, except, that we define a list of members for that group:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  groups
+    - name: test-group <i class="conum" data-value="1"></i><b>(1)</b>
+      disabled: false <i class="conum" data-value="2"></i><b>(2)</b>
+      members: <i class="conum" data-value="3"></i><b>(3)</b>
+        - username
+      policies: <i class="conum" data-value="4"></i><b>(4)</b>
+        - readwrite
+      # When set to true, it will replace all policies with the specified.
+      # When false, the policies will be added to the existing.
+      setPolicies: false <i class="conum" data-value="5"></i><b>(5)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name of the group.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Enabled or disabled.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>List of users that are members of this group.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>List of policies that are assigned to this group.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Replace or add the policies to an (existing) user.</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_configure_the_bucket">Configure the Bucket</h3>
+<div class="paragraph">
+<p>Finally, we can configure the bucket itself. A bucket will have a specific configuration, a lifecycle a quota etc.
+A list of buckets with different configurations can be defined in the values files.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 The only mandatory information is the name of the bucket. It is not required to configure a lifecycle or quota etc.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let us analyse the following example, which tries to cover all possible settings:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; buckets:
-- name: mybucket &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-region: my-region &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-versioning: Versioned &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-withLock: false &lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;(4)&lt;/b&gt;
-bucketReplication: &lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;(5)&lt;/b&gt;
-enabled: true
-targetClusterUrl: replication-target-cluster
-targetClusterPort: 443
-targetBucket: replication-target-bucket
-replicationSettings: &lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;(6)&lt;/b&gt;
-- existing-objects
-credSecretName: replication-credentials &lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;(7)&lt;/b&gt;
-lifecycle:
-- id: name-of-lifecycle &lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;(8)&lt;/b&gt;
-prefix: test-prefix &lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;(9)&lt;/b&gt;
-disabled: false
-expiry: &lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;(10)&lt;/b&gt;
-days: 30 # or date
-nonconcurrentDays: 10
-- id: name-of-second-lifecycle
-disabled: false
-expiry:
-deleteMarker: true
-nonconcurrentDays: 10
-quota: &lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;(11)&lt;/b&gt;
-type: set
-size: 1024Gib
-tags: &lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;(12)&lt;/b&gt;
-key1: value1&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the bucket.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Region of the bucket&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Enable versioning (&lt;a class="bare" href="https://docs.min.io/docs/minio-client-complete-guide.html#ilm"&gt;https://docs.min.io/docs/minio-client-complete-guide.html#ilm&lt;/a&gt;). Allowed options are: Versioned, Suspended or Unchanged.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="4"&gt;&lt;/i&gt;&lt;b&gt;4&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Enable object Locking&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="5"&gt;&lt;/i&gt;&lt;b&gt;5&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Configure bucket replication to a target cluster and a target bucket&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="6"&gt;&lt;/i&gt;&lt;b&gt;6&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Define the settings for the bucket replication can be: delete, delete-marker or existing-objects: &lt;a class="bare" href="https://min.io/docs/minio/linux/administration/bucket-replication/enable-server-side-one-way-bucket-replication.html"&gt;https://min.io/docs/minio/linux/administration/bucket-replication/enable-server-side-one-way-bucket-replication.html&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="7"&gt;&lt;/i&gt;&lt;b&gt;7&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Name of the Secret that stores the credentials for the replication&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="8"&gt;&lt;/i&gt;&lt;b&gt;8&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Define a list of lifecycle policies for the bucket: &lt;a class="bare" href="https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html"&gt;https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="9"&gt;&lt;/i&gt;&lt;b&gt;9&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;A prefix that can be defined&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="10"&gt;&lt;/i&gt;&lt;b&gt;10&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Define the expiration. This can be defined as &lt;strong&gt;days&lt;/strong&gt; OR as a &lt;strong&gt;date&lt;/strong&gt;, for example &amp;#34;2021-11-11T00:00:00Z&amp;#34;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="11"&gt;&lt;/i&gt;&lt;b&gt;11&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Set a quota for the bucket: &lt;a class="bare" href="https://docs.min.io/docs/minio-admin-complete-guide.html#bucket"&gt;https://docs.min.io/docs/minio-admin-complete-guide.html#bucket&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="12"&gt;&lt;/i&gt;&lt;b&gt;12&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Define additional tags for the bucket &lt;a class="bare" href="https://docs.min.io/docs/minio-client-complete-guide.html#tag"&gt;https://docs.min.io/docs/minio-client-complete-guide.html#tag&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_replication_secret"&gt;Replication Secret&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The definition above defines a bucket replication. To authenticate at the target cluster, we need to provide a username and a password. This is stored inside a secret:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Let us analyse the following example, which tries to cover all possible settings:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  buckets:
+    - name: mybucket <i class="conum" data-value="1"></i><b>(1)</b>
+      region: my-region <i class="conum" data-value="2"></i><b>(2)</b>
+      versioning: Versioned <i class="conum" data-value="3"></i><b>(3)</b>
+      withLock: false <i class="conum" data-value="4"></i><b>(4)</b>
+      bucketReplication: <i class="conum" data-value="5"></i><b>(5)</b>
+        enabled: true
+        targetClusterUrl: replication-target-cluster
+        targetClusterPort: 443
+        targetBucket: replication-target-bucket
+        replicationSettings: <i class="conum" data-value="6"></i><b>(6)</b>
+           - existing-objects
+        credSecretName: replication-credentials <i class="conum" data-value="7"></i><b>(7)</b>
+      lifecycle:
+        - id: name-of-lifecycle <i class="conum" data-value="8"></i><b>(8)</b>
+          prefix: test-prefix <i class="conum" data-value="9"></i><b>(9)</b>
+          disabled: false
+          expiry: <i class="conum" data-value="10"></i><b>(10)</b>
+            days: 30 # or date
+            nonconcurrentDays: 10
+        - id: name-of-second-lifecycle
+          disabled: false
+          expiry:
+            deleteMarker: true
+            nonconcurrentDays: 10
+      quota: <i class="conum" data-value="11"></i><b>(11)</b>
+        type: set
+        size: 1024Gib
+      tags: <i class="conum" data-value="12"></i><b>(12)</b>
+        key1: value1</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Name of the bucket.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Region of the bucket</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Enable versioning (<a class="bare" href="https://docs.min.io/docs/minio-client-complete-guide.html#ilm">https://docs.min.io/docs/minio-client-complete-guide.html#ilm</a>). Allowed options are: Versioned, Suspended or Unchanged.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Enable object Locking</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Configure bucket replication to a target cluster and a target bucket</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Define the settings for the bucket replication can be: delete, delete-marker or existing-objects: <a class="bare" href="https://min.io/docs/minio/linux/administration/bucket-replication/enable-server-side-one-way-bucket-replication.html">https://min.io/docs/minio/linux/administration/bucket-replication/enable-server-side-one-way-bucket-replication.html</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Name of the Secret that stores the credentials for the replication</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>Define a list of lifecycle policies for the bucket: <a class="bare" href="https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html">https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td>A prefix that can be defined</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="10"></i><b>10</b></td>
+<td>Define the expiration. This can be defined as <strong>days</strong> OR as a <strong>date</strong>, for example &#34;2021-11-11T00:00:00Z&#34;</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="11"></i><b>11</b></td>
+<td>Set a quota for the bucket: <a class="bare" href="https://docs.min.io/docs/minio-admin-complete-guide.html#bucket">https://docs.min.io/docs/minio-admin-complete-guide.html#bucket</a></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="12"></i><b>12</b></td>
+<td>Define additional tags for the bucket <a class="bare" href="https://docs.min.io/docs/minio-client-complete-guide.html#tag">https://docs.min.io/docs/minio-client-complete-guide.html#tag</a></td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect3">
+<h4 id="_replication_secret">Replication Secret</h4>
+<div class="paragraph">
+<p>The definition above defines a bucket replication. To authenticate at the target cluster, we need to provide a username and a password. This is stored inside a secret:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
 kind: Secret
 metadata:
-name: replication-user
+  name: replication-user
 type: Opaque
 stringData:
-username: username
-password: password&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This defines a whole bunch of settings. Except for the bucket name, none is mandatory.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect3"&gt;
-&lt;h4 id="_example_openshift_logging_bucket"&gt;Example OpenShift-Logging Bucket&lt;/h4&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following is a more realistic example, for defining a bucket used for OpenShift Logging:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;It defines the bucket name, with a lifecycle of 4 days and a quota of 1TB:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; buckets:
-- name: openshift-logging
-lifecycle:
-- id: logging-retention
-disabled: false
-expiry:
-days: 4
-quota:
-type: set
-size: 1024GiB&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_additional_settings"&gt;Additional Settings&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Finally, there are some additional settings, I would like to mention here. They are completely optional, but might be interesting:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Automatically clean up the provisioning job after it has finished:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; cleanupAfterFinished:
-enabled: false
-seconds: 600&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Define resources for the provisioning job. For example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;resources:
-requests:
-cpu: 2
-memory: 512Mi
-limits:
-cpu: 3
-memory: 1024Mi&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-Typically, I leave this to &lt;strong&gt;resources: {}&lt;/strong&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Take care of the pod placement and define a nodeSelector and tolerations, for example:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt; nodeSelector: {}
-tolerations:
-- effect: NoSchedule
-key: infra
-operator: Equal
-value: reserved
-- effect: NoExecute
-key: infra
-operator: Equal
-value: reserved&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;With this Helm chart by Bitnami, with a little modification from my side, it is possible to &lt;strong&gt;create and update&lt;/strong&gt; buckets, policies, users etc. There is no need, to perform any modification manually in the MinIO WebUI.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I am currently using this chart for several bucket configurations, with sometimes more and sometimes fewer settings in the values file. Keep in mind, that many settings, especially for the bucket itself, are completely optional and are not required to create a new bucket. (For example, lifecycle). Please check out the source of the Helm Chart and the values file to get further information: &lt;a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" rel="noopener" target="_blank"&gt;minio configurator&lt;/a&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;If you have any feedback or miss something, feel free to create a pull request or an issue :)&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item></channel></rss>
+    username: username
+    password: password</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This defines a whole bunch of settings. Except for the bucket name, none is mandatory.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_example_openshift_logging_bucket">Example OpenShift-Logging Bucket</h4>
+<div class="paragraph">
+<p>The following is a more realistic example, for defining a bucket used for OpenShift Logging:</p>
+</div>
+<div class="paragraph">
+<p>It defines the bucket name, with a lifecycle of 4 days and a quota of 1TB:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">    buckets:
+      - name: openshift-logging
+        lifecycle:
+          - id: logging-retention
+            disabled: false
+            expiry:
+                days: 4
+        quota:
+          type: set
+          size: 1024GiB</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_additional_settings">Additional Settings</h3>
+<div class="paragraph">
+<p>Finally, there are some additional settings, I would like to mention here. They are completely optional, but might be interesting:</p>
+</div>
+<div class="paragraph">
+<p>Automatically clean up the provisioning job after it has finished:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  cleanupAfterFinished:
+    enabled: false
+    seconds: 600</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Define resources for the provisioning job. For example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">resources:
+  requests:
+    cpu: 2
+    memory: 512Mi
+  limits:
+    cpu: 3
+    memory: 1024Mi</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Typically, I leave this to <strong>resources: {}</strong>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Take care of the pod placement and define a nodeSelector and tolerations, for example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  nodeSelector: {}
+  tolerations:
+    - effect: NoSchedule
+      key: infra
+      operator: Equal
+      value: reserved
+    - effect: NoExecute
+      key: infra
+      operator: Equal
+      value: reserved</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_conclusion">Conclusion</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>With this Helm chart by Bitnami, with a little modification from my side, it is possible to <strong>create and update</strong> buckets, policies, users etc. There is no need, to perform any modification manually in the MinIO WebUI.</p>
+</div>
+<div class="paragraph">
+<p>I am currently using this chart for several bucket configurations, with sometimes more and sometimes fewer settings in the values file. Keep in mind, that many settings, especially for the bucket itself, are completely optional and are not required to create a new bucket. (For example, lifecycle). Please check out the source of the Helm Chart and the values file to get further information: <a href="https://github.com/tjungbauer/helm-charts/tree/main/charts/minio-configurator" rel="noopener" target="_blank">minio configurator</a>.</p>
+</div>
+<div class="paragraph">
+<p>If you have any feedback or miss something, feel free to create a pull request or an issue :)</p>
+</div>
+</div>
+</div>]]></content:encoded></item></channel></rss>

@@ -1,1028 +1,1032 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Storage on TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift-platform/day-2/storage/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><atom:link href="https://blog.stderr.at/openshift-platform/day-2/storage/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Data Foundation - Noobaa Bucket Data Retention (Lifecycle)</title><link>https://blog.stderr.at/openshift-platform/day-2/storage/2024-02-12-bucket-data-retention/</link><pubDate>Mon, 12 Feb 2024 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/day-2/storage/2024-02-12-bucket-data-retention/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;Data retention or lifecycle configuration for S3 buckets is done by the S3 provider directly. The provider keeps track and files are automatically rotated after the requested time.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This article is a simple step-by-step guide to configure such lifecycle for OpenShift Data Foundation (ODF), where buckets are provided by Noobaa. Knowledge about ODF is assumed, however similar steps can be reproduced for any S3-compliant storage operator.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_prerequisites"&gt;Prerequisites&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="olist arabic"&gt;
-&lt;ol class="arabic"&gt;
-&lt;li&gt;
-&lt;p&gt;Installed OpensShift 4.x cluster (latest version during the creation of this article 4.14)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Installed Open Data Foundation Operator (4.14+)&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Configured Multi-Cloud Gateway (for example) to provide OpenShift with object storage.&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Installed aws command line tool. The deployment for different operating system is explained at: &lt;a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#cliv2-linux-install"&gt;Installing AWS Client&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;A configured bucket and running openshift logging.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Storage – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift-platform/day-2/storage/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 12 Feb 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.stderr.at/openshift-platform/day-2/storage/index.xml" rel="self" type="application/rss+xml"/><item><title>OpenShift Data Foundation - Noobaa Bucket Data Retention (Lifecycle)</title><link>https://blog.stderr.at/openshift-platform/day-2/storage/2024-02-12-bucket-data-retention/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/storage/2024-02-12-bucket-data-retention/</guid><pubDate>Mon, 12 Feb 2024 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Other</category><description>How to configure a bucket lifecycle for Noobaa and OpenShift Data Foundation</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Data retention or lifecycle configuration for S3 buckets is done by the S3 provider directly. The provider keeps track and files are automatically rotated after the requested time.</p>
+</div>
+<div class="paragraph">
+<p>This article is a simple step-by-step guide to configure such lifecycle for OpenShift Data Foundation (ODF), where buckets are provided by Noobaa. Knowledge about ODF is assumed, however similar steps can be reproduced for any S3-compliant storage operator.</p>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Installed OpensShift 4.x cluster (latest version during the creation of this article 4.14)</p>
+</li>
+<li>
+<p>Installed Open Data Foundation Operator (4.14+)</p>
+</li>
+<li>
+<p>Configured Multi-Cloud Gateway (for example) to provide OpenShift with object storage.</p>
+</li>
+<li>
+<p>Installed aws command line tool. The deployment for different operating system is explained at: <a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#cliv2-linux-install">Installing AWS Client</a></p>
+</li>
+<li>
+<p>A configured bucket and running openshift logging.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 In the further steps we use the bucket that is created for OpenShift Logging (using Lokistack) as a reference.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_working_with_aws_client"&gt;Working with aws client&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The first thing to do to work with the aws client is to retrieve the &lt;strong&gt;access key&lt;/strong&gt; and &lt;strong&gt;secret key&lt;/strong&gt; to be able to authenticate against the S3 API. During the deployment of OpenShift logging and the Lokistack a bucket has been created. The secret to authenticate against this bucket can be found in the openshift-logging namespace. In my example the name of this secret is &lt;strong&gt;logging-loki-s3&lt;/strong&gt; and it contains the following values:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="imageblock"&gt;
-&lt;div class="content"&gt;
-&lt;img src="https://blog.stderr.at/openshift-platform/day-2/storage/images/lokisecret.png?width=220" alt="Loki Secret"/&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The easiest way to authenticate against the S3 API is to create the following configuration file:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;&amp;gt; vim ~/.aws/credentials
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_working_with_aws_client">Working with aws client</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The first thing to do to work with the aws client is to retrieve the <strong>access key</strong> and <strong>secret key</strong> to be able to authenticate against the S3 API. During the deployment of OpenShift logging and the Lokistack a bucket has been created. The secret to authenticate against this bucket can be found in the openshift-logging namespace. In my example the name of this secret is <strong>logging-loki-s3</strong> and it contains the following values:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/day-2/storage/images/lokisecret.png?width=220" alt="Loki Secret"/>
+</div>
+</div>
+<div class="paragraph">
+<p>The easiest way to authenticate against the S3 API is to create the following configuration file:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">&gt; vim ~/.aws/credentials
 [default]
-aws_access_key_id = &amp;lt;value of access_key_id&amp;gt;
-aws_secret_access_key = &amp;lt;value of access_key_secret&amp;gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+aws_access_key_id     = &lt;value of access_key_id&gt;
+aws_secret_access_key = &lt;value of access_key_secret&gt;</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Be sure that this file is not globally accessible.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_listing_objects"&gt;Listing Objects&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;As a first test, we can try to list objects. The following command uses the S3 endpoint and the name of the bucket. Again, these values can be found in the Loki secret, mentioned above:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 ls s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
-PRE application/
-PRE audit/
-PRE index/
-PRE infrastructure/&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This command simply lists the current content (some folders in our case) of this bucket.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_copy_a_file_into_the_bucket"&gt;Copy a file into the bucket&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For further testing we copy a test file into the bucket. This can be any file, I have created an empty one called &lt;strong&gt;testfile.txt&lt;/strong&gt;&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 cp testfile.txt s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
-upload: ./testfile.txt to s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56/testfile.txt&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Listing the content again, will now show the uploaded testfile.txt&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 ls s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
-PRE application/
-PRE audit/
-PRE index/
-PRE infrastructure/
-2024-02-10 04:23:14 32 testfile.txt&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_verifying_current_lifecycle_configuration"&gt;Verifying current Lifecycle configuration&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To verify the current lifecycle configuration, execute the following command. It will show any configuration that is currently available, or an empty value if there is no such setting yet.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api get-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_put_a_lifecycle_configuration_in_place"&gt;Put a lifecycle configuration in place&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To configure a data retention of 4 days for our bucket we first need to create the following JSON file:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-json hljs" data-lang="json"&gt;cat logging-bucket-lifecycle.json
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect2">
+<h3 id="_listing_objects">Listing Objects</h3>
+<div class="paragraph">
+<p>As a first test, we can try to list objects. The following command uses the S3 endpoint and the name of the bucket. Again, these values can be found in the Loki secret, mentioned above:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 ls s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
+                           PRE application/
+                           PRE audit/
+                           PRE index/
+                           PRE infrastructure/</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This command simply lists the current content (some folders in our case) of this bucket.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_copy_a_file_into_the_bucket">Copy a file into the bucket</h3>
+<div class="paragraph">
+<p>For further testing we copy a test file into the bucket. This can be any file, I have created an empty one called <strong>testfile.txt</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 cp testfile.txt s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
+
+upload: ./testfile.txt to s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56/testfile.txt</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Listing the content again, will now show the uploaded testfile.txt</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3 ls s3://logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56
+                           PRE application/
+                           PRE audit/
+                           PRE index/
+                           PRE infrastructure/
+2024-02-10 04:23:14         32 testfile.txt</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_verifying_current_lifecycle_configuration">Verifying current Lifecycle configuration</h3>
+<div class="paragraph">
+<p>To verify the current lifecycle configuration, execute the following command. It will show any configuration that is currently available, or an empty value if there is no such setting yet.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api get-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_put_a_lifecycle_configuration_in_place">Put a lifecycle configuration in place</h3>
+<div class="paragraph">
+<p>To configure a data retention of 4 days for our bucket we first need to create the following JSON file:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">cat logging-bucket-lifecycle.json
 {
-&amp;#34;Rules&amp;#34;: [
-{
-&amp;#34;Expiration&amp;#34;: {
-&amp;#34;Days&amp;#34;: 4 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-},
-&amp;#34;ID&amp;#34;: &amp;#34;123&amp;#34;, &lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;(2)&lt;/b&gt;
-&amp;#34;Filter&amp;#34;: {
-&amp;#34;Prefix&amp;#34;: &amp;#34;&amp;#34; &lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;(3)&lt;/b&gt;
-},
-&amp;#34;Status&amp;#34;: &amp;#34;Enabled&amp;#34;
-}
-]
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;Defines the retention period is days.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="2"&gt;&lt;/i&gt;&lt;b&gt;2&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;A simple ID for this Rule. (string).&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="3"&gt;&lt;/i&gt;&lt;b&gt;3&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;A filter used to identify objects that a Lifecycle Rule applies to, here the filter is empty, so all objects are affected.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
-There are much more setting possible as describe at &lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3api/put-bucket-lifecycle-configuration.html"&gt;AWS S3API&lt;/a&gt;.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;The following command will put the defined rule in place:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock caution"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-caution" title="Caution"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+    &#34;Rules&#34;: [
+        {
+            &#34;Expiration&#34;: {
+                &#34;Days&#34;: 4 <i class="conum" data-value="1"></i><b>(1)</b>
+            },
+            &#34;ID&#34;: &#34;123&#34;, <i class="conum" data-value="2"></i><b>(2)</b>
+            &#34;Filter&#34;: {
+                &#34;Prefix&#34;: &#34;&#34; <i class="conum" data-value="3"></i><b>(3)</b>
+            },
+            &#34;Status&#34;: &#34;Enabled&#34;
+        }
+    ]
+}</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Defines the retention period is days.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>A simple ID for this Rule. (string).</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>A filter used to identify objects that a Lifecycle Rule applies to, here the filter is empty, so all objects are affected.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+There are much more setting possible as describe at <a href="https://docs.aws.amazon.com/cli/latest/reference/s3api/put-bucket-lifecycle-configuration.html">AWS S3API</a>.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The following command will put the defined rule in place:</p>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
 Already defined rules will be overwritten by the JSON file. If there have been previous configurations, put them into the JSON file as well.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api put-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56 --lifecycle-configuration file://logging-bucket-lifecycle.json&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Checking again with the previous command, the rule should now be configured:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api get-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_what_now"&gt;What now?&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now you have to wait. With the configuration used above, it takes 4 days until the file is rotated. I have tested this using a 1 day retention period and saw that the file will be rotated after about 30 hours. So the rotation will not happen exactly at 24 hours but a bit afterwards.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_consclusion"&gt;Consclusion&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;This article describes very, and I mean very, briefly how to configure such data retention for OpenShift Data Foundation. Unfortunately, public documentation can be confusing, so I summarized here the commands I have used.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;There are some limitations with the Noobaa integration though. For example file transition (to a different storage class) is (currently) not supported.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Also, there are much more possible API calls that might be interesting. Please follow the AWS documentation:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3api/"&gt;S3 API&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href="https://docs.aws.amazon.com/cli/latest/reference/s3/"&gt;S3&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Overview of Red Hat's Multi Cloud Gateway (Noobaa)</title><link>https://blog.stderr.at/openshift-platform/day-2/storage/2022-04-22-multi-cloud-gateway/</link><pubDate>Fri, 22 Apr 2022 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/day-2/storage/2022-04-22-multi-cloud-gateway/</guid><description>
-&lt;p&gt;
-This is my personal summary of experimenting with Red Hat&amp;#39;s Multi
-Cloud Gateway (MCG) based on the upstream &lt;a href="https://www.noobaa.io/"&gt;Noobaa&lt;/a&gt; project. MCG is part
-of Red Hat&amp;#39;s OpenShift Data Foundation (ODF). ODF bundles the upstream
-projects &lt;a href="https://ceph.io/en/"&gt;Ceph&lt;/a&gt; and &lt;a href="https://noobaa.io"&gt;Noobaa&lt;/a&gt;.&lt;/p&gt;
-&lt;div id="outline-container-headline-1" class="outline-2"&gt;
-&lt;h2 id="headline-1"&gt;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api put-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56 --lifecycle-configuration file://logging-bucket-lifecycle.json</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Checking again with the previous command, the rule should now be configured:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ aws --endpoint https://s3-openshift-storage.apps.ocp.local --no-verify-ssl s3api get-bucket-lifecycle-configuration --bucket logging-bucket-d39a258c-e971-4a0f-a1fa-302cb7e76a56</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_what_now">What now?</h3>
+<div class="paragraph">
+<p>Now you have to wait. With the configuration used above, it takes 4 days until the file is rotated. I have tested this using a 1 day retention period and saw that the file will be rotated after about 30 hours. So the rotation will not happen exactly at 24 hours but a bit afterwards.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_consclusion">Consclusion</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This article describes very, and I mean very, briefly how to configure such data retention for OpenShift Data Foundation. Unfortunately, public documentation can be confusing, so I summarized here the commands I have used.</p>
+</div>
+<div class="paragraph">
+<p>There are some limitations with the Noobaa integration though. For example file transition (to a different storage class) is (currently) not supported.</p>
+</div>
+<div class="paragraph">
+<p>Also, there are much more possible API calls that might be interesting. Please follow the AWS documentation:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.aws.amazon.com/cli/latest/reference/s3api/">S3 API</a></p>
+</li>
+<li>
+<p><a href="https://docs.aws.amazon.com/cli/latest/reference/s3/">S3</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Overview of Red Hat's Multi Cloud Gateway (Noobaa)</title><link>https://blog.stderr.at/openshift-platform/day-2/storage/2022-04-22-multi-cloud-gateway/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/storage/2022-04-22-multi-cloud-gateway/</guid><pubDate>Fri, 22 Apr 2022 00:00:00 +0000</pubDate><dc:creator>Articles by Toni Schmidbauer</dc:creator><category>OpenShift</category><description>This is my personal summary of experimenting with Red Hat's Multi Cloud Gateway (MCG) based on the upstream Noobaa project. MCG is part of Red Hat's OpenShift Data Foundation (ODF). ODF bundles the upstream projects Ceph and Noobaa.
+Overview Noobaa, or the Multicloud Gateway (MCG), is a S3 based data federation tool. It allows you to use S3 backends from various sources and
+sync replicate or simply use existing S3 buckets. Currently the following sources, or backing stores are supported:</description><content:encoded><![CDATA[
+<p>
+This is my personal summary of experimenting with Red Hat&#39;s Multi
+Cloud Gateway (MCG) based on the upstream <a href="https://www.noobaa.io/">Noobaa</a> project. MCG is part
+of Red Hat&#39;s OpenShift Data Foundation (ODF). ODF bundles the upstream
+projects <a href="https://ceph.io/en/">Ceph</a> and <a href="https://noobaa.io">Noobaa</a>.</p>
+<div id="outline-container-headline-1" class="outline-2">
+<h2 id="headline-1">
 Overview
-&lt;/h2&gt;
-&lt;div id="outline-text-headline-1" class="outline-text-2"&gt;
-&lt;p&gt;
+</h2>
+<div id="outline-text-headline-1" class="outline-text-2">
+<p>
 Noobaa, or the Multicloud Gateway (MCG), is a S3 based data federation
-tool. It allows you to use S3 backends from various sources and&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;sync&lt;/li&gt;
-&lt;li&gt;replicate&lt;/li&gt;
-&lt;li&gt;or simply use existing&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;S3 buckets. Currently the following sources, or backing stores are supported:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;AWS S3&lt;/li&gt;
-&lt;li&gt;Azure Blob&lt;/li&gt;
-&lt;li&gt;Google Cloud Storage&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Any other S3 compatible storage, for example&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Ceph&lt;/li&gt;
-&lt;li&gt;Minio&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Noobaa also supports using a local file system as a backing store for S3.&lt;/p&gt;
-&lt;p&gt;
+tool. It allows you to use S3 backends from various sources and</p>
+<ul>
+<li>sync</li>
+<li>replicate</li>
+<li>or simply use existing</li>
+</ul>
+<p>S3 buckets. Currently the following sources, or backing stores are supported:</p>
+<ul>
+<li>AWS S3</li>
+<li>Azure Blob</li>
+<li>Google Cloud Storage</li>
+<li>
+<p>Any other S3 compatible storage, for example</p>
+<ul>
+<li>Ceph</li>
+<li>Minio</li>
+</ul>
+</li>
+</ul>
+<p>Noobaa also supports using a local file system as a backing store for S3.</p>
+<p>
 The main purpose is to provide a single API endpoint for applications
-using various S3 backends.&lt;/p&gt;
-&lt;p&gt;
+using various S3 backends.</p>
+<p>
 One of the main features of Noobaa is the storage pipeline. With a
 standard Noobaa S3 bucket, when storing a new Object Noobaa executes
-the following steps:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Chunking of the Object&lt;/li&gt;
-&lt;li&gt;De-duplication&lt;/li&gt;
-&lt;li&gt;Compression&lt;/li&gt;
-&lt;li&gt;and Encryption&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;This means that data stored in public cloud S3 offerings is
-automatically encrypted. Noobaa also supports using Hashicorp &lt;a href="https://www.hashicorp.com/products/vault"&gt;Vault&lt;/a&gt;
-for storing and retrieving encryption keys.&lt;/p&gt;
-&lt;p&gt;
+the following steps:</p>
+<ul>
+<li>Chunking of the Object</li>
+<li>De-duplication</li>
+<li>Compression</li>
+<li>and Encryption</li>
+</ul>
+<p>This means that data stored in public cloud S3 offerings is
+automatically encrypted. Noobaa also supports using Hashicorp <a href="https://www.hashicorp.com/products/vault">Vault</a>
+for storing and retrieving encryption keys.</p>
+<p>
 If you need to skip the storage pipeline, Noobaa also supports
 namespace buckets. For example these type of buckets allow you to
 write directly to AWS S3 and retrieve Objects via Noobaa. Or it could
-be used to migrate buckets from one cloud provider to another.&lt;/p&gt;
-&lt;p&gt;
-Noobaa also has support for triggering JavaScript based function when&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;creating new objects&lt;/li&gt;
-&lt;li&gt;reading existing objects&lt;/li&gt;
-&lt;li&gt;deleting objects&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div id="outline-container-headline-2" class="outline-2"&gt;
-&lt;h2 id="headline-2"&gt;
+be used to migrate buckets from one cloud provider to another.</p>
+<p>
+Noobaa also has support for triggering JavaScript based function when</p>
+<ul>
+<li>creating new objects</li>
+<li>reading existing objects</li>
+<li>deleting objects</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-headline-2" class="outline-2">
+<h2 id="headline-2">
 Setup
-&lt;/h2&gt;
-&lt;div id="outline-text-headline-2" class="outline-text-2"&gt;
-&lt;p&gt;
+</h2>
+<div id="outline-text-headline-2" class="outline-text-2">
+<p>
 With OpenShift Plus or an OpenShift Data Foundation subscription you
-can use the OpenShift Data Foundation Operator.&lt;/p&gt;
-&lt;p&gt;
+can use the OpenShift Data Foundation Operator.</p>
+<p>
 For testing Noobaa we used the standalone installation method
-&lt;span style="text-decoration: underline;"&gt;without&lt;/span&gt; setting up Ceph storage (see &lt;a href="https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.10/html/deploying_openshift_data_foundation_using_amazon_web_services/deploy-standalone-multicloud-object-gateway"&gt;here&lt;/a&gt;). OpenShift was running in
-AWS for testing.&lt;/p&gt;
-&lt;p&gt;
+<span style="text-decoration: underline;">without</span> setting up Ceph storage (see <a href="https://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.10/html/deploying_openshift_data_foundation_using_amazon_web_services/deploy-standalone-multicloud-object-gateway">here</a>). OpenShift was running in
+AWS for testing.</p>
+<p>
 If you would like to use the upstream version you can use the Noobaa
-operator (&lt;a href="https://github.com/noobaa/noobaa-operator"&gt;https://github.com/noobaa/noobaa-operator&lt;/a&gt;). This is what the
-OpenShift Data Foundation (ODF) is using as well.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div id="outline-container-headline-3" class="outline-2"&gt;
-&lt;h2 id="headline-3"&gt;
+operator (<a href="https://github.com/noobaa/noobaa-operator">https://github.com/noobaa/noobaa-operator</a>). This is what the
+OpenShift Data Foundation (ODF) is using as well.</p>
+</div>
+</div>
+<div id="outline-container-headline-3" class="outline-2">
+<h2 id="headline-3">
 Command line interface
-&lt;/h2&gt;
-&lt;div id="outline-text-headline-3" class="outline-text-2"&gt;
-&lt;p&gt;
-Noobaa also comes with a command line interface &lt;code&gt;noobaa&lt;/code&gt;. It&amp;#39;s
+</h2>
+<div id="outline-text-headline-3" class="outline-text-2">
+<p>
+Noobaa also comes with a command line interface <code>noobaa</code>. It&#39;s
 available via an ODF subscription or can be installed separately. See
-the noobaa-operator &lt;a href="https://github.com/noobaa/noobaa-operator/blob/master/README.md"&gt;readme&lt;/a&gt; for more information.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div id="outline-container-headline-4" class="outline-2"&gt;
-&lt;h2 id="headline-4"&gt;
+the noobaa-operator <a href="https://github.com/noobaa/noobaa-operator/blob/master/README.md">readme</a> for more information.</p>
+</div>
+</div>
+<div id="outline-container-headline-4" class="outline-2">
+<h2 id="headline-4">
 Resources
-&lt;/h2&gt;
-&lt;div id="outline-text-headline-4" class="outline-text-2"&gt;
-&lt;p&gt;
+</h2>
+<div id="outline-text-headline-4" class="outline-text-2">
+<p>
 Before using an S3 object store with Noobaa we need to create so
-called &lt;span style="text-decoration: underline;"&gt;Resources&lt;/span&gt;. This can be done via the Noobaa user interface or
+called <span style="text-decoration: underline;">Resources</span>. This can be done via the Noobaa user interface or
 via the command line. For example the following commands create a new
-Resource using an AWS S3 bucket as a backing store&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create an S3 bucket in eu-north-1&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aws s3api create-bucket &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --region eu-north-1 &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --bucket tosmi-eu-north-1 &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --create-bucket-configuration &lt;span class="nv"&gt;LocationConstraint&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;eu-north-1
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create an S3 bucket in eu-north-1&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;aws s3api create-bucket &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --region eu-west-1 &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --bucket tosmi-eu-west-1 &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --create-bucket-configuration &lt;span class="nv"&gt;LocationConstraint&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;eu-west-1
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create Noobaa backing store using the tosmi-eu-north-1 bucket above&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;noobaa backingstore create aws-s3 &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --region eu-north-1 &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --target-bucket tosmi-eu-north-1 aws-eu-north
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create Noobaa backing store using the tosmi-eu-west-1 bucket above&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;noobaa backingstore create aws-s3 &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --region eu-west-1 &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --target-bucket tosmi-eu-west-1 aws-eu-west&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-Or if we would like to use Azure blob&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create two resource groups for storage&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;az group create --location northeurope -g mcg-northeurope
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create two storage accounts&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;az storage account create --name mcgnortheurope -g mcg-northeurope --location northeurope --sku Standard_LRS --kind StorageV2
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create containers for storing blobs&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;az storage container create --account-name mcgnortheurope -n mcg-northeurope
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# list storage account keys for noobaa&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;az storage account list
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;az storage account show -g mcg-northeurope -n mcgnortheurope
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;az storage account keys list -g mcg-westeurope -n mcgwesteurope
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;az storage account keys list -g mcg-northeurope -n mcgnortheurope
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;noobaa backingstore create &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; azure-blob azure-northeurope &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --account-key&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;&amp;lt;the key&amp;gt;&amp;#34;&lt;/span&gt; &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --account-name&lt;span class="o"&gt;=&lt;/span&gt;mcgnortheurope &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --target-blob-container&lt;span class="o"&gt;=&lt;/span&gt;mcg-northeurope&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-Using&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;noobaa backingstore list&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-we are able to confirm that our stores were created successfully.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div id="outline-container-headline-5" class="outline-2"&gt;
-&lt;h2 id="headline-5"&gt;
+Resource using an AWS S3 bucket as a backing store</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="c1"># create an S3 bucket in eu-north-1</span>
+</span></span><span class="line"><span class="cl">aws s3api create-bucket <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --region eu-north-1 <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --bucket tosmi-eu-north-1 <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --create-bucket-configuration <span class="nv">LocationConstraint</span><span class="o">=</span>eu-north-1
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># create an S3 bucket in eu-north-1</span>
+</span></span><span class="line"><span class="cl">aws s3api create-bucket <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --region eu-west-1 <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --bucket tosmi-eu-west-1 <span class="se">\
+</span></span></span><span class="line"><span class="cl">    --create-bucket-configuration <span class="nv">LocationConstraint</span><span class="o">=</span>eu-west-1
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># create Noobaa backing store using the tosmi-eu-north-1 bucket above</span>
+</span></span><span class="line"><span class="cl">noobaa backingstore create aws-s3 <span class="se">\
+</span></span></span><span class="line"><span class="cl">       --region eu-north-1 <span class="se">\
+</span></span></span><span class="line"><span class="cl">       --target-bucket tosmi-eu-north-1 aws-eu-north
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># create Noobaa backing store using the tosmi-eu-west-1 bucket above</span>
+</span></span><span class="line"><span class="cl">noobaa backingstore create aws-s3 <span class="se">\
+</span></span></span><span class="line"><span class="cl">       --region eu-west-1 <span class="se">\
+</span></span></span><span class="line"><span class="cl">       --target-bucket tosmi-eu-west-1 aws-eu-west</span></span></code></pre></div>
+</div>
+<p>
+Or if we would like to use Azure blob</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="c1"># create two resource groups for storage</span>
+</span></span><span class="line"><span class="cl">az group create --location northeurope -g mcg-northeurope
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># create two storage accounts</span>
+</span></span><span class="line"><span class="cl">az storage account create --name mcgnortheurope -g mcg-northeurope --location northeurope --sku Standard_LRS --kind StorageV2
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># create containers for storing blobs</span>
+</span></span><span class="line"><span class="cl">az storage container create --account-name mcgnortheurope -n mcg-northeurope
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># list storage account keys for noobaa</span>
+</span></span><span class="line"><span class="cl">az storage account list
+</span></span><span class="line"><span class="cl">az storage account show -g mcg-northeurope -n mcgnortheurope
+</span></span><span class="line"><span class="cl">az storage account keys list -g mcg-westeurope -n mcgwesteurope
+</span></span><span class="line"><span class="cl">az storage account keys list -g mcg-northeurope -n mcgnortheurope
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">noobaa backingstore create <span class="se">\
+</span></span></span><span class="line"><span class="cl">       azure-blob azure-northeurope <span class="se">\
+</span></span></span><span class="line"><span class="cl">       --account-key<span class="o">=</span><span class="s2">&#34;&lt;the key&gt;&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl">       --account-name<span class="o">=</span>mcgnortheurope <span class="se">\
+</span></span></span><span class="line"><span class="cl">       --target-blob-container<span class="o">=</span>mcg-northeurope</span></span></code></pre></div>
+</div>
+<p>
+Using</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">noobaa backingstore list</span></span></code></pre></div>
+</div>
+<p>
+we are able to confirm that our stores were created successfully.</p>
+</div>
+</div>
+<div id="outline-container-headline-5" class="outline-2">
+<h2 id="headline-5">
 Buckets
-&lt;/h2&gt;
-&lt;div id="outline-text-headline-5" class="outline-text-2"&gt;
-&lt;p&gt;
+</h2>
+<div id="outline-text-headline-5" class="outline-text-2">
+<p>
 After creating the backend stores we are able to create Buckets and define the
-layout of backends.&lt;/p&gt;
-&lt;p&gt;
+layout of backends.</p>
+<p>
 There are two ways how to create buckets, either directly via the Noobaa UI,
-or using Kubernetes (K8s) objects.&lt;/p&gt;
-&lt;p&gt;
-We will focus on using K8s objects in this post.&lt;/p&gt;
-&lt;div id="outline-container-headline-6" class="outline-3"&gt;
-&lt;h3 id="headline-6"&gt;
+or using Kubernetes (K8s) objects.</p>
+<p>
+We will focus on using K8s objects in this post.</p>
+<div id="outline-container-headline-6" class="outline-3">
+<h3 id="headline-6">
 Required K8s objects
-&lt;/h3&gt;
-&lt;div id="outline-text-headline-6" class="outline-text-3"&gt;
-&lt;p&gt;
-The Noobaa operator provides the following Custom Resource Definitions:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;BackingStore&lt;/code&gt;: we already created &lt;code&gt;BackingStores&lt;/code&gt; in the Resources
-section&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;BucketClass&lt;/code&gt;: a bucket class defines the layout of our bucket
-(single, mirrored or tiered)&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;StorageClass&lt;/code&gt;: a standard K8s &lt;code&gt;StorageClass&lt;/code&gt; referencing the &lt;code&gt;BucketClass&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;ObjectBucketClaim&lt;/code&gt;: A OBC or &lt;code&gt;ObjectBucketClaim&lt;/code&gt; creates the bucket
+</h3>
+<div id="outline-text-headline-6" class="outline-text-3">
+<p>
+The Noobaa operator provides the following Custom Resource Definitions:</p>
+<ul>
+<li><code>BackingStore</code>: we already created <code>BackingStores</code> in the Resources
+section</li>
+<li><code>BucketClass</code>: a bucket class defines the layout of our bucket
+(single, mirrored or tiered)</li>
+<li><code>StorageClass</code>: a standard K8s <code>StorageClass</code> referencing the <code>BucketClass</code></li>
+<li><code>ObjectBucketClaim</code>: A OBC or <code>ObjectBucketClaim</code> creates the bucket
 for us in Noobaa. Additionally the Noobaa operator creates a
-&lt;code&gt;ConfigMap&lt;/code&gt; and a &lt;code&gt;Secret&lt;/code&gt; with the same name as the Bucket, storing
-access details (&lt;code&gt;ConfigMap&lt;/code&gt;) and credentials (&lt;code&gt;Secret&lt;/code&gt;) for accessing
-the bucket.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div id="outline-container-headline-7" class="outline-3"&gt;
-&lt;h3 id="headline-7"&gt;
+<code>ConfigMap</code> and a <code>Secret</code> with the same name as the Bucket, storing
+access details (<code>ConfigMap</code>) and credentials (<code>Secret</code>) for accessing
+the bucket.</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-headline-7" class="outline-3">
+<h3 id="headline-7">
 BucketClass
-&lt;/h3&gt;
-&lt;div id="outline-text-headline-7" class="outline-text-3"&gt;
-&lt;p&gt;
-Let&amp;#39;s create a example &lt;code&gt;BucketClass&lt;/code&gt; which mirrors objects between the
-AWS S3 buckets eu-west-1 and eu-north-1.&lt;/p&gt;
-&lt;div class="src src-yaml"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;apiVersion&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;noobaa.io/v1alpha1&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;kind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BucketClass&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;metadata&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;labels&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;app&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;noobaa&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-bucket-class&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;namespace&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;openshift-storage&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;spec&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;placementPolicy&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;tiers&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;backingStores&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="l"&gt;aws-eu-north&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="l"&gt;aws-eu-west&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;placement&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;Mirror&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-So we are defining a &lt;code&gt;BucketClass&lt;/code&gt; &lt;span style="text-decoration: underline;"&gt;aws-mirrored-bucket-class&lt;/span&gt; that
-has the following placement policy:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;A single tier with one backing store&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;The backing store uses two AWS buckets&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;aws-eu-north&lt;/li&gt;
-&lt;li&gt;aws-eu-west&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;The placement policy is mirror, so all objects uploaded to buckets
-using this &lt;code&gt;BucketClass&lt;/code&gt; will be mirrored between &lt;span style="text-decoration: underline;"&gt;aws-eu-north&lt;/span&gt; and
-&lt;span style="text-decoration: underline;"&gt;aws-eu-west&lt;/span&gt;.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;A &lt;code&gt;BucketClass&lt;/code&gt; could have multiple tiers, moving cold data
-transparently to a lower tier, but let&amp;#39;s keep this simple.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div id="outline-container-headline-8" class="outline-3"&gt;
-&lt;h3 id="headline-8"&gt;
+</h3>
+<div id="outline-text-headline-7" class="outline-text-3">
+<p>
+Let&#39;s create a example <code>BucketClass</code> which mirrors objects between the
+AWS S3 buckets eu-west-1 and eu-north-1.</p>
+<div class="src src-yaml">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">noobaa.io/v1alpha1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">BucketClass</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">noobaa</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-bucket-class</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">openshift-storage</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">placementPolicy</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">tiers</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">backingStores</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">aws-eu-north</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">aws-eu-west</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">placement</span><span class="p">:</span><span class="w"> </span><span class="l">Mirror</span></span></span></code></pre></div>
+</div>
+<p>
+So we are defining a <code>BucketClass</code> <span style="text-decoration: underline;">aws-mirrored-bucket-class</span> that
+has the following placement policy:</p>
+<ul>
+<li>A single tier with one backing store</li>
+<li>
+<p>The backing store uses two AWS buckets</p>
+<ul>
+<li>aws-eu-north</li>
+<li>aws-eu-west</li>
+</ul>
+</li>
+<li>The placement policy is mirror, so all objects uploaded to buckets
+using this <code>BucketClass</code> will be mirrored between <span style="text-decoration: underline;">aws-eu-north</span> and
+<span style="text-decoration: underline;">aws-eu-west</span>.</li>
+</ul>
+<p>A <code>BucketClass</code> could have multiple tiers, moving cold data
+transparently to a lower tier, but let&#39;s keep this simple.</p>
+</div>
+</div>
+<div id="outline-container-headline-8" class="outline-3">
+<h3 id="headline-8">
 StorageClass
-&lt;/h3&gt;
-&lt;div id="outline-text-headline-8" class="outline-text-3"&gt;
-&lt;p&gt;
-After creating our &lt;code&gt;BucketClass&lt;/code&gt; we are now able to define a standard
-K8s &lt;code&gt;StorageClass&lt;/code&gt;:&lt;/p&gt;
-&lt;div class="src src-yaml"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;apiVersion&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;storage.k8s.io/v1&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;kind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;StorageClass&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;metadata&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;annotations&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;description&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;Provides Mirrored Object Bucket Claims (OBCs) in AWS&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-openshift-storage.noobaa.io&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;parameters&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;bucketclass&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-bucket-class&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;provisioner&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;openshift-storage.noobaa.io/obc&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;reclaimPolicy&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;Delete&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;volumeBindingMode&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;Immediate&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-This &lt;code&gt;StorageClass&lt;/code&gt; uses our &lt;code&gt;BucketClass&lt;/code&gt; &lt;span style="text-decoration: underline;"&gt;aws-mirrored-bucket-class&lt;/span&gt;
-as a backend. All buckets created leveraging this &lt;code&gt;StorageClass&lt;/code&gt; will
-mirror data between &lt;span style="text-decoration: underline;"&gt;aws-eu-north&lt;/span&gt; and &lt;span style="text-decoration: underline;"&gt;aws-eu-west&lt;/span&gt; (see the previous
-chapter).&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div id="outline-container-headline-9" class="outline-3"&gt;
-&lt;h3 id="headline-9"&gt;
+</h3>
+<div id="outline-text-headline-8" class="outline-text-3">
+<p>
+After creating our <code>BucketClass</code> we are now able to define a standard
+K8s <code>StorageClass</code>:</p>
+<div class="src src-yaml">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">storage.k8s.io/v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">StorageClass</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l">Provides Mirrored Object Bucket Claims (OBCs) in AWS</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-openshift-storage.noobaa.io</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">parameters</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">bucketclass</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-bucket-class</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">provisioner</span><span class="p">:</span><span class="w"> </span><span class="l">openshift-storage.noobaa.io/obc</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">reclaimPolicy</span><span class="p">:</span><span class="w"> </span><span class="l">Delete</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">volumeBindingMode</span><span class="p">:</span><span class="w"> </span><span class="l">Immediate</span></span></span></code></pre></div>
+</div>
+<p>
+This <code>StorageClass</code> uses our <code>BucketClass</code> <span style="text-decoration: underline;">aws-mirrored-bucket-class</span>
+as a backend. All buckets created leveraging this <code>StorageClass</code> will
+mirror data between <span style="text-decoration: underline;">aws-eu-north</span> and <span style="text-decoration: underline;">aws-eu-west</span> (see the previous
+chapter).</p>
+</div>
+</div>
+<div id="outline-container-headline-9" class="outline-3">
+<h3 id="headline-9">
 ObjectBucketClaim
-&lt;/h3&gt;
-&lt;div id="outline-text-headline-9" class="outline-text-3"&gt;
-&lt;p&gt;
-Finally we are able to create &lt;code&gt;ObjectBucketClaims&lt;/code&gt; for projects
-requiring object storage. An &lt;code&gt;ObjectBucketClaim&lt;/code&gt; is similar to an
-&lt;code&gt;PersistentVolumeClaim&lt;/code&gt;. Every time a claim is created the Noobaa
-operator will create a corresponding S3 bucket for us.&lt;/p&gt;
-&lt;p&gt;
-Let&amp;#39;s start testing this out by creating a new OpenShift project&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;oc new-project obc-test&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-Now we define a &lt;code&gt;ObjectBucketClaim&lt;/code&gt; to create a new bucket for our application:&lt;/p&gt;
-&lt;div class="src src-yaml"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;apiVersion&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;objectbucket.io/v1alpha1&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;kind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;ObjectBucketClaim&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;metadata&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;labels&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;app&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;noobaa&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-claim&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;spec&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;generateBucketName&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;storageClassName&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-openshift-storage.noobaa.io&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-We use the &lt;code&gt;StorageClass&lt;/code&gt; created in the previous step. This will create&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;a S3 Bucket in the requested &lt;code&gt;StorageClass&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;a &lt;code&gt;ConfigMap&lt;/code&gt; storing access information&lt;/li&gt;
-&lt;li&gt;a &lt;code&gt;Secret&lt;/code&gt; storing credentials for accessing the S3 Bucket&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;For testing we will upload some data via &lt;a href="https://s3tools.org/s3cmd"&gt;&lt;span style="text-decoration: underline;"&gt;s3cmd&lt;/span&gt;&lt;/a&gt; and use a pod to monitor
-data within the bucket.&lt;/p&gt;
-&lt;p&gt;
-Let&amp;#39;s do the upload with &lt;span style="text-decoration: underline;"&gt;s3cmd&lt;/span&gt;, we need the following config file:&lt;/p&gt;
-&lt;div class="src src-ini"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-ini" data-lang="ini"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="k"&gt;[default]&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="na"&gt;check_ssl_certificate&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;False&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="na"&gt;check_ssl_hostname&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;False&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="na"&gt;access_key&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;lt;access key&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="na"&gt;secret_key&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;lt;secret key&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="na"&gt;host_base&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;s3-openshift-storage.apps.ocp.aws.tntinfra.net&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="na"&gt;host_bucket&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;%(bucket).s3-openshift-storage.apps.ocp.aws.tntinfra.net&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-Of course you must change &lt;span style="text-decoration: underline;"&gt;host-base&lt;/span&gt; according to your cluster
-name. It&amp;#39;s a route in the &lt;span style="text-decoration: underline;"&gt;openshift-storage&lt;/span&gt; namespace:&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;oc get route -n openshift-storage s3 -o &lt;span class="nv"&gt;jsonpath&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;{.spec.host}&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
+</h3>
+<div id="outline-text-headline-9" class="outline-text-3">
+<p>
+Finally we are able to create <code>ObjectBucketClaims</code> for projects
+requiring object storage. An <code>ObjectBucketClaim</code> is similar to an
+<code>PersistentVolumeClaim</code>. Every time a claim is created the Noobaa
+operator will create a corresponding S3 bucket for us.</p>
+<p>
+Let&#39;s start testing this out by creating a new OpenShift project</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">oc new-project obc-test</span></span></code></pre></div>
+</div>
+<p>
+Now we define a <code>ObjectBucketClaim</code> to create a new bucket for our application:</p>
+<div class="src src-yaml">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">objectbucket.io/v1alpha1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ObjectBucketClaim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">noobaa</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-claim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">generateBucketName</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">storageClassName</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-openshift-storage.noobaa.io</span></span></span></code></pre></div>
+</div>
+<p>
+We use the <code>StorageClass</code> created in the previous step. This will create</p>
+<ul>
+<li>a S3 Bucket in the requested <code>StorageClass</code></li>
+<li>a <code>ConfigMap</code> storing access information</li>
+<li>a <code>Secret</code> storing credentials for accessing the S3 Bucket</li>
+</ul>
+<p>For testing we will upload some data via <a href="https://s3tools.org/s3cmd"><span style="text-decoration: underline;">s3cmd</span></a> and use a pod to monitor
+data within the bucket.</p>
+<p>
+Let&#39;s do the upload with <span style="text-decoration: underline;">s3cmd</span>, we need the following config file:</p>
+<div class="src src-ini">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-ini" data-lang="ini"><span class="line"><span class="cl"><span class="k">[default]</span>
+</span></span><span class="line"><span class="cl"><span class="na">check_ssl_certificate</span> <span class="o">=</span> <span class="s">False</span>
+</span></span><span class="line"><span class="cl"><span class="na">check_ssl_hostname</span> <span class="o">=</span> <span class="s">False</span>
+</span></span><span class="line"><span class="cl"><span class="na">access_key</span> <span class="o">=</span> <span class="s">&lt;access key&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="na">secret_key</span> <span class="o">=</span> <span class="s">&lt;secret key&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="na">host_base</span> <span class="o">=</span> <span class="s">s3-openshift-storage.apps.ocp.aws.tntinfra.net</span>
+</span></span><span class="line"><span class="cl"><span class="na">host_bucket</span> <span class="o">=</span> <span class="s">%(bucket).s3-openshift-storage.apps.ocp.aws.tntinfra.net</span></span></span></code></pre></div>
+</div>
+<p>
+Of course you must change <span style="text-decoration: underline;">host-base</span> according to your cluster
+name. It&#39;s a route in the <span style="text-decoration: underline;">openshift-storage</span> namespace:</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">oc get route -n openshift-storage s3 -o <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.spec.host}&#39;</span></span></span></code></pre></div>
+</div>
+<p>
 You can extract the access and secret key from the
-K8s secret via:&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;oc extract secret/aws-mirrored-claim --to&lt;span class="o"&gt;=&lt;/span&gt;-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
+K8s secret via:</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">oc extract secret/aws-mirrored-claim --to<span class="o">=</span>-</span></span></code></pre></div>
+</div>
+<p>
 Copy the access key and the secret key to the s3 command config file
-(we&amp;#39;ve called our config &lt;span style="text-decoration: underline;"&gt;noobaa-s3.cfg&lt;/span&gt;). Now we can list all
-available buckets via:&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ s3cmd ls -c noobaa-s3.cfg
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;2022-04-22 13:56 s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-Now we are going to upload a sample file:&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ s3cmd -c noobaa-s3.cfg put simple-aws-mirrored-obc.yaml s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;upload: &lt;span class="s1"&gt;&amp;#39;simple-aws-mirrored-obc.yaml&amp;#39;&lt;/span&gt; -&amp;gt; &lt;span class="s1"&gt;&amp;#39;s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4/simple-aws-mirrored-obc.yaml&amp;#39;&lt;/span&gt; &lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt; of 1&lt;span class="o"&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="m"&gt;226&lt;/span&gt; of &lt;span class="m"&gt;226&lt;/span&gt; 100% in 0s 638.18 B/s &lt;span class="k"&gt;done&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-We can also list available files via&lt;/p&gt;
-&lt;div class="src src-sh"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-sh" data-lang="sh"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;s3cmd -c noobaa-s3.cfg ls s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;2022-04-22 13:57 &lt;span class="m"&gt;226&lt;/span&gt; s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4/simple-aws-mirrored-obc.yaml&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-Our we could use a &lt;code&gt;Pod&lt;/code&gt; to list available files from within
-OpenShift. Note how we use the &lt;code&gt;ConfigMap&lt;/code&gt; and the &lt;code&gt;Secret&lt;/code&gt; the Noobaa
-operater created for us, when we created the &lt;code&gt;ObjectBucketClaim&lt;/code&gt;:&lt;/p&gt;
-&lt;div class="src src-yaml"&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;apiVersion&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;batch/v1&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;kind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;Job&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;metadata&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;s3-test-job&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;spec&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;template&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;metadata&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;s3-pod&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;spec&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;containers&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;image&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;d3fk/s3cmd:latest&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;s3-pod&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;env&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BUCKET_NAME&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;valueFrom&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;configMapKeyRef&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-claim&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;key&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BUCKET_NAME&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BUCKET_HOST&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;valueFrom&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;configMapKeyRef&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-claim&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;key&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BUCKET_HOST&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BUCKET_PORT&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;valueFrom&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;configMapKeyRef&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-claim&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;key&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BUCKET_PORT&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;AWS_ACCESS_KEY_ID&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;valueFrom&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;secretKeyRef&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-claim&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;key&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;AWS_ACCESS_KEY_ID&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;AWS_SECRET_ACCESS_KEY&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;valueFrom&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;secretKeyRef&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;aws-mirrored-claim&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;key&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;AWS_SECRET_ACCESS_KEY&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;command&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="l"&gt;/bin/sh&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- -&lt;span class="l"&gt;c&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="s1"&gt;&amp;#39;s3cmd --host $BUCKET_HOST --host-bucket &amp;#34;%(bucket).$BUCKET_HOST&amp;#34; --no-check-certificate ls s3://$BUCKET_NAME&amp;#39;&lt;/span&gt;&lt;span class="w"&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;restartPolicy&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;Never&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;
-That&amp;#39;s all for now. If time allows we are going to write a follow up blog post on&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Replicating Buckets and&lt;/li&gt;
-&lt;li&gt;Functions&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Understanding RWO block device handling in OpenShift</title><link>https://blog.stderr.at/openshift-platform/day-2/storage/2021-02-27-understanding-block-devices/</link><pubDate>Sat, 27 Feb 2021 00:00:00 +0000</pubDate><guid>https://blog.stderr.at/openshift-platform/day-2/storage/2021-02-27-understanding-block-devices/</guid><description>&lt;div class="paragraph"&gt;
-&lt;p&gt;In this blog post we would like to explore OpenShift / Kubernetes
-block device handling. We try to answer the following questions:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;What happens if multiple pods try to access the same block device?&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;What happens if we scale a deployment using block devices to more than one replica?&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;And finally we want to give a short, high level overview about how the
-container storage interface (CSI) actually works.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+(we&#39;ve called our config <span style="text-decoration: underline;">noobaa-s3.cfg</span>). Now we can list all
+available buckets via:</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">$ s3cmd ls -c noobaa-s3.cfg
+</span></span><span class="line"><span class="cl">2022-04-22 13:56  s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4</span></span></code></pre></div>
+</div>
+<p>
+Now we are going to upload a sample file:</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">$ s3cmd -c noobaa-s3.cfg put simple-aws-mirrored-obc.yaml s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4
+</span></span><span class="line"><span class="cl">upload: <span class="s1">&#39;simple-aws-mirrored-obc.yaml&#39;</span> -&gt; <span class="s1">&#39;s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4/simple-aws-mirrored-obc.yaml&#39;</span>  <span class="o">[</span><span class="m">1</span> of 1<span class="o">]</span>
+</span></span><span class="line"><span class="cl"> <span class="m">226</span> of <span class="m">226</span>   100% in    0s   638.18 B/s  <span class="k">done</span></span></span></code></pre></div>
+</div>
+<p>
+We can also list available files via</p>
+<div class="src src-sh">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">s3cmd -c noobaa-s3.cfg ls s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4
+</span></span><span class="line"><span class="cl">2022-04-22 13:57          <span class="m">226</span>  s3://aws-mirrored-c1087a17-5c84-4c62-9f36-29081a6cf5a4/simple-aws-mirrored-obc.yaml</span></span></code></pre></div>
+</div>
+<p>
+Our we could use a <code>Pod</code> to list available files from within
+OpenShift. Note how we use the <code>ConfigMap</code> and the <code>Secret</code> the Noobaa
+operater created for us, when we created the <code>ObjectBucketClaim</code>:</p>
+<div class="src src-yaml">
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">batch/v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Job</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">s3-test-job</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">s3-pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">d3fk/s3cmd:latest</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">s3-pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">env</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">BUCKET_NAME</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">configMapKeyRef</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-claim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l">BUCKET_NAME</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">BUCKET_HOST</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">configMapKeyRef</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-claim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l">BUCKET_HOST</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">BUCKET_PORT</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">configMapKeyRef</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-claim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l">BUCKET_PORT</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">AWS_ACCESS_KEY_ID</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">secretKeyRef</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-claim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l">AWS_ACCESS_KEY_ID</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">AWS_SECRET_ACCESS_KEY</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">secretKeyRef</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">aws-mirrored-claim</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l">AWS_SECRET_ACCESS_KEY</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">command</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="l">/bin/sh</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- -<span class="l">c</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="s1">&#39;s3cmd --host $BUCKET_HOST --host-bucket &#34;%(bucket).$BUCKET_HOST&#34; --no-check-certificate ls s3://$BUCKET_NAME&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l">Never</span></span></span></code></pre></div>
+</div>
+<p>
+That&#39;s all for now. If time allows we are going to write a follow up blog post on</p>
+<ul>
+<li>Replicating Buckets and</li>
+<li>Functions</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+]]></content:encoded></item><item><title>Understanding RWO block device handling in OpenShift</title><link>https://blog.stderr.at/openshift-platform/day-2/storage/2021-02-27-understanding-block-devices/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/storage/2021-02-27-understanding-block-devices/</guid><pubDate>Sat, 27 Feb 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Toni Schmidbauer</dc:creator><category>OpenShift</category><description>A basic introduction into block device usage</description><content:encoded><![CDATA[<div class="paragraph">
+<p>In this blog post we would like to explore OpenShift / Kubernetes
+block device handling. We try to answer the following questions:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>What happens if multiple pods try to access the same block device?</p>
+</li>
+<li>
+<p>What happens if we scale a deployment using block devices to more than one replica?</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>And finally we want to give a short, high level overview about how the
+container storage interface (CSI) actually works.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 A block device provides Read-Write-Once (RWO) storage. This
 basically means a local file system mounted by a single node. Do not
 confuse this with a cluster (CephFS, GlusterFS) or network file system
 (NFS). These file systems provide Read-Write-Many (RWX) storage
 mountable on more than one node.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="sect1"&gt;
-&lt;h2 id="_test_setup"&gt;Test setup&lt;/h2&gt;
-&lt;div class="sectionbody"&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;For running our tests we need the following resources&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="ulist"&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;A new namespace/project for running our tests&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;A persistent volume claim (PVC) to be mounted in our test pods&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Two pods definitions for mounting the PVC&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_1_creating_a_new_namespaceproject"&gt;Step 1: Creating a new namespace/project&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To run our test cases we created a new project with OpenShift&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc new-project blockdevices&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="sect2"&gt;
-&lt;h3 id="_step_2_defining_a_block_pvc"&gt;Step 2: Defining a block PVC&lt;/h3&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Our cluster is running the rook operator (&lt;a class="bare" href="https://rook.io"&gt;https://rook.io&lt;/a&gt;) and provides a ceph-block
-storage class for creating block devices:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ oc get sc
-NAME PROVISIONER RECLAIMPOLICY VOLUMEBINDINGMODE ALLOWVOLUMEEXPANSION AGE
-ceph-block rook-ceph.rbd.csi.ceph.com Delete Immediate false 4d14h&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Let’s take a look a the details of the storage class:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;$ oc get sc -o yaml ceph-block
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect1">
+<h2 id="_test_setup">Test setup</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>For running our tests we need the following resources</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>A new namespace/project for running our tests</p>
+</li>
+<li>
+<p>A persistent volume claim (PVC) to be mounted in our test pods</p>
+</li>
+<li>
+<p>Two pods definitions for mounting the PVC</p>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="_step_1_creating_a_new_namespaceproject">Step 1: Creating a new namespace/project</h3>
+<div class="paragraph">
+<p>To run our test cases we created a new project with OpenShift</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc new-project blockdevices</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_step_2_defining_a_block_pvc">Step 2: Defining a block PVC</h3>
+<div class="paragraph">
+<p>Our cluster is running the rook operator (<a class="bare" href="https://rook.io">https://rook.io</a>) and provides a ceph-block
+storage class for creating block devices:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ oc get sc
+NAME                 PROVISIONER                    RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+ceph-block           rook-ceph.rbd.csi.ceph.com     Delete          Immediate              false                  4d14h</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Let’s take a look a the details of the storage class:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">$ oc get sc -o yaml ceph-block
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-name: ceph-block
+  name: ceph-block
 parameters:
-clusterID: rook-ceph
-csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
-csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
-csi.storage.k8s.io/fstype: ext4 &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
-csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
-csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
-csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
-imageFeatures: layering
-imageFormat: &amp;#34;2&amp;#34;
-pool: blockpool
+  clusterID: rook-ceph
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/fstype: ext4 <i class="conum" data-value="1"></i><b>(1)</b>
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  imageFeatures: layering
+  imageFormat: &#34;2&#34;
+  pool: blockpool
 provisioner: rook-ceph.rbd.csi.ceph.com
 reclaimPolicy: Delete
-volumeBindingMode: Immediate&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;So whenever we create a PVC using this storage class the Ceph
-provisioner will also create an EXT4 file system on the block device.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To test block device handling we create the following persistent volume claim (PVC):&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+volumeBindingMode: Immediate</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>So whenever we create a PVC using this storage class the Ceph
+provisioner will also create an EXT4 file system on the block device.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>To test block device handling we create the following persistent volume claim (PVC):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-name: block-claim
+  name: block-claim
 spec:
-accessModes:
-- ReadWriteOnce &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-resources:
-requests:
-storage: 1Gi
-storageClassName: ceph-block&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;The access mode is set to ReadWriteOnce (RWO), as block devices&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;oc create -f pvc.yaml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ oc get pvc
-NAME STATUS VOLUME CAPACITY ACCESS MODES STORAGECLASS AGE
-block-claim Bound pvc-bd68be5d-c312-4c31-86a8-63a0c22de844 1Gi RWO ceph-block 91s&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;To test our shiny new block device we are going to use the following three pod definitions:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="title"&gt;block-pod-a&lt;/div&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+  accessModes:
+    - ReadWriteOnce <i class="conum" data-value="1"></i><b>(1)</b>
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ceph-block</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The access mode is set to ReadWriteOnce (RWO), as block devices</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc create -f pvc.yaml</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ oc get pvc
+NAME          STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+block-claim   Bound    pvc-bd68be5d-c312-4c31-86a8-63a0c22de844   1Gi        RWO            ceph-block     91s</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To test our shiny new block device we are going to use the following three pod definitions:</p>
+</div>
+<div class="listingblock">
+<div class="title">block-pod-a</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
 kind: Pod
 metadata:
-labels:
-run: block-pod-a
-name: block-pod-a
+  labels:
+    run: block-pod-a
+  name: block-pod-a
 spec:
-containers:
-- image: registry.redhat.io/ubi8/ubi:8.3
-name: block-pod-a
-command:
-- sh
-- -c
-- &amp;#39;df -h /block &amp;amp;&amp;amp; findmnt /block &amp;amp;&amp;amp; sleep infinity&amp;#39;
-volumeMounts:
-- name: blockdevice
-mountPath: /block
-volumes:
-- name: blockdevice
-persistentVolumeClaim:
-claimName: block-claim&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="title"&gt;block-pod-b&lt;/div&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+  containers:
+  - image: registry.redhat.io/ubi8/ubi:8.3
+    name: block-pod-a
+    command:
+      - sh
+      - -c
+      - &#39;df -h /block &amp;&amp; findmnt /block &amp;&amp; sleep infinity&#39;
+    volumeMounts:
+    - name: blockdevice
+      mountPath: /block
+  volumes:
+  - name: blockdevice
+    persistentVolumeClaim:
+      claimName: block-claim</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">block-pod-b</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
 kind: Pod
 metadata:
-labels:
-run: block-pod-b
-name: block-pod-b
+  labels:
+    run: block-pod-b
+  name: block-pod-b
 spec:
-affinity:
-podAntiAffinity: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-requiredDuringSchedulingIgnoredDuringExecution:
-- labelSelector:
-matchExpressions:
-- key: run
-operator: In
-values:
-- block-pod-a
-topologyKey: kubernetes.io/hostname
-containers:
-- image: registry.redhat.io/ubi8/ubi:8.3
-name: block-pod-b
-command:
-- sh
-- -c
-- &amp;#39;df -h /block &amp;amp;&amp;amp; findmnt /block &amp;amp;&amp;amp; sleep infinity&amp;#39;
-volumeMounts:
-- name: blockdevice
-mountPath: /block
-volumes:
-- name: blockdevice
-persistentVolumeClaim:
-claimName: block-claim&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We use an &lt;em&gt;AntiAffinity&lt;/em&gt; rule for making sure that &lt;em&gt;block-pod-b&lt;/em&gt; runs
-on a &lt;strong&gt;different&lt;/strong&gt; node than &lt;em&gt;block-pod-a&lt;/em&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="title"&gt;block-pod-c&lt;/div&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-yaml hljs" data-lang="yaml"&gt;apiVersion: v1
+  affinity:
+    podAntiAffinity: <i class="conum" data-value="1"></i><b>(1)</b>
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: run
+                operator: In
+                values:
+                  - block-pod-a
+          topologyKey: kubernetes.io/hostname
+  containers:
+  - image: registry.redhat.io/ubi8/ubi:8.3
+    name: block-pod-b
+    command:
+      - sh
+      - -c
+      - &#39;df -h /block &amp;&amp; findmnt /block &amp;&amp; sleep infinity&#39;
+    volumeMounts:
+    - name: blockdevice
+      mountPath: /block
+  volumes:
+  - name: blockdevice
+    persistentVolumeClaim:
+      claimName: block-claim</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>We use an <em>AntiAffinity</em> rule for making sure that <em>block-pod-b</em> runs
+on a <strong>different</strong> node than <em>block-pod-a</em>.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="title">block-pod-c</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
 kind: Pod
 metadata:
-labels:
-run: block-pod-c
-name: block-pod-c
+  labels:
+    run: block-pod-c
+  name: block-pod-c
 spec:
-affinity:
-podAffinity: &lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;(1)&lt;/b&gt;
-preferredDuringSchedulingIgnoredDuringExecution:
-- weight: 100
-podAffinityTerm:
-labelSelector:
-matchExpressions:
-- key: run
-operator: In
-values:
-- block-pod-a
-topologyKey: kubernetes.io/hostname
-containers:
-- image: registry.redhat.io/ubi8/ubi:8.3
-name: block-pod-c
-command:
-- sh
-- -c
-- &amp;#39;df -h /block &amp;amp;&amp;amp; findmnt /block &amp;amp;&amp;amp; sleep infinity&amp;#39;
-volumeMounts:
-- name: blockdevice
-mountPath: /block
-volumes:
-- name: blockdevice
-persistentVolumeClaim:
-claimName: block-claim&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="colist arabic"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td&gt;&lt;i class="conum" data-value="1"&gt;&lt;/i&gt;&lt;b&gt;1&lt;/b&gt;&lt;/td&gt;
-&lt;td&gt;We use an &lt;em&gt;Affinity&lt;/em&gt; rule for making sure that &lt;em&gt;block-pod-c&lt;/em&gt; runs
-on the &lt;strong&gt;same&lt;/strong&gt; node as &lt;em&gt;block-pod-a&lt;/em&gt;.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;In our first test we want to make sure that both pods are running on
-separate cluster nodes. So we create &lt;em&gt;block-pod-a&lt;/em&gt; and &lt;em&gt;block-pod-b&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ oc create -f block-pod-a.yml
-$ oc create -f block-pod-b.yml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;After a few seconds we can check the state of our pods:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ oc get pods -o wide
-NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
-block-pod-a 1/1 Running 0 46s 10.130.6.4 infra02.lan.stderr.at &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-block-pod-b 0/1 ContainerCreating 0 16s &amp;lt;none&amp;gt; infra01 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Hm, block-pod-b is in the state &lt;em&gt;ContainerCreating&lt;/em&gt;, let’s check the
+  affinity:
+    podAffinity: <i class="conum" data-value="1"></i><b>(1)</b>
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: run
+              operator: In
+              values:
+              - block-pod-a
+          topologyKey: kubernetes.io/hostname
+  containers:
+  - image: registry.redhat.io/ubi8/ubi:8.3
+    name: block-pod-c
+    command:
+      - sh
+      - -c
+      - &#39;df -h /block &amp;&amp; findmnt /block &amp;&amp; sleep infinity&#39;
+    volumeMounts:
+    - name: blockdevice
+      mountPath: /block
+  volumes:
+  - name: blockdevice
+    persistentVolumeClaim:
+      claimName: block-claim</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>We use an <em>Affinity</em> rule for making sure that <em>block-pod-c</em> runs
+on the <strong>same</strong> node as <em>block-pod-a</em>.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>In our first test we want to make sure that both pods are running on
+separate cluster nodes. So we create <em>block-pod-a</em> and <em>block-pod-b</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ oc create -f block-pod-a.yml
+$ oc create -f block-pod-b.yml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>After a few seconds we can check the state of our pods:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ oc get pods -o wide
+NAME          READY   STATUS              RESTARTS   AGE   IP           NODE                    NOMINATED NODE   READINESS GATES
+block-pod-a   1/1     Running             0          46s   10.130.6.4   infra02.lan.stderr.at   &lt;none&gt;           &lt;none&gt;
+block-pod-b   0/1     ContainerCreating   0          16s   &lt;none&gt;       infra01                 &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Hm, block-pod-b is in the state <em>ContainerCreating</em>, let’s check the
 events. Also note that it is running on another node (infra01) then
-&lt;em&gt;block-pod-a&lt;/em&gt; (infra02).&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;10s Warning FailedAttachVolume pod/block-pod-b Multi-Attach error for volume &amp;#34;pvc-bd68be5d-c312-4c31-86a8-63a0c22de844&amp;#34; Volume is already used by pod(s) block-pod-a&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Ah, so because of our block device with RWO access mode and
-&lt;em&gt;block-pod-b&lt;/em&gt; running on separate cluster node, OpenShift or K8s can’t
-attach the volume to our &lt;em&gt;block-pod-b&lt;/em&gt;.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;But let’s try another test and let’s create a third pod &lt;em&gt;block-pod-c&lt;/em&gt;
-that should run on the same node as &lt;em&gt;block-pod-a&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ oc create -f block-pod-c.yml&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Now let’s check the status of &lt;em&gt;block-pod-c&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;$ oc get pods -o wide
-NAME READY STATUS RESTARTS AGE IP NODE NOMINATED NODE READINESS GATES
-block-pod-a 1/1 Running 0 6m49s 10.130.6.4 infra02.lan.stderr.at &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-block-pod-b 0/1 ContainerCreating 0 6m19s &amp;lt;none&amp;gt; infra01 &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;
-block-pod-c 1/1 Running 0 14s 10.130.6.5 infra02.lan.stderr.at &amp;lt;none&amp;gt; &amp;lt;none&amp;gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Oh, &lt;em&gt;block-pod-c&lt;/em&gt; is running on node &lt;em&gt;infra02&lt;/em&gt; and mounted the RWO volume. Let’s check the events for &lt;em&gt;block-pod-c&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;3m6s Normal Scheduled pod/block-pod-c Successfully assigned blockdevices/block-pod-c to infra02.lan.stderr.at
-2m54s Normal AddedInterface pod/block-pod-c Add eth0 [10.130.6.5/23]
-2m54s Normal Pulled pod/block-pod-c Container image &amp;#34;registry.redhat.io/ubi8/ubi:8.3&amp;#34; already present on machine
-2m54s Normal Created pod/block-pod-c Created container block-pod-c
-2m54s Normal Started pod/block-pod-c Started container block-pod-c&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;When we compare this with the events for &lt;em&gt;block-pod-a&lt;/em&gt;:&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="listingblock"&gt;
-&lt;div class="content"&gt;
-&lt;pre class="highlightjs highlight"&gt;&lt;code class="language-bash hljs" data-lang="bash"&gt;9m41s Normal Scheduled pod/block-pod-a Successfully assigned blockdevices/block-pod-a to infra02.lan.stderr.at
-9m41s Normal SuccessfulAttachVolume pod/block-pod-a AttachVolume.Attach succeeded for volume &amp;#34;pvc-bd68be5d-c312-4c31-86a8-63a0c22de844&amp;#34;
-9m34s Normal AddedInterface pod/block-pod-a Add eth0 [10.130.6.4/23]
-9m34s Normal Pulled pod/block-pod-a Container image &amp;#34;registry.access.redhat.com/ubi8/ubi:8.3&amp;#34; already present on machine
-9m34s Normal Created pod/block-pod-a Created container block-pod-a
-9m34s Normal Started pod/block-pod-a Started container block-pod-a&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;So the &lt;em&gt;AttachVolume.Attach&lt;/em&gt; message is missing in the events for
-&lt;em&gt;block-pod-c&lt;/em&gt;. Because the volume is already attached to the node,
-interesting.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="admonitionblock note"&gt;
-&lt;table&gt;
-&lt;tbody&gt;&lt;tr&gt;
-&lt;td class="icon"&gt;
-&lt;i class="fa icon-note" title="Note"&gt;&lt;/i&gt;
-&lt;/td&gt;
-&lt;td class="content"&gt;
+<em>block-pod-a</em> (infra02).</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">10s         Warning   FailedAttachVolume       pod/block-pod-b                     Multi-Attach error for volume &#34;pvc-bd68be5d-c312-4c31-86a8-63a0c22de844&#34; Volume is already used by pod(s) block-pod-a</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Ah, so because of our block device with RWO access mode and
+<em>block-pod-b</em> running on separate cluster node, OpenShift or K8s can’t
+attach the volume to our <em>block-pod-b</em>.</p>
+</div>
+<div class="paragraph">
+<p>But let’s try another test and let’s create a third pod <em>block-pod-c</em>
+that should run on the same node as <em>block-pod-a</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ oc create -f block-pod-c.yml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now let’s check the status of <em>block-pod-c</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">$ oc get pods -o wide
+NAME          READY   STATUS              RESTARTS   AGE     IP           NODE                    NOMINATED NODE   READINESS GATES
+block-pod-a   1/1     Running             0          6m49s   10.130.6.4   infra02.lan.stderr.at   &lt;none&gt;           &lt;none&gt;
+block-pod-b   0/1     ContainerCreating   0          6m19s   &lt;none&gt;       infra01                 &lt;none&gt;           &lt;none&gt;
+block-pod-c   1/1     Running             0          14s     10.130.6.5   infra02.lan.stderr.at   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Oh, <em>block-pod-c</em> is running on node <em>infra02</em> and mounted the RWO volume. Let’s check the events for <em>block-pod-c</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">3m6s        Normal    Scheduled                pod/block-pod-c   Successfully assigned blockdevices/block-pod-c to infra02.lan.stderr.at
+2m54s       Normal    AddedInterface           pod/block-pod-c   Add eth0 [10.130.6.5/23]
+2m54s       Normal    Pulled                   pod/block-pod-c   Container image &#34;registry.redhat.io/ubi8/ubi:8.3&#34; already present on machine
+2m54s       Normal    Created                  pod/block-pod-c   Created container block-pod-c
+2m54s       Normal    Started                  pod/block-pod-c   Started container block-pod-c</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>When we compare this with the events for <em>block-pod-a</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">9m41s       Normal    Scheduled                pod/block-pod-a   Successfully assigned blockdevices/block-pod-a to infra02.lan.stderr.at
+9m41s       Normal    SuccessfulAttachVolume   pod/block-pod-a   AttachVolume.Attach succeeded for volume &#34;pvc-bd68be5d-c312-4c31-86a8-63a0c22de844&#34;
+9m34s       Normal    AddedInterface           pod/block-pod-a   Add eth0 [10.130.6.4/23]
+9m34s       Normal    Pulled                   pod/block-pod-a   Container image &#34;registry.access.redhat.com/ubi8/ubi:8.3&#34; already present on machine
+9m34s       Normal    Created                  pod/block-pod-a   Created container block-pod-a
+9m34s       Normal    Started                  pod/block-pod-a   Started container block-pod-a</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>So the <em>AttachVolume.Attach</em> message is missing in the events for
+<em>block-pod-c</em>. Because the volume is already attached to the node,
+interesting.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
 Even with RWO block device volumes it is possible to use the
-same volume in multiple pods &lt;strong&gt;if&lt;/strong&gt; the pods a running on the &lt;strong&gt;same&lt;/strong&gt; node.
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;I was not aware of this possibility and always had the believe with an
+same volume in multiple pods <strong>if</strong> the pods a running on the <strong>same</strong> node.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>I was not aware of this possibility and always had the believe with an
 RWO block device only one pod can access the volume. That’s the
-problem with believing :-)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="paragraph"&gt;
-&lt;p&gt;Thanks or reading this far.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;</description></item></channel></rss>
+problem with believing :-)</p>
+</div>
+<div class="paragraph">
+<p>Thanks or reading this far.</p>
+</div>
+</div>
+</div>
+</div>]]></content:encoded></item></channel></rss>
