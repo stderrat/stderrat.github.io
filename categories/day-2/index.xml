@@ -568,4 +568,2730 @@ The error message that appears in the screenshot for the selected user is due to
 </ul>
 </div>
 </div>
+</div>]]></content:encoded></item><item><title>Working with Environments</title><link>https://blog.stderr.at/openshift-platform/day-2/labels_environmets/2022-01-12-creatingenvironment/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/labels_environmets/2022-01-12-creatingenvironment/</guid><pubDate>Wed, 12 Jan 2022 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Day-2</category><description>Create separate environments on one OpenShift cluster</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Imagine you have one OpenShift cluster and you would like to create 2 or more environments inside this cluster, but also separate them and force the environments to specific nodes, or use specific inbound routers. All this can be achieved using labels, IngressControllers and so on. The following article will guide you to set up dedicated compute nodes for infrastructure, development and test environments as well as the creation of IngressController which are bound to the appropriate nodes.</p>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before we start we need an OpenShift cluster of course. In this example we have a cluster with typical 3 control plane nodes (labelled as master) and 7 compute nodes (labelled as worker)</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get nodes
+
+NAME                                         STATUS   ROLES    AGE   VERSION
+ip-10-0-138-104.us-east-2.compute.internal   Ready    master   13h   v1.21.1+6438632
+ip-10-0-149-168.us-east-2.compute.internal   Ready    worker   13h   v1.21.1+6438632 # &lt;-- will become infra
+ip-10-0-154-244.us-east-2.compute.internal   Ready    worker   16m   v1.21.1+6438632 # &lt;-- will become infra
+ip-10-0-158-44.us-east-2.compute.internal    Ready    worker   15m   v1.21.1+6438632 # &lt;-- will become infra
+ip-10-0-160-91.us-east-2.compute.internal    Ready    master   13h   v1.21.1+6438632
+ip-10-0-188-198.us-east-2.compute.internal   Ready    worker   13h   v1.21.1+6438632 # &lt;-- will become worker-test
+ip-10-0-191-9.us-east-2.compute.internal     Ready    worker   16m   v1.21.1+6438632 # &lt;-- will become worker-test
+ip-10-0-192-174.us-east-2.compute.internal   Ready    master   13h   v1.21.1+6438632
+ip-10-0-195-201.us-east-2.compute.internal   Ready    worker   16m   v1.21.1+6438632 # &lt;-- will become worker-dev
+ip-10-0-199-235.us-east-2.compute.internal   Ready    worker   16m   v1.21.1+6438632 # &lt;-- will become worker-dev</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We will use the 7 nodes to create the environments for:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Infrastructure Services (3 nodes) - will be labelled as <code>infra</code></p>
+</li>
+<li>
+<p>Development Environment (2 nodes) - will be labelled as <code>worker-dev</code></p>
+</li>
+<li>
+<p>Test Environment (2 nodes) - will be labelled as <code>worker-test</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>To do this, we will label the nodes and create dedicated roles for them.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_create_nodes_labels_and_machineconfigpools">Create Nodes Labels and MachineConfigPools</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s create a maschine config pool for the different environments.</p>
+</div>
+<div class="paragraph">
+<p>The pool inherits the configuration from <code>worker</code> nodes by default, which means that any new update on the worker configuration will also update custom labeled nodes.
+Or in other words: it is possible to remove the worker label from the custom pools.</p>
+</div>
+<div class="paragraph">
+<p>Create the following objects:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml"># Infrastructure
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: infra
+spec:
+  machineConfigSelector:
+    matchExpressions:
+      - {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,infra]} <i class="conum" data-value="1"></i><b>(1)</b>
+  maxUnavailable: 1 <i class="conum" data-value="2"></i><b>(2)</b>
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/infra: &#34;&#34; <i class="conum" data-value="3"></i><b>(3)</b>
+  paused: false
+---
+# Worker-DEV
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: worker-dev
+spec:
+  machineConfigSelector:
+    matchExpressions:
+      - {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,worker-dev]}
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/worker-dev: &#34;&#34;
+---
+# Worker-TEST
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: worker-test
+spec:
+  machineConfigSelector:
+    matchExpressions:
+      - {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,worker-test]}
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/worker-test: &#34;&#34;</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>User worker and infra so that the default worker configuration gets applied during upgrades</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Whenever an update happens, do only 1 at a time</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>This pool is valid for nodes which are labelled as <code>infra</code></td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Now let’s label our nodes.
+First add the new, additional label:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Add the label &#34;infra&#34;
+oc label node ip-10-0-149-168.us-east-2.compute.internal ip-10-0-154-244.us-east-2.compute.internal ip-10-0-158-44.us-east-2.compute.internal node-role.kubernetes.io/infra=
+
+# Add the label &#34;worker-dev&#34;
+oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal node-role.kubernetes.io/worker-dev=
+
+# Add the label &#34;worker-test&#34;
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal node-role.kubernetes.io/worker-test=</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will result in:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                                         STATUS   ROLES                AGE   VERSION
+ip-10-0-138-104.us-east-2.compute.internal   Ready    master               13h   v1.21.1+6438632
+ip-10-0-149-168.us-east-2.compute.internal   Ready    infra,worker         13h   v1.21.1+6438632
+ip-10-0-154-244.us-east-2.compute.internal   Ready    infra,worker         20m   v1.21.1+6438632
+ip-10-0-158-44.us-east-2.compute.internal    Ready    infra,worker         19m   v1.21.1+6438632
+ip-10-0-160-91.us-east-2.compute.internal    Ready    master               13h   v1.21.1+6438632
+ip-10-0-188-198.us-east-2.compute.internal   Ready    worker,worker-test   13h   v1.21.1+6438632
+ip-10-0-191-9.us-east-2.compute.internal     Ready    worker,worker-test   20m   v1.21.1+6438632
+ip-10-0-192-174.us-east-2.compute.internal   Ready    master               13h   v1.21.1+6438632
+ip-10-0-195-201.us-east-2.compute.internal   Ready    worker,worker-dev    20m   v1.21.1+6438632
+ip-10-0-199-235.us-east-2.compute.internal   Ready    worker,worker-dev    20m   v1.21.1+6438632</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We can remove the worker label from the worker-dev and worker-test nodes now.</p>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Keep the label &#34;worker&#34; for the infra nodes as this is the default worker label which is used when no nodeselector is in use. You can use any other node, just keep in mind that per default new applications will be started on nodes with the labels &#34;worker&#34;. As an alternative, you can also define a cluster-wide default node selector.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal node-role.kubernetes.io/worker-
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal node-role.kubernetes.io/worker-</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The final node labels will look like the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                                         STATUS   ROLES         AGE   VERSION
+ip-10-0-138-104.us-east-2.compute.internal   Ready    master        13h   v1.21.1+6438632
+ip-10-0-149-168.us-east-2.compute.internal   Ready    infra,worker  13h   v1.21.1+6438632
+ip-10-0-154-244.us-east-2.compute.internal   Ready    infra,worker  22m   v1.21.1+6438632
+ip-10-0-158-44.us-east-2.compute.internal    Ready    infra,worker  21m   v1.21.1+6438632
+ip-10-0-160-91.us-east-2.compute.internal    Ready    master        13h   v1.21.1+6438632
+ip-10-0-188-198.us-east-2.compute.internal   Ready    worker-test   13h   v1.21.1+6438632
+ip-10-0-191-9.us-east-2.compute.internal     Ready    worker-test   21m   v1.21.1+6438632
+ip-10-0-192-174.us-east-2.compute.internal   Ready    master        13h   v1.21.1+6438632
+ip-10-0-195-201.us-east-2.compute.internal   Ready    worker-dev    21m   v1.21.1+6438632
+ip-10-0-199-235.us-east-2.compute.internal   Ready    worker-dev    22m   v1.21.1+6438632</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Since the custom pools (infra, worker-test and worker-dev) inherit their configuration from the default worker pool, no changes on the files on the nodes themselves are triggered at this point.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_create_custom_configuration">Create Custom Configuration</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s test our setup by deploying a configuration on specific nodes. The following MaschineConfig objects will create a file at <strong>/etc/myfile</strong> on the nodes labelled either <em>infra</em>, <em>worker-dev</em> or <em>worker_test</em>.
+Dependent on the node role the content of the file will vary.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: infra <i class="conum" data-value="1"></i><b>(1)</b>
+  name: 55-infra
+spec:
+  config:
+    ignition:
+      version: 2.2.0
+    storage:
+      files:
+      - contents:
+          source: data:,infra <i class="conum" data-value="2"></i><b>(2)</b>
+        filesystem: root
+        mode: 0644
+        path: /etc/myfile <i class="conum" data-value="3"></i><b>(3)</b>
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: worker-dev
+  name: 55-worker-dev
+spec:
+  config:
+    ignition:
+      version: 2.2.0
+    storage:
+      files:
+      - contents:
+          source: data:,worker-dev
+        filesystem: root
+        mode: 0644
+        path: /etc/myfile
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: worker-test
+  name: 55-worker-test
+spec:
+  config:
+    ignition:
+      version: 2.2.0
+    storage:
+      files:
+      - contents:
+          source: data:,worker-test
+        filesystem: root
+        mode: 0644
+        path: /etc/myfile</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Valid for node with the role xyz</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Content of the file</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>File to be created</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Since this is a new configuration, all nodes will get reconfigured.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                                         STATUS                        ROLES         AGE   VERSION
+ip-10-0-138-104.us-east-2.compute.internal   Ready                         master        13h   v1.21.1+6438632
+ip-10-0-149-168.us-east-2.compute.internal   Ready,SchedulingDisabled      infra,worker  13h   v1.21.1+6438632
+ip-10-0-154-244.us-east-2.compute.internal   Ready                         infra,worker  28m   v1.21.1+6438632
+ip-10-0-158-44.us-east-2.compute.internal    Ready                         infra,worker  27m   v1.21.1+6438632
+ip-10-0-160-91.us-east-2.compute.internal    Ready                         master        13h   v1.21.1+6438632
+ip-10-0-188-198.us-east-2.compute.internal   Ready                         worker-test   13h   v1.21.1+6438632
+ip-10-0-191-9.us-east-2.compute.internal     NotReady,SchedulingDisabled   worker-test   27m   v1.21.1+6438632
+ip-10-0-192-174.us-east-2.compute.internal   Ready                         master        13h   v1.21.1+6438632
+ip-10-0-195-201.us-east-2.compute.internal   Ready                         worker-dev    27m   v1.21.1+6438632
+ip-10-0-199-235.us-east-2.compute.internal   NotReady,SchedulingDisabled   worker-dev    28m   v1.21.1+6438632</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Wait until all nodes are ready and test the configuration by verifying the content of <em>/etc/myfile</em>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">###
+# infra nodes:
+###
+oc get pods -n openshift-machine-config-operator -l k8s-app=machine-config-daemon --field-selector &#34;spec.nodeName=ip-10-0-149-168.us-east-2.compute.internal&#34;
+NAME                          READY   STATUS    RESTARTS   AGE
+machine-config-daemon-f85kd   2/2     Running   6          16h
+
+# Get file content
+oc rsh -n openshift-machine-config-operator machine-config-daemon-f85kd chroot /rootfs cat /etc/myfile
+Defaulted container &#34;machine-config-daemon&#34; out of: machine-config-daemon, oauth-proxy
+infra
+
+###
+#worker-dev:
+###
+oc get pods -n openshift-machine-config-operator -l k8s-app=machine-config-daemon --field-selector &#34;spec.nodeName=ip-10-0-195-201.us-east-2.compute.internal&#34;
+NAME                          READY   STATUS    RESTARTS   AGE
+machine-config-daemon-s6rr5   2/2     Running   4          3h5m
+
+# Get file content
+oc rsh -n openshift-machine-config-operator machine-config-daemon-s6rr5 chroot /rootfs cat /etc/myfile
+Defaulted container &#34;machine-config-daemon&#34; out of: machine-config-daemon, oauth-proxy
+worker-dev
+
+###
+# worker-test:
+###
+oc get pods -n openshift-machine-config-operator -l k8s-app=machine-config-daemon --field-selector &#34;spec.nodeName=ip-10-0-188-198.us-east-2.compute.internal&#34;
+NAME                          READY   STATUS    RESTARTS   AGE
+machine-config-daemon-m22rf   2/2     Running   6          16h
+
+# Get file content
+oc rsh -n openshift-machine-config-operator machine-config-daemon-m22rf chroot /rootfs cat /etc/myfile
+Defaulted container &#34;machine-config-daemon&#34; out of: machine-config-daemon, oauth-proxy
+worker-test</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The file /etc/myfile exists on all nodes and depending on their role the files have a different content.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_bind_an_application_to_a_specific_environment">Bind an Application to a Specific Environment</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The following will label the nodes with a specific environment and will deploy an example application, which should only be executed on the appropriate nodes.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Let’s label the nodes with <strong>environment=worker-dev</strong> and <strong>environment=worker-test</strong>:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc label node ip-10-0-195-201.us-east-2.compute.internal ip-10-0-199-235.us-east-2.compute.internal environment=worker-dev
+oc label node ip-10-0-188-198.us-east-2.compute.internal ip-10-0-191-9.us-east-2.compute.internal environment=worker-test</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Create a namespace for the example application</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc new-project bookinfo</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Create an annotation and a label for the namespace. The annotation will make sure that the application will only be started on nodes with the same label. The label will be later used for the IngressController setup.</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc annotate namespace bookinfo environment=worker-dev
+oc annotate namespace bookinfo openshift.io/node-selector: environment=worker-test
+
+oc label namespace bookinfo environment=worker-dev</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Deploy the example application. In this article the sample application of Istio was used:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.11/samples/bookinfo/platform/kube/bookinfo.yaml</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>This will start the application on <code>worker-dev`</code> nodes only, because the annotation in the namespace was created accordingly.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n bookinfo -o wide
+
+NAME                             READY   STATUS    RESTARTS   AGE     IP            NODE                                         NOMINATED NODE   READINESS GATES
+details-v1-86dfdc4b95-v8zfv      1/1     Running   0          9m19s   10.130.2.17   ip-10-0-199-235.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+productpage-v1-658849bb5-8gcl7   1/1     Running   0          7m17s   10.128.4.21   ip-10-0-195-201.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+ratings-v1-76b8c9cbf9-cc4js      1/1     Running   0          9m19s   10.130.2.19   ip-10-0-199-235.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+reviews-v1-58b8568645-mbgth      1/1     Running   0          7m44s   10.128.4.20   ip-10-0-195-201.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+reviews-v2-5d8f8b6775-qkdmz      1/1     Running   0          9m19s   10.130.2.21   ip-10-0-199-235.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+reviews-v3-666b89cfdf-8zv8w      1/1     Running   0          9m18s   10.130.2.22   ip-10-0-199-235.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_create_dedicated_ingresscontroller">Create Dedicated IngressController</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>IngressController are responsible to bring the traffic into the cluster. OpenShift comes with one default controller, but it is possible to create more in order to use different domains and separate the incoming traffic to different nodes.</p>
+</div>
+<div class="paragraph">
+<p>Bind the default ingress controller to the infra labeled nodes, so we can be sure that the default router pods are executed only on these nodes:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch=&#39;{&#34;spec&#34;:{&#34;nodePlacement&#34;:{&#34;nodeSelector&#34;: {&#34;matchLabels&#34;:{&#34;node-role.kubernetes.io/infra&#34;:&#34;&#34;}}}}}&#39;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The pods will get restarted, to be sure they are running on infra:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>oc get pods -n openshift-ingress -o wide
+NAME                              READY   STATUS              RESTARTS   AGE   IP           NODE                                         NOMINATED NODE   READINESS GATES
+router-default-78f8dd6f69-dbtbv   0/1     ContainerCreating   0          2s    &lt;none&gt;       ip-10-0-149-168.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+router-default-78f8dd6f69-wwpgb   0/1     ContainerCreating   0          2s    &lt;none&gt;       ip-10-0-158-44.us-east-2.compute.internal    &lt;none&gt;           &lt;none&gt;
+router-default-7bbbc8f9bd-vfh84   1/1     Running             0          22m   10.129.4.6   ip-10-0-158-44.us-east-2.compute.internal    &lt;none&gt;           &lt;none&gt;
+router-default-7bbbc8f9bd-wggrx   1/1     Terminating         0          19m   10.128.2.8   ip-10-0-149-168.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Create the following IngressController objects for <strong>worker-dev</strong> and <strong>worker-test</strong>. Replace with the domain of your choice</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: ingress-worker-dev
+  namespace: openshift-ingress-operator
+spec:
+  domain: worker-dev.&lt;yourdomain&gt; <i class="conum" data-value="1"></i><b>(1)</b>
+  endpointPublishingStrategy:
+    type: HostNetwork
+  httpErrorCodePages:
+    name: &#39;&#39;
+  namespaceSelector:
+    matchLabels:
+      environment: worker-dev <i class="conum" data-value="2"></i><b>(2)</b>
+  nodePlacement:
+    nodeSelector:
+      matchLabels:
+        node-role.kubernetes.io/worker-dev: &#39;&#39; <i class="conum" data-value="3"></i><b>(3)</b>
+  replicas: 3
+  tuningOptions: {}
+  unsupportedConfigOverrides: null
+---
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: ingress-worker-test
+  namespace: openshift-ingress-operator
+spec:
+  domain: worker-test.&lt;yourdomain&gt;
+  endpointPublishingStrategy:
+    type: HostNetwork
+  httpErrorCodePages:
+    name: &#39;&#39;
+  namespaceSelector:
+    matchLabels:
+      environment: worker-test
+  nodePlacement:
+    nodeSelector:
+      matchLabels:
+        node-role.kubernetes.io/worker-test: &#39;&#39;
+  replicas: 3
+  tuningOptions: {}
+  unsupportedConfigOverrides: null</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Domainname which is used by this Controller</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Namespace selector …​ namespaces with such label will be handled by this IngressController</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Node Placement …​ This Controller should run on nodes with this label/role</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>This will spin up additional router pods on the collect labelled nodes:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n openshift-ingress -o wide
+
+NAME                                         READY   STATUS    RESTARTS   AGE    IP            NODE                                         NOMINATED NODE   READINESS GATES
+router-default-78f8dd6f69-dbtbv              1/1     Running   0          8m7s   10.128.2.11   ip-10-0-149-168.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+router-default-78f8dd6f69-wwpgb              1/1     Running   0          8m7s   10.129.4.10   ip-10-0-158-44.us-east-2.compute.internal    &lt;none&gt;           &lt;none&gt;
+router-ingress-worker-dev-76b65cf558-mspvb   1/1     Running   0          113s   10.130.2.13   ip-10-0-199-235.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+router-ingress-worker-dev-76b65cf558-p2jpg   1/1     Running   0          113s   10.128.4.12   ip-10-0-195-201.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;
+router-ingress-worker-test-6bbf9967f-4whfs   1/1     Running   0          113s   10.131.2.13   ip-10-0-191-9.us-east-2.compute.internal     &lt;none&gt;           &lt;none&gt;
+router-ingress-worker-test-6bbf9967f-jht4w   1/1     Running   0          113s   10.131.0.8    ip-10-0-188-198.us-east-2.compute.internal   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_verify_ingress_configuration">Verify Ingress Configuration</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>To test our new ingress router lets create a route object for our example application:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: productpage
+  namespace: bookinfo
+spec:
+  host: productpage-bookinfo.worker-dev.&lt;yourdomain&gt;
+  to:
+    kind: Service
+    name: productpage
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: productpage-worker-test
+  namespace: bookinfo
+spec:
+  host: productpage-bookinfo.worker-test.&lt;yourdomain&gt;
+  to:
+    kind: Service
+    name: productpage
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None</code></pre>
+</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Be sure that the name is resolvable and a load balancer is configured accordingly
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Verify that the router pod has the correct configuration in the file <strong>haproxy.config</strong> :</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n openshift-ingress
+NAME                                         READY   STATUS    RESTARTS   AGE
+router-default-78f8dd6f69-dbtbv              1/1     Running   0          95m
+router-default-78f8dd6f69-wwpgb              1/1     Running   0          95m
+router-ingress-worker-dev-76b65cf558-mspvb   1/1     Running   0          88m
+router-ingress-worker-dev-76b65cf558-p2jpg   1/1     Running   0          88m
+router-ingress-worker-test-6bbf9967f-4whfs   1/1     Running   0          88m
+router-ingress-worker-test-6bbf9967f-jht4w   1/1     Running   0          88m</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Verify the content of the haproxy configuration for one of the <code>worker-dev</code> router</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc rsh -n openshift-ingress router-ingress-worker-dev-76b65cf558-mspvb cat haproxy.config | grep productpage
+
+backend be_http:bookinfo:productpage
+  server pod:productpage-v1-658849bb5-8gcl7:productpage:http:10.128.4.21:9080 10.128.4.21:9080 cookie 3758caf21badd7e4f729209173eece08 weight 256</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Compare with <code>worker-test</code> router</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc rsh -n openshift-ingress router-ingress-worker-test-6bbf9967f-jht4w cat haproxy.config | grep productpage
+
+--&gt; Empty result, this router is not configured with that route.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Compare with <code>default</code> router:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">backend be_http:bookinfo:productpage
+  server pod:productpage-v1-658849bb5-8gcl7:productpage:http:10.128.4.21:9080 10.128.4.21:9080 cookie 3758caf21badd7e4f729209173eece08 weight 256</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Why does this happen? Why are the default router and the router for worker-dev configured?
+This happens because it is the default router and we must explicitly tell it to ignore certain labels.</p>
+</div>
+<div class="paragraph">
+<p>Modify the default IngressController</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc edit ingresscontroller.operator default -n openshift-ingress-operator</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Add the following</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  namespaceSelector:
+    matchExpressions:
+      - key: environment
+        operator: NotIn
+        values:
+          - worker-dev
+          - worker-test</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will tell the default IngressController to ignore selectors on <code>worker-dev</code> and <code>worker-test</code></p>
+</div>
+<div class="paragraph">
+<p>Wait a few seconds until the route pods have been restarted:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n openshift-ingress
+NAME                                         READY   STATUS    RESTARTS   AGE
+router-default-744998df46-8lh4t              1/1     Running   0          2m32s
+router-default-744998df46-hztgf              1/1     Running   0          2m31s
+router-ingress-worker-dev-76b65cf558-mspvb   1/1     Running   0          96m
+router-ingress-worker-dev-76b65cf558-p2jpg   1/1     Running   0          96m
+router-ingress-worker-test-6bbf9967f-4whfs   1/1     Running   0          96m
+router-ingress-worker-test-6bbf9967f-jht4w   1/1     Running   0          96m</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>And test again</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc rsh -n openshift-ingress router-default-744998df46-8lh4t cat haproxy.config | grep productpage
+--&gt; empty result</code></pre>
+</div>
+</div>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+At this point the new router feels responsible. Be sure to have a load balancer configured correctly.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_appendix">Appendix</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Bind other infra-workload to infrastructure nodes:</p>
+</div>
+<div class="sect2">
+<h3 id="_internal_registry">Internal Registry</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch configs.imageregistry.operator.openshift.io/cluster -n openshift-image-registry --type=merge --patch &#39;{&#34;spec&#34;:{&#34;nodeSelector&#34;:{&#34;node-role.kubernetes.io/infra&#34;:&#34;&#34;}}}&#39;</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_openshift_monitoring_workload">OpenShift Monitoring Workload</h3>
+<div class="paragraph">
+<p>Create the following file and apply it.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">cat &lt;&lt;&#39;EOF&#39; &gt; cluster-monitoring-config-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |+
+    alertmanagerMain:
+      nodeSelector:
+        node-role.kubernetes.io/infra: &#34;&#34;
+    prometheusK8s:
+      nodeSelector:
+        node-role.kubernetes.io/infra: &#34;&#34;
+    prometheusOperator:
+      nodeSelector:
+        node-role.kubernetes.io/infra: &#34;&#34;
+    grafana:
+      nodeSelector:
+        node-role.kubernetes.io/infra: &#34;&#34;
+    k8sPrometheusAdapter:
+      nodeSelector:
+        node-role.kubernetes.io/infra: &#34;&#34;
+    kubeStateMetrics:
+      nodeSelector:
+        node-role.kubernetes.io/infra: &#34;&#34;
+    telemeterClient:
+      nodeSelector:
+        node-role.kubernetes.io/infra: &#34;&#34;
+EOF</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc create -f cluster-monitoring-config-cm.yaml</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Using Descheduler</title><link>https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-09-01-descheduler/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-09-01-descheduler/</guid><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Day-2</category><description>Evicting pods using the Descheduler</description><content:encoded><![CDATA[<div class="paragraph">
+<p><strong>Descheduler</strong> is a new feature which is GA since OpenShift 4.7. It can be used to evict pods from nodes based on specific strategies. The evicted pod is then scheduled on another node (by the Scheduler) which is more suitable.</p>
+</div>
+<div class="paragraph">
+<p>This feature can be used when:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>nodes are under/over-utilized</p>
+</li>
+<li>
+<p>pod or node affinity, taints or labels have changed and are no longer valid for a running pod</p>
+</li>
+<li>
+<p>node failures</p>
+</li>
+<li>
+<p>pods have been restarted too many times</p>
+</li>
+</ul>
+</div>
+<div class="sect1">
+<h2 id="_pod_placement_series">Pod Placement Series</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Please check out other ways of pod placements:</p>
+</div>
+<div class="paragraph">
+
+<div class="expand">
+    <div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+        <i style="font-size:x-small;" class="fas fa-chevron-right"></i>
+        <span>
+        
+    	
+    	<a>Expand me...</a>
+    	
+    	</span>
+    </div>
+    <div class="expand-content" style="display: none;">
+        <div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="/openshift/day-2/pod-placement-nodeselector/">NodeSelector</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-node-affinity/">Node Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/descheduler/">Descheduler</a></p>
+</li>
+</ol>
+</div>
+
+    </div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_descheduler_profiles">Descheduler Profiles</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The following descheduler profiles are known and one or multiple can be configured for the Descheduler. Each profiles enables certain strategies which the Descheduler is leveraging.
+Since the strategies names are more or less self explaining, I did not add their full description here. Instead detailed information can be found at: <a href="https://docs.openshift.com/container-platform/4.8/nodes/scheduling/nodes-descheduler.html#nodes-descheduler-profiles_nodes-descheduler" rel="noopener" target="_blank">Descheduler Profiles</a></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>AffinityAndTaints</code> - removes pods that violates affinity and anti-affinity rules or taints</p>
+<div class="ulist">
+<ul>
+<li>
+<p>RemovePodsViolatingInterPodAntiAffinity</p>
+</li>
+<li>
+<p>RemovePodsViolatingNodeAffinity</p>
+</li>
+<li>
+<p>RemovePodsViolatingNodeTaints</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><code>TopologyAndDuplicates</code> - evicts pods which are not evenly spreaded or which are violating the topology domain</p>
+<div class="ulist">
+<ul>
+<li>
+<p>RemovePodsViolatingTopologySpreadConstraint</p>
+</li>
+<li>
+<p>RemoveDuplicates</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><code>LifecycleAndUtilization</code> - evicts long-running pods to balance resource usage of nodes</p>
+<div class="ulist">
+<ul>
+<li>
+<p>RemovePodsHavingTooManyRestarts - Pods that are restarted more than 100 times</p>
+</li>
+<li>
+<p>LowNodeUtilization - removes pods from overutilized nodes.</p>
+<div class="ulist">
+<ul>
+<li>
+<p>A node is considered underutilized if its usage is below 20% for all thresholds (CPU, memory, and number of pods).</p>
+</li>
+<li>
+<p>A node is considered overutilized if its usage is above 50% for any of the thresholds (CPU, memory, and number of pods).</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>PodLifeTime - evicts pods that are too old</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_descheduler_mechanism">Descheduler mechanism</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The following rules are followed by the Descheduler to ensure that eviction of pods does not go wild. Therefore the following pods will never be evicted:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>pods in openshift-* or kube-system namespaces</p>
+</li>
+<li>
+<p>pods with priorityClassName equal to <code>system-cluster-critical</code> or <code>system-node-critical</code></p>
+</li>
+<li>
+<p>pods which cannot be recreated, for example: static or stand-alone pods/jobs or pods without a replication controller or replica set</p>
+</li>
+<li>
+<p>pods of a daemon set</p>
+</li>
+<li>
+<p>pods with local storage</p>
+</li>
+<li>
+<p>pods which are violating the pod disruption budget</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_installing_the_descheduler">Installing the Descheduler</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Descheduler is not installed by default and must be installed after the cluster has been initiated. This is done by installed the <strong>Kube Descheduler</strong> Operator.</p>
+</div>
+<div class="paragraph">
+<p>First we create a separate namespace for our operator, including a label:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc adm new-project openshift-kube-descheduler-operator
+
+oc label ns/openshift-kube-descheduler-operator openshift.io/cluster-monitoring=true</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Then we search for the <strong>Kube Descheduler</strong> operator and install it, using the newly created namespace:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/day-2/images/descheduler-install.png?height=400px" alt="Install Descheduler Operator"/>
+</div>
+<div class="title">Figure 1. Install Descheduler Operator</div>
+</div>
+<div class="paragraph">
+<p>After a few moments the operator will be installed.</p>
+</div>
+<div class="paragraph">
+<p>You can now create a Descheduler instance either via UI (wizard) or by using the following specification:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: operator.openshift.io/v1
+kind: KubeDescheduler
+metadata:
+  name: cluster
+  namespace: openshift-kube-descheduler-operator
+spec:
+  deschedulingIntervalSeconds: 3600 <i class="conum" data-value="1"></i><b>(1)</b>
+  logLevel: Normal <i class="conum" data-value="2"></i><b>(2)</b>
+  managementState: Managed
+  operatorLogLevel: Normal <i class="conum" data-value="3"></i><b>(3)</b>
+  profiles: <i class="conum" data-value="4"></i><b>(4)</b>
+  - AffinityAndTaints
+  - TopologyAndDuplicates
+  - LifecycleAndUtilization</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Defines the time interval the descheduler is running. Default is 3600 seconds</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Defines logging for overall component. Can be Normal, Debug, Trace or TraceAll</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Defines logging for the operator itself. Can be Normal, Debug, Trace or TraceAll</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>Enables on or multiple profiles the Descheduler should consider</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Topology Spread Constraints</title><link>https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-31-topologyspreadcontraints/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-31-topologyspreadcontraints/</guid><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Day-2</category><description>Placeing Pods Using Topology Spread Constraints</description><content:encoded><![CDATA[<div class="paragraph">
+<p><strong>Topology spread constraints</strong> is a new feature since Kubernetes 1.19 (OpenShift 4.6) and another way to control where pods shall be started. It allows to use failure-domains, like zones or regions or to define custom topology domains. It heavily relies on configured node labels, which are used to define topology domains. This feature is a more granular approach than affinity, allowing to achieve higher availability.</p>
+</div>
+<div class="sect1">
+<h2 id="_pod_placement_series">Pod Placement Series</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Please check out other ways of pod placements:</p>
+</div>
+<div class="paragraph">
+
+<div class="expand">
+    <div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+        <i style="font-size:x-small;" class="fas fa-chevron-right"></i>
+        <span>
+        
+    	
+    	<a>Expand me...</a>
+    	
+    	</span>
+    </div>
+    <div class="expand-content" style="display: none;">
+        <div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="/openshift/day-2/pod-placement-nodeselector/">NodeSelector</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-node-affinity/">Node Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/descheduler/">Descheduler</a></p>
+</li>
+</ol>
+</div>
+
+    </div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_understanding_topology_spread_constraints">Understanding Topology Spread Constraints</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Imagine, like for pod affinity, we have two zones (east and west) in our 4 compute node cluster.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/day-2/images/affinity-kubernetes.zones.png" alt="Node Zones"/>
+</div>
+<div class="title">Figure 1. Node Zones</div>
+</div>
+<div class="paragraph">
+<p>These zones are defined by node labels, which can be created with the following commands:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc label nodes compute-0 compute-1 topology.kubernetes.io/zone=east
+
+oc label nodes compute-2 compute-3 topology.kubernetes.io/zone=west</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now let’s scale our web application to 3 pods. The OpenShift scheduler will try to evenly spread the pods accross the cluster:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide
+
+django-psql-example-31-jrhsr    0/1     Running     0          8s      10.130.2.112   compute-2   &lt;none&gt;           &lt;none&gt;
+django-psql-example-31-q66hk    0/1     Running     0          8s      10.131.1.219   compute-3   &lt;none&gt;           &lt;none&gt;
+django-psql-example-31-xv7jc    0/1     Running     0          8s      10.128.3.115   compute-0   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/day-2/images/topologyspreadconstraints1.png" alt="Running Pods"/>
+</div>
+<div class="title">Figure 2. Running Pods</div>
+</div>
+<div class="paragraph">
+<p>If a new pod is started the scheduler may try to start it on compute-1. However, this is done based on best effort. The scheduler does not guarantee that and may try to start it on one of the nodes in zone &#34;West&#34;. With the configuration <code>topologySpreadConstraints</code> this can be controlled and incoming pods can only be scheduled on a node of zone &#34;East&#34; (either on compute-0 or compute-1).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_topologyspreadcontraint">Configure TopologySpreadContraint</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s configure our topology by adding the following into the DeploymentConfig:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+  template:
+[...]
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          name: django-psql-example</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This defines the following parameter:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>maxSkew</code> - defines the degree to which pods may be unevenly distributed (must be greater than zero). Depending on the <code>whenUnsatisfiable</code> parameter the bahaviour differs:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>whenUnsatisfiable == DoNotSchedule: would not schedule if the maxSkew is is not met.</p>
+</li>
+<li>
+<p>whenUnsatisfiable == ScheduleAnyway: the scheduler will still schedule and gives the topology which would decrease the skew a better score</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><code>topologyKey</code> - key of node lables</p>
+</li>
+<li>
+<p><code>whenUnsatisfiable</code> - defines what to do with a pod if the spread constraint is not met. Can be either <code>DoNotSchedule</code> (default) or <code>ScheduleAnyway</code></p>
+</li>
+<li>
+<p><code>lableSelector</code> - used to find matching pods. Found pods are considered to be part of the topology domain. In our example we simply use a default label of the application: <code>name: django-psql-example</code></p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>If now a 4th pod shall be started the topologySpreadConstraints will allow this pod on one of the nodes of zone=east (either compute-0 or compute-1). It cannot be scheduled on nodes in zone=west since it would violate the <code>maxSkew: 1</code></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>Pod distribution would be 1 in zone east and 3 on zone west.
+
+--&gt; the skew would then be 3 - 1 = 2 which is not equal to 1</pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configure_multiple_topologyspreadcontraint">Configure multiple TopologySpreadContraint</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>It is possible to configure multiple TopologySpreadConstraints. In such a case all contrains must meet the requirement (logical AND). For example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+  template:
+[...]
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          name: django-psql-example
+   - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          name: django-psql-example</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The first part is identical to our first example and would allow the schedule to start a pod in <code>topology.kubernetes.io/zone: east</code> (compute-0 or compute-1). The second configuration defines not a zone but a node hostname. Now the scheduler can only deploy into zone=east AND onto node=compute-1</p>
+</div>
+<div class="sect2">
+<h3 id="_conflicts_with_multiple_topologyspreadconstraints">Conflicts with multiple TopologySpreadConstraints</h3>
+<div class="paragraph">
+<p>If you use multiple constraints conflicts are possible. For example, you have a 3 node cluster and the 2 zones east and west. In such cases the maxSkew might be increased or the <code>whenUnsatisfiable</code> might be set to ScheduleAnyway</p>
+</div>
+<div class="paragraph">
+<p>See <a class="bare" href="https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#example-multiple-topologyspreadconstraints">https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#example-multiple-topologyspreadconstraints</a> for further information.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_cleanup">Cleanup</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Remove the topologySpreadConstraint</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+  template:
+[...]
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          name: django-psql-example</code></pre>
+</div>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Taints and Tolerations</title><link>https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-30-taints/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-30-taints/</guid><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Day-2</category><description>Placeing Pods Using Taints and Tolerations</description><content:encoded><![CDATA[<div class="paragraph">
+<p>While Node Affinity is a property of pods that attracts them to a set of nodes, taints are the exact opposite. Nodes can be configured with one or more taints, which mark the node in a way to only accept pods that do tolerate the taints. The tolerations themselves are applied to pods, telling the scheduler to accept a taints and start the workload on a tainted node.</p>
+</div>
+<div class="paragraph">
+<p>A common use case would be to mark certain nodes as infrastructure nodes, where only specific pods are allowed to be executed or to taint nodes with a special hardware (i.e. GPU).</p>
+</div>
+<div class="sect1">
+<h2 id="_pod_placement_series">Pod Placement Series</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Please check out other ways of pod placements:</p>
+</div>
+<div class="paragraph">
+
+<div class="expand">
+    <div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+        <i style="font-size:x-small;" class="fas fa-chevron-right"></i>
+        <span>
+        
+    	
+    	<a>Expand me...</a>
+    	
+    	</span>
+    </div>
+    <div class="expand-content" style="display: none;">
+        <div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="/openshift/day-2/pod-placement-nodeselector/">NodeSelector</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-node-affinity/">Node Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/descheduler/">Descheduler</a></p>
+</li>
+</ol>
+</div>
+
+    </div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_understanding_taints_and_tolerations">Understanding Taints and Tolerations</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Matching taints and tolerations is defined by a key/value pair and a taint effect.</p>
+</div>
+<div class="paragraph">
+<p>For example, a node can be tainted as:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+  template:
+[...]
+    spec:
+      taints:
+      - effect: NoExecute
+        key: key1
+        value: value1
+[...]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>And a pod can have the matching toleration:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+  template:
+[...]
+    spec:
+      tolerations:
+      - key: &#34;key1&#34;
+        operator: &#34;Equal&#34;
+        value: &#34;value1&#34;
+        effect: &#34;NoExecute&#34;
+        tolerationSeconds: 3600
+[...]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This means that the pod is tolerating the taint of the node with the pair <strong>key1=value1</strong>.</p>
+</div>
+<div class="sect2">
+<h3 id="_parameter_effect">Parameter: effect</h3>
+<div class="paragraph">
+<p>Above example is using as effect <code>NoExecute</code>. The following effects are possible:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>NoSchedule</code> - new pods are not scheduled, existing pods remain</p>
+</li>
+<li>
+<p><code>PreferNoSchedule</code> - new pods are not preferred but can still be scheduled but the scheduler tries to avoid that, existing pods remain</p>
+</li>
+<li>
+<p><code>NoExecute</code> - new pods are not scheduled, existing pods (without matching toleration) are <strong>removed</strong>! The setting <code>tolerationSeconds</code> is used to define a maximum time until a pod is allowed to stay.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_parameter_operator">Parameter: operator</h3>
+<div class="paragraph">
+<p>For the operator two options are possible:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>Exists</code> - simply checks if a key exists and key and effect matches. No value should be configured in this case.</p>
+</li>
+<li>
+<p><code>Equal</code> (default) - with this option key, value and effect must match exactly.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configuring_taints_and_tolerations">Configuring Taints and Tolerations</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Our compute-0 node is a special node with a GPU installed. We would like that our web application is running on this node and ONLY our web application is running on that node. To achieve this, we will taint the node accordingly with the key/value <code>gpu=enabled</code> and the effect <code>NoExecute</code> and configure a toleration to the DeploymentConfig of our web fronted.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/day-2/images/tainting-node.png" alt="Tainting compute-0"/>
+</div>
+<div class="title">Figure 1. Tainting Node</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Always configure tolerations before you taint a node. Otherwise the scheduler might not be able to start a pod until it has been configured to tolerate the taints.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>First we will set the toleration to the DeploymentConfig:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc edit dc/django-psql-example -n podtesting</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>And add a toleration for the key/value pair, the effect NoExecute and a tolerationSeconds of X seconds.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+  template:
+[...]
+    spec:
+      tolerations:
+      - key: &#34;gpu&#34;
+        value: &#34;enabled&#34;
+        operator: &#34;Equal&#34;
+        effect: &#34;NoExecute&#34;
+        tolerationSeconds: 30 <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>I am setting the tolerationSeconds to 30 seconds to get it done quicker.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Before we taint our node, let’s check which pods are currently running there:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -A -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName,STATE:.status.phase | grep compute-0 | grep Running
+
+tuned-hrvl4                                               compute-0   Running
+dns-default-ln9s4                                         compute-0   Running
+node-resolver-qk24n                                       compute-0   Running
+node-ca-lxrvf                                             compute-0   Running
+ingress-canary-fv5w6                                      compute-0   Running
+machine-config-daemon-558v4                               compute-0   Running
+grafana-78ccdb8c9d-8rqsp                                  compute-0   Running
+node-exporter-rn8h4                                       compute-0   Running
+prometheus-adapter-66976bf759-fxdcd                       compute-0   Running
+multus-additional-cni-plugins-29qgq                       compute-0   Running
+multus-mkd87                                              compute-0   Running
+network-metrics-daemon-64hrw                              compute-0   Running
+network-check-target-l6l7n                                compute-0   Running
+ovnkube-node-hrtln                                        compute-0   Running
+django-psql-example-24-c599b                              compute-0   Running
+django-psql-example-24-l7znv                              compute-0   Running
+django-psql-example-24-zpg77                              compute-0   Running</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Multiple different pods are running here, as well as two of our web frontend (django-psql-example)</p>
+</div>
+<div class="paragraph">
+<p>The other django-psql-example pods are started accross the cluster:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide
+
+oc get pods -n podtesting -o wide
+NAME                            READY   STATUS      RESTARTS   AGE     IP             NODE        NOMINATED NODE   READINESS GATES
+django-psql-example-25-8ppxc    1/1     Running     0          21s     10.128.0.61    master-2    &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-8rv76    1/1     Running     0          21s     10.130.2.92    compute-2   &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-9m8k2    1/1     Running     0          21s     10.129.0.67    master-1    &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-fhvxg    1/1     Running     0          31s     10.128.2.126   compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-kqgwz    0/1     Running     0          21s     10.130.0.71    master-0    &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-m66nn    1/1     Running     0          21s     10.130.0.70    master-0    &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-ntjqb    1/1     Running     0          21s     10.128.0.60    master-2    &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-nxxqh    1/1     Running     0          21s     10.130.2.93    compute-2   &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-p8nbz    1/1     Running     0          21s     10.131.1.183   compute-3   &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-ttr9g    1/1     Running     0          21s     10.129.2.57    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-xn4fp    1/1     Running     0          21s     10.129.2.56    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-xpqf4    1/1     Running     0          21s     10.128.2.127   compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-25-xwmwv    1/1     Running     0          21s     10.131.1.184   compute-3   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To taint the node we can simply execute the following command. Be sure to use the same values as in the toleration:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc adm taint nodes compute-0 gpu=enabled:NoExecute</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will create the following specification in the node object:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+  taints:
+  - effect: NoExecute
+    key: gpu
+    value: enabled</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>OpenShift will allow pods, which are not tolerating the taints, to keep on running for 30 seconds. After that, these pods will be evicted and started elsewhere.</p>
+</div>
+<div class="paragraph">
+<p>When we check after the tolerationSeconds time has passed which pods are running on the node compute-0, we will see that most pods have disappeared, except the pods for the webapplication and pods which are part of DaemonSets. (DaemonSets are defined to run on all or specific nodes and are not evicted. The cluster-DaemonSets are tolerating everything)</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -A -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName,STATE:.status.phase | grep compute-0 | grep Running
+
+tuned-hrvl4                                               compute-0   Running
+node-resolver-qk24n                                       compute-0   Running
+node-ca-lxrvf                                             compute-0   Running
+machine-config-daemon-558v4                               compute-0   Running
+node-exporter-rn8h4                                       compute-0   Running
+multus-additional-cni-plugins-29qgq                       compute-0   Running
+multus-mkd87                                              compute-0   Running
+network-metrics-daemon-64hrw                              compute-0   Running
+network-check-target-l6l7n                                compute-0   Running
+ovnkube-node-hrtln                                        compute-0   Running
+django-psql-example-25-8dzqh                              compute-0   Running
+django-psql-example-25-9p4sb                              compute-0   Running
+django-psql-example-25-pqbvn                              compute-0   Running
+django-psql-example-25-sb6hr                              compute-0   Running</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_removing_taints">Removing taints</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Taints can be simply removed with the oc command added a trailing <code>-</code></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc adm taint nodes compute-0 gpu=enabled:NoExecute-</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_built_in_taints_taint_nodes_by_condition">Built-in Taints - Taint Nodes by Condition</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Several taints are built into OpenShift and are set during certain events (aka Taint Nodes by Condition) and cleared when the condition is resolved.</p>
+</div>
+<div class="paragraph">
+<p>The following list is quoted from the OpenShift documentation and provides a list of taints which are automatically set. For example, when a node becomes unavailable:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>node.kubernetes.io/not-ready</code>: The node is not ready. This corresponds to the node condition Ready=False.</p>
+</li>
+<li>
+<p><code>node.kubernetes.io/unreachable</code>: The node is unreachable from the node controller. This corresponds to the node condition Ready=Unknown.</p>
+</li>
+<li>
+<p><code>node.kubernetes.io/out-of-disk</code>: The node has insufficient free space on the node for adding new pods. This corresponds to the node condition OutOfDisk=True.</p>
+</li>
+<li>
+<p><code>node.kubernetes.io/memory-pressure</code>: The node has memory pressure issues. This corresponds to the node condition MemoryPressure=True.</p>
+</li>
+<li>
+<p><code>node.kubernetes.io/disk-pressure</code>: The node has disk pressure issues. This corresponds to the node condition DiskPressure=True.</p>
+</li>
+<li>
+<p><code>node.kubernetes.io/network-unavailable</code>: The node network is unavailable.</p>
+</li>
+<li>
+<p><code>node.kubernetes.io/unschedulable</code>: The node is unschedulable.</p>
+</li>
+<li>
+<p><code>node.cloudprovider.kubernetes.io/uninitialized</code>: When the node controller is started with an external cloud provider, this taint is set on a node to mark it as unusable. After a controller from the cloud-controller-manager initializes this node, the kubelet removes this taint.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Depending on the condition, the node will either have the effect <code>NoSchedule</code>, which means no new pods will be started there (unless a toleration is configured) or the effect <code>NoExecute</code>, which will evict pods with no tolerations from the node. Typical examples for NoSchedule condition would be: memory-pressure or disk-pressure. If a node is unreachable or not-ready, then it will be automatically tainted with the effect NoExecute. <code>tolerationSeconds</code> (default 300) will be respected.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_tolerating_all_taints">Tolerating all taints</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Tolerations can be configured to tolerate all possible taints. In such case no <code>value</code> or <code>key</code> is configured and <code>operator: &#34;Exists&#34;</code> is used:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+ template:
+[...]
+   spec:
+     tolerations:
+     - operator: “Exists”</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Some cluster daemonsets (i.e. tuned) are configured this way.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_cleanup">Cleanup</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Remove the taint from the node:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc adm taint nodes compute-0 gpu=enabled:NoExecute-</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>And remove the toleration specification from the DeploymentConfig</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+[...]
+  template:
+[...]
+    spec:
+      tolerations:
+      - key: &#34;gpu&#34;
+        value: &#34;enabled&#34;
+        operator: &#34;Equal&#34;
+        effect: &#34;NoExecute&#34;
+        tolerationSeconds: 30 <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Pod Affinity/Anti-Affinity</title><link>https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-28-affinity/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-28-affinity/</guid><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Day-2</category><description>Placeing Pods Using the Affinity rules</description><content:encoded><![CDATA[<div class="paragraph">
+<p>While noteSelector provides a very easy way to control where a pod shall be scheduled, the affinity/anti-affinity feature, expands this configuration with more expressive rules like logical AND operators, constraints against labels on other pods or soft rules instead of hard requirements.</p>
+</div>
+<div class="paragraph">
+<p>The feature comes with two types:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>pod affinity/anti-affinity - allows constrains against other pod labels rather than node labels.</p>
+</li>
+<li>
+<p>node affinity - allows pods to specify a group of nodes they can be placed on</p>
+</li>
+</ul>
+</div>
+<div class="sect1">
+<h2 id="_pod_placement_series">Pod Placement Series</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Please check out other ways of pod placements:</p>
+</div>
+<div class="paragraph">
+
+<div class="expand">
+    <div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+        <i style="font-size:x-small;" class="fas fa-chevron-right"></i>
+        <span>
+        
+    	
+    	<a>Expand me...</a>
+    	
+    	</span>
+    </div>
+    <div class="expand-content" style="display: none;">
+        <div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="/openshift/day-2/pod-placement-nodeselector/">NodeSelector</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-node-affinity/">Node Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/descheduler/">Descheduler</a></p>
+</li>
+</ol>
+</div>
+
+    </div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_pod_affinity_and_anti_affinity">Pod Affinity and Anti-Affinity</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Affinity</strong> and <strong>Anti-Affinity</strong> controls the nodes on which a pod should (or should not) be scheduled <em>based on labels on Pods that are already scheduled on the node</em>. This is a different approach than nodeSelector, since it does not directly take the node labels into account. That said, one example for such setup would be: You have dedicated nodes for developement and production workload and you have to be sure that pods of dev or prod applications do not run on the same node.</p>
+</div>
+<div class="paragraph">
+<p>Affinity and Anti-Affinity are shortly defined as:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Pod affinity - tells scheduler to put a new pod onto the same node as other pods (selection is done using label selectors)</p>
+<div class="paragraph">
+<p>For example:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>I want to run where this other labelled pod is already running (Pods from same service shall be running on same node.)</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Pod Anti-Affinity - prevents the scheduler to place a new pod onto the same nodes with pods with the same labels</p>
+<div class="paragraph">
+<p>For example:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>I definitely do not want to start a pod where this other pod with the defined label is running (to prevent that all Pods of same service are running in the same availability zone.)</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>As described in the official <a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity" rel="noopener" target="_blank">Kubernetes documention</a> two things should be considered:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>The affinity feature requires processing which can slow down the cluster. Therefore, it is not recommended for cluster with more than 100 nodes.</p>
+</li>
+<li>
+<p>The feature requires that all nodes are consistently labelled (<code>topologyKey</code>). Unintended behaviour might happen if labels are missing.</p>
+</li>
+</ol>
+</div>
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_using_affinityanti_affinity">Using Affinity/Anti-Affinity</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Currently two types of pod affinity/anti-affinity are known:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>requiredDuringSchedulingIgnoreDuringExecuption</strong> (short <em>required</em>) - a hard requirement which must be met before a pod can be scheduled</p>
+</li>
+<li>
+<p><strong>preferredDuringSchedulingIgnoredDuringExecution</strong> (short <em>preferred</em>) - a soft requirement the scheduler <strong>tries</strong> to meet, but does not guarantee it</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Both types can be defined in the same specification. In such case the node must first meet the required rule and then attempt based on best effort to meet the preferred rule.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect2">
+<h3 id="_preparing_node_labels">Preparing node labels</h3>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Remember the prerequisites explained in the . <a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Placement - Introduction</a>. We have 4 compute nodes and an example web application up and running.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Before we start with affinity rules we need to label all nodes. Let’s create 2 zones (east and west) for our compute nodes using the well-known label <code>topology.kubernetes.io/zone</code></p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/day-2/images/affinity-kubernetes.zones.png" alt="Node Zones"/>
+</div>
+<div class="title">Figure 1. Node Zones</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc label nodes compute-0 compute-1 topology.kubernetes.io/zone=east
+
+oc label nodes compute-2 compute-3 topology.kubernetes.io/zone=west</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_configure_pod_affinity_rule">Configure pod affinity rule</h3>
+<div class="paragraph">
+<p>In our example we have one database pod and multiple web application pods. Let’s image we would like to always run these pods in the same zone.</p>
+</div>
+<div class="paragraph">
+<p><strong>The pod affinity defines that a pod can be scheduled onto a node ONLY if that node is in the same zone as at least one already-running pod with a certain label.</strong></p>
+</div>
+<div class="paragraph">
+<p>This means we must first label the postgres pod accordingly. Let’s labels the pod with <code>security=zone1</code></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch dc postgresql -n podtesting --type=&#39;json&#39; -p=&#39;[{&#34;op&#34;: &#34;add&#34;, &#34;path&#34;: &#34;/spec/template/metadata/labels/security&#34;, &#34;value&#34;: &#34;zone1&#34; }]&#39;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>After a while the postgres pod is restarted on one of the 4 compute nodes (since we did not specify in which zone this single pod shall be started) - here compute-1 (zone == east):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+postgresql-5-6v5h6              1/1     Running       0          119s   10.129.2.24    compute-1   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As a second step, the deployment configuration of the web application must be modified. Remember, we want to run web application pods only on nodes located in the same zone as the postgres pods. In our example this would be either compute-0 or compute-1.</p>
+</div>
+<div class="paragraph">
+<p>Modify the config accordingly:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+[...]
+  namespace: podtesting
+spec:
+[...]
+  template:
+[...]
+    spec:
+[...]
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: security <i class="conum" data-value="1"></i><b>(1)</b>
+                    operator: In <i class="conum" data-value="2"></i><b>(2)</b>
+                    values:
+                      - zone1 <i class="conum" data-value="3"></i><b>(3)</b>
+              topologyKey: topology.kubernetes.io/zone <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The key of the label of a pod which is already running on that node is &#34;security&#34;</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>As operator &#34;In&#34; is used the postgres pod must have a matching key (security) containing the value (zone1). Other options like &#34;NotIn&#34;, &#34;DoesNotExist&#34; or &#34;Exact&#34; are available as well</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The value must be &#34;zone1&#34;</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>As topology the topology.kubernetes.io/zone is used. The application can be deployed on nodes with the same label</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Setting this (and maybe scaling the replicas up a little bit) will start all frontend pods either on compute-0 or on compute-1.</p>
+</div>
+<div class="paragraph">
+<p><strong>In other words: On nodes of the same zone, where the postgres pod with the label security=zone1 is running.</strong></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+django-psql-example-13-4w6qd    1/1     Running     0          67s     10.128.2.58    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-655dj    1/1     Running     0          67s     10.129.2.28    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-9d4pj    1/1     Running     0          67s     10.129.2.27    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-bdwhb    1/1     Running     0          67s     10.128.2.61    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-d4jrw    1/1     Running     0          67s     10.128.2.57    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-dm9qk    1/1     Running     0          67s     10.128.2.60    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-ktmfm    1/1     Running     0          67s     10.129.2.25    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-ldm56    1/1     Running     0          77s     10.128.2.55    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-mh2f5    1/1     Running     0          67s     10.129.2.29    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-qfkhq    1/1     Running     0          67s     10.129.2.26    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-v88qv    1/1     Running     0          67s     10.128.2.56    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-13-vfgf4    1/1     Running     0          67s     10.128.2.59    compute-0   &lt;none&gt;           &lt;none&gt;
+postgresql-5-6v5h6              1/1     Running     0          3m18s   10.129.2.24    compute-1   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_configure_pod_anti_affinity_rule">Configure pod anti-affinity rule</h3>
+<div class="paragraph">
+<p>For now the database pod and the web application pod are running on nodes of the same zone. However, somebody is asking us to configure it vice versa: the web application should not run in the same zone as postgresql.</p>
+</div>
+<div class="paragraph">
+<p>Here we can use the Anti-Affinity feature.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+As an alternative, it would also be possible to change the operator in the affinity rule from &#34;In&#34; to &#34;NotIn&#34;
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+[...]
+  namespace: podtesting
+spec:
+[...]
+  template:
+[...]
+    spec:
+[...]
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: security <i class="conum" data-value="1"></i><b>(1)</b>
+                    operator: In <i class="conum" data-value="2"></i><b>(2)</b>
+                    values:
+                      - zone1 <i class="conum" data-value="3"></i><b>(3)</b>
+              topologyKey: topology.kubernetes.io/zone <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will force the web application pods to run only on &#34;west&#34; zone nodes.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">django-psql-example-16-4n9h5    1/1     Running     0          40s     10.131.1.53    compute-3   &lt;none&gt;           &lt;none&gt;
+django-psql-example-16-blf8b    1/1     Running     0          29s     10.130.2.63    compute-2   &lt;none&gt;           &lt;none&gt;
+django-psql-example-16-f9plb    1/1     Running     0          29s     10.130.2.64    compute-2   &lt;none&gt;           &lt;none&gt;
+django-psql-example-16-tm5rm    1/1     Running     0          28s     10.131.1.55    compute-3   &lt;none&gt;           &lt;none&gt;
+django-psql-example-16-x8lbh    1/1     Running     0          29s     10.131.1.54    compute-3   &lt;none&gt;           &lt;none&gt;
+django-psql-example-16-zb5fg    1/1     Running     0          28s     10.130.2.65    compute-2   &lt;none&gt;           &lt;none&gt;
+postgresql-5-6v5h6              1/1     Running     0          18m     10.129.2.24    compute-1   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_combining_required_and_preferred_affinities">Combining required and preferred affinities</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>It is possible to combine requiredDuringSchedulingIgnoredDuringExecution and preferredDuringSchedulingIgnoredDuringExecution. In such case the required affinity MUST be met, while the preferred affinity is tried to be met. The following examples combines these two types in an affinity and anti-affinity specification.</p>
+</div>
+<div class="paragraph">
+<p>The <code>podAffinity</code> block defines the same as above: schedule the pod on a node of the same zone, where a pod with the label <code>security=zone1</code> is running.
+The <code>podAntiAffinity</code> defines that the pod should not be started on a node if that node has a pod running with the label <code>security=zone2</code>. However, the scheduler might decide to do so as long the <code>podAffinity</code> rule is met.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">spec:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: security
+            operator: In
+            values:
+            - zone1
+        topologyKey: topology.kubernetes.io/zone
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100 <i class="conum" data-value="1"></i><b>(1)</b>
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: security
+              operator: In
+              values:
+              - zone2
+          topologyKey: topology.kubernetes.io/zone</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The <code>weight</code> field is used by the scheduler to create a scoring. The higher the scoring the more preferred is that node.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect2">
+<h3 id="_topologykey">topologyKey</h3>
+<div class="paragraph">
+<p>It is important to understand the <code>topologyKey</code> setting. This is the key for the node label. If an affinity rule is met, Kubernetes will try to find suitable nodes which are labelled with the topologyKey. All nodes must be labelled consistently, otherwise unintended behaviour might occur.</p>
+</div>
+<div class="paragraph">
+<p>As described in the Kubernetes documentation at <a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity" rel="noopener" target="_blank">Pod Affinity and Anti-Affinity</a>, the topologyKey has some constraints:</p>
+</div>
+<div class="paragraph">
+<p><em>Quote Kubernetes:</em></p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><em>For pod affinity, empty <code>topologyKey</code> is not allowed in both <code>requiredDuringSchedulingIgnoredDuringExecution</code> and <code>preferredDuringSchedulingIgnoredDuringExecution</code>.</em></p>
+</li>
+<li>
+<p><em>For pod anti-affinity, empty <code>topologyKey</code> is also not allowed in both <code>requiredDuringSchedulingIgnoredDuringExecution</code> and <code>preferredDuringSchedulingIgnoredDuringExecution</code>.</em></p>
+</li>
+<li>
+<p><em>For <code>requiredDuringSchedulingIgnoredDuringExecution</code> pod anti-affinity, the admission controller <code>LimitPodHardAntiAffinityTopology</code> was introduced to limit <code>topologyKey</code> to <code>kubernetes.io/hostname</code>. If you want to make it available for custom topologies, you may modify the admission controller, or disable it.</em></p>
+</li>
+<li>
+<p><em>Except for the above cases, the <code>topologyKey</code> can be any legally label-key.</em></p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><em>End of quote</em></p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_cleanup">Cleanup</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As cleanup simply remove the affinity specification from the DeploymentConf. The node labels can stay as they are since they do not hurt.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This concludes the quick overview of the pod affinity. The next chapter will discuss <a href="/openshift/day-2/pod-placement-node-affinity/">Node Affinity</a> rules, which allows affinity based on node specifications.</p>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>NodeSelector</title><link>https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-27-podplacement/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-27-podplacement/</guid><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Day-2</category><description>Placeing Pods Using the NodeSelector</description><content:encoded><![CDATA[<div class="paragraph">
+<p>One of the easiest ways to tell your Kubernetes cluster where to put certain pods is to use a <code>nodeSelector</code> specification. A nodeSelector defines a key-value pair and are defined inside the specification of the pods and as a label on one or multiple nodes (or machine set or machine config). Only if selector matches the node label, the pod is allowed to be scheduled on that node.</p>
+</div>
+<div class="paragraph">
+<p>Kubernetes distingushes between 2 types of selectors:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><em>cluster-wide node selectors</em>: defined by the cluster administrators and valid for the whole cluster</p>
+</li>
+<li>
+<p><em>project node selectors</em>: to place new pods inside projects into specific nodes.</p>
+</li>
+</ol>
+</div>
+<div class="sect1">
+<h2 id="_pod_placement_series">Pod Placement Series</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Please check out other ways of pod placements:</p>
+</div>
+<div class="paragraph">
+
+<div class="expand">
+    <div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+        <i style="font-size:x-small;" class="fas fa-chevron-right"></i>
+        <span>
+        
+    	
+    	<a>Expand me...</a>
+    	
+    	</span>
+    </div>
+    <div class="expand-content" style="display: none;">
+        <div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="/openshift/day-2/pod-placement-nodeselector/">NodeSelector</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-node-affinity/">Node Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/descheduler/">Descheduler</a></p>
+</li>
+</ol>
+</div>
+
+    </div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_using_nodeselector">Using nodeSelector</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As previously described, we have a cluster with an example application scheduled accross the worker nodes evenly by the scheduler.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+
+django-psql-example-1-842fl    1/1     Running             0          2m7s   10.131.0.65   compute-3   &lt;none&gt;           &lt;none&gt;
+django-psql-example-1-h6kst    1/1     Running             0          24m    10.130.2.97   compute-2   &lt;none&gt;           &lt;none&gt;
+django-psql-example-1-pxhlv    1/1     Running             0          2m7s   10.128.2.13   compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-1-xms7x    1/1     Running             0          2m7s   10.129.2.10   compute-1   &lt;none&gt;           &lt;none&gt;
+postgresql-1-4pcm4             1/1     Running             0          26m    10.131.0.51   compute-3   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>However, our 4 compute nodes are assembled with different hardware specification and are using different harddisks (sdd vs hdd).</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/day-2/images/nodeselector-disktypes.png" alt="Node with different disktypes"/>
+</div>
+<div class="title">Figure 1. Nodes with Different Specifications</div>
+</div>
+<div class="paragraph">
+<p>Since our web application must run on fast disks must configure the cluster to schedule the pods on nodes with SSD only.</p>
+</div>
+<div class="paragraph">
+<p>To start using nodeSelectors we first <strong>label our nodes</strong> accordingly:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>compute-0 and compute-1 are faster nodes with an SSD attached.</p>
+</li>
+<li>
+<p>compute-2 and compute-2 have a HDD attached.</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc label nodes compute-0 compute-1 disktype=ssd <i class="conum" data-value="1"></i><b>(1)</b>
+
+oc label nodes compute-2 compute-3 disktype=hdd</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>as key we are using <strong>disktype</strong></td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>As crosscheck we can list nodes with a specific label:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get nodes -l disktype=ssd
+NAME        STATUS   ROLES    AGE     VERSION
+compute-0   Ready    worker   7h32m   v1.19.0+d59ce34
+compute-1   Ready    worker   7h31m   v1.19.0+d59ce34
+
+oc get nodes -l disktype=hdd
+NAME        STATUS   ROLES    AGE     VERSION
+compute-2   Ready    worker   7h32m   v1.19.0+d59ce34
+compute-3   Ready    worker   7h32m   v1.19.0+d59ce34</code></pre>
+</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+If no matching label is found, the pod cannot be scheduled. Therefore, <strong>always</strong> label the nodes first.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The 2nd step is to add the node selector to the specification of the pod. In our example we are using a DeploymentConfig, so let’s add it there:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch dc django-psql-example -n podtesting --patch &#39;{&#34;spec&#34;:{&#34;template&#34;:{&#34;spec&#34;:{&#34;nodeSelector&#34;:{&#34;disktype&#34;:&#34;ssd&#34;}}}}}&#39;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This adds the nodeSelector into: spec/template/spec</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">       nodeSelector:
+         disktype: ssd</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Kubernetes will now trigger a restart of the pods on the supposed nodes.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+
+django-psql-example-3-4j92k    1/1     Running       0          42s   10.129.2.7    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-3-d7hsd    1/1     Running       0          42s   10.129.2.8    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-3-fkbfm    1/1     Running       0          14m   10.128.2.18   compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-3-psskb    1/1     Running       0          14m   10.128.2.17   compute-0   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As you can see, only nodes with a SSD (compute-0 and compute-1) are being used.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_controlling_pod_placement_with_project_wide_selector">Controlling pod placement with project-wide selector</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Adding a nodeSelector to a deployment seems fine…​ until somebody forgets to add it. Then the pods would be started anywhere the scheduler finds suitable. Therefore, it might make sense to use a project-wide node selector, which will automatically be applied on all pods on that project. The project selector is added by the cluster administrator to the <strong>Namespace</strong> object (no matter what the OpenShift documentation says in it’s example) as <code>openshift.io/node-selector</code> parameter.</p>
+</div>
+<div class="paragraph">
+<p>Let’s remove our previous configuration and add the setting to our namespace <em>podtesting</em>:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Cleanup</p>
+<div class="paragraph">
+<p>Remove the nodeSelector from the deployment configuration and wait until all pods have been reshuffeld</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch dc django-psql-example -n podtesting --type=&#39;json&#39; -p=&#39;[{&#34;op&#34;: &#34;remove&#34;, &#34;path&#34;: &#34;/spec/template/spec/nodeSelector&#34;, &#34;value&#34;: &#34;disktype=ssd&#34; }]&#39;</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Add the label to the project</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc annotate ns/podtesting openshift.io/node-selector=&#34;disktype=ssd&#34;</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The OpenShift scheduler will now spread the Pods accross compute-0 or compute-1 again, but not on compute-2 or 3.</p>
+</div>
+<div class="paragraph">
+<p>We can prove that by stressing our cluster (and nodes) a little bit and scale our frontend application to 10:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+django-psql-example-4-2jn2l    1/1     Running     0          27s     10.128.2.8    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-6g7ks    1/1     Running     0          7m47s   10.129.2.23   compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-752nm    1/1     Running     0          7m47s   10.128.2.7    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-c5jvm    1/1     Running     0          27s     10.129.2.4    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-f5kwg    1/1     Running     0          27s     10.129.2.5    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-g7bcs    1/1     Running     0          7m47s   10.129.2.24   compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-h5tgb    1/1     Running     0          27s     10.129.2.6    compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-spvpp    1/1     Running     0          28s     10.128.2.5    compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-v9qwj    1/1     Running     0          7m48s   10.129.2.22   compute-1   &lt;none&gt;           &lt;none&gt;
+django-psql-example-4-zgwcv    1/1     Running     0          27s     10.128.2.6    compute-0   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As you can see compute-0 and compute-1 are the only nodes which are used.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_well_known_labels">Well-Known Labels</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>nodeSelector is one of the easiest ways to control where an application shall be started. Working with labels is therefore very important as soon as workload shall be added to the cluster.
+Kubernetes reserves some labels which can be leveraged and some are already predefined on the nodes, for example:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>beta.kubernetes.io/arch=amd64</p>
+</li>
+<li>
+<p>kubernetes.io/hostname=compute-0</p>
+</li>
+<li>
+<p>kubernetes.io/os=linux</p>
+</li>
+<li>
+<p>node-role.kubernetes.io/worker=</p>
+</li>
+<li>
+<p>node.openshift.io/os_id=rhcos</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>A list of all known can be found at: [<a href="#source_1">1</a>]</p>
+</div>
+<div class="paragraph">
+<p>Two of them I would like to mention here, since they might become very important when designing the placement of pods:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>topology.kubernetes.io/zone</p>
+</li>
+<li>
+<p>topology.kubernetes.io/region</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>With these two labels you can create availability zones for your cluster. A <strong>zone</strong> can be seen a logical failure domain and a cluster is typically spanned across multiple zones. This could be a rack in a data center for example, hardware which is sharing the same switch or simply different data centers. Zones are seen as independent to each other.</p>
+</div>
+<div class="paragraph">
+<p>A <strong>region</strong> is made up of one or more zones. A cluster is usually not spanned across multiple region.</p>
+</div>
+<div class="paragraph">
+<p>Kubernetes makes a few assumptions about the structure of zones and regions:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>regions and zones are hierarchical: zones are strict subsets of regions and no zone can be in 2 regions</p>
+</li>
+<li>
+<p>zone names are unique across regions; for example region &#34;africa-east-1&#34; might be comprised of zones &#34;africa-east-1a&#34; and &#34;africa-east-1b&#34;</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_cleanup">Cleanup</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This concludes the chapter about nodeSelectors. For the next chapter of the Pod Placement Series (<a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity</a>) we need to cleanup our configuration.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Scale the frontend down to 2</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc scale --replicas=2 dc/django-psql-example -n podtesting</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p>Remove the label from the namespace</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc annotate ns/podtesting openshift.io/node-selector- <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The minus at the end defines that this annotation shall be removed</td>
+</tr>
+</tbody></table>
+</div>
+</li>
+<li>
+<p>And, just to be sure if you have not done this before, remove the nodeSelector from the DeploymentConfig</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch dc django-psql-example -n podtesting --type=&#39;json&#39; -p=&#39;[{&#34;op&#34;: &#34;remove&#34;, &#34;path&#34;: &#34;/spec/template/spec/nodeSelector&#34;, &#34;value&#34;: &#34;disktype=ssd&#34; }]&#39;</code></pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_sources">Sources</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a id="source_1"></a>[1]: <a href="https://kubernetes.io/docs/reference/labels-annotations-taints/" rel="noopener" target="_blank">Well-Known Labels, Annotations and Taints</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Node Affinity</title><link>https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-29-node-affinity/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-29-node-affinity/</guid><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Day-2</category><description>Placeing Pods Using the Node Affinity rules</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Node Affinity allows to place a pod to a specific group of nodes. For example, it is possible to run a pod only on nodes with a specific CPU or disktype. The disktype was used as an example for the <code>nodeSelector</code> and yes …​ Node Affinity is conceptually similar to nodeSelector but allows a more granular configuration.</p>
+</div>
+<div class="sect1">
+<h2 id="_pod_placement_series">Pod Placement Series</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Please check out other ways of pod placements:</p>
+</div>
+<div class="paragraph">
+
+<div class="expand">
+    <div class="expand-label" style="cursor: pointer;" onclick="$h = $(this);$h.next('div').slideToggle(100,function () {$h.children('i').attr('class',function () {return $h.next('div').is(':visible') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';});});">
+        <i style="font-size:x-small;" class="fas fa-chevron-right"></i>
+        <span>
+        
+    	
+    	<a>Expand me...</a>
+    	
+    	</span>
+    </div>
+    <div class="expand-content" style="display: none;">
+        <div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="/openshift/day-2/pod-placement-nodeselector/">NodeSelector</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-node-affinity/">Node Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/descheduler/">Descheduler</a></p>
+</li>
+</ol>
+</div>
+
+    </div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_using_node_affinity">Using Node Affinity</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Currently two types of affinity settings are known:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>requiredDuringSchedulingIgnoreDuringExecuption (short <em>required</em>) - a hard requirement which must be met before a pod can be scheduled</p>
+</li>
+<li>
+<p>preferredDuringSchedulingIgnoredDuringExecution (short <em>preferred</em>) - a soft requirement the scheduler <strong>tries</strong> to meet, but does not guarantee it</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Both types can be specified. In such case the node must first meet the required rule and then attempt to meet the preferred rule.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect2">
+<h3 id="_preparing_node_labels">Preparing node labels</h3>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Remember the prerequisites explained in the . <a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Placement - Introduction</a>. We have 4 compute nodes and an example web application up and running.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Before we start with affinity rules we need to label all nodes. Let’s create 2 zones (east and west) for our compute nodes.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+You can skip this, if these labels are still set.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/day-2/images/affinity-kubernetes.zones.png" alt="Node Zones"/>
+</div>
+<div class="title">Figure 1. Node Zones</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc label nodes compute-0 compute-1 topology.kubernetes.io/zone=east
+
+oc label nodes compute-2 compute-3 topology.kubernetes.io/zone=west</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_configure_node_affinity_rule">Configure node affinity rule</h3>
+<div class="paragraph">
+<p>Like pod affinity the node affinity is defined on the pod specification:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+metadata:
+  name: django-psql-example
+  namespace: podtesting
+[...]
+spec:
+[...]
+  template:
+[...]
+    spec:
+[...]
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - west</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>In this example the pods are started only on nodes of the zone &#34;West&#34;. Since the value is an array, multiple zones can be defined letting the web application be executed on West and East for example.
+With this setup you can control on which node a specific application shall be executed. For example: you have a group of nodes which provide a GPU and your GPU application must be started only on this group of nodes.</p>
+</div>
+<div class="paragraph">
+<p>Like with pod affinity you can combine required and preferred settings.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_happened_to_node_anti_affinity">What happened to Node Anti-Affinity?</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Unlike Pod Anti-Affinity, there is no concept to define a node Anti-Affinity. Instead you can use the <code>NotIn</code> and <code>DoesNotExist</code> operators to achieve this bahaviour.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_cleanup">Cleanup</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As cleanup simply remove the affinity specification from the DeploymentConf. The node labels can stay as they are since they do not hurt.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This concludes the quick overview of the node affinity. Further information can be found at <a href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity" rel="noopener" target="_blank">Node Affinity</a></p>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>Introduction</title><link>https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-26-podplacement-intro/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/day-2/pod-placement/2021-08-26-podplacement-intro/</guid><pubDate>Thu, 26 Aug 2021 00:00:00 +0000</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Day-2</category><description>Introduction to Pod Placement</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Pod scheduling is an internal process that determines placement of new pods onto nodes within the cluster. It is probably one of the most important tasks for a Day-2 scenario and should be considered at a very early stage for a new cluster. OpenShift/Kubernetes is already shipped with a <strong>default scheduler</strong> which schedules pods as they get created accross the cluster, without any manual steps.</p>
+</div>
+<div class="paragraph">
+<p>However, there are scenarios where a more advanced approach is required, like for example using a specifc group of nodes for dedicated workload or make sure that certain applications do not run on the same nodes. Kubernetes provides different options:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Controlling placement with node selectors</p>
+</li>
+<li>
+<p>Controlling placement with pod/node affinity/anti-affinity rules</p>
+</li>
+<li>
+<p>Controlling placement with taints and tolerations</p>
+</li>
+<li>
+<p>Controlling placement with topology spread constraints</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>This series will try to go into the detail of the different options and explains in simple examples how to work with pod placement rules.
+It is not a replacement for any official documentation, so always check out Kubernetes and or OpenShift documentations.</p>
+</div>
+<div class="sect1">
+<h2 id="_pod_placement_series">Pod Placement Series</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="/openshift/day-2/pod-placement-nodeselector/">NodeSelector</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-pod-affinity/">Pod Affinity and Anti Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-node-affinity/">Node Affinity</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-taints-and-tolerations">Taints and Tolerations</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/pod-placement-topology-spread-constraints/">Topology Spread Constraints</a></p>
+</li>
+<li>
+<p><a href="/openshift/day-2/descheduler/">Descheduler</a></p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The following prerequisites are used for all examples.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Let’s image that our cluster (OpenShift 4) has 4 compute nodes</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get node --selector=&#39;node-role.kubernetes.io/worker&#39;
+
+NAME        STATUS   ROLES           AGE     VERSION
+compute-0   Ready    worker          7h1m    v1.19.0+d59ce34
+compute-1   Ready    worker          7h1m    v1.19.0+d59ce34
+compute-2   Ready    worker          7h1m    v1.19.0+d59ce34
+compute-3   Ready    worker          7h1m    v1.19.0+d59ce34</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>An example application (from the catalog Django + Postgres) has been deployed in the namespace <code>podtesting</code>. It contains by default 1 pod for a PostGresql database and one pod for a frontend web application.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+django-psql-example-1-h6kst    1/1     Running     0          20m   10.130.2.97   compute-2   &lt;none&gt;           &lt;none&gt;
+postgresql-1-4pcm4             1/1     Running     0          21m   10.131.0.51   compute-3   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Without any configuration the OpenShift scheduler will try to spread the pods evenly accross the cluster.</p>
+</div>
+<div class="paragraph">
+<p>Let’s increase the replica of the web frontend:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc scale --replicas=4 dc/django-psql-example -n podtesting</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Eventually 4 additional pods will be started accross the compute nodes of the cluster:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n podtesting -o wide | grep Running
+
+django-psql-example-1-842fl    1/1     Running             0          2m7s   10.131.0.65   compute-3   &lt;none&gt;           &lt;none&gt;
+django-psql-example-1-h6kst    1/1     Running             0          24m    10.130.2.97   compute-2   &lt;none&gt;           &lt;none&gt;
+django-psql-example-1-pxhlv    1/1     Running             0          2m7s   10.128.2.13   compute-0   &lt;none&gt;           &lt;none&gt;
+django-psql-example-1-xms7x    1/1     Running             0          2m7s   10.129.2.10   compute-1   &lt;none&gt;           &lt;none&gt;
+postgresql-1-4pcm4             1/1     Running             0          26m    10.131.0.51   compute-3   &lt;none&gt;           &lt;none&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As you can see, the scheduler already tries to spread the pods evenly, so that every worker node will host one frontend pod.</p>
+</div>
+<div class="paragraph">
+<p>However, let’s try to apply a more advanced configuration for the pod placement, starting with the
+<a href="/openshift/day-2/pod-placement-nodeselector/">Pod Placement - NodeSelector</a></p>
+</div>
+</div>
 </div>]]></content:encoded></item></channel></rss>
