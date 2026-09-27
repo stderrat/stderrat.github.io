@@ -358,9 +358,18 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
     var container = getToastContainer();
     var toast = document.createElement('div');
     toast.className = 'copy-toast';
-    toast.innerHTML = '<span class="copy-toast-icon"><i class="fas fa-check"></i></span>' +
-                      '<span>' + message + '</span>';
-    
+
+    var iconWrap = document.createElement('span');
+    iconWrap.className = 'copy-toast-icon';
+    var icon = document.createElement('i');
+    icon.className = 'fas fa-check';
+    iconWrap.appendChild(icon);
+
+    var text = document.createElement('span');
+    text.textContent = message;
+
+    toast.appendChild(iconWrap);
+    toast.appendChild(text);
     container.appendChild(toast);
     
     // Auto-remove after 2.5 seconds with fade-out animation
@@ -836,6 +845,8 @@ jQuery(document).ready(function() {
   // ------------------------------------------------------------------------
   // Exclude: .inline images, related article images, and images already in links
   var images = $("div#body-inner img").not(".inline").not(".related-card-image img");
+  var cssLength = /^\d+(\.\d+)?(px|%|em|rem|vw)?$/;
+  var cssClass = /^[A-Za-z0-9_-]+$/;
   
   // Wrap images in featherlight lightbox links
   images.wrap(function() {
@@ -846,12 +857,16 @@ jQuery(document).ready(function() {
     if (f != 'false') {
       // Use .closest("a") to check for ANY ancestor link, not just direct parent
       if (!image.closest("a").length) {
-        return "<a href='" + image[0].src + "' data-featherlight='image'></a>";
+        var link = document.createElement('a');
+        link.href = image[0].src;
+        link.setAttribute('data-featherlight', 'image');
+        return link;
       }
     }
   });
 
-  // Apply custom styles from URL parameters
+  // Apply custom styles from URL parameters. Ignore anything that is not a
+  // length or a plain class token so query values cannot change other CSS.
   images.each(function(index) {
     var image = $(this);
     var o = getUrlParameter(image[0].src);
@@ -861,13 +876,20 @@ jQuery(document).ready(function() {
       var w = o["width"];
       var c = o["classes"];
       
-      image.css("width", typeof w !== "undefined" ? w : "auto");
-      image.css("height", typeof h !== "undefined" ? h : "auto");
+      if (typeof w !== "undefined" && cssLength.test(w)) {
+        image.css("width", w);
+      }
+      if (typeof h !== "undefined" && cssLength.test(h)) {
+        image.css("height", h);
+      }
       
       if (typeof c !== "undefined") {
         var classes = c.split(',');
         for (var i = 0; i < classes.length; i++) {
-          image.addClass(classes[i]);
+          var name = classes[i].trim();
+          if (cssClass.test(name)) {
+            image.addClass(name);
+          }
         }
       }
     }
@@ -878,8 +900,13 @@ jQuery(document).ready(function() {
   // ------------------------------------------------------------------------
   var text, clip = new ClipboardJS('.anchor');
   
-  $("h2,h3,h4,h5,h6,archive").append(function(index, html) {
+  $("h2,h3,h4,h5,h6,archive").each(function() {
     var element = $(this);
+    if (element[0].classList.contains('recentlist') ||
+        element[0].classList.contains('shortcut-title')) {
+      return;
+    }
+
     var url = encodeURI(document.location.origin + document.location.pathname);
     var link = url + "#" + element[0].id;
     
@@ -889,13 +916,18 @@ jQuery(document).ready(function() {
       headingText = headingText.substring(0, 40) + '...';
     }
 
-    // Skip certain heading types
-    if (!(element[0].classList.contains('recentlist')) && 
-        !(element[0].classList.contains('shortcut-title'))) {
-      return " <span class='anchor' data-clipboard-text='" + link + "' data-section-title='" + headingText.replace(/'/g, "&#39;") + "' title='Copy link to section'>" +
-        "<i class='fas fa-link fa-lg'></i>" +
-        "</span>";
-    }
+    var anchor = document.createElement('span');
+    anchor.className = 'anchor';
+    anchor.dataset.clipboardText = link;
+    anchor.dataset.sectionTitle = headingText;
+    anchor.title = 'Copy link to section';
+
+    var icon = document.createElement('i');
+    icon.className = 'fas fa-link fa-lg';
+    anchor.appendChild(icon);
+
+    element[0].appendChild(document.createTextNode(' '));
+    element[0].appendChild(anchor);
   });
 
   $(".anchor").on('mouseleave', function(e) {
