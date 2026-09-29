@@ -296,6 +296,65 @@ $('#toc-field a:not(:has(img)):not(.btn):not(.nav-prev):not(.nav-next):not(.no-h
       progressRing.appendChild(progressCircle);
       topBtn.appendChild(progressRing);
     }
+
+    /**
+     * On article pages, park the button just to the right of the capped
+     * #body-inner column (instead of the far-right viewport gutter).
+     */
+    function positionArticleTopBtn() {
+      if (!topBtn || !document.body.classList.contains('article-page')) {
+        return;
+      }
+      var inner = document.getElementById('body-inner');
+      if (!inner) {
+        return;
+      }
+
+      var gap = 16;
+      var btnW = topBtn.offsetWidth || 40;
+      var rect = inner.getBoundingClientRect();
+      var left = Math.round(rect.right + gap);
+      var maxLeft = window.innerWidth - btnW - 16;
+
+      var toc = document.getElementById('toc-field');
+      if (toc) {
+        var tocStyle = window.getComputedStyle(toc);
+        if (tocStyle.display !== 'none' && tocStyle.visibility !== 'hidden') {
+          var tocRect = toc.getBoundingClientRect();
+          if (tocRect.width > 0) {
+            maxLeft = Math.min(maxLeft, Math.round(tocRect.left - gap - btnW));
+          }
+        }
+      }
+
+      left = Math.min(left, maxLeft);
+      if (left < Math.round(rect.left) || left < 8) {
+        topBtn.style.left = '';
+        topBtn.style.right = '';
+        topBtn.classList.remove('top-btn--beside-article');
+        return;
+      }
+
+      topBtn.style.left = left + 'px';
+      topBtn.style.right = 'auto';
+      topBtn.classList.add('top-btn--beside-article');
+    }
+
+    positionArticleTopBtn();
+    $(window).on('resize', positionArticleTopBtn);
+
+    var bodyInner = document.getElementById('body-inner');
+    if (bodyInner && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(positionArticleTopBtn).observe(bodyInner);
+    }
+    // Sidebar collapse changes #body margin without resizing #body-inner itself
+    var mainBody = document.getElementById('body');
+    if (mainBody && typeof MutationObserver !== 'undefined') {
+      new MutationObserver(positionArticleTopBtn).observe(mainBody, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    }
     
     // Update progress and visibility on scroll
     $(window).scroll(function() {
