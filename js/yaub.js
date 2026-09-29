@@ -898,8 +898,6 @@ jQuery(document).ready(function() {
   // ------------------------------------------------------------------------
   // Heading Anchors & Clipboard
   // ------------------------------------------------------------------------
-  var text, clip = new ClipboardJS('.anchor');
-  
   $("h2,h3,h4,h5,h6,archive").each(function() {
     var element = $(this);
     if (element[0].classList.contains('recentlist') ||
@@ -934,19 +932,22 @@ jQuery(document).ready(function() {
     $(this).attr('aria-label', null).removeClass('tooltipped tooltipped-s tooltipped-w');
   });
 
-  clip.on('success', function(e) {
-    e.clearSelection();
-    $(e.trigger).attr('aria-label', 'Link copied!').addClass('tooltipped tooltipped-s');
-    
-    if (window.showCopyToast) {
-      var sectionTitle = $(e.trigger).data('section-title');
-      if (sectionTitle) {
-        window.showCopyToast('Copied link to "' + sectionTitle + '"');
-      } else {
-        window.showCopyToast('Link copied to clipboard!');
+  if (typeof ClipboardJS !== 'undefined') {
+    var clip = new ClipboardJS('.anchor');
+    clip.on('success', function(e) {
+      e.clearSelection();
+      $(e.trigger).attr('aria-label', 'Link copied!').addClass('tooltipped tooltipped-s');
+      
+      if (window.showCopyToast) {
+        var sectionTitle = $(e.trigger).data('section-title');
+        if (sectionTitle) {
+          window.showCopyToast('Copied link to "' + sectionTitle + '"');
+        } else {
+          window.showCopyToast('Link copied to clipboard!');
+        }
       }
-    }
-  });
+    });
+  }
 
   // ------------------------------------------------------------------------
   // Keyboard Navigation & External Links

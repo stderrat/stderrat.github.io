@@ -18,7 +18,9 @@
     
     images.forEach(function(img) {
       // Skip if already processed or inside a picture element
-      if (img.hasAttribute('data-webp-upgraded') || img.parentElement.tagName === 'PICTURE') {
+      if (img.hasAttribute('data-webp-upgraded') ||
+          img.parentElement.tagName === 'PICTURE' ||
+          (img.getAttribute('srcset') && img.getAttribute('srcset').indexOf(' ') !== -1)) {
         return;
       }
       

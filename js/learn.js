@@ -241,7 +241,7 @@ jQuery(document).ready(function() {
         }
     } */
 
-    // clipboard
+    // clipboard (skip entirely if ClipboardJS failed to load)
     var clipInit = false;
     function shouldSkipCopyButton(code) {
         var $code = $(code);
@@ -251,6 +251,7 @@ jQuery(document).ready(function() {
         var $pre = $code.parent();
         return $code.closest('.listingblock.nocopy').length > 0 || $pre.hasClass('nocopy');
     }
+    if (typeof ClipboardJS !== 'undefined') {
     $('code').each(function() {
         var code = $(this),
             text = code.text();
@@ -327,6 +328,7 @@ jQuery(document).ready(function() {
             });
         }
     });
+    }
 
     // NOTE: Keyboard navigation and external link icons moved to yaub.js
 
