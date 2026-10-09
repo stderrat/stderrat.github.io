@@ -1,4 +1,1153 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Security – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift-platform/security/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Mon, 03 Aug 2026 00:00:00 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/openshift-platform/security/index.xml" rel="self" type="application/rss+xml"/><item><title>The Guide to OpenBao - Kubernetes Integration - Part 10</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-08-03-openbao-part-10-kubernetes-integration/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-08-03-openbao-part-10-kubernetes-integration/</guid><pubDate>Mon, 03 Aug 2026 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Security</category><description>Integrating OpenBao with Kubernetes workloads using Agent Injector, CSI Provider, and External Secrets Operator on OpenShift</description><content:encoded><![CDATA[<div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Security – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/openshift-platform/security/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Fri, 09 Oct 2026 00:00:00 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/openshift-platform/security/index.xml" rel="self" type="application/rss+xml"/><item><title>Compliance Operator: Writing Your Own Checks with CEL and CustomRules</title><link>https://blog.stderr.at/openshift-platform/security/compliance/2026-10-09-compliance-operator-customrules-cel/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/compliance/2026-10-09-compliance-operator-customrules-cel/</guid><pubDate>Fri, 09 Oct 2026 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Security</category><category>Compliance</category><description>Turn organisation-specific audit requirements into automated checks with the CEL scanner and the CustomRule resource of the OpenShift Compliance Operator.</description><content:encoded><![CDATA[<div class="paragraph">
+<p>Five years ago I first tested and described how to achieve compliance for a Kubernetes cluster in my article <a href="/openshift-platform/security/compliance/2021-07-19-complianceoperator/">Compliance Operator</a>. Many years passed since then, but up to this day the Compliance Operator is still one of the most important tools I recommend to my customers and one of the first that is installed on a new cluster. Since the first release of the Operator, it has been constantly improved and extended, for example by adding your own guardrails to the cluster to make sure that the cluster is compliant with your organisation’s requirements.</p>
+</div>
+<div class="paragraph">
+<p>Today I would like to show you how to write your own checks with the CEL scanner and the CustomRule resource.</p>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Compliance Operator does a great job when it comes to industry benchmarks such as CIS, NIST 800-53, PCI-DSS or BSI. The idea described at <a href="/openshift-platform/security/compliance/2021-07-19-complianceoperator/">Compliance Operator</a> still works today. You define or select a profile and a time of scanning and the operator does the rest for you. Sooner or later, however, every auditor asks a question that is not part of any benchmark because it is individual for each organisation.</p>
+</div>
+<div class="paragraph">
+<p>For example: <em>&#34;Who owns this namespace?&#34;</em>, <em>&#34;Show me that every application is isolated on the network by default.&#34;</em> or <em>&#34;Who exactly is cluster-admin, and why?&#34;</em> Until now, the answer usually was a shell script, an automation playbook, a screenshot or a check mark in a spreadsheet. With the <strong>CEL scanner</strong> and the <strong>CustomRule</strong> resource, the Compliance Operator can finally check such organisation-specific requirements itself — scheduled, repeatable and with results in the same place as all other compliance checks. All of this defined declaratively, so you can easily integrate it into your GitOps pipeline.</p>
+</div>
+<div class="paragraph">
+<p>In this article I will build a small but real-world examples: three custom checks that act as <strong>platform guardrails</strong>. Two of them look at <code>application namespaces</code>, the third one audits who holds <code>cluster-admin</code>. This will extend the standard profile of the Compliance Operator and make it more useful for your organisation.</p>
+</div>
+<div class="paragraph">
+<p>Once you have the rules in place, you can add them to a <code>TailoredProfile</code> so they become part of your compliance assessment.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The idea is to build the three rules and then add them to a <code>TailoredProfile</code> to make them part of your compliance assessment. If you just need one of the rules, simply remove the other two from the profile.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_a_bit_of_history_cel_in_the_compliance_operator">A Bit of History: CEL in the Compliance Operator</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Compliance Operator traditionally uses OpenSCAP to evaluate its rules. The content (<a href="https://csrc.nist.gov/projects/security-content-automation-protocol/specifications/xccdf" rel="noopener" target="_blank">XCCDF</a> / <a href="https://ovalproject.github.io/" rel="noopener" target="_blank">OVAL</a>) is generated by the <a href="https://github.com/ComplianceAsCode/content" rel="noopener" target="_blank">ComplianceAsCode1</a> project and shipped with the operator. Writing your own rules in that format is possible, but let us be honest: nobody enjoys building their own content image just to check a label.</p>
+</div>
+<div class="paragraph">
+<p>The <strong>Common Expression Language (CEL)</strong> changes this. CEL is a small, side-effect free expression language. If you have ever written a <code>ValidatingAdmissionPolicy</code>, you already know it. The integration into the Compliance Operator was finally globally available in version 1.10.0.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+CEL does not replace the existing XCCDF profiles. It extends them. Your CIS or PCI-DSS scans continue to work exactly as before.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_the_use_case_platform_guardrails">The Use Case: Platform Guardrails</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Many customers have some kind of &#34;platform contract&#34;. It is written down in a Confluence page, and it is usually not checked by anybody. Three requirements appear in nearly all of them:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>Ownership</strong>: every application namespace carries labels that tell who owns it and who pays for it. That is the asset inventory an auditor asks for.</p>
+</li>
+<li>
+<p><strong>Network segmentation by default</strong>: every application namespace contains a <em>default-deny</em> NetworkPolicy for incoming traffic. Applications then explicitly allow what they need.</p>
+</li>
+<li>
+<p><strong>Privileged access</strong>: only an approved list of identities is bound to the ClusterRole <code>cluster-admin</code>. The platform’s own service accounts are allowed, of course, but personal accounts or application service accounts are not.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Why are these good candidates for a CustomRule?</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The label keys and the list of administrators are specific to each organisation. The operator cannot ship a generic rule for them.</p>
+</li>
+<li>
+<p>The built-in CIS rule <code>ocp4-configure-network-policies-namespaces</code> only verifies that a namespace has <em>at least one</em> NetworkPolicy. A single policy that allows everything would pass. We want a real check: <strong>we want the deny-baseline</strong>.</p>
+</li>
+<li>
+<p>All three checks only need information from the Kubernetes API. This is exactly what CustomRules are designed for.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock important">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+CustomRules evaluate Kubernetes/OpenShift API resources only. They cannot inspect files or processes on the nodes. For node-level checks you still use the shipped node profiles, such as <code>ocp4-cis-node</code>.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>An OpenShift cluster with cluster-admin permissions.</p>
+</li>
+<li>
+<p>The Compliance Operator <strong>1.10.0 or newer</strong> installed in the namespace <code>openshift-compliance</code>. Version 1.8.0 and 1.9.x work as well, but the feature is Technology Preview there.</p>
+</li>
+<li>
+<p>The command line tools <code>oc</code> and <code>jq</code>.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>If the operator is not installed yet, have a look at my older articles:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="/openshift-platform/security/compliance/2021-07-19-complianceoperator/">Compliance Operator</a> for the manual way, or</p>
+</li>
+<li>
+<p><a href="/gitopscollection/2024-04-25-installing-compliance-operator/">[Ep.5] Setup &amp; Configure Compliance Operator</a> for the GitOps way.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Verify the installed version:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get csv -n openshift-compliance</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_how_a_customrule_works">How a CustomRule Works</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before we write our own rules, let us look at the anatomy of a <code>CustomRule</code>. Such YAML files can get large and messy, but the most important parts are <code>expression</code> and <code>inputs</code>:</p>
+</div>
+<div class="listingblock">
+<div class="title">CustomRule YAML</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: my-rule
+  namespace: openshift-compliance <i class="conum" data-value="1"></i><b>(1)</b>
+spec:
+  id: my_rule <i class="conum" data-value="2"></i><b>(2)</b>
+  title: A short title
+  severity: medium <i class="conum" data-value="3"></i><b>(3)</b>
+  checkType: Platform <i class="conum" data-value="4"></i><b>(4)</b>
+  scannerType: CEL <i class="conum" data-value="5"></i><b>(5)</b>
+  inputs: <i class="conum" data-value="6"></i><b>(6)</b>
+    - name: pods
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: pods
+  expression: |- <i class="conum" data-value="7"></i><b>(7)</b>
+    pods.items.all(p, has(p.spec.securityContext))
+  failureReason: Text shown when the check fails <i class="conum" data-value="8"></i><b>(8)</b>
+  instructions: How to find and fix the problem <i class="conum" data-value="9"></i><b>(9)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>CustomRules live in the namespace of the operator.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The ID becomes part of the name of the ComplianceCheckResult (underscores are automatically converted to dashes).</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Can be one of <code>info</code>, <code>low</code>, <code>medium</code>, <code>high</code> (default is <code>medium</code>).</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>CustomRules only support <code>Platform</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Must be <code>CEL</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>The Kubernetes resources the rule needs. Each input becomes a variable in the expression. Without <code>resourceName</code> you get a <strong>list</strong> object, so the actual objects are found in <code>.items</code>. With <code>resourceNamespace</code> you can limit the query to one namespace.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>The CEL expression. It must return <code>true</code> when the cluster is <strong>compliant</strong>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>The <code>failureReason</code> is added to the warnings of the ComplianceCheckResult if the check fails.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td><code>instructions</code> (as well as <code>description</code> and <code>rationale</code>) are copied into the ComplianceCheckResult. Use them to tell the reader how to find the offending objects.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The operator reads the inputs with the ServiceAccount <code>api-resource-collector</code>. This account is basically a cluster-reader, so namespaces, NetworkPolicies, pods, RBAC objects etc. can be read without any additional configuration. If your rule needs resources of an operator (for example <code>HyperConverged</code> of OpenShift Virtualization), you must grant read access to this ServiceAccount yourself.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+A CustomRule produces <strong>one</strong> result for the whole rule, not one result per object. If one namespace out of 200 violates the policy, the rule fails. That is why the <code>instructions</code> field should always contain a command that lists the offending objects.
+</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_1_the_ownership_rule">Step 1: The Ownership Rule</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The first rule, that I would like to build, verifies that every application namespace has the labels <code>example.com/owner</code> and <code>example.com/cost-centre</code> with a non-empty value. Our auditor wants to know who owns the namespace and who pays for it.</p>
+</div>
+<div class="paragraph">
+<p>Platform namespaces must be excluded, otherwise the rule would fail immediately as they do no not have such labels. A regular expression for this: everything that starts with <code>openshift</code> or <code>kube-</code>, plus the namespace <code>default</code> is ignored. In addition, I have also added the namespaces <code>open-cluster-management</code>, <code>stackrox</code> and <code>rhacs-</code> to the exclusion list, these are namespace for <strong>Advanced Cluster Management</strong> and <strong>Advanced Cluster Security</strong> respectively and at least on my own demo cluster they exist.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Do not worry about the following YAML. It looks huge, but most of it is <strong>just comments</strong>. The important parts are the <code>expression</code> field and the <code>inputs</code> section: they define <strong>what</strong> to check and <strong>where</strong>.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock">
+<div class="title">01-customrule-namespace-ownership-labels.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: namespace-ownership-labels
+  namespace: openshift-compliance
+  annotations:
+    example.com/controls: &#34;Nist Rule 1.2.3.4&#34; <i class="conum" data-value="1"></i><b>(1)</b>
+spec:
+  id: namespace_ownership_labels
+  title: Application namespaces must have ownership labels set <i class="conum" data-value="2"></i><b>(2)</b>
+  severity: medium <i class="conum" data-value="3"></i><b>(3)</b>
+  checkType: Platform
+  scannerType: CEL
+  inputs:
+    - name: namespaces <i class="conum" data-value="4"></i><b>(4)</b>
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: namespaces
+  expression: |- <i class="conum" data-value="5"></i><b>(5)</b>
+    namespaces.items
+      .filter(ns, !ns.metadata.name.matches(&#39;^(openshift.*|kube-.*|open-cluster-management.*|cert-manager.*|stackrox.*|rhacs-.*|default)$&#39;))
+      .all(ns,
+        has(ns.metadata.labels) &amp;&amp;
+        [&#39;example.com/owner&#39;, &#39;example.com/cost-centre&#39;].all(key,
+          key in ns.metadata.labels &amp;&amp; ns.metadata.labels[key] != &#39;&#39;
+        )
+      )
+  description: |- <i class="conum" data-value="6"></i><b>(6)</b>
+    Every application namespace must have the labels &#39;example.com/owner&#39;
+    and &#39;example.com/cost-centre&#39; with a non-empty value set. Platform namespaces (openshift*, kube-*, default)
+    are excluded.
+  rationale: |- <i class="conum" data-value="7"></i><b>(7)</b>
+    Auditors expect an up-to-date inventory of system components and a named
+    owner for each of them.
+  failureReason: |- <i class="conum" data-value="8"></i><b>(8)</b>
+    At least one application namespace is missing the label
+    &#39;example.com/owner&#39; or &#39;example.com/cost-centre&#39; (or the value is empty).
+    Run the command from the instructions of this check to list the
+    offending namespaces and label them, for example:
+    oc label namespace &lt;name&gt; example.com/owner=&lt;team&gt; example.com/cost-centre=&lt;id&gt;
+  instructions: |- <i class="conum" data-value="9"></i><b>(9)</b>
+    List all application namespaces without complete ownership labels:
+    oc get namespaces -o json | jq -r &#39;.items[]
+      | select(.metadata.name | test(&#34;^(openshift.*|kube-.*|open-cluster-management.*|cert-manager.*|stackrox.*|rhacs-.*|default)$&#34;) | not)
+      | select((.metadata.labels[&#34;example.com/owner&#34;] // &#34;&#34;) == &#34;&#34;
+            or (.metadata.labels[&#34;example.com/cost-centre&#34;] // &#34;&#34;) == &#34;&#34;)
+      | .metadata.name&#39;</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td><strong>Optional</strong>: map the rule to your control framework.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The <code>title</code> of the rule.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The <code>severity</code> of the rule. Can be one of <code>info</code>, <code>low</code>, <code>medium</code>, <code>high</code> (default is <code>medium</code>).</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>The <code>input</code> section defines the <strong>WHERE</strong> of the check. The resource <code>namespaces</code> contains the list of all namespaces.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>The <code>expression</code> field reads like a sentence:
+<div class="ulist">
+<ul>
+<li>
+<p><code>filter(…​)</code> removes all platform namespaces. <code>matches()</code> uses RE2 syntax. Note the anchors <code>^</code> and <code>$</code>: without them <code>matches()</code> searches for a substring.</p>
+</li>
+<li>
+<p><code>all(…​)</code> returns <code>true</code> only if the condition is true for every of the remaining namespaces.</p>
+</li>
+<li>
+<p><code>has(ns.metadata.labels)</code> protects against namespaces without any label. On a real cluster this does not happen, since Kubernetes always sets <code>kubernetes.io/metadata.name</code>, but it costs nothing.</p>
+</li>
+<li>
+<p>The inner <code>all()</code> iterates over the list of mandatory label keys. <code>key in map</code> checks whether the key exists and that the value is not empty.</p>
+</li>
+</ul>
+</div></td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Detailed description of the rule.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Rationale: why are we checking this?</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>The <code>failureReason</code> is added to the warnings of the ComplianceCheckResult if the check fails.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td>The <code>instructions</code> are copied into the ComplianceCheckResult. Use it to tell the reader how to find the offending objects.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+This is our first <strong>CustomRule</strong> object. We will define the other rules in the same way, then apply them all at once.
+</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_2_the_default_deny_rule">Step 2: The Default-Deny Rule</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The second rule is more interesting because it combines <strong>two</strong> inputs:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the list of namespaces and</p>
+</li>
+<li>
+<p>the list of all NetworkPolicies.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>For every application namespace there must <code>exist</code> at least one NetworkPolicy that:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>lives in that namespace,</p>
+</li>
+<li>
+<p>selects all pods (empty <code>podSelector</code>),</p>
+</li>
+<li>
+<p>covers the policy type <code>Ingress</code> and</p>
+</li>
+<li>
+<p>does not define any ingress rule, which means: nothing is allowed.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>In short, every application namespace must have a <strong>deny-all</strong> NetworkPolicy for ingress.</p>
+</div>
+<div class="paragraph">
+<p>Create the file <code>02-customrule-namespace-default-deny-ingress.yaml</code>:</p>
+</div>
+<div class="listingblock">
+<div class="title">02-customrule-namespace-default-deny-ingress.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: namespace-default-deny-ingress
+  namespace: openshift-compliance
+  annotations:
+    example.com/controls: &#34;Nist Rule 1.2.3.4&#34;
+spec:
+  id: namespace_default_deny_ingress
+  title: Application namespaces have a default-deny ingress NetworkPolicy
+  description: |-
+    Every application namespace must contain a NetworkPolicy that selects
+    all pods (empty podSelector), covers the policy type &#39;Ingress&#39; and
+    defines no ingress rules.
+    Additional allow policies are expected on top of it. Platform namespaces
+    (openshift*, kube-*, default) are excluded.
+  rationale: |-
+    Without a default-deny baseline every pod accepts traffic from every
+    other pod in the cluster.
+  severity: high
+  checkType: Platform
+  scannerType: CEL
+  inputs:
+    - name: namespaces
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: namespaces
+    - name: networkpolicies <i class="conum" data-value="1"></i><b>(1)</b>
+      kubernetesInputSpec:
+        apiVersion: networking.k8s.io/v1 <i class="conum" data-value="2"></i><b>(2)</b>
+        resource: networkpolicies
+  expression: |-
+    namespaces.items
+      .filter(ns, !ns.metadata.name.matches(&#39;^(openshift.*|kube-.*|open-cluster-management.*|cert-manager.*|stackrox.*|rhacs-.*|default)$&#39;))
+      .all(ns,
+        networkpolicies.items.exists(np,
+          np.metadata.namespace == ns.metadata.name &amp;&amp;
+          (!has(np.spec.podSelector.matchLabels) || size(np.spec.podSelector.matchLabels) == 0) &amp;&amp;
+          (!has(np.spec.podSelector.matchExpressions) || size(np.spec.podSelector.matchExpressions) == 0) &amp;&amp;
+          (!has(np.spec.policyTypes) || &#39;Ingress&#39; in np.spec.policyTypes) &amp;&amp;
+          (!has(np.spec.ingress) || size(np.spec.ingress) == 0)
+        )
+      )
+  failureReason: |-
+    At least one application namespace has no default-deny ingress
+    NetworkPolicy (empty podSelector, policyType Ingress, no ingress rules).
+    Run the command from the instructions of this check to list the
+    offending namespaces and add a default-deny policy to each of them.
+  instructions: |-
+    Lists every application namespace that has no default-deny ingress policy.
+    A policy counts as default-deny if it selects all pods, covers Ingress and
+    allows nothing. Copy the lines below into a bash shell:
+
+    for ns in $(oc get namespaces -o name | cut -d/ -f2 \
+        | grep -Ev &#39;^(openshift.*|kube-.*|open-cluster-management.*|cert-manager.*|stackrox.*|rhacs-.*|default)$&#39;); do
+      oc get networkpolicies -n &#34;$ns&#34; -o json | jq -e &#39;.items[] | select(
+          (.spec.podSelector.matchLabels      // {} | length) == 0 and
+          (.spec.podSelector.matchExpressions // [] | length) == 0 and
+          (.spec.policyTypes // [&#34;Ingress&#34;] | index(&#34;Ingress&#34;)) and
+          (.spec.ingress // [] | length) == 0
+        )&#39; &gt; /dev/null || echo &#34;missing default-deny: $ns&#34;
+    done</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>A second input. NetworkPolicies are namespace-scoped; since no <code>resourceNamespace</code> is set, the policies of <strong>all</strong> namespaces are fetched.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>For resources outside the core API group, group and version are written together, exactly like the <code>apiVersion</code> in a manifest.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Some details of the <code>expression</code> field are worth a second look:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>filter(…​)</code> removes all platform namespaces that <code>matches()</code></p>
+</li>
+<li>
+<p><code>all(…​)</code> returns <code>true</code> only if the condition is true for every of the remaining namespaces.</p>
+</li>
+<li>
+<p>a network policy object must exist that:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>lives in that namespace,</p>
+</li>
+<li>
+<p>has an empty <code>podSelector</code>,</p>
+</li>
+<li>
+<p>has not <code>policyTypes</code> set to <code>Ingress</code>,</p>
+</li>
+<li>
+<p>has no ingress rules,</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Additional allow policies (for example to let the OpenShift router in) are fine. We only require that the deny baseline exists.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+This is just an example that shows how to use two inputs in a CustomRule. If you enforce the baseline cluster-wide with a <code>BaselineAdminNetworkPolicy</code> or an <code>AdminNetworkPolicy</code> instead of per-namespace NetworkPolicies, this rule is not the right one for you. In that case write a rule that checks the (cluster-scoped) admin policy instead.
+</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_3_the_cluster_admin_allow_list">Step 3: The cluster-admin Allow-List</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The third rule answers the classic auditor question <em>&#34;Who is cluster-admin?&#34;</em>.</p>
+</div>
+<div class="paragraph">
+<p>The CIS OpenShift Benchmark (control 5.1.1) recommends to restrict the use of <code>cluster-admin</code>, but it cannot know <strong>who</strong> is allowed in your organisation. That is a perfect job for a <strong>CustomRule</strong>.</p>
+</div>
+<div class="paragraph">
+<p>A common mistake is to look only at the ClusterRoleBinding that is called <code>cluster-admin</code>. Any ClusterRoleBinding can reference the ClusterRole <code>cluster-admin</code>, and OpenShift itself ships several of them. Therefore, the rule looks at <strong>all</strong> ClusterRoleBindings whose <code>roleRef</code> points to <code>cluster-admin</code>, and checks <strong>every</strong> subject of these bindings.</p>
+</div>
+<div class="paragraph">
+<p>Before you write the <strong>allow-list</strong>, look at the current state of your cluster:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get clusterrolebindings -o json | jq -r &#39;.items[]
+  | select(.roleRef.kind == &#34;ClusterRole&#34; and .roleRef.name == &#34;cluster-admin&#34;)
+  | .metadata.name as $crb | .subjects[]?
+  | &#34;\($crb)\t\(.kind)\t\(.namespace // &#34;-&#34;)\t\(.name)&#34;&#39; | column -t</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This selects all ClusterRoleBindings that reference the ClusterRole <code>cluster-admin</code> and lists the subjects of each binding. The output looks like this:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">cluster-admin                    Group           -                                   system:masters
+cluster-admin-0                  ServiceAccount  openshift-gitops                    openshift-gitops-argocd-application-controller
+cluster-admin-crb                Group           -                                   cluster-admin
+cluster-admins                   Group           -                                   system:cluster-admins
+cluster-admins                   User            -                                   system:admin
+cluster-network-operator         ServiceAccount  openshift-network-operator          cluster-network-operator
+cluster-storage-operator-role    ServiceAccount  openshift-cluster-storage-operator  cluster-storage-operator
+cluster-version-operator         ServiceAccount  openshift-cluster-version           default
+...</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You will find the platform-internal groups <code>system:masters</code> and <code>system:cluster-admins</code>, the user <code>system:admin</code> and a number of service accounts in <code>openshift-*</code> namespaces that belong to the platform operators. Everything else was added later by someone and deserves a closer look.</p>
+</div>
+<div class="paragraph">
+<p>The allow-list — the subjects the rule treats as acceptable — has three parts:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;"/>
+<col style="width: 75%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Subject kind</th>
+<th class="tableblock halign-left valign-top">Allowed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Group</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The platform groups <code>system:masters</code> and <code>system:cluster-admins</code>, plus the group of the platform team (here <code>cluster-admin</code>, for example synchronised from LDAP or Entra ID).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>User</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The platform user <code>system:admin</code> and one named break-glass account. Personal accounts are <strong>not</strong> allowed. The platform team gets its rights through the group.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ServiceAccount</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Every service account in a platform namespace (<code>openshift*</code>, <code>kube-*</code>), plus an explicit list of <code>namespace/name</code> pairs for tools such as a cluster-wide Argo CD instance.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The following file is a full example of a CustomRule that checks the allow-list for <code>cluster-admin</code>. The callouts below walk through every part of the expression.</p>
+</div>
+<div class="listingblock">
+<div class="title">03-customrule-cluster-admin-allow-list.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: cluster-admin-allow-list
+  namespace: openshift-compliance
+  annotations:
+    example.com/controls: &#34;Nist Rule 1.2.3.4&#34;
+spec:
+  id: cluster_admin_allow_list
+  title: Only approved identities are allowed to hold cluster-admin privileges
+  description: |-
+    Every subject of every ClusterRoleBinding that grants cluster-admin
+    privileges must be on the organisation&#39;s allow-list. A binding grants
+    cluster-admin privileges if it references the ClusterRole &#39;cluster-admin&#39;
+    or any other ClusterRole with a wildcard rule (&#39;*&#39; API groups, &#39;*&#39;
+    resources, &#39;*&#39; verbs), for example a renamed copy of cluster-admin.
+    Allowed are: the platform-internal groups and users of OpenShift,
+    service accounts in platform namespaces (openshift*, kube-*), an
+    explicitly named break-glass account, explicitly listed service accounts
+    and the group of platform administrators - but only if that group exists
+    and every member of it is an approved administrator. Everything else, in
+    particular personal user accounts, application service accounts and
+    broad groups such as &#39;system:authenticated&#39;, fails the check.
+  rationale: |-
+    cluster-admin grants unrestricted access to every resource in the
+    cluster. Privileged access must be limited to a small, documented and
+    reviewed set of identities.
+  severity: high
+  checkType: Platform
+  scannerType: CEL
+  inputs:
+    - name: crbs <i class="conum" data-value="1"></i><b>(1)</b>
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterrolebindings
+    - name: clusterroles <i class="conum" data-value="2"></i><b>(2)</b>
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterroles
+    - name: groups <i class="conum" data-value="3"></i><b>(3)</b>
+      kubernetesInputSpec:
+        apiVersion: user.openshift.io/v1
+        resource: groups
+  expression: |-
+    // ---- allow-list: might be exported into a ConfigMap ---- <i class="conum" data-value="4"></i><b>(4)</b>
+    // ---- every dynamic value is stored in a map ----
+    [{
+      &#39;platformGroups&#39;:         [&#39;system:masters&#39;, &#39;system:cluster-admins&#39;],
+      &#39;adminGroups&#39;:            [&#39;cluster-admin&#39;],
+      &#39;approvedAdmins&#39;:         [&#39;alice.admin@example.com&#39;, &#39;bob.admin@example.com&#39;],
+      &#39;allowedUsers&#39;:           [&#39;system:admin&#39;, &#39;breakglass-admin&#39;],
+      &#39;allowedServiceAccounts&#39;: [&#39;gitops-system/argocd-application-controller&#39;, &#39;rhacs-operator/rhacs-operator-controller-manager&#39;]
+    }].all(cfg,
+      crbs.items <i class="conum" data-value="5"></i><b>(5)</b>
+        .filter(crb,
+          crb.roleRef.kind == &#39;ClusterRole&#39; &amp;&amp;
+          has(crb.subjects) &amp;&amp; crb.subjects != null &amp;&amp;
+          (crb.roleRef.name == &#39;cluster-admin&#39; || <i class="conum" data-value="6"></i><b>(6)</b>
+           clusterroles.items.exists(cr,
+             cr.metadata.name == crb.roleRef.name &amp;&amp;
+             has(cr.rules) &amp;&amp; cr.rules != null &amp;&amp;
+             cr.rules.exists(r,
+               has(r.apiGroups) &amp;&amp; &#39;*&#39; in r.apiGroups &amp;&amp;
+               has(r.resources) &amp;&amp; &#39;*&#39; in r.resources &amp;&amp;
+               &#39;*&#39; in r.verbs))))
+        .all(crb, crb.subjects.all(s, <i class="conum" data-value="7"></i><b>(7)</b>
+          // groups: built-in groups, or an admin group that exists and has only approved members
+          (s.kind == &#39;Group&#39; &amp;&amp; ( <i class="conum" data-value="8"></i><b>(8)</b>
+            s.name in cfg.platformGroups ||
+            (s.name in cfg.adminGroups &amp;&amp;
+             groups.items.exists(g, g.metadata.name == s.name) &amp;&amp;
+             groups.items.filter(g, g.metadata.name == s.name).all(g,
+               !has(g.users) || g.users == null ||
+               g.users.all(u, u in cfg.approvedAdmins)))
+          )) ||
+          // users: allowed users, or service accounts of platform namespaces written as User
+          (s.kind == &#39;User&#39; &amp;&amp; ( <i class="conum" data-value="9"></i><b>(9)</b>
+            s.name in cfg.allowedUsers ||
+            s.name.matches(&#39;^system:serviceaccount:(openshift[^:]*|kube-[^:]*):[^:]+$&#39;)
+          )) ||
+          // service accounts: platform namespaces, or explicitly listed namespace/name pairs
+          (s.kind == &#39;ServiceAccount&#39; &amp;&amp; has(s.namespace) &amp;&amp; ( <i class="conum" data-value="10"></i><b>(10)</b>
+            s.namespace.matches(&#39;^(openshift.*|kube-.*)$&#39;) ||
+            (s.namespace + &#39;/&#39; + s.name) in cfg.allowedServiceAccounts
+          ))
+        ))
+    )
+  failureReason: |-
+    At least one subject that holds cluster-admin privileges is not on the
+    allow-list, or the platform administrator group contains a member that
+    is not an approved administrator.
+  instructions: |- <i class="conum" data-value="11"></i><b>(11)</b>
+    List all subjects with cluster-admin privileges that are not on the
+    allow-list:
+    jq -rn \
+      --slurpfile crbs &lt;(oc get clusterrolebindings -o json) \
+      --slurpfile roles &lt;(oc get clusterroles -o json) \
+      --slurpfile groups &lt;(oc get groups -o json) &#39;
+      # ---- allow-list: edit here ----
+      {
+        platformGroups:         [&#34;system:masters&#34;, &#34;system:cluster-admins&#34;],
+        adminGroups:            [&#34;cluster-admin&#34;],
+        approvedAdmins:         [&#34;alice.admin@example.com&#34;, &#34;bob.admin@example.com&#34;],
+        allowedUsers:           [&#34;system:admin&#34;, &#34;breakglass-admin&#34;],
+        allowedServiceAccounts: [&#34;gitops-system/argocd-application-controller&#34;, &#34;rhacs-operator/rhacs-operator-controller-manager&#34;]
+      } as $cfg
+      | [$roles[0].items[]
+          | select(.metadata.name == &#34;cluster-admin&#34; or any(.rules[]?;
+              ((.apiGroups // []) | index(&#34;*&#34;)) and ((.resources // []) | index(&#34;*&#34;))
+              and ((.verbs // []) | index(&#34;*&#34;))))
+          | .metadata.name] as $adminRoles
+      | $crbs[0].items[]
+      | select(.roleRef.kind == &#34;ClusterRole&#34;
+          and (.roleRef.name == &#34;cluster-admin&#34; or (.roleRef.name | IN($adminRoles[]))))
+      | .metadata.name as $crb | .roleRef.name as $role | .subjects[]? | . as $s
+      | select(
+          ((.kind == &#34;Group&#34;) and ((.name | IN($cfg.platformGroups[]))
+             or ((.name | IN($cfg.adminGroups[]))
+                 and ([$groups[0].items[] | select(.metadata.name == $s.name)] as $g
+                      | ($g | length) &gt; 0
+                        and all($g[]; (.users // []) | all(IN($cfg.approvedAdmins[])))))))
+          or ((.kind == &#34;User&#34;) and ((.name | IN($cfg.allowedUsers[]))
+                or (.name | test(&#34;^system:serviceaccount:(openshift[^:]*|kube-[^:]*):[^:]+$&#34;))))
+          or ((.kind == &#34;ServiceAccount&#34;) and (((.namespace // &#34;&#34;) | test(&#34;^(openshift.*|kube-.*)$&#34;))
+                or ((.namespace // &#34;&#34;) + &#34;/&#34; + .name | IN($cfg.allowedServiceAccounts[]))))
+          | not)
+      | &#34;\($crb) -&gt; \($role): \(.kind) \(.namespace // &#34;-&#34;)/\(.name)&#34;
+        + (if .kind == &#34;Group&#34; then
+             ([$groups[0].items[] | select(.metadata.name == $s.name) | (.users // [])[]]
+              | if length == 0 then &#34; (no Group object or no members)&#34;
+                else &#34; (members: &#34; + join(&#34;, &#34;) + &#34;)&#34; end)
+           else &#34;&#34; end)&#39;</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The list of all ClusterRoleBindings.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The list of all ClusterRoles. It is used to find roles that are equivalent to <code>cluster-admin</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>The list of all OpenShift <code>Group</code> objects. It is used to verify the members of the allowed group.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>A map for the alow list and any dynamic values. Easier to manage than a long list of strings.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Selecting the relevant ClusterRoleBindings: kind == ClusterRole, subject exists</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td>Role reference name is cluster-admin or any other ClusterRole with a wildcard rule (&#39;<strong>&#39; API groups, &#39;</strong>&#39; resources, &#39;*&#39; verbs)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Subject is a Group OR a User OR a ServiceAccount</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td>Group is either a platform group OR an admin group that exists and has only approved admins</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td>User is either an allowed user OR a service account of a platform namespace written as User</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="10"></i><b>10</b></td>
+<td>ServiceAccount is either a platform namespace OR an explicitly listed namespace/name pair (here: the Argo CD application controller)</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="11"></i><b>11</b></td>
+<td>Pretty decent command to list the offending bindings.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Some details are important here, and they are the reason why I did not simply allow everything that starts with <code>system:</code>:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Broad system groups</strong>: <code>system:authenticated</code>, <code>system:unauthenticated</code> and <code>system:serviceaccounts:&lt;namespace&gt;</code> are system groups as well. Binding one of them to <code>cluster-admin</code> is about the worst thing you can do to a cluster. A prefix match on <code>system:</code> would happily accept them. Therefore the rule uses an explicit list of groups.</p>
+</li>
+<li>
+<p><strong>Service accounts as User subjects</strong>: A service account can also appear as a subject of kind <code>User</code> with the name <code>system:serviceaccount:&lt;namespace&gt;:&lt;name&gt;</code>. The rule treats such subjects like service accounts and only accepts them if the namespace is a platform namespace.</p>
+</li>
+<li>
+<p><strong>Exact namespace/name pairs</strong>: For service accounts outside the platform namespaces the rule compares <code>namespace/name</code>. A service account with the same name in another namespace does not pass.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The rule deliberately ignores RoleBindings. A RoleBinding to <code>cluster-admin</code> only grants full access <strong>within one namespace</strong>. ClusterRoles that grant broad privileges without using <code><strong></strong></code><strong>/<code></code></strong>/<code>*</code> wildcards are also outside the scope of this example; extend the expression if you need to treat those as equivalent to <code>cluster-admin</code>.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_4_create_the_rules_and_check_their_status">Step 4: Create the Rules and Check Their Status</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Apply the three rules:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f 01-customrule-namespace-ownership-labels.yaml
+oc apply -f 02-customrule-namespace-default-deny-ingress.yaml
+oc apply -f 03-customrule-cluster-admin-allow-list.yaml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The operator validates the CEL expression immediately. Only rules in the state <code>Ready</code> can be used in a profile:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get customrules -n openshift-compliance</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">NAME                             STATUS   AGE
+cluster-admin-allow-list         Ready    10s
+namespace-default-deny-ingress   Ready    12s
+namespace-ownership-labels       Ready    14s</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If the status is <code>Error</code>, the reason can be found in the status of the object:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get customrule namespace-ownership-labels -n openshift-compliance -o jsonpath=&#39;{.status.errorMessage}{&#34;\n&#34;}&#39;</code></pre>
+</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Do not use the short name <code>cr</code>. In the Compliance Operator, <code>cr</code> stands for <code>complianceremediations</code>. I fell into that trap more than once.
+</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_5_tailoredprofile_and_scansettingbinding">Step 5: TailoredProfile and ScanSettingBinding</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>CustomRules are never scanned directly. They must be bundled into a <code>TailoredProfile</code>, which is then bound to a <code>ScanSetting</code> (when to scan) via a <code>ScanSettingBinding</code> (which profile to scan).</p>
+</div>
+<div class="paragraph">
+<p>Create the file <code>tailoredprofile.yaml</code>:</p>
+</div>
+<div class="listingblock">
+<div class="title">tailoredprofile.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: TailoredProfile
+metadata:
+  name: platform-guardrails               <i class="conum" data-value="1"></i><b>(1)</b>
+  namespace: openshift-compliance
+spec:
+  title: Platform guardrails
+  description: Organisation-specific checks for namespaces and privileged access
+  enableRules:
+    - kind: CustomRule                    <i class="conum" data-value="2"></i><b>(2)</b>
+      name: namespace-ownership-labels
+      rationale: Asset inventory and accountability for every namespace
+    - kind: CustomRule
+      name: namespace-default-deny-ingress
+      rationale: Network segmentation as the default for every namespace
+    - kind: CustomRule
+      name: cluster-admin-allow-list
+      rationale: Privileged access limited to approved identities</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The name of the TailoredProfile becomes the name of the ComplianceScan and the prefix of all results.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The <code>kind</code> must be set to <code>CustomRule</code>. Without it, the operator looks for a regular <code>Rule</code> with that name.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock important">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+A TailoredProfile cannot mix CEL-based checks with the classic OpenSCAP-based <code>Rule</code> objects (such as the CIS rules). CustomRules may only be combined with other CEL rules. Keep your custom checks in their own profile, which is a good idea anyway.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Create the file <code>scansettingbinding.yaml</code>:</p>
+</div>
+<div class="listingblock">
+<div class="title">scansettingbinding.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: compliance.openshift.io/v1alpha1
+kind: ScanSettingBinding
+metadata:
+  name: platform-guardrails
+  namespace: openshift-compliance
+profiles:
+  - apiGroup: compliance.openshift.io/v1alpha1
+    kind: TailoredProfile
+    name: platform-guardrails
+settingsRef:
+  apiGroup: compliance.openshift.io/v1alpha1
+  kind: ScanSetting
+  name: default                           <i class="conum" data-value="1"></i><b>(1)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The <code>default</code> ScanSetting created by the operator. It runs the scan daily at 01:00 (<code>0 1 * * *</code>). Use your own ScanSetting if you need a different schedule.</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_6_check_the_results">Step 6: Check the Results</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Creating the binding starts the first scan immediately. Watch the ComplianceSuite until the phase is <code>DONE</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get compliancesuite platform-guardrails -n openshift-compliance</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This returns something like:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                  PHASE   RESULT
+platform-guardrails   DONE    NON-COMPLIANT</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Why is it <strong>non-compliant</strong>? Let us look at the results.</p>
+</div>
+<div class="paragraph">
+<p>To list the results of this scan, run:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get ccr -n openshift-compliance -l compliance.openshift.io/scan-name=platform-guardrails</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>On a cluster that has been running for a while, the output will most likely look like this (example output):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">NAME                                                 STATUS   SEVERITY
+platform-guardrails-cluster-admin-allow-list         FAIL     high
+platform-guardrails-namespace-default-deny-ingress   FAIL     high
+platform-guardrails-namespace-ownership-labels       FAIL     medium</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Do not be surprised: this is the actual state of the cluster, and exactly what an auditor wants to know. The failure reason and the instructions are stored in the result:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get ccr platform-guardrails-namespace-ownership-labels -n openshift-compliance \
+  -o jsonpath=&#39;{.warnings}{&#34;\n&#34;}{.instructions}{&#34;\n&#34;}&#39;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Copy the command from the instructions to get the list of namespaces that must be fixed.</p>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_7_test_the_rules">Step 7: Test the Rules</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>To be sure the rules do what they should, create objects that violate all three of them, verify that the checks fail, fix the findings and verify that the checks pass. On a lab cluster that is already compliant, that gives a clean before-and-after picture.</p>
+</div>
+<div class="paragraph">
+<p>Create a test namespace without labels and without a NetworkPolicy, and bind <code>cluster-admin</code> to a personal account that is not on the allow-list:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc create namespace cel-demo
+oc create clusterrolebinding cel-demo-admin --clusterrole=cluster-admin --user=alice</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Trigger a rescan so you do not have to wait until 01:00 — annotate the ComplianceScan:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc annotate compliancescans/platform-guardrails -n openshift-compliance compliance.openshift.io/rescan=</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Wait until the suite is <code>DONE</code> again and check the results: all three checks are <code>FAIL</code>. The helper commands from the instructions list the namespace <code>cel-demo</code> and the binding <code>cel-demo-admin: User -/alice</code>.</p>
+</div>
+<div class="paragraph">
+<p>Now fix the findings. Remove the binding and label the namespace:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc delete clusterrolebinding cel-demo-admin
+oc label namespace cel-demo example.com/owner=platform-team example.com/cost-centre=CC-4711
+
+cat &lt;&lt;&#39;EOF&#39; | oc apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: cel-demo
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+EOF</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Rescan again:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc annotate compliancescans/platform-guardrails -n openshift-compliance compliance.openshift.io/rescan=</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As long as these were the only offenders, all three checks now report <code>PASS</code>. Finally, remove the test namespace:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc delete namespace cel-demo</code></pre>
+</div>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>With <code>CustomRule</code> and the CEL scanner, the Compliance Operator finally covers the &#34;last mile&#34; of compliance: the requirements that are specific to your organisation. The three rules in this article are quite huge YAML files, most of it documentation, they run on the same schedule as your CIS or PCI-DSS scans, and their results end up in the same place, with the same labels, metrics and alerts.</p>
+</div>
+<div class="paragraph">
+<p>Namespace ownership, default-deny NetworkPolicies and the cluster-admin allow-list are just a starting point. Other good candidates are: mandatory TLS settings on Routes, allowed image registries, or an audit that no application team runs its own database. If you can express it with <code>oc get …​ -o json | jq</code>, you can most likely express it in CEL.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_thank_you">Thank You</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This article would not exist without <a href="https://www.linkedin.com/in/mthuring/" rel="noopener" target="_blank">Max Thüringer</a> and <a href="https://www.linkedin.com/in/steffen-l-b0a840249/" rel="noopener" target="_blank">Steffen Lützenkirchen</a>. After listening to the talk <strong>&#34;More than just Compliance&#34;</strong> at OpenShift User Conference in Vienna, I wanted to see how far the CEL scanner of the Compliance Operator can go.</p>
+</div>
+<div class="paragraph">
+<p>Thank you, <a href="https://www.linkedin.com/in/mthuring/" rel="noopener" target="_blank">Max Thüringer</a> and <a href="https://www.linkedin.com/in/steffen-l-b0a840249/" rel="noopener" target="_blank">Steffen Lützenkirchen</a>, for sharing your ideas and for the inspiration.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_references">References</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/security_and_compliance/compliance-operator" rel="noopener" target="_blank">Red Hat Documentation: Compliance Operator (incl. release notes)</a></p>
+</li>
+<li>
+<p><a href="https://developers.redhat.com/articles/2025/12/02/automate-unique-compliance-checks-openshift-and-customrule" rel="noopener" target="_blank">Red Hat Developer: Automate unique compliance checks with OpenShift and CustomRule</a></p>
+</li>
+<li>
+<p><a href="https://github.com/google/cel-spec" rel="noopener" target="_blank">CEL specification</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>The Guide to OpenBao - Kubernetes Integration - Part 10</title><link>https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-08-03-openbao-part-10-kubernetes-integration/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/secrets-management/openbao/2026-08-03-openbao-part-10-kubernetes-integration/</guid><pubDate>Mon, 03 Aug 2026 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Security</category><description>Integrating OpenBao with Kubernetes workloads using Agent Injector, CSI Provider, and External Secrets Operator on OpenShift</description><content:encoded><![CDATA[<div class="paragraph">
 <p>With authentication and secrets engines configured, the next step is enabling applications to consume secrets. This article covers three integration patterns on OpenShift:</p>
 </div>
 <div class="olist arabic">
