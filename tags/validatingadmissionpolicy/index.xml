@@ -1,0 +1,662 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>ValidatingAdmissionPolicy – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/validatingadmissionpolicy/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 15 Oct 2026 00:00:00 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/validatingadmissionpolicy/index.xml" rel="self" type="application/rss+xml"/><item><title>ValidatingAdmissionPolicy and how to use it</title><link>https://blog.stderr.at/openshift-platform/security/compliance/2026-10-15-namespace-labels-validating-admission-policy/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/compliance/2026-10-15-namespace-labels-validating-admission-policy/</guid><pubDate>Thu, 15 Oct 2026 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Security</category><category>Compliance</category><description>Use a CEL-based ValidatingAdmissionPolicy to make sure application namespaces are created with mandatory ownership labels and that these labels cannot be removed later.</description><content:encoded><![CDATA[<div class="paragraph">
+<p>In my last article about the Compliance Operator, <a href="/openshift-platform/security/compliance/2026-10-09-compliance-operator-customrules-cel/">Compliance Operator: Writing Your Own Checks with CEL and CustomRules</a>, we discussed <code>CustomRule</code> and how they can enhance the Compliance Operator. CustomRules are good for defining your own policies, for example to check whether a namespace is created with the correct labels. But they cannot stop someone from changing something on the cluster.</p>
+</div>
+<div class="paragraph">
+<p>The Compliance Operator can <strong>detect</strong> violations, but it cannot <strong>prevent</strong> them. This is where <code>ValidatingAdmissionPolicy</code> comes in. It is a native Kubernetes feature that runs directly inside the kube-apiserver. It uses the same language as the CustomRules, CEL, and it can be used to prevent violations from happening in the first place.</p>
+</div>
+<div class="sect1">
+<h2 id="_introduction">Introduction</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In this article we will write a policy that:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>rejects the creation of an application namespace without the mandatory labels <code>example.com/owner</code> and <code>example.com/cost-centre</code>,</p>
+</li>
+<li>
+<p>rejects removing these labels (or setting them to an empty value),</p>
+</li>
+<li>
+<p>ignores platform namespaces, or, in a second variant, only applies to namespaces that follow a naming convention.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The list of excluded platform namespaces is the same as in the Compliance Operator article. This is important: the admission policy and the CustomRule must look at the same set of namespaces, otherwise one of them reports something the other one ignores.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_why_a_validatingadmissionpolicy">Why a ValidatingAdmissionPolicy?</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>For a long time, admission control meant writing your own webhook or installing a policy engine such as Gatekeeper or Kyverno. Both are fine tools and worth checking out, but for a simple rule like ours they bring a lot of moving parts that we can avoid if we do not need them.</p>
+</div>
+<div class="paragraph">
+<p>A <code>ValidatingAdmissionPolicy</code> (VAP) is evaluated <strong>inside</strong> the kube-apiserver. The API <code>admissionregistration.k8s.io/v1</code> is available since Kubernetes 1.30, which means OpenShift 4.17 and later. A VAP consists of two objects:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1"><strong>ValidatingAdmissionPolicy</strong></dt>
+<dd>
+<p><em>What</em> is checked: which requests are matched and which CEL expressions must be true.</p>
+</dd>
+<dt class="hdlist1"><strong>ValidatingAdmissionPolicyBinding</strong></dt>
+<dd>
+<p><em>Where</em> and <em>how</em> the policy is enforced (bound to): which namespaces or objects it applies to and what happens on a violation (<code>Deny</code>, <code>Warn</code>, <code>Audit</code>).</p>
+</dd>
+</dl>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+If you have followed the <a href="/openshift-platform/security/compliance/2026-10-09-compliance-operator-customrules-cel/">Compliance Operator article</a>, the CEL expressions below will look familiar. The difference: a CustomRule evaluates a <strong>list</strong> of objects on a schedule; a VAP evaluates <strong>one</strong> object at the moment it is created or changed.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>OpenShift 4.17 or newer with cluster-admin permissions.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_designing_the_policy">Designing the Policy</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before writing any YAML, three design decisions have to be made. At the end they will define the policy and its behaviour:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>What exactly is forbidden on UPDATE?</p>
+</li>
+<li>
+<p>Which namespaces are affected?</p>
+</li>
+<li>
+<p>How to roll it out?</p>
+</li>
+</ol>
+</div>
+<div class="sect2">
+<h3 id="_decision_1_what_exactly_is_forbidden_on_update">Decision 1: What exactly is forbidden on UPDATE?</h3>
+<div class="paragraph">
+<p>This is an important decision and it hit me hard during my tests. The initial approach would be: <em>&#34;every namespace must always have the labels&#34;</em>, checked on CREATE and UPDATE. This is a TRAP.</p>
+</div>
+<div class="paragraph">
+<p>Kubernetes clusters already contain namespaces without these labels. Controllers and operators update namespaces all the time; for example OpenShift synchronises the Pod Security labels and sets the annotations for the SCC UID ranges. If we enforced the labels on every UPDATE, we would eventually break the platform.</p>
+</div>
+<div class="paragraph">
+<p>Therefore the policy must treat the two operations CREATE and UPDATE differently:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;"/>
+<col style="width: 75%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Operation</th>
+<th class="tableblock halign-left valign-top">Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">CREATE</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">All required labels must be present with a non-empty value. If the labels are missing, the request is rejected.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">UPDATE</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A required label that was set before (non-empty) must not be removed or emptied. However, changing the value, for example when the ownership moves to another team, is allowed. Updates of old namespaces that never had the labels are allowed as well. If the label is removed or emptied, the request is rejected.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_decision_2_which_namespaces_are_affected">Decision 2: Which namespaces are affected?</h3>
+<div class="paragraph">
+<p>Typically, there are two approaches:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1"><strong>Variant A: exclude platform namespaces</strong></dt>
+<dd>
+<p>Everything is checked except the platform namespaces. This was used in the Compliance Operator article: everything that starts with <code>openshift</code> or <code>kube-</code>, the namespace <code>default</code>, plus additional namespaces that are used by the platform. Adapt the list to whatever runs on your clusters. This is a good approach, but requires you to maintain the list of namespaces that are excluded.</p>
+</dd>
+<dt class="hdlist1"><strong>Variant B: namespaces with a naming convention</strong></dt>
+<dd>
+<p>Only namespaces that follow a convention, for example <code>app-&lt;name&gt;</code>, are checked. Everything else, such as sandboxes or personal projects, is left alone. This is a good approach as well, but requires you to enforce the naming convention when namespaces are created.</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_decision_3_how_to_roll_it_out">Decision 3: How to roll it out?</h3>
+<div class="paragraph">
+<p>A policy on namespaces affects everybody, including cluster administrators, GitOps tools and the OpenShift project request template. Therefore we start in <code>Warn</code>/<code>Audit</code> mode and switch to <code>Deny</code> once we know that nothing breaks. I mean, it is always good practice to test first :)</p>
+</div>
+<hr/>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_1_the_validatingadmissionpolicy">Step 1: The ValidatingAdmissionPolicy</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Create the following file <code>01-vap-namespace-ownership-labels.yaml</code>. It will check for the existence of the required labels on CREATE and UPDATE requests. Such rules are typically built like this:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>matchConstraints</strong>: decide which requests are matched.</p>
+</li>
+<li>
+<p><strong>matchConditions</strong>: decide which namespaces are affected or not affected.</p>
+</li>
+<li>
+<p><strong>variables</strong>: define the labels that are required.</p>
+</li>
+<li>
+<p><strong>validations</strong>: define the rules that are checked.</p>
+</li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="title">01-vap-namespace-ownership-labels.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: namespace-ownership-labels
+spec:
+  failurePolicy: Fail <i class="conum" data-value="1"></i><b>(1)</b>
+  matchConstraints: <i class="conum" data-value="2"></i><b>(2)</b>
+    resourceRules:
+      - apiGroups: [&#34;&#34;]
+        apiVersions: [&#34;v1&#34;]
+        operations: [&#34;CREATE&#34;, &#34;UPDATE&#34;]
+        resources: [&#34;namespaces&#34;]
+  matchConditions: <i class="conum" data-value="3"></i><b>(3)</b>
+    - name: exclude-platform-namespaces
+      expression: &gt;-
+        !object.metadata.name.matches(&#39;^(openshift.*|kube-.*|open-cluster-management.*|cert-manager.*|stackrox.*|rhacs-.*|default)$&#39;)
+  variables:
+    - name: requiredLabels <i class="conum" data-value="4"></i><b>(4)</b>
+      expression: &gt;-
+        [&#39;example.com/owner&#39;, &#39;example.com/cost-centre&#39;]
+    - name: missingLabels <i class="conum" data-value="5"></i><b>(5)</b>
+      expression: &gt;-
+        variables.requiredLabels.filter(key,
+          !has(object.metadata.labels) ||
+          !(key in object.metadata.labels) ||
+          object.metadata.labels[key] == &#39;&#39;)
+    - name: removedLabels <i class="conum" data-value="6"></i><b>(6)</b>
+      expression: &gt;-
+        request.operation != &#39;UPDATE&#39; || !has(oldObject.metadata.labels) ? [] :
+        variables.missingLabels.filter(key,
+          key in oldObject.metadata.labels &amp;&amp;
+          oldObject.metadata.labels[key] != &#39;&#39;)
+  validations:
+    - expression: &gt;- <i class="conum" data-value="7"></i><b>(7)</b>
+        request.operation != &#39;CREATE&#39; || size(variables.missingLabels) == 0
+      messageExpression: &gt;- <i class="conum" data-value="8"></i><b>(8)</b>
+        &#39;Namespace &#39; + object.metadata.name + &#39; must carry the label(s) &#39; +
+        variables.missingLabels.join(&#39;, &#39;) + &#39; with a non-empty value.&#39;
+      reason: Invalid
+    - expression: &gt;- <i class="conum" data-value="9"></i><b>(9)</b>
+        size(variables.removedLabels) == 0
+      messageExpression: &gt;-
+        &#39;The label(s) &#39; + variables.removedLabels.join(&#39;, &#39;) +
+        &#39; must not be removed from namespace &#39; + object.metadata.name +
+        &#39; or set to an empty value.&#39;
+      reason: Forbidden</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td><code>failurePolicy: Fail</code> rejects the request if the expression cannot be evaluated. The other option is <code>Ignore</code>. For a required policy that must always be applied this is the right choice.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The policy matches <strong>CREATE</strong> and <strong>UPDATE</strong> requests for namespaces. <strong>DELETE</strong> is not matched, so namespaces can still be removed.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td><code>matchConditions</code> decide whether the policy applies to a request at all. Here, the platform namespaces are skipped (Variant A). The regular expression is the same as in the CustomRules. Do not forget the anchors <code>^</code> and <code>$</code>: without them <code>matches()</code> searches for a substring.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td><code>variables</code> define the labels that are required. <code>requiredLabels</code> is the single place where the label keys are defined.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td><code>missingLabels</code> is the list of required labels that are missing or empty in the <strong>new</strong> object.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="6"></i><b>6</b></td>
+<td><code>removedLabels</code> is the list of labels that are missing now but were set (non-empty) in <code>oldObject</code>. For CREATE requests there is no <code>oldObject</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="7"></i><b>7</b></td>
+<td>Validation for CREATE: nothing may be missing.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="8"></i><b>8</b></td>
+<td><code>messageExpression</code> gives feedback to the user and tells <strong>which</strong> labels are the problem.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="9"></i><b>9</b></td>
+<td>Validation for UPDATE: nothing that existed may be removed.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The exclusion regex now lives in three places: the CEL <code>expression</code> of the CustomRule and in its <code>instructions</code>, and this policy. When you change one of them, change all three.
+</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_2_the_binding">Step 2: The Binding</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As a second step we need to bind the policy to the namespaces that are affected (all). For the first test we only warn and write audit events. Create the file <code>02-vapbinding-namespace-ownership-labels.yaml</code>:</p>
+</div>
+<div class="listingblock">
+<div class="title">02-vapbinding-namespace-ownership-labels.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: namespace-ownership-labels
+spec:
+  policyName: namespace-ownership-labels <i class="conum" data-value="1"></i><b>(1)</b>
+  validationActions: [&#34;Warn&#34;, &#34;Audit&#34;] <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Reference to the name of the policy.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td><code>validationActions</code> tells Kubernetes what to do on a violation: <code>Warn</code> returns a warning to the client, <code>Audit</code> adds the violation to the API audit log. The other option is <code>Deny</code>.</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_3_apply_the_policy_and_initial_test">Step 3: Apply the Policy and initial test</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Apply both objects:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f 01-vap-namespace-ownership-labels.yaml
+oc apply -f 02-vapbinding-namespace-ownership-labels.yaml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>and check that the API server has accepted the expressions.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get validatingadmissionpolicy namespace-ownership-labels -o jsonpath=&#39;{.status}{&#34;\n&#34;}&#39;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>In <code>Warn</code> mode, creating a namespace without labels still works, but <code>oc</code> shows a warning:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc create namespace app-warn</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">Warning: Validation failed for ValidatingAdmissionPolicy &#39;namespace-ownership-labels&#39; with binding &#39;namespace-ownership-labels&#39;: Namespace app-warn must carry the label(s) example.com/owner, example.com/cost-centre with a non-empty value.
+namespace/app-warn created</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Leave the policy in this mode for a while. Watch the output of your GitOps tools and pipelines as well as the audit log, and fix whoever creates namespaces without labels.</p>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_4_switch_to_deny">Step 4: Switch to Deny</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Once you are confident, switch the binding to <code>Deny</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch validatingadmissionpolicybinding namespace-ownership-labels --type=merge \
+  -p &#39;{&#34;spec&#34;:{&#34;validationActions&#34;:[&#34;Deny&#34;]}}&#39;</code></pre>
+</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Do not combine <code>Deny</code> and <code>Warn</code> in one binding. <code>Deny</code> already returns the message to the client, <code>Warn</code> would only duplicate it.
+</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_5_test_the_policy">Step 5: Test the Policy</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now let us run some detailed tests. We want to make sure that our policy works and that it does not disrupt any platform namespaces or controllers.</p>
+</div>
+<div class="paragraph">
+<p><strong>Create a namespace without labels.</strong> This is rejected, and the message lists the missing labels:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc create namespace team-a</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">The namespaces &#34;team-a&#34; is invalid: : ValidatingAdmissionPolicy &#39;namespace-ownership-labels&#39; with binding &#39;namespace-ownership-labels&#39; denied request: Namespace team-a must carry the label(s) example.com/owner, example.com/cost-centre with a non-empty value.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Create a namespace without labels via the UI.</strong> This is rejected as well, and the message is shown directly as feedback to the user.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/security/compliance/images/ValidationAdmissionPolicy-Deny.png?width=520px" alt="Namespace Ownership Labels UI Error"/>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Create a namespace with only one of the labels.</strong> This is rejected as well, and this time only <code>example.com/cost-centre</code> is mentioned:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">cat &lt;&lt;&#39;EOF&#39; | oc apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    example.com/owner: payments
+EOF</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">The namespaces &#34;team-a&#34; is invalid: : ValidatingAdmissionPolicy &#39;namespace-ownership-labels&#39; with binding &#39;namespace-ownership-labels&#39; denied request: Namespace team-a must carry the label(s) example.com/cost-centre with a non-empty value.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Create the namespace with both labels.</strong> This works — yay:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">cat &lt;&lt;&#39;EOF&#39; | oc apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    example.com/owner: payments
+    example.com/cost-centre: CC-4711
+EOF</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Remove a label or set it to an empty value.</strong> Both are rejected:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc label namespace team-a example.com/owner-
+oc label namespace team-a example.com/owner= --overwrite</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-none hljs">Error from server (Forbidden): namespaces &#34;team-a&#34; is forbidden: ValidatingAdmissionPolicy &#39;namespace-ownership-labels&#39; with binding &#39;namespace-ownership-labels&#39; denied request: The label(s) example.com/owner must not be removed from namespace team-a or set to an empty value.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Change the value of a label, or add an annotation.</strong> Both are allowed:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc label namespace team-a example.com/owner=shop --overwrite
+oc annotate namespace team-a example.com/comment=hello</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Platform namespaces</strong> are not affected:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc create namespace openshift-demo</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><strong>Old namespaces</strong> that were created before the policy existed can still be updated. Once a label has been added, it is protected as well. Here <code>legacy-app</code> stands for any namespace that existed before the policy:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc annotate namespace legacy-app example.com/comment=hello      # allowed
+oc label namespace legacy-app example.com/owner=legacy          # allowed
+oc label namespace legacy-app example.com/owner-                # rejected</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Clean up:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc delete namespace team-a openshift-demo app-warn</code></pre>
+</div>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_if_i_need_an_emergency_exit">What if I need an emergency exit?</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The policy above also applies to cluster administrators. Unlike RBAC, admission policies cannot be bypassed with <code>cluster-admin</code>. The labels are protected against accidents, no matter who makes the change.</p>
+</div>
+<div class="paragraph">
+<p>If you need an emergency exit, you have to build it into the policy yourself, for example with an additional <code>matchCondition</code> on <code>request.userInfo.username</code> for the break-glass account from the cluster-admin allow-list of the previous article.</p>
+</div>
+<div class="paragraph">
+<p>On purpose I did not build this into the policy, because I think it is a bad idea to have an emergency exit in the policy. If you need namespaces without such labels, add dummy labels that indicate that the namespace is not an application namespace. At least that’s my opinion :)</p>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_variant_b_only_namespaces_following_a_naming_convention">Variant B: Only Namespaces Following a Naming Convention</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Many organisations use a naming convention to distinguish &#34;real&#34; application namespaces from sandboxes or personal projects, for example <code>app-&lt;name&gt;</code> and <code>sandbox-&lt;name&gt;</code>. In that case, copy the policy from Step 1 to <code>01-vap-namespace-ownership-labels-naming.yaml</code> and replace the <code>matchConditions</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">  matchConditions:
+    - name: only-application-namespaces
+      expression: &gt;-
+        object.metadata.name.matches(&#39;^app-[a-z0-9-]+$&#39;)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We only move from an exclude list to an include list. Everything else stays the same. To test it, we create the following namespaces:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;"/>
+<col style="width: 16.6666%;"/>
+<col style="width: 50.0001%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Namespace</th>
+<th class="tableblock halign-left valign-top">Labels</th>
+<th class="tableblock halign-left valign-top">Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sandbox-test</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">none</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">allowed (does not follow the convention)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>application</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">none</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">allowed (does not start with <code>app-</code>)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>app-shop</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">none</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">rejected</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>app-shop</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">both</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">allowed; removing a label afterwards is rejected</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock caution">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-caution" title="Caution"></i>
+</td>
+<td class="content">
+Use <strong>one</strong> of the two variants only. Both policies have the same name, so applying one replaces the other.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+If you use the naming convention, adapt the <code>filter()</code> of the CustomRules from the previous article in the same way, for example <code>.filter(ns, ns.metadata.name.matches(&#39;^app-[a-z0-9-]+$&#39;))</code>. Otherwise the Compliance Operator reports namespaces that the admission policy deliberately ignores.
+</td>
+</tr>
+</tbody></table>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_openshift_specifics_self_service_projects">OpenShift Specifics: Self-Service Projects</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>On OpenShift, users usually do not create namespaces directly. They run <code>oc new-project</code>, which creates a <code>ProjectRequest</code>. The OpenShift API server then processes the project template and creates the project with its own privileged client. The resulting namespace passes the same admission chain, and therefore the same policy.</p>
+</div>
+<div class="paragraph">
+<p><strong>A project request cannot pass arbitrary labels</strong>. As a consequence, with Variant A in <code>Deny</code> mode, <strong>self-service project requests are rejected</strong>. You have the following options:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>Disable self-provisioning</strong> (Recommended) and create application namespaces only through your onboarding process (GitOps, a pipeline, a service catalogue). This is what most regulated customers do anyway. Remove the subjects from the cluster role binding <code>self-provisioners</code> and prevent the API server from restoring them:</p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc patch clusterrolebinding.rbac self-provisioners -p &#39;{&#34;subjects&#34;: null}&#39;
+oc patch clusterrolebinding.rbac self-provisioners \
+  -p &#39;{&#34;metadata&#34;:{&#34;annotations&#34;:{&#34;rbac.authorization.kubernetes.io/autoupdate&#34;:&#34;false&#34;}}}&#39;</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p><strong>Use Variant B.</strong> Self-service projects that do not follow the naming convention (for example <code>sandbox-<strong></strong></code><strong>) are still possible, while <code>app-</code></strong> namespaces must be created with labels through the official process.</p>
+</li>
+<li>
+<p><strong>Set labels in the project template.</strong> Labels defined on the <code>Project</code> object of the template end up on the namespace. However, the template only knows a few parameters, such as the project name and the requesting user, so it cannot fill in a meaningful cost centre. A static value such as <code>unassigned</code> would satisfy the policy, but not the auditor.</p>
+</li>
+</ol>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>With the two objects <code>ValidatingAdmissionPolicy</code> and <code>ValidatingAdmissionPolicyBinding</code>, the kube-apiserver itself makes sure that every new application namespace is created with its ownership labels and that nobody removes them by accident. No webhook, no additional operator, no extra pods everything here is native Kubernetes. Together with the CustomRule from the previous article, you now have both sides: <strong>prevention</strong> at admission time and <strong>detection</strong> on a schedule, with evidence for the auditor.</p>
+</div>
+<div class="paragraph">
+<p>The same idea works for the other two guardrails of the previous article. A VAP on <code>ClusterRoleBindings</code> could reject new <code>cluster-admin</code> bindings for identities that are not on the allow-list. Whether this is a good idea depends on how many operators in your cluster create such bindings themselves, so I highly recommend to start in <code>Warn</code> mode there as well.</p>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_thank_you">Thank You</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This article would not exist without <a href="https://www.linkedin.com/in/mthuring/" rel="noopener" target="_blank">Max Thüringer</a> and <a href="https://www.linkedin.com/in/steffen-l-b0a840249/" rel="noopener" target="_blank">Steffen Lützenkirchen</a>. After listening to the talk <strong>&#34;More than just Compliance&#34;</strong> at OpenShift User Conference in Vienna, I wanted to see how far the CEL scanner of the Compliance Operator can go.</p>
+</div>
+<div class="paragraph">
+<p>Thank you, <a href="https://www.linkedin.com/in/mthuring/" rel="noopener" target="_blank">Max Thüringer</a> and <a href="https://www.linkedin.com/in/steffen-l-b0a840249/" rel="noopener" target="_blank">Steffen Lützenkirchen</a>, for sharing your ideas and for the inspiration.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_references">References</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/" rel="noopener" target="_blank">Kubernetes Documentation: Validating Admission Policy</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>]]></content:encoded></item></channel></rss>
