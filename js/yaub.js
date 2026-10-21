@@ -1079,19 +1079,126 @@ jQuery(document).ready(function() {
   }
 
   // ------------------------------------------------------------------------
-  // Menu Expand/Collapse
+  // Menu Expand/Collapse (+ lazy-load for collapsed branches)
   // ------------------------------------------------------------------------
+  // HTML only embeds the active path (see menu.html $renderChildren).
+  // Other sections have data-nav-lazy="true" and no <ul>; their children
+  // come from /nav-tree.json on first expand.
+  // ------------------------------------------------------------------------
+  var navTreeCache = null;
+  var navTreePromise = null;
+
+  function loadNavTree() {
+    if (navTreeCache) {
+      return Promise.resolve(navTreeCache);
+    }
+    if (navTreePromise) {
+      return navTreePromise;
+    }
+    navTreePromise = fetch('/nav-tree.json')
+      .then(function(r) {
+        if (!r.ok) throw new Error('nav-tree.json ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        navTreeCache = data;
+        return data;
+      })
+      .catch(function(err) {
+        navTreePromise = null;
+        console.warn('Sidebar lazy-load failed:', err);
+        throw err;
+      });
+    return navTreePromise;
+  }
+
+  function findNavNode(nodes, url) {
+    if (!nodes) return null;
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.url === url) return n;
+      var found = findNavNode(n.children, url);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function escapeAttr(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function escapeText(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // Build the same <li> markup the Hugo template uses (trusted site content).
+  function renderNavChildren(children) {
+    if (!children || !children.length) return '';
+    var html = '';
+    for (var i = 0; i < children.length; i++) {
+      var n = children[i];
+      var hasKids = n.children && n.children.length > 0;
+      var cls = 'dd-item' + (n.divider_before ? ' divider-before' : '');
+      var label = (n.pre || '') + escapeText(n.title) + (n.post || '');
+      html += '<li data-nav-id="' + escapeAttr(n.url) + '" title="' + escapeAttr(n.title) + '" class="' + cls + '">';
+      if (hasKids) {
+        html += '<a href="' + escapeAttr(n.url) + '" class="has-children">';
+        html += '<span class="menu-title">' + label + '</span>';
+        html += '<i class="fas fa-chevron-right menu-chevron"></i>';
+        html += '</a>';
+        html += '<ul>' + renderNavChildren(n.children) + '</ul>';
+      } else {
+        html += '<a href="' + escapeAttr(n.url) + '">' + label + '</a>';
+      }
+      html += '</li>';
+    }
+    return html;
+  }
+
+  function ensureNavChildren($li) {
+    if ($li.children('ul').length) {
+      return Promise.resolve();
+    }
+    if ($li.attr('data-nav-lazy') !== 'true') {
+      return Promise.resolve();
+    }
+    var url = $li.attr('data-nav-id');
+    return loadNavTree().then(function(data) {
+      var node = findNavNode(data.nodes, url);
+      if (!node || !node.children || !node.children.length) {
+        $li.removeAttr('data-nav-lazy');
+        return;
+      }
+      $li.append('<ul>' + renderNavChildren(node.children) + '</ul>');
+      $li.removeAttr('data-nav-lazy');
+    });
+  }
+
   // Auto-expand menus for current page ancestors
   $('#sidebar ul.topics li.dd-item.parent, #sidebar ul.topics li.dd-item.active').addClass('menu-expanded');
   
   // Cleanup old inline styles
   $('#sidebar ul.topics ul').removeAttr('style');
 
-  // Chevron click handler for submenu toggle
+  // Chevron: collapse, or expand (lazy-load first if needed)
   $('#sidebar ul.topics').on('click', '.menu-chevron', function(e) {
     e.preventDefault();
     e.stopPropagation();
-    $(this).closest('li.dd-item').toggleClass('menu-expanded');
+    var $li = $(this).closest('li.dd-item');
+    if ($li.hasClass('menu-expanded')) {
+      $li.removeClass('menu-expanded');
+      return;
+    }
+    ensureNavChildren($li).then(function() {
+      $li.addClass('menu-expanded');
+    });
   });
 
   // Menu link click handler
@@ -1101,13 +1208,16 @@ jQuery(document).ready(function() {
     // If active page and collapsed, expand instead of navigating
     if ($li.hasClass('active') && !$li.hasClass('menu-expanded')) {
       e.preventDefault();
-      $li.addClass('menu-expanded');
+      ensureNavChildren($li).then(function() {
+        $li.addClass('menu-expanded');
+      });
       return false;
     }
     
-    // Expand collapsed menus on click
+    // Expand collapsed menus on click (lazy-load if needed), then navigate
     if (!$li.hasClass('menu-expanded')) {
-      $li.addClass('menu-expanded');
+      // Let navigation proceed; only prefetch children if staying on page
+      // (active case handled above). For other section links, follow the href.
     }
   });
 });
