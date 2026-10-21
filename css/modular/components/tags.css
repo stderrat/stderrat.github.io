@@ -18,14 +18,21 @@
     position: relative;
     margin: 0 10px 8px 0;
     padding: 0 8px 0 8px;
-    background: var(--MENU-TAG-BG-color);
-    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    color: var(--WHITE);
+    /* Neutral outline: colour is reserved for the category chips */
+    background: transparent;
+    color: var(--MAIN-TEXT-color);
+    box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.55);
+    border-radius: 4px;
+    transition: box-shadow var(--transition-default), background var(--transition-default);
+}
+
+#body .tags a.tag-link:hover {
+    background: rgba(128, 128, 128, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.9);
 }
 
 #body .tags a.tag-link:before {
-    border-right-color: var(--MENU-TAG-BG-color);
+    border-right-color: transparent;
 }
 
 .tag-letter {
@@ -58,7 +65,7 @@ a.badge-tag-list-page {
     display: inline-block;
     content: "";
     transition: .3s ease;
-    border: 1px solid black;
+    border: 1px solid currentColor;
     height: 6px;
     margin-right: 5px;
     margin-bottom: 1px;
@@ -66,7 +73,7 @@ a.badge-tag-list-page {
 }
 
 .category-link:hover:before {
-    background-color: black;
+    background-color: currentColor;
 }
 
 #body .categories.tracked a.category-link {
@@ -80,7 +87,9 @@ a.badge-tag-list-page {
     position: relative;
     margin: 0 10px 8px 0;
     padding: 0 8px 0 8px;
-    background: var(--MENU-TAG-BG-color);
+    /* --CAT-bg / --CAT-ring are set per category class below;
+       unknown categories fall back to the neutral "other" chip */
+    background: var(--CAT-bg, var(--CAT-other));
     -webkit-border-bottom-right-radius: 3px;
     border-bottom-right-radius: 3px;
     -webkit-border-top-right-radius: 3px;
@@ -89,133 +98,122 @@ a.badge-tag-list-page {
     border-bottom-left-radius: 3px;
     -webkit-border-top-left-radius: 3px;
     border-top-left-radius: 3px;
-    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    color: var(--WHITE);
+    box-shadow: inset 0 0 0 var(--CAT-RING-WIDTH) var(--CAT-ring, var(--CAT-other-border));
+    color: var(--CAT-TEXT-color);
     border-radius: 9999px;
 }
 
+#body .categories a.category-link:hover {
+    filter: brightness(1.06) saturate(1.1);
+}
+
 /* ========================================
-   CATEGORY-SPECIFIC COLORS
-   Classes are auto-generated via Hugo's urlize function
+   CATEGORY CHIP COLOURS
+   Classes are generated via Hugo's urlize function. Each class only
+   picks a family variable (defined in base/variables.css); the chip
+   itself is styled once in "#body .categories a.category-link".
+   Categories without a rule fall back to the neutral "other" chip.
 ======================================== */
-#body .categories a.openshift {
-    background-color: var(--CATEGORY-openshift) !important;
-    color: var(--CATEGORY-font-black) !important;
+
+#body .categories a.openshift,
+#body .categories a.okd,
+#body .categories a.kubernetes,
+#body .categories a.pod-placement,
+#body .categories a.single-node {
+    --CAT-bg: var(--CAT-openshift);
+    --CAT-ring: var(--CAT-openshift-border);
 }
 
-#body .categories a.compliance {
-    background-color: var(--CATEGORY-compliance) !important;
+#body .categories a.installation,
+#body .categories a.disconnected,
+#body .categories a.hosted-control-plane {
+    --CAT-bg: var(--CAT-installation);
+    --CAT-ring: var(--CAT-installation-border);
 }
 
-#body .categories a.service-mesh {
-    background-color: var(--CATEGORY-mesh) !important;
+#body .categories a.day-2 {
+    --CAT-bg: var(--CAT-day2);
+    --CAT-ring: var(--CAT-day2-border);
 }
 
-#body .categories a.security {
-    background-color: var(--CATEGORY-security) !important;
-    color: var(--CATEGORY-font-black) !important;
+#body .categories a.virtualization,
+#body .categories a.kubevirt {
+    --CAT-bg: var(--CAT-virtualization);
+    --CAT-ring: var(--CAT-virtualization-border);
 }
 
-#body .categories a.gitops {
-    background-color: var(--CATEGORY-gitops) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.grafana {
-    background-color: var(--CATEGORY-grafana) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.tempo {
-    background-color: var(--CATEGORY-grafana) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.opentelemetry {
-    background-color: var(--CATEGORY-opentelemetry) !important;
-}
-
-#body .categories a.ansible {
-    background-color: var(--CATEGORY-ansible) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.other {
-    background-color: var(--CATEGORY-other) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.supply-chain {
-    background-color: var(--CATEGORY-cicd) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.advanced-cluster-security {
-    background-color: var(--CATEGORY-acs) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.quay {
-    background-color: var(--CATEGORY-quay) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.observability {
-    background-color: var(--CATEGORY-observability) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.distributed-tracing {
-    background-color: var(--CATEGORY-tracing) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.pod-placement {
-    background-color: var(--CATEGORY-placement) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
+#body .categories a.networking,
 #body .categories a.network,
 #body .categories a.ingress,
 #body .categories a.gateway-api {
-    background-color: var(--CATEGORY-network) !important;
-    color: var(--CATEGORY-font-black) !important;
+    --CAT-bg: var(--CAT-network);
+    --CAT-ring: var(--CAT-network-border);
 }
 
+#body .categories a.service-mesh,
+#body .categories a.istio,
+#body .categories a.distributed-tracing {
+    --CAT-bg: var(--CAT-mesh);
+    --CAT-ring: var(--CAT-mesh-border);
+}
+
+#body .categories a.gitops,
+#body .categories a.helm-charts {
+    --CAT-bg: var(--CAT-gitops);
+    --CAT-ring: var(--CAT-gitops-border);
+}
+
+#body .categories a.ansible,
+#body .categories a.ansible-automation-platform,
+#body .categories a.collections,
+#body .categories a.configuration-as-code {
+    --CAT-bg: var(--CAT-ansible);
+    --CAT-ring: var(--CAT-ansible-border);
+}
+
+#body .categories a.supply-chain,
+#body .categories a.tekton,
+#body .categories a.dependencies,
+#body .categories a.renovate,
+#body .categories a.image-builder,
+#body .categories a.bootc,
+#body .categories a.bootc-image-builder {
+    --CAT-bg: var(--CAT-supplychain);
+    --CAT-ring: var(--CAT-supplychain-border);
+}
+
+#body .categories a.quay {
+    --CAT-bg: var(--CAT-quay);
+    --CAT-ring: var(--CAT-quay-border);
+}
+
+#body .categories a.observability,
+#body .categories a.grafana,
+#body .categories a.tempo,
+#body .categories a.opentelemetry {
+    --CAT-bg: var(--CAT-observability);
+    --CAT-ring: var(--CAT-observability-border);
+}
+
+#body .categories a.security,
+#body .categories a.advanced-cluster-security,
 #body .categories a.authentication,
 #body .categories a.oidc,
-#body .categories a.keycloak {
-    background-color: var(--CATEGORY-auth) !important;
-    color: var(--CATEGORY-font-black) !important;
+#body .categories a.keycloak,
+#body .categories a.cert-manager,
+#body .categories a.secrets,
+#body .categories a.secret-management {
+    --CAT-bg: var(--CAT-security);
+    --CAT-ring: var(--CAT-security-border);
 }
 
-#body .categories a.tekton {
-    background-color: var(--CATEGORY-tekton) !important;
-    color: var(--CATEGORY-font-black) !important;
+#body .categories a.compliance,
+#body .categories a.auditd {
+    --CAT-bg: var(--CAT-compliance);
+    --CAT-ring: var(--CAT-compliance-border);
 }
 
-#body .categories a.helm-charts {
-    background-color: var(--CATEGORY-helm) !important;
-    color: var(--CATEGORY-font-black) !important;
+#body .categories a.other {
+    --CAT-bg: var(--CAT-other);
+    --CAT-ring: var(--CAT-other-border);
 }
-
-#body .categories a.cert-manager {
-    background-color: var(--CATEGORY-certmanager) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.istio {
-    background-color: var(--CATEGORY-istio) !important;
-}
-
-#body .categories a.hosted-control-plane {
-    background-color: var(--CATEGORY-hcp) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
-#body .categories a.suse {
-    background-color: var(--CATEGORY-suse) !important;
-    color: var(--CATEGORY-font-black) !important;
-}
-
