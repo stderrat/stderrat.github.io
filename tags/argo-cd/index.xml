@@ -6205,7 +6205,179 @@ argocd-agent-bm01   branding-banner          Synced        Healthy</code></pre>
 </div>]]></content:encoded></item><item><title>GitOps Catalog</title><link>https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</link><guid isPermaLink="true">https://blog.stderr.at/whats-new/2025-12-23-gitops-catalog/</guid><pubDate>Mon, 22 Dec 2025 00:00:00 +0100</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>GitOps</category><description>Interactive catalog of all available ArgoCD applications for OpenShift cluster configuration</description><content:encoded><![CDATA[<div class="paragraph">
 <p>The <a href="/gitops-catalog/">GitOps Catalog</a> page provides an interactive visualization of all available ArgoCD applications from the openshift-clusterconfig-gitops repository. Check out the page <strong><a href="/gitops-catalog/">GitOps Catalog</a></strong> for more details.</p>
 </div>
-]]></content:encoded></item><item><title>[Ep.14] Reusable Argo CD Application Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><guid isPermaLink="true">https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><pubDate>Thu, 17 Jul 2025 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>GitOps</category><description>Build a reusable Argo CD Application Helm template for OpenShift GitOps so teams share one pattern for sync waves, hooks and project defaults.</description><content:encoded><![CDATA[<div class="paragraph">
+]]></content:encoded></item><item><title>Helm Charts Repository Updates</title><link>https://blog.stderr.at/whats-new/2025-12-12-helm-charts-changelog/</link><guid isPermaLink="true">https://blog.stderr.at/whats-new/2025-12-12-helm-charts-changelog/</guid><pubDate>Fri, 12 Dec 2025 00:00:00 +0100</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>GitOps</category><category>Other</category><description>Latest updates and changes to the stderr.at Helm Charts collection for OpenShift and Kubernetes</description><content:encoded><![CDATA[<div class="paragraph">
+<p>This page shows the <strong>latest updates</strong> to the <a href="https://blog.stderr.at/helm-charts">stderr.at Helm Charts Repository</a>.
+The charts are designed for OpenShift and Kubernetes deployments, with a focus on GitOps workflows using Argo CD.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The content below is dynamically loaded from the Helm repository and always shows the most recent changes.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+
+
+
+<div id="helm-changelog-widget" class="helm-changelog">
+  <div class="helm-changelog-loading">
+    <i class="fa fa-spinner fa-spin"></i> Loading latest Helm chart updates...
+  </div>
+</div>
+
+<style>
+
+</style>
+
+<script>
+(function() {
+  const container = document.getElementById('helm-changelog-widget');
+  const maxItems = "10";
+  
+  
+  const cacheBuster = Math.floor(Date.now() / 60000); 
+  fetch(`https://charts.stderr.at/changelog.json?v=${cacheBuster}`)
+    .then(response => {
+      if (!response.ok) throw new Error('Failed to load changelog');
+      return response.json();
+    })
+    .then(data => {
+      if (!data.charts || data.charts.length === 0) {
+        container.innerHTML = '<p class="helm-changelog-error">No charts found</p>';
+        return;
+      }
+      
+      const genDate = new Date(data.generated);
+      
+      
+      const parseDate = (dateStr) => {
+        if (!dateStr) return new Date(0);
+        const d = new Date(dateStr);
+        return isNaN(d.getTime()) ? new Date(0) : d;
+      };
+      
+      
+      const charts = data.charts
+        .filter(c => c.lastModified) 
+        .sort((a, b) => parseDate(b.lastModified).getTime() - parseDate(a.lastModified).getTime())
+        .slice(0, maxItems);
+      
+      let html = `
+        <div class="helm-changelog-header">
+          <h3><i class="fa fa-cubes"></i> Latest Helm Chart Updates</h3>
+          <span class="helm-changelog-generated">Updated: ${genDate.toLocaleDateString()}</span>
+        </div>
+      `;
+      
+      charts.forEach(chart => {
+        const date = new Date(chart.lastModified);
+        const dateStr = date.toLocaleDateString('en-US', { 
+          month: 'short', day: 'numeric', year: 'numeric' 
+        });
+        
+        const iconHtml = chart.icon 
+          ? `<img src="${chart.icon}" alt="" class="helm-chart-icon" width="60" height="60" data-webp-upgraded="true" onerror="this.outerHTML='<i class=\\'fa fa-cube helm-chart-icon-fallback\\'></i>'">`
+          : '<i class="fa fa-cube helm-chart-icon-fallback"></i>';
+        
+        let changesHtml = '';
+        if (chart.changes && chart.changes.length > 0) {
+          
+          const sortedChanges = [...chart.changes].reverse();
+          changesHtml = '<ul class="helm-changes-list">';
+          sortedChanges.slice(0, 4).forEach(change => {
+            const kind = (change.kind || 'changed').toLowerCase();
+            changesHtml += `<li class="${kind}"><span class="helm-change-badge ${kind}">${kind}</span>${change.description}</li>`;
+          });
+          if (sortedChanges.length > 4) {
+            changesHtml += `<li style="color:#888;border-left-color:#888;">... and ${sortedChanges.length - 4} more changes</li>`;
+          }
+          changesHtml += '</ul>';
+        }
+        
+        const chartUrl = chart.home || 'https://github.com/tjungbauer/helm-charts';
+        html += `
+          <div class="helm-chart-item" data-href="${chartUrl}" onclick="window.open('${chartUrl}', '_blank')" role="link" tabindex="0">
+            <div class="helm-chart-header">
+              ${iconHtml}
+              <span class="helm-chart-name"><a href="${chartUrl}" target="_blank" rel="noopener noreferrer" class="highlight">${chart.name}</a></span>
+              <span class="helm-chart-version">v${chart.version}</span>
+              <span class="helm-chart-date">📅 ${dateStr}</span>
+            </div>
+            <div class="helm-chart-description">${chart.description}</div>
+            ${changesHtml}
+          </div>
+        `;
+      });
+      
+      html += `
+        <div class="helm-changelog-footer">
+          <a href="https://github.com/tjungbauer/helm-charts" target="_blank" rel="noopener noreferrer">
+            <i class="fa fa-github"></i> View all ${data.charts.length} charts on GitHub
+          </a>
+          &nbsp;|&nbsp;
+          <a href="https://charts.stderr.at/" target="_blank" rel="noopener noreferrer">
+            <i class="fa fa-external-link"></i> Helm Repository
+          </a>
+        </div>
+      `;
+      
+      container.innerHTML = html;
+    })
+    .catch(error => {
+      console.error('Helm changelog error:', error);
+      container.innerHTML = `
+        <p class="helm-changelog-error">
+          <i class="fa fa-exclamation-triangle"></i> 
+          Could not load Helm chart updates. 
+          <a href="https://github.com/tjungbauer/helm-charts" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+        </p>
+      `;
+    });
+})();
+</script>
+
+</div>
+<div class="sect1">
+<h2 id="_quick_links">Quick Links</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;"/>
+<col style="width: 66.6667%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Resource</th>
+<th class="tableblock halign-left valign-top">Link</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Helm Repository</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a class="bare" href="https://charts.stderr.at/">https://charts.stderr.at/</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">GitHub Source</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a class="bare" href="https://github.com/tjungbauer/helm-charts">https://github.com/tjungbauer/helm-charts</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ArtifactHub</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a class="bare" href="https://artifacthub.io/packages/search?repo=tjungbauer">https://artifacthub.io/packages/search?repo=tjungbauer</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Example GitOps Repo</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a class="bare" href="https://github.com/tjungbauer/openshift-clusterconfig-gitops">https://github.com/tjungbauer/openshift-clusterconfig-gitops</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>]]></content:encoded></item><item><title>[Ep.14] Reusable Argo CD Application Template</title><link>https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</link><guid isPermaLink="true">https://blog.stderr.at/gitopscollection/2025-07-17-common-template-application/</guid><pubDate>Thu, 17 Jul 2025 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>GitOps</category><description>Build a reusable Argo CD Application Helm template for OpenShift GitOps so teams share one pattern for sync waves, hooks and project defaults.</description><content:encoded><![CDATA[<div class="paragraph">
 <p>When working with Argo CD at scale, you often find yourself creating similar Application manifests repeatedly. Each application needs the same basic structure but with different configurations for source repositories, destinations, and sync policies. Additionally, managing namespace metadata becomes tricky when you need to conditionally control whether Argo CD should manage namespace metadata based on sync options.</p>
 </div>
 <div class="paragraph">
@@ -10690,7 +10862,7 @@ Verify the READMEs at <a href="https://github.com/tjungbauer/helm-charts/tree/ma
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-Also verify the separate article <a href="https://blog.stderr.at/openshift/2023-03-20-operator-installation-with-argocd/">Operator Installation with Argo CD</a> to understand why I am verifying the status of the Operator installation.
+Also verify the separate article <a href="https://blog.stderr.at/openshift-platform/gitops/2023-03-20-operator-installation-with-argocd/">Operator Installation with Argo CD</a> to understand why I am verifying the status of the Operator installation.
 </td>
 </tr>
 </tbody></table>
@@ -11366,7 +11538,7 @@ Verify the README at <a href="https://github.com/tjungbauer/helm-charts/tree/mai
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-Also verify the separate article <a href="https://blog.stderr.at/openshift/2023-03-20-operator-installation-with-argocd/">Operator Installation with Argo CD</a> that addresses the problem in more detail.
+Also verify the separate article <a href="https://blog.stderr.at/openshift-platform/gitops/2023-03-20-operator-installation-with-argocd/">Operator Installation with Argo CD</a> that addresses the problem in more detail.
 </td>
 </tr>
 </tbody></table>
@@ -14133,6 +14305,421 @@ metadata:
 </div>
 <div class="paragraph">
 <p>That’s it …​ all the magic is done.</p>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>GitOps - Argo CD</title><link>https://blog.stderr.at/openshift-platform/gitops/2020-08-06-argocd/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/gitops/2020-08-06-argocd/</guid><pubDate>Thu, 06 Aug 2020 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>GitOps</category><description>Use Argo CD on OpenShift to manage cluster and application resources from Git, including operator install patterns and day-2 configuration as code.</description><content:encoded><![CDATA[<div class="paragraph">
+<p><a href="https://argoproj.github.io/argo-cd/">Argo CD</a> <em>is a declarative, GitOps continuous delivery tool for Kubernetes. GitOps itself uses Git pull request to manager infrastructure and application configuration.</em></p>
+</div>
+<div class="paragraph">
+<p>Let’s try to install and use a simple usecase in order to demonstrate the basic possibilities.</p>
+</div>
+<div class="paragraph">
+<p>Without going into the very detail, typical GitOps usecases are:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Apply configurations from Git</p>
+</li>
+<li>
+<p>Detect, (auto-)sync and notify configuration drifts</p>
+</li>
+<li>
+<p>Manage multiple clusters and keep the configuration equal</p>
+</li>
+<li>
+<p>…​</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>and much more. Further information about the theory behind can be found at <a class="bare" href="https://www.openshift.com/blog/introduction-to-gitops-with-openshift">https://www.openshift.com/blog/introduction-to-gitops-with-openshift</a>.</p>
+</div>
+<div class="paragraph">
+<p><strong>In short</strong>: there is no reason why not to use GitOps and to leverage tools like Argo CD to manage configurations. In this tutorial, the Argo CD operator gets installed
+and a simple use case is shown to demonstrate the possibilities of this software.</p>
+</div>
+<div class="paragraph">
+<p>As for architectural overview of Argo CD, please read the official documentation: <a class="bare" href="https://argoproj.github.io/argo-cd/operator-manual/architecture/">https://argoproj.github.io/argo-cd/operator-manual/architecture/</a>, which explains very well the
+core components. No need to rewrite it here.</p>
+</div>
+<hr/>
+<div class="sect1">
+<h2 id="_prerequisites">Prerequisites</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>You need an Openshift 4 cluster. :)</p>
+</div>
+<div class="paragraph">
+<p>Watch the video at: <a class="bare" href="https://demo.openshift.com/en/latest/argocd/">https://demo.openshift.com/en/latest/argocd/</a></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_install_argo_cd_operator">Install Argo CD operator</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before you begin, create a new project:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc new-project argocd</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>In this project the operator will be deployed.</p>
+</div>
+<div class="paragraph">
+<p>Look for the Operatorhub in the OpenShift WebUI and &#34;<em>argocd</em>&#34; and select the &#34;Argo CD Community&#34; operator. Subscribe to this operator. Just be sure that the newly created project is selected. Other settings can stay as default.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-operator-install.png?width=940px" alt="Operator Install"/>
+</div>
+<div class="title">Figure 1. Argo CD: Operator</div>
+</div>
+<div class="paragraph">
+<p>This will install the operator. You can monitor this process by clicking &#34;Installed Operators&#34;. After a while it should switch from &#34;Installing&#34; to &#34;Succeeded&#34;.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_deploy_argocd_instance">Deploy ArgoCD instance</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Select the installed operator &#34;Argo CD&#34;, select the tab &#34;ArgoCD&#34; and hit the button &#34;<em>Create ArgoCD&#34;</em></p>
+</div>
+<div class="paragraph">
+<p>Enter the following yaml:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  dex:
+    image: quay.io/redhat-cop/dex
+    openShiftOAuth: true
+    version: v2.22.0-openshift
+  rbac:
+    policy: |
+      g, argocdadmins, role:admin
+    scopes: &#39;[groups]&#39;
+  server:
+    route:
+      enabled: true</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This yaml extends the default example by:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>using OpenShift authentication</p>
+</li>
+<li>
+<p>Allow all users from the group &#34;argocdadmins&#34; admin permissions inside Argo CD</p>
+</li>
+<li>
+<p>create a route to access argocd web interface</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Once this configuration is created, the operator will automatically start to roll out the different pods, which are required.
+No worries, it will take quite long until everything is up and running.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_create_a_new_group_and_assign_a_user_to_it">Create a new group and assign a user to it</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In the ArgoCD resource we have defined the group <em>argocdadmins</em> and all users in this group will get administrator privileges in Argo CD.
+This group must be created and in addition we assign the user <em>admin</em> to it.</p>
+</div>
+<div class="paragraph">
+<p>For example with the following commands:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc adm groups new argocdadmins
+oc adm groups add-users argocdadmins admin</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_login_to_argo_cd">Login to Argo CD</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now it is time to login to Argo CD. Just fetch the route which was created by the operator (for example with: <code>oc get routes -n argocd</code>).</p>
+</div>
+<div class="paragraph">
+<p>On the login page select &#34;<strong>Login via OpenShift</strong>&#34; and enter the credentials of the user you would like to use. (well, the one which you can admin permissions in the step above).</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-login.png?width=300px" alt="ArgoCD Login"/>
+</div>
+<div class="title">Figure 2. Argo CD: Login Screen</div>
+</div>
+<div class="paragraph">
+<p>This will open the Argo CD Interface.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_first_test_with_argo_cd">First test with Argo CD</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Let’s create an application in Argo CD to demonstrate the possibilities about application management with GitOps.
+We will use a simple application which draws a blue (or green) box in your browser.</p>
+</div>
+<div class="paragraph">
+<p>Click on the button &#34;Create App&#34; and enter the following parameters:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Name: bgd</p>
+</li>
+<li>
+<p>Project: default (This is the project inside Argo CD, not OpenShift)</p>
+</li>
+<li>
+<p>Sync Policy: Can stay at manual for now</p>
+</li>
+<li>
+<p>Repository URL: <a class="bare" href="https://github.com/tjungbauer/gitops-examples">https://github.com/tjungbauer/gitops-examples</a> (This is a fork of <a href="https://github.com/christianh814/gitops-examples">christianh814/gitops-examples</a>)</p>
+</li>
+<li>
+<p>Revision: master</p>
+</li>
+<li>
+<p>Path: bgd/</p>
+</li>
+<li>
+<p>Cluster: <a class="bare" href="https://kubernetes.devault.svc">https://kubernetes.devault.svc</a> (This is the local default cluster Argo CD created. Other Clusters may be defined)</p>
+</li>
+<li>
+<p>Namespace: bgd (This is the OpenShift namespace which will be created)</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>At the end, it should look like this:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-createapp.png?width=940px" alt="ArgoCD Create App" width="940"/>
+</div>
+<div class="title">Figure 3. Argo CD: Create an Application</div>
+</div>
+<div class="paragraph">
+<p>Press the &#34;Create&#34; button and your application is ready to be synchronized. Since no synchronization happens yet, Argo CD will complain that the application is out of sync.</p>
+</div>
+<div class="sect2">
+<h3 id="_sync_application">Sync application</h3>
+<div class="paragraph">
+<p>Since we set the Sync Policy to manual, the synchronization process must be started, guess what, manually. Click on the &#34;Sync&#34; button and Argo CD will open a side panel, which shows the resources are out of sync and other options.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-sync-app.png?width=440px" alt="ArgoCD Sync App" width="440"/>
+</div>
+<div class="title">Figure 4. Argo CD: Sync an Application</div>
+</div>
+<div class="paragraph">
+<p>One notable option is the &#34;Prune&#34; setting. By selecting this, changes which have been done directly on OpenShift, are removed and replaced by the ones which are stored at Git.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+This is a very good option, to force everyone to follow the GitOps process :)
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Press the &#34;Synchronize&#34; button and select the application. As you see the sync process has started and after a while, all resources are synced to OpenShift.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-app-syncing.png?width=940px" alt="ArgoCD App Syncing"/>
+</div>
+<div class="title">Figure 5. Argo CD: Application Syncing</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-app-synced.png?width=940px" alt="ArgoCD App Synced"/>
+</div>
+<div class="title">Figure 6. Argo CD: Application Synced</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_verifying_objects">Verifying objects</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Now that Argo CD says that the application has been synchronized, we should check the objects, which have been created in OpenShift.</p>
+</div>
+<div class="paragraph">
+<p>As you can see in the Git repository, there are 4 objects which should exist now:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>a namespace (bgd)</p>
+</li>
+<li>
+<p>a deployment</p>
+</li>
+<li>
+<p>a service</p>
+</li>
+<li>
+<p>a route</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-example-repo.png?width=240px" alt="ArgoCD Git Repo" width="240"/>
+</div>
+<div class="title">Figure 7. Argo CD: Git Repo</div>
+</div>
+<div class="paragraph">
+<p>To verify the existence either check via the WebUI or simply try:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get all -n bgd
+NAME                       READY   STATUS    RESTARTS   AGE
+pod/bgd-6b9b64d94d-5fqdg   1/1     Running   0          6m2s
+
+NAME          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/bgd   ClusterIP   172.30.233.30   &lt;none&gt;        8080/TCP   6m7s
+
+NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/bgd   1/1     1            1           6m4s
+
+NAME                             DESIRED   CURRENT   READY   AGE
+replicaset.apps/bgd-6b9b64d94d   1         1         1       6m3s
+
+NAME                           HOST/PORT                      PATH   SERVICES   PORT   TERMINATION   WILDCARD
+route.route.openshift.io/bgd   bgd-bgd.apps.ocp.example.test          bgd        8080                 None</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Obviously, the namespace exists and with it also the other objects, which hae been synchronized.</p>
+</div>
+<div class="paragraph">
+<p>When you now open the route <a class="bare" href="http://bgd-bgd.apps.ocp.example.test">http://bgd-bgd.apps.ocp.example.test</a> in your browser, you will see a nice blue box.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-bluebox.png" alt="ArgoCD Blue Box"/>
+</div>
+<div class="title">Figure 8. Argo CD: The Blue Box</div>
+</div>
+<div class="paragraph">
+<p>As you can see all objects have been synchronized and the application has been deployed correctly. The source of truth is in Git and all changes should be done there.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_i_want_a_green_box">I want a green box</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>So you want a green box? Maybe you think of doing this:</p>
+</div>
+<div class="paragraph">
+<p>Modify the <em>Deployment</em> and change the environment COLOR from blue to green:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">...
+    spec:
+      containers:
+        - name: bgd
+          image: &#39;quay.io/redhatworkshops/bgd:latest&#39;
+          env:
+            - name: COLOR
+              value: green # change from blue to green
+...</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will trigger a re-deployment and …​ fine …​ you have a green box:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-green.png" alt="ArgoCD Green Box"/>
+</div>
+<div class="title">Figure 9. Argo CD: The Green Box</div>
+</div>
+<div class="paragraph">
+<p>But is this the correct way to do that? <strong>NO</strong>, it is not. Argo CD will immediately complain that the application is out of sync.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-outofsync.png" alt="ArgoCD Out of Sync"/>
+</div>
+<div class="title">Figure 10. Argo CD: Out of Sync</div>
+</div>
+<div class="paragraph">
+<p>When you sync the application it will end up with a blue box again.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-bluebox.png" alt="ArgoCD Blue Box"/>
+</div>
+<div class="title">Figure 11. Argo CD: The Blue Box</div>
+</div>
+<div class="paragraph">
+<p>But you really really want a green box? Fair enough, the correct way would be to change the deployment configuration on Git.
+Simply change the file <strong>bgd/bgd-deployment.yaml</strong> and set the COLOR to green:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">...
+    spec:
+      containers:
+      - image: quay.io/redhatworkshops/bgd:latest
+        name: bgd
+        env:
+        - name: COLOR
+          value: &#34;green&#34;
+        resources: {}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Again Argo CD will complain that it is out of sync.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-outofsync-gitupdate.png" alt="ArgoCD Git Update"/>
+</div>
+<div class="title">Figure 12. Argo CD: Git Update</div>
+</div>
+<div class="paragraph">
+<p>By synchronizing the changes, it will deploy the latest version found at Git and …​ yes, you have a green box now (When deployment on OpenShift side has finished).</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/openshift-platform/gitops/images/argocd/argocd-green.png" alt="ArgoCD Green Box"/>
+</div>
+<div class="title">Figure 13. Argo CD: The Green Box</div>
 </div>
 </div>
 </div>]]></content:encoded></item></channel></rss>

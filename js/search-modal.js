@@ -128,12 +128,26 @@
         if (typeof PagefindUI !== 'undefined') {
             try {
                 // Watch for Pagefind input creation to add id/name immediately
-                var inputObserver = new MutationObserver(function(mutations) {
+                function labelPagefindControls() {
                     var pagefindInput = modal.querySelector('.pagefind-ui__search-input');
-                    if (pagefindInput && !pagefindInput.id) {
-                        // Add id and name attributes to fix browser autofill warning
-                        pagefindInput.id = 'search-modal-input';
-                        pagefindInput.name = 'search';
+                    if (pagefindInput) {
+                        if (!pagefindInput.id) {
+                            pagefindInput.id = 'search-modal-input';
+                            pagefindInput.name = 'search';
+                        }
+                        if (!pagefindInput.getAttribute('aria-label')) {
+                            pagefindInput.setAttribute('aria-label', 'Search articles');
+                        }
+                    }
+                    var clearBtn = modal.querySelector('.pagefind-ui__search-clear');
+                    if (clearBtn && !clearBtn.getAttribute('aria-label')) {
+                        clearBtn.setAttribute('aria-label', 'Clear search');
+                    }
+                }
+
+                var inputObserver = new MutationObserver(function() {
+                    labelPagefindControls();
+                    if (modal.querySelector('.pagefind-ui__search-input')) {
                         inputObserver.disconnect();
                     }
                 });
@@ -150,13 +164,16 @@
                         placeholder: "Search articles...",
                         zero_results: "No results found for \"[SEARCH_TERM]\"",
                         many_results: "[COUNT] results",
-                        one_result: "1 result"
+                        one_result: "1 result",
+                        clear_search: "Clear",
+                        search_label: "Search articles"
                     }
                 });
                 pagefindAvailable = true;
                 
                 // Get the Pagefind input reference and setup listeners
                 setTimeout(function() {
+                    labelPagefindControls();
                     input = modal.querySelector('.pagefind-ui__search-input');
                     if (input) {
                         setupSearchInputListeners();
@@ -195,6 +212,7 @@
                             name="q" 
                             class="search-modal-fallback-input" 
                             placeholder="Search articles..."
+                            aria-label="Search articles"
                             autocomplete="off"
                             spellcheck="false"
                         >

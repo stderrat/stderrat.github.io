@@ -777,7 +777,7 @@ function initMermaid(update, attrs) {
           var inner = svg.select('*:scope > g');
           
           // Add reset button
-          parent.insertAdjacentHTML('beforeend', '<div class="actionbar"><span class="btn cstyle svg-reset-button action noborder notitle interactive"><button type="button" title="' + window.T_Reset_view + '"><i class="fa-fw fas fa-undo-alt"></i></button></span></div>');
+          parent.insertAdjacentHTML('beforeend', '<div class="actionbar"><span class="btn cstyle svg-reset-button action noborder notitle interactive"><button type="button" title="' + window.T_Reset_view + '" aria-label="' + window.T_Reset_view + '"><i class="fa-fw fas fa-undo-alt" aria-hidden="true"></i></button></span></div>');
           
           var wrapper = parent.querySelector('.svg-reset-button');
           var button = wrapper.querySelector('button');
