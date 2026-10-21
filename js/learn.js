@@ -27,8 +27,12 @@ function getScrollBarWidth() {
 }; */
 
 function setMenuHeight() {
-    $('#sidebar .highlightable').height($('#sidebar').innerHeight() - $('#header-wrapper').height() - 40);
-    $('#sidebar .highlightable').perfectScrollbar('update');
+    var $sidebar = $('#sidebar');
+    var $scroll = $sidebar.find('.highlightable');
+    var chrome = ($('#header-wrapper').outerHeight() || 0)
+        + ($('#sidebar-search').outerHeight(true) || 0);
+    $scroll.height(Math.max(0, $sidebar.innerHeight() - chrome));
+    $scroll.perfectScrollbar('update');
 }
 
 function fallbackMessage(action) {
