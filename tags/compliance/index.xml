@@ -1,4 +1,1293 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Compliance – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/compliance/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Thu, 15 Oct 2026 00:00:00 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/compliance/index.xml" rel="self" type="application/rss+xml"/><item><title>ValidatingAdmissionPolicy and how to use it</title><link>https://blog.stderr.at/openshift-platform/security/compliance/2026-10-15-namespace-labels-validating-admission-policy/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/compliance/2026-10-15-namespace-labels-validating-admission-policy/</guid><pubDate>Thu, 15 Oct 2026 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Security</category><category>Compliance</category><description>Enforce mandatory ownership labels on OpenShift namespaces with a CEL ValidatingAdmissionPolicy—and block removal of those labels after creation.</description><content:encoded><![CDATA[<div class="paragraph">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Compliance – TechBlog about OpenShift/Ansible/Satellite and much more</title><link>https://blog.stderr.at/tags/compliance/</link><description>TechBlog about OpenShift/Ansible/Satellite and much more</description><generator>Hugo 0.164.0</generator><language>en-us</language><copyright>Toni Schmidbauer &amp; Thomas Jungbauer</copyright><lastBuildDate>Sat, 24 Oct 2026 00:00:00 +0200</lastBuildDate><atom:link href="https://blog.stderr.at/tags/compliance/index.xml" rel="self" type="application/rss+xml"/><item><title>[Ep.20] Managing ACM Policies with OpenShift GitOps</title><link>https://blog.stderr.at/gitopscollection/2026-10-24-acm-policies-with-gitops/</link><guid isPermaLink="true">https://blog.stderr.at/gitopscollection/2026-10-24-acm-policies-with-gitops/</guid><pubDate>Sat, 24 Oct 2026 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>GitOps</category><category>Security</category><description>Policies as code: let OpenShift GitOps deploy Advanced Cluster Management policies from Git, generate them with the PolicyGenerator, use hub templates for per-cluster values and bootstrap Argo CD on every new cluster with a policy.</description><content:encoded><![CDATA[<div class="paragraph">
+<p>In <a href="/gitopscollection/2026-10-20-openshift-gitops-vs-acm/">[Ep.18]</a> I recommended ACM policies for the audited baseline of a cluster and Argo CD for everything that needs rendering. <a href="/gitopscollection/2026-10-23-acm-gitops-push-pull-agent/">[Ep.19]</a> showed how ACM feeds Argo CD with clusters and the different models that can be used in Argo CD. This part turns the integration around: <strong>Argo CD deploys ACM policies</strong>, and a policy <strong>bootstraps Argo CD</strong> on every new cluster.</p>
+</div>
+<div class="paragraph">
+<p>The result is a setup where the policies live in Git, are reviewed in pull requests like any other change, and ACM does what it is good at: distribution, enforcement and compliance reporting.</p>
+</div>
+<div class="paragraph">
+<p>The topic turned out to be too big for a single article, so I have split it into multiple parts and maybe I should have split into even more. This is the third:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="/gitopscollection/2026-10-20-openshift-gitops-vs-acm/">[Ep.18] OpenShift GitOps or Advanced Cluster Management? Choosing the right tool</a> What each tool does, where they overlap and a decision guide.</p>
+</li>
+<li>
+<p><a href="/gitopscollection/2026-10-23-acm-gitops-push-pull-agent/">[Ep.19] ACM and OpenShift GitOps: push, pull and the Argo CD Agent</a>: how ACM registers clusters in Argo CD, and how to set up each of the three delivery models.</p>
+</li>
+<li>
+<p><strong>[Ep.20] Managing ACM Policies with OpenShift GitOps</strong> (this article): policies as code, the PolicyGenerator, hub templates and bootstrapping Argo CD with a policy.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Everything in this series was written against <strong>OpenShift GitOps 1.22</strong> (Argo CD 3.5) and <strong>Advanced Cluster Management 2.17</strong> (Open Cluster Management). Technology Preview and GA states move quickly in both products, so check the release notes of your versions before you commit to a design.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+While I am using the term &#34;Advanced Cluster Management&#34; in this article, I am referring to the product formerly known as Open Cluster Management. Same counts for Argo CD and OpenShift GitOps.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="sect1">
+<h2 id="_three_integration_patterns">Three integration patterns</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>There are three ways to combine policies and Argo CD. They are not exclusive, most mature setups combine the first two.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 12.5%;"/>
+<col style="width: 37.5%;"/>
+<col style="width: 25%;"/>
+<col style="width: 25%;"/>
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Pattern</th>
+<th class="tableblock halign-left valign-top">How it works</th>
+<th class="tableblock halign-left valign-top">Strength</th>
+<th class="tableblock halign-left valign-top">Weakness</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>A: Argo CD deploys policies</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Policies live in Git, generated by the PolicyGenerator. The hub Argo CD syncs them to the hub, ACM propagates and evaluates them.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Policy as code with review, compliance dashboard in ACM</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Needs the PolicyGenerator plugin in Argo CD</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>B: A policy bootstraps Argo CD</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One enforced policy installs OpenShift GitOps and a root Application on every placed cluster. From there, Argo CD takes over.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">New clusters configure themselves on import</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The bootstrap needs proper planning and automation.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>C: Policies configure directly</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ConfigurationPolicies apply the cluster configuration themselves. No Argo CD on the spokes.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One tool, compliance built in</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Weaker diff and ordering, large YAML in policies</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Pattern C is fine for small, compliance-driven setups. For everything else I recommend A for governance and B for the fleet bootstrap. The rest of this article shows both.</p>
+</div>
+<div class="paragraph">
+<p>Whatever option you choose, one rule from <a href="/gitopscollection/2026-10-20-openshift-gitops-vs-acm/">Ep.18</a> still applies: <strong>one owner per object</strong>. If Argo CD manages an object, a policy may only look at it in <code>inform</code> mode.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_preparing_the_hub_argo_cd">Preparing the hub Argo CD</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>You need an Argo CD instance on the hub that can sync to the hub itself. That instance needs three things before it can deploy policies:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>permissions for the policy API,</p>
+</li>
+<li>
+<p>the PolicyGenerator plugin,</p>
+</li>
+<li>
+<p>optionally, health checks for policies.</p>
+</li>
+</ol>
+</div>
+<div class="sect2">
+<h3 id="_a_second_argo_cd_instance_for_the_hub">A second Argo CD instance for the hub</h3>
+<div class="paragraph">
+<p>In Ep.19, the default instance <code>openshift-gitops</code> became the principal of the Argo CD Agent. Its application-controller is disabled, so it cannot sync anything to the hub itself, and the manifests of agent Applications are rendered on the managed clusters anyway. The policies, however, must be created on the hub.</p>
+</div>
+<div class="paragraph">
+<p>This article therefore uses a second, small Argo CD instance on the hub that only takes care of the hub configuration: <code>policy-gitops</code> in the namespace of the same name. If your default instance still has its application-controller (push or pull model), you can use it instead. Replace <code>policy-gitops</code> with <code>openshift-gitops</code> in the examples below.</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">Second Argo CD instance for the hub configuration</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
+kind: Namespace
+metadata:
+  name: policy-gitops
+---
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: policy-gitops <i class="conum" data-value="1"></i><b>(1)</b>
+  namespace: policy-gitops
+spec: {} <i class="conum" data-value="2"></i><b>(2)</b>
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acm-policies
+  labels:
+    argocd.argoproj.io/managed-by: policy-gitops <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The service account of the application-controller is named after the instance: <code>policy-gitops-argocd-application-controller</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The PolicyGenerator plugin is added in the next sections.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td><code>policy-gitops</code> is a namespace-scoped instance. The label allows it to manage the namespace <code>acm-policies</code>, where the policies live. The namespace must exist before the first sync, because the instance cannot create namespaces itself.</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_permissions">Permissions</h3>
+<div class="paragraph">
+<p>The application-controller of the instance cannot create policies and Placements. Create a ClusterRole and bind it to the controller’s service account:</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Not required if Argo CD runs as cluster-admin.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock linenums">
+<div class="title">ClusterRole and ClusterRoleBinding for the hub Argo CD</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: openshift-gitops-policy-admin
+rules:
+  - apiGroups:
+      - policy.open-cluster-management.io
+    resources:
+      - policies
+      - configurationpolicies
+      - certificatepolicies
+      - operatorpolicies
+      - policysets
+      - placementbindings
+    verbs: [&#34;get&#34;, &#34;list&#34;, &#34;watch&#34;, &#34;create&#34;, &#34;update&#34;, &#34;patch&#34;, &#34;delete&#34;]
+  - apiGroups:
+      - cluster.open-cluster-management.io
+    resources:
+      - placements
+      - placements/status
+      - placementdecisions
+      - placementdecisions/status
+    verbs: [&#34;get&#34;, &#34;list&#34;, &#34;watch&#34;, &#34;create&#34;, &#34;update&#34;, &#34;patch&#34;, &#34;delete&#34;]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: policy-gitops-policy-admin
+subjects:
+  - kind: ServiceAccount
+    name: policy-gitops-argocd-application-controller
+    namespace: policy-gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: openshift-gitops-policy-admin</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The ClusterRole in the ACM documentation also contains <code>placementrules</code>. I left them out on purpose: PlacementRules are deprecated.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_the_policygenerator_plugin">The PolicyGenerator plugin</h3>
+<div class="paragraph">
+<p>Creating the policy YAML by hand is tough and error-prone. Every manifest has to be wrapped in a ConfigurationPolicy, which is wrapped in a Policy, which needs a Placement and a PlacementBinding. The <strong>PolicyGenerator</strong> solves this. It is a Kustomize generator plugin that takes plain manifests and wraps them for you.</p>
+</div>
+<div class="paragraph">
+<p>The plugin is not part of the OpenShift GitOps images. An init container copies it from an ACM image into the repo-server, and Kustomize must be allowed to run alpha plugins.</p>
+</div>
+<div class="paragraph">
+<p>The setup is described in the ACM documentation: <a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/2.17/html/gitops/gitops-overview#access-policy-gen-gitops" rel="noopener" target="_blank">ACM 2.17: Accessing the Policy Generator from OpenShift GitOps</a>.</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">ArgoCD resource on the hub with the PolicyGenerator plugin (excerpt)</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: policy-gitops
+  namespace: policy-gitops
+spec:
+  kustomizeBuildOptions: --enable-alpha-plugins <i class="conum" data-value="1"></i><b>(1)</b>
+  repo:
+    env:
+      - name: KUSTOMIZE_PLUGIN_HOME
+        value: /etc/kustomize/plugin
+    initContainers:
+      - name: policy-generator-install
+        image: registry.redhat.io/rhacm2/multicluster-operators-subscription-rhel9:v2.17 <i class="conum" data-value="2"></i><b>(2)</b>
+        command:
+          - /bin/bash
+        args:
+          - -c
+          - cp /policy-generator/PolicyGenerator-not-fips-compliant /policy-generator-tmp/PolicyGenerator <i class="conum" data-value="3"></i><b>(3)</b>
+        volumeMounts:
+          - mountPath: /policy-generator-tmp
+            name: policy-generator
+    volumeMounts:
+      - mountPath: /etc/kustomize/plugin/policy.open-cluster-management.io/v1/policygenerator
+        name: policy-generator
+    volumes:
+      - name: policy-generator
+        emptyDir: {}</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Allows Kustomize to execute the generator plugin.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The tag must match the minor version of your ACM hub (<code>oc get multiclusterhub -n open-cluster-management -o jsonpath=&#39;{.items[0].status.currentVersion}&#39;</code>). Update it after every hub upgrade, or let a policy do it (see <a href="#_keeping_the_image_tag_in_sync">Keeping the image tag in sync</a>).</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Copies the plugin from the image to the plugin directory.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>If your policy folders contain Helm charts that should be rendered before the policies are generated, add the environment variable <code>POLICY_GEN_ENABLE_HELM</code> with the value <code>&#34;true&#34;</code> to <code>spec.repo.env</code>.</p>
+</div>
+<div class="sect3">
+<h4 id="_keeping_the_image_tag_in_sync">Keeping the image tag in sync</h4>
+<div class="paragraph">
+<p>A fixed tag has one weakness: after a hub upgrade, the PolicyGenerator in the repo-server is still the old one until somebody updates the tag. The ACM documentation provides an example of a policy that keeps the image tag in sync. After an upgrade of the hub, the policy changes the image of the init container automatically.</p>
+</div>
+<div class="paragraph">
+<p>The policy runs on the hub only, so it needs a Placement for <code>local-cluster</code>. The hub carries the label <code>local-cluster=true</code>, and it is part of the cluster set <code>global</code>, which must be bound to the policy namespace:</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">Policy that keeps the PolicyGenerator image in sync with the hub</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: acm-policies
+spec:
+  clusterSet: global <i class="conum" data-value="1"></i><b>(1)</b>
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: argocd-policy-generator
+  namespace: acm-policies
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+spec:
+  remediationAction: enforce <i class="conum" data-value="2"></i><b>(2)</b>
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: argocd-policy-generator
+        spec:
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: argoproj.io/v1beta1
+                kind: ArgoCD
+                metadata:
+                  name: policy-gitops
+                  namespace: policy-gitops
+                spec:
+                  kustomizeBuildOptions: --enable-alpha-plugins
+                  repo:
+                    env:
+                      - name: KUSTOMIZE_PLUGIN_HOME
+                        value: /etc/kustomize/plugin
+                    initContainers:
+                      - name: policy-generator-install
+                        image: &#39;{{ (index (lookup &#34;apps/v1&#34; &#34;Deployment&#34; &#34;open-cluster-management&#34; &#34;multicluster-operators-hub-subscription&#34;).spec.template.spec.containers 0).image }}&#39; <i class="conum" data-value="3"></i><b>(3)</b>
+                        command:
+                          - /bin/bash
+                        args:
+                          - -c
+                          - cp /policy-generator/PolicyGenerator-not-fips-compliant /policy-generator-tmp/PolicyGenerator
+                        volumeMounts:
+                          - mountPath: /policy-generator-tmp
+                            name: policy-generator
+                    volumeMounts:
+                      - mountPath: /etc/kustomize/plugin/policy.open-cluster-management.io/v1/policygenerator
+                        name: policy-generator
+                    volumes:
+                      - name: policy-generator
+                        emptyDir: {}
+---
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: hub-only
+  namespace: acm-policies
+spec:
+  clusterSets:
+    - global
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            local-cluster: &#34;true&#34; <i class="conum" data-value="4"></i><b>(4)</b>
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: argocd-policy-generator
+  namespace: acm-policies
+placementRef:
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+  name: hub-only
+subjects:
+  - apiGroup: policy.open-cluster-management.io
+    kind: Policy
+    name: argocd-policy-generator</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The cluster set <code>global</code> contains every managed cluster, including the hub. The Placement below narrows it down to the hub. Creating a ManagedClusterSetBinding requires the permissions <code>managedclustersetbindings</code> and <code>managedclustersets/bind</code>, which are not part of the ClusterRole above. Create it once as cluster administrator, or extend the ClusterRole if Argo CD shall sync it.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>We enforce this policy.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td><code>lookup</code> reads the deployment of the ACM subscription controller, and the template takes the image of its first container. That is exactly the image the init container needs, in the version of the running hub.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>ACM sets this label on the hub’s own ManagedCluster.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Two things to keep in mind:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Write this policy as plain YAML</strong>, not as PolicyGenerator input. It installs the generator, so it cannot depend on it (hen-egg problem). Argo CD can sync it from Git without the plugin.</p>
+</li>
+<li>
+<p><strong>One owner per object.</strong> The policy now manages the plugin part of the ArgoCD resource <code>policy-gitops</code>. If that resource is also deployed by Argo CD (for example, from a Helm chart for OpenShift GitOps), remove the plugin settings from there, or the two will overwrite each other.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_policy_health_in_argo_cd">Policy health in Argo CD</h3>
+<div class="paragraph">
+<p>By default, Argo CD considers a policy healthy as soon as it exists. That is not very useful: you want to see in Argo CD whether the policy is <strong>compliant</strong>. The policy collection of the Open Cluster Management project contains a policy that adds the matching health checks (<code>resourceHealthChecks</code>) to the ArgoCD resource: <a href="https://github.com/open-cluster-management-io/policy-collection/blob/main/stable/CM-Configuration-Management/argocd-policy-healthchecks.yaml" rel="noopener" target="_blank">argocd-policy-healthchecks.yaml</a>. The policy adds the health checks to every ArgoCD instance it finds on the cluster, so <code>policy-gitops</code> is covered as well. It is shipped with <code>remediationAction: inform</code>: set it to <code>enforce</code>, otherwise it only reports the missing health checks. After that, Argo CD shows a non-compliant policy as <strong>Degraded</strong>.</p>
+</div>
+<hr/>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_pattern_a_policies_as_code">Pattern A: policies as code</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Pattern A is the governance part of the integration: the policies live in Git, Argo CD on the hub brings them into the cluster, and ACM does the rest. You never create a policy in the ACM console or with <code>oc apply</code> again. Every change is a pull request, and the history of your compliance is stored in Git.</p>
+</div>
+<div class="paragraph">
+<p>The example in this section builds two policies that show both sides of a policy:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>service-mesh</strong> installs Red Hat OpenShift Service Mesh 3 on the selected clusters: the Operator and a control plane. It is <em>enforced</em> and the manifests are applied in a fixed order, because the control plane resources can only be created after the Operator has installed its CRDs.</p>
+</li>
+<li>
+<p><strong>no-kubeadmin</strong> checks that the <code>kubeadmin</code> secret does not exist anymore. It only <em>informs</em>: ACM reports every cluster where the secret is still present, but nothing is deleted automatically.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Both start as plain Kubernetes manifests in Git. The PolicyGenerator wraps them into Policy, Placement and PlacementBinding, so you do not have to write the policy structure yourself.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+This requires the hub Argo CD instance <code>policy-gitops</code> with the PolicyGenerator plugin, as described in the previous section.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The following diagram shows the complete flow, from Git to the compliance status in ACM and Argo CD:</p>
+</div>
+<div class="paragraph">
+<div class="imageblock animated-svg" data-animated-svg>
+  <div class="content">
+<svg width="1400" height="680" viewBox="0 0 1400 680" role="img" aria-label="Policies as code: the hub Argo CD renders Policy, Placement and PlacementBinding from Git into the namespace acm-policies. ACM propagates a replicated policy per selected cluster, the policy framework on the managed cluster evaluates and enforces it, and the compliance status flows back to the ACM governance view and, with health checks, to Argo CD." version="1.1" id="as95c1e90-svg-policies-as-code" xmlns="http://www.w3.org/2000/svg" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="as95c1e90-title-policies-as-code">Policies as code: the hub Argo CD renders Policy, Placement and PlacementBinding from Git into the namespace acm-policies. ACM propagates a replicated policy per selected cluster, the policy framework on the managed cluster evaluates and enforces it, and the compliance status flows back to the ACM governance view and, with health checks, to Argo CD.</title>
+  <defs id="as95c1e90-defs-policies-as-code">
+    <marker id="as95c1e90-arrow-0F766E" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0F766E" id="as95c1e90-marker-path-0F766E" /></marker>
+    <marker id="as95c1e90-arrow-C2410C" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#C2410C" id="as95c1e90-marker-path-C2410C" /></marker>
+    <marker id="as95c1e90-arrow-4B5563" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4B5563" id="as95c1e90-marker-path-4B5563" /></marker>
+    </defs>
+  <rect id="as95c1e90-bg" width="1400" height="680" fill="#FFFFFF" />
+  <rect id="as95c1e90-zone-git" x="20" y="20" width="210" height="400" rx="14" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5" />
+  <text id="as95c1e90-label-git" x="40" y="48" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#4B5563" text-anchor="start">GIT</text>
+  <rect id="as95c1e90-zone-hub" x="250" y="20" width="1130" height="400" rx="14" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5" />
+  <text id="as95c1e90-label-hub" x="270" y="48" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#4B5563" text-anchor="start">HUB</text>
+  <rect id="as95c1e90-zone-spoke" x="250" y="450" width="1130" height="190" rx="14" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5" />
+  <text id="as95c1e90-label-spoke" x="270" y="478" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#4B5563" text-anchor="start">MANAGED CLUSTERS  ·  bm, sno</text>
+  <rect id="as95c1e90-ns-gitops" x="270" y="60" width="290" height="340" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2" />
+  <text id="as95c1e90-label-ns-gitops" x="286" y="84" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#C2410C" text-anchor="start">openshift-gitops</text>
+  <rect id="as95c1e90-ns-policies" x="580" y="60" width="320" height="340" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2" />
+  <text id="as95c1e90-label-ns-policies" x="596" y="84" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#0F766E" text-anchor="start">acm-policies</text>
+  <rect id="as95c1e90-ns-cluster" x="920" y="60" width="440" height="340" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2" />
+  <text id="as95c1e90-label-ns-cluster" x="936" y="84" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#4B5563" text-anchor="start">cluster namespaces  ·  bm, sno</text>
+  <rect id="as95c1e90-rect-git" x="40" y="100" width="170" height="120" rx="10" fill="#E6F4F1" stroke="#0F766E" stroke-width="1.6" />
+  <text id="as95c1e90-title-git" x="56" y="129" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#0F766E" text-anchor="start">Git</text>
+  <text id="as95c1e90-line0-git" x="56" y="152" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">input/: plain</text>
+  <text id="as95c1e90-line1-git" x="56" y="168" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">manifests, plus the</text>
+  <text id="as95c1e90-line2-git" x="56" y="184" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">generator config</text>
+  <text id="as95c1e90-note-git1" x="40" y="250" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#4B5563" text-anchor="start">Every policy change</text>
+  <text id="as95c1e90-note-git2" x="40" y="266" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#4B5563" text-anchor="start">is a pull request.</text>
+  <rect id="as95c1e90-rect-argocd" x="290" y="100" width="250" height="120" rx="10" fill="#FDF0E8" stroke="#C2410C" stroke-width="1.6" />
+  <text id="as95c1e90-title-argocd" x="306" y="129" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#C2410C" text-anchor="start">hub Argo CD</text>
+  <text id="as95c1e90-line0-argocd" x="306" y="152" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">renders the policies</text>
+  <text id="as95c1e90-line1-argocd" x="306" y="168" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">(PolicyGenerator plugin</text>
+  <text id="as95c1e90-line2-argocd" x="306" y="184" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">or Helm chart) and syncs</text>
+  <circle id="as95c1e90-badge-1" cx="520" cy="120" r="11" fill="#1F2937" />
+  <text id="as95c1e90-badge-1-text" x="520" y="124.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+  <rect id="as95c1e90-rect-policies" x="600" y="100" width="280" height="120" rx="10" fill="#FFFFFF" stroke="#C2410C" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text id="as95c1e90-title-policies" x="616" y="129" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#C2410C" text-anchor="start">Policies</text>
+  <text id="as95c1e90-line0-policies" x="616" y="152" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">Policy, Placement,</text>
+  <text id="as95c1e90-line1-policies" x="616" y="168" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#4B5563" text-anchor="start">PlacementBinding</text>
+  <text id="as95c1e90-line2-policies" x="616" y="184" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">rendered from Git</text>
+  <circle id="as95c1e90-badge-2" cx="860" cy="120" r="11" fill="#1F2937" />
+  <text id="as95c1e90-badge-2-text" x="860" y="124.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">2</text>
+  <rect id="as95c1e90-rect-replicated" x="940" y="100" width="400" height="120" rx="10" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text id="as95c1e90-title-replicated" x="956" y="129" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#0F766E" text-anchor="start">Replicated policies</text>
+  <text id="as95c1e90-line0-replicated" x="956" y="152" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">acm-policies.&lt;policy&gt; in bm and sno</text>
+  <text id="as95c1e90-line1-replicated" x="956" y="168" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">created by ACM for every selected cluster,</text>
+  <text id="as95c1e90-line2-replicated" x="956" y="184" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">IgnoreExtraneous set automatically</text>
+  <circle id="as95c1e90-badge-3" cx="1320" cy="120" r="11" fill="#1F2937" />
+  <text id="as95c1e90-badge-3-text" x="1320" y="124.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+  <rect id="as95c1e90-rect-health" x="290" y="260" width="250" height="110" rx="10" fill="#F1F5F9" stroke="#4B5563" stroke-width="1.4" />
+  <text id="as95c1e90-title-health" x="306" y="289" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#4B5563" text-anchor="start">Argo CD health</text>
+  <text id="as95c1e90-line0-health" x="306" y="312" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">Healthy if compliant,</text>
+  <text id="as95c1e90-line1-health" x="306" y="328" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">Degraded if not (with the</text>
+  <text id="as95c1e90-line2-health" x="306" y="344" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">policy health checks)</text>
+  <circle id="as95c1e90-badge-6" cx="520" cy="280" r="11" fill="#1F2937" />
+  <text id="as95c1e90-badge-6-text" x="520" y="284.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">6</text>
+  <rect id="as95c1e90-rect-governance" x="940" y="260" width="300" height="110" rx="10" fill="#F1F5F9" stroke="#4B5563" stroke-width="1.4" />
+  <text id="as95c1e90-title-governance" x="956" y="289" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#4B5563" text-anchor="start">ACM governance</text>
+  <text id="as95c1e90-line0-governance" x="956" y="312" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">compliance per policy and</text>
+  <text id="as95c1e90-line1-governance" x="956" y="328" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">cluster, with history</text>
+  <circle id="as95c1e90-badge-5" cx="1220" cy="280" r="11" fill="#1F2937" />
+  <text id="as95c1e90-badge-5-text" x="1220" y="284.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">5</text>
+  <rect id="as95c1e90-rect-framework" x="940" y="500" width="400" height="110" rx="10" fill="#F1F5F9" stroke="#4B5563" stroke-width="1.4" />
+  <text id="as95c1e90-title-framework" x="956" y="529" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#4B5563" text-anchor="start">Policy framework</text>
+  <text id="as95c1e90-line0-framework" x="956" y="552" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">pulls the replicated policy,</text>
+  <text id="as95c1e90-line1-framework" x="956" y="568" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">evaluates it and enforces it</text>
+  <text id="as95c1e90-line2-framework" x="956" y="584" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">(inform or enforce)</text>
+  <circle id="as95c1e90-badge-4" cx="1320" cy="520" r="11" fill="#1F2937" />
+  <text id="as95c1e90-badge-4-text" x="1320" y="524.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">4</text>
+  <rect id="as95c1e90-rect-resources" x="600" y="500" width="280" height="110" rx="10" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text id="as95c1e90-title-resources" x="616" y="529" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#0F766E" text-anchor="start">Objects on the spoke</text>
+  <text id="as95c1e90-line0-resources" x="616" y="552" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">created or checked</text>
+  <text id="as95c1e90-line1-resources" x="616" y="568" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">by the policy</text>
+  <path id="as95c1e90-flow-git-argocd" d="M 212 160 L 286 160" fill="none" stroke="#4B5563" stroke-width="2" stroke-linejoin="round" marker-end="url(#as95c1e90-arrow-4B5563)" />
+  <text id="as95c1e90-label-sync" x="249" y="151" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="11" font-weight="600" fill="#4B5563" text-anchor="middle">sync</text>
+  <path id="as95c1e90-flow-argocd-policies" d="M 542 160 L 596 160" fill="none" stroke="#C2410C" stroke-width="2" stroke-linejoin="round" marker-end="url(#as95c1e90-arrow-C2410C)" />
+  <path id="as95c1e90-flow-policies-replicated" d="M 882 150 L 936 150" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#as95c1e90-arrow-0F766E)" />
+  <path id="as95c1e90-flow-replicated-framework" d="M 1290 222 L 1290 496" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#as95c1e90-arrow-0F766E)" />
+  <text id="as95c1e90-label-pulled" x="1280" y="440" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="11" font-weight="600" fill="#0F766E" text-anchor="end">pulled by the spoke</text>
+  <path id="as95c1e90-flow-framework-resources" d="M 938 555 L 884 555" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#as95c1e90-arrow-0F766E)" />
+  <path id="as95c1e90-status-framework-replicated" d="M 1320 498 L 1320 224" fill="none" stroke="#0F766E" stroke-width="1.6" stroke-linejoin="round" stroke-dasharray="5 3" marker-end="url(#as95c1e90-arrow-0F766E)" />
+  <text id="as95c1e90-label-status" x="1330" y="440" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="11" font-weight="600" fill="#0F766E" text-anchor="start">status</text>
+  <path id="as95c1e90-status-replicated-policies" d="M 938 200 L 884 200" fill="none" stroke="#0F766E" stroke-width="1.6" stroke-linejoin="round" stroke-dasharray="5 3" marker-end="url(#as95c1e90-arrow-0F766E)" />
+  <path id="as95c1e90-status-replicated-governance" d="M 1090 222 L 1090 256" fill="none" stroke="#0F766E" stroke-width="1.6" stroke-linejoin="round" stroke-dasharray="5 3" marker-end="url(#as95c1e90-arrow-0F766E)" />
+  <path id="as95c1e90-status-policies-health" d="M 740 222 L 740 315 L 544 315" fill="none" stroke="#0F766E" stroke-width="1.6" stroke-linejoin="round" stroke-dasharray="5 3" marker-end="url(#as95c1e90-arrow-0F766E)" />
+  <text id="as95c1e90-label-compliant" x="642" y="307" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="11" font-weight="600" fill="#0F766E" text-anchor="middle">status.compliant</text>
+  <rect id="as95c1e90-legend-you" x="40" y="652" width="22" height="14" rx="3" fill="#E6F4F1" stroke="#0F766E" stroke-width="1.6" />
+  <text id="as95c1e90-legend-you-text" x="70" y="664" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">created by you</text>
+  <rect id="as95c1e90-legend-acm" x="194.609375" y="652" width="22" height="14" rx="3" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text id="as95c1e90-legend-acm-text" x="224.609375" y="664" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">generated by ACM</text>
+  <rect id="as95c1e90-legend-argo" x="370.5625" y="652" width="22" height="14" rx="3" fill="#FFFFFF" stroke="#C2410C" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text id="as95c1e90-legend-argo-text" x="400.5625" y="664" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">generated by Argo CD</text>
+  <rect id="as95c1e90-legend-platform" x="566.984375" y="652" width="22" height="14" rx="3" fill="#F1F5F9" stroke="#4B5563" stroke-width="1.6" />
+  <text id="as95c1e90-legend-platform-text" x="596.984375" y="664" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">platform component</text>
+  <text id="as95c1e90-legend-extra" x="1380" y="664" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="600" fill="#4B5563" text-anchor="end">Dashed arrows: compliance status back to the hub</text>
+<circle class="flow-dot" style="--d:0.00s" visibility="hidden" r="3.5" fill="#4B5563" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 212 160 L 286 160" begin="indefinite" data-begin="0.00" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:0.40s" visibility="hidden" r="4.5" fill="#C2410C" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 542 160 L 596 160" begin="indefinite" data-begin="0.40" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:0.80s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 882 150 L 936 150" begin="indefinite" data-begin="0.80" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:1.20s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 1290 222 L 1290 496" begin="indefinite" data-begin="1.20" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:1.60s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 938 555 L 884 555" begin="indefinite" data-begin="1.60" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:2.00s" visibility="hidden" r="3.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 1320 498 L 1320 224" begin="indefinite" data-begin="2.00" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:2.40s" visibility="hidden" r="3.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 938 200 L 884 200" begin="indefinite" data-begin="2.40" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:2.40s" visibility="hidden" r="3.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 1090 222 L 1090 256" begin="indefinite" data-begin="2.40" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:2.80s" visibility="hidden" r="3.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 740 222 L 740 315 L 544 315" begin="indefinite" data-begin="2.80" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  </svg>
+</div>
+  <div class="title">Policies as code: from plain manifests in Git to compliance on every cluster</div>
+</div>
+
+</div>
+<div class="paragraph">
+<p>What happens under the hood:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>The <strong>hub Argo CD</strong> renders the policies from Git and syncs them to the hub.</p>
+</li>
+<li>
+<p>The result is a set of <strong>Policy</strong>, <strong>Placement</strong> and <strong>PlacementBinding</strong> objects in the namespace <code>acm-policies</code>.</p>
+</li>
+<li>
+<p>ACM creates a <strong>replicated policy</strong> in the namespace of every selected cluster on the hub.</p>
+</li>
+<li>
+<p>The <strong>policy framework</strong> on each managed cluster pulls its replicated policy, evaluates it and, in <code>enforce</code> mode, fixes what is different.</p>
+</li>
+<li>
+<p>The compliance status flows back to the hub and shows up in the <strong>ACM governance</strong> view, per policy and cluster.</p>
+</li>
+<li>
+<p>With the policy health checks, Argo CD shows a non-compliant policy as <strong>Degraded</strong>.</p>
+</li>
+</ol>
+</div>
+<hr/>
+<div class="sect2">
+<h3 id="_repository_layout">Repository layout</h3>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-text hljs" data-lang="text">acm-policies/
+├── kustomization.yaml
+├── policy-generator.yaml
+└── input
+    ├── service-mesh
+    │   ├── 01-subscription.yaml       # OpenShift Service Mesh 3 Operator
+    │   ├── 02-namespace-istio-system.yaml
+    │   ├── 03-namespace-istio-cni.yaml
+    │   ├── 04-istiocni.yaml           # CNI plugin, required on OpenShift
+    │   └── 05-istio.yaml              # the control plane
+    └── no-kubeadmin
+        └── kubeadmin-secret.yaml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The files in <code>input/</code> are plain Kubernetes manifests, exactly as you would apply them with <code>oc apply</code>. The Operator is installed in the namespace <code>openshift-operators</code>, which already has an OperatorGroup for all namespaces, so neither a namespace nor an OperatorGroup is needed for it:</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">input/service-mesh/01-subscription.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: servicemeshoperator3
+  namespace: openshift-operators
+spec:
+  channel: stable-3.4 <i class="conum" data-value="1"></i><b>(1)</b>
+  installPlanApproval: Automatic
+  name: servicemeshoperator3
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Pins the minor version. Use <code>stable</code> to always get the latest version.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The control plane consists of two cluster-scoped resources, <code>IstioCNI</code> and <code>Istio</code>, each pointing to its own namespace (<code>istio-cni</code> and <code>istio-system</code>):</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">input/service-mesh/04-istiocni.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  namespace: istio-cni</code></pre>
+</div>
+</div>
+<div class="listingblock linenums">
+<div class="title">input/service-mesh/05-istio.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: sailoperator.io/v1
+kind: Istio
+metadata:
+  name: default
+spec:
+  namespace: istio-system</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>And the kubeadmin secret that must not exist:</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+if your original kubeadmin secret is still present, you can ignore this yaml. Honestly, I am not even sure if this would work, once you have removed the secret.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="listingblock linenums">
+<div class="title">input/no-kubeadmin/kubeadmin-secret.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
+kind: Secret
+metadata:
+  name: kubeadmin
+  namespace: kube-system</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The <code>kustomization.yaml</code> only references the generator:</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">kustomization.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">generators:
+  - policy-generator.yaml</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Render the folder locally before you push. If it does not render on your machine, it will not render in Argo CD either. With the PolicyGenerator binary in your Kustomize plugin path:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">kustomize build --enable-alpha-plugins acm-policies/</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The output contains a Policy, a Placement and a PlacementBinding per policy.</p>
+</div>
+<hr/>
+</div>
+<div class="sect2">
+<h3 id="_the_policygenerator_configuration">The PolicyGenerator configuration</h3>
+<div class="paragraph">
+<p>The file <code>policy-generator.yaml</code> is the heart of the setup. It does not contain any policy itself, it only describes which policies the generator shall create from the manifests in <code>input/</code>. It has two parts:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>policyDefaults</code> apply to every policy: the namespace on the hub where the policies are created, the default remediation action and severity, and the Placement that decides which clusters receive them.</p>
+</li>
+<li>
+<p><code>policies</code> lists the policies, each with its name, the manifests it contains and the settings that differ from the defaults.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>For every entry in <code>policies</code>, the generator creates a Policy, a Placement and a PlacementBinding. The manifests are wrapped into a ConfigurationPolicy inside the Policy: by default all manifests of a policy into one, with <code>consolidateManifests: false</code> one per manifest. Our two policies use this as follows: <code>service-mesh</code> overrides the defaults to enforce and to apply its manifests in order, while <code>no-kubeadmin</code> keeps the defaults and only changes the compliance type.</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">policy-generator.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: policy.open-cluster-management.io/v1
+kind: PolicyGenerator
+metadata:
+  name: cluster-baseline
+policyDefaults:
+  namespace: acm-policies
+  remediationAction: inform <i class="conum" data-value="1"></i><b>(1)</b>
+  severity: medium
+  placement:
+    labelSelector:
+      matchExpressions:
+        - key: name <i class="conum" data-value="5"></i><b>(5)</b>
+          operator: In
+          values:
+            - sno
+            - bm
+policies:
+  - name: service-mesh
+    remediationAction: enforce <i class="conum" data-value="2"></i><b>(2)</b>
+    orderManifests: true <i class="conum" data-value="3"></i><b>(3)</b>
+    consolidateManifests: false
+    manifests:
+      - path: input/service-mesh/01-subscription.yaml
+      - path: input/service-mesh/02-namespace-istio-system.yaml
+      - path: input/service-mesh/03-namespace-istio-cni.yaml
+      - path: input/service-mesh/04-istiocni.yaml
+      - path: input/service-mesh/05-istio.yaml
+  - name: no-kubeadmin
+    manifests:
+      - path: input/no-kubeadmin/
+        complianceType: mustnothave <i class="conum" data-value="4"></i><b>(4)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Default for all policies: report only.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>This policy is enforced.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Creates one ConfigurationPolicy per manifest and makes each one depend on the previous one: first the Subscription, then the namespaces, then IstioCNI and Istio. Note that the Subscription policy is compliant as soon as the Subscription exists, not when the Operator is installed. Until the CRDs are there, the IstioCNI policy reports an error and is evaluated again. If you want to wait for the installed Operator, use an OperatorPolicy instead of the Subscription, as shown in Pattern B.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>The kubeadmin secret must not exist. In inform mode, ACM reports every cluster where it still exists. Remove it with care, only after an identity provider is configured.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="5"></i><b>5</b></td>
+<td>Selects the clusters <code>sno</code> and <code>bm</code>. ACM sets the label <code>name</code> on every ManagedCluster. For a growing fleet, a label such as <code>environment=production</code> or the cluster set label <code>cluster.open-cluster-management.io/clusterset</code> scales better than a list of names.</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_bind_the_cluster_sets_to_the_policy_namespace">Bind the cluster sets to the policy namespace</h3>
+<div class="paragraph">
+<p>A Placement only sees the clusters of cluster sets that are bound to its own namespace. The bindings from Ep.19 live in <code>openshift-gitops</code>, so the Placements in <code>acm-policies</code> would find no cluster at all. ACM then shows the warning <em>&#34;ClusterSets failed to load. Verify that there is at least one ClusterSet bound to your selected namespace.&#34;</em></p>
+</div>
+<div class="paragraph">
+<p>Bind the cluster set <code>production</code> to <code>acm-policies</code>, and <code>global</code> as well if you use the policy that keeps the PolicyGenerator image in sync (its Placement selects the hub from <code>global</code>):</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">ManagedClusterSetBindings in the policy namespace</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: production
+  namespace: acm-policies
+spec:
+  clusterSet: production
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: acm-policies
+spec:
+  clusterSet: global</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The generated Placements select <code>sno</code> and <code>bm</code> by name, from the cluster sets bound to <code>acm-policies</code>. Check the result:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get placementdecisions -n acm-policies \
+  -o custom-columns=NAME:.metadata.name,CLUSTERS:.status.decisions[*].clusterName</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_the_argo_cd_application">The Argo CD Application</h3>
+<div class="paragraph">
+<p>On the hub, one Application syncs the folder:</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">Application for the policies</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: acm-policies
+  namespace: policy-gitops <i class="conum" data-value="1"></i><b>(1)</b>
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tjungbauer/acm-policies.git
+    targetRevision: main
+    path: .
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: acm-policies
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The Application belongs to the instance <code>policy-gitops</code>. No <code>CreateNamespace=true</code>: the namespace <code>acm-policies</code> already exists with the <code>managed-by</code> label.</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_replicated_policies">Replicated policies</h3>
+<div class="paragraph">
+<p>When ACM propagates a policy, it creates a copy in the namespace of every managed cluster on the hub, the <strong>replicated policy</strong>. Argo CD could treat these copies as extraneous resources of the Application and show it as <em>OutOfSync</em> or even try to delete them. ACM prevents that: it automatically sets the annotation <code>argocd.argoproj.io/compare-options: IgnoreExtraneous</code> on every replicated policy.</p>
+</div>
+<hr/>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_pattern_b_a_policy_bootstraps_argo_cd">Pattern B: a policy bootstraps Argo CD</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The bootstrap question from <a href="/gitopscollection/2026-10-20-openshift-gitops-vs-acm/">Ep.18</a>: who installs Argo CD on a new cluster? With ACM, the answer is a policy. As soon as a cluster is imported and matches the Placement of the policy, the policy installs OpenShift GitOps and creates a root Application that points to the cluster’s folder in Git. From there, Argo CD configures the rest.</p>
+</div>
+<div class="paragraph">
+<div class="imageblock animated-svg" data-animated-svg>
+  <div class="content">
+<svg width="1400" height="720" viewBox="0 0 1400 720" role="img" aria-label="Bootstrap policy: the Placement selects the ManagedClusters sno and bm by their name label. The enforced policy gitops-bootstrap applies five templates in order: namespace, OperatorPolicy for OpenShift GitOps, ClusterRoleBinding, repository secret and root Application. The local Argo CD then syncs everything else from Git." version="1.1" id="asa8d4a31-svg-bootstrap-policy" xmlns="http://www.w3.org/2000/svg" xmlns:c2pa="http://c2pa.org/manifest">
+  <title id="asa8d4a31-title-bootstrap-policy">Bootstrap policy: the Placement selects the ManagedClusters sno and bm by their name label. The enforced policy gitops-bootstrap applies five templates in order: namespace, OperatorPolicy for OpenShift GitOps, ClusterRoleBinding, repository secret and root Application. The local Argo CD then syncs everything else from Git.</title>
+  <defs id="asa8d4a31-defs-bootstrap-policy">
+    <marker id="asa8d4a31-arrow-0F766E" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0F766E" id="asa8d4a31-marker-path-0F766E" /></marker>
+    <marker id="asa8d4a31-arrow-C2410C" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#C2410C" id="asa8d4a31-marker-path-C2410C" /></marker>
+    <marker id="asa8d4a31-arrow-4B5563" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4B5563" id="asa8d4a31-marker-path-4B5563" /></marker>
+    </defs>
+  <rect id="asa8d4a31-bg" width="1400" height="720" fill="#FFFFFF" />
+  <rect id="asa8d4a31-zone-hub" x="20" y="20" width="560" height="660" rx="14" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5" />
+  <text id="asa8d4a31-label-hub" x="40" y="48" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#4B5563" text-anchor="start">HUB</text>
+  <rect id="asa8d4a31-zone-spoke" x="610" y="20" width="770" height="660" rx="14" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5" />
+  <text id="asa8d4a31-label-spoke" x="630" y="48" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#4B5563" text-anchor="start">MANAGED CLUSTER  ·  sno</text>
+  <rect style="--d:0.20s" class="rv" id="asa8d4a31-rect-cluster" x="40" y="70" width="250" height="100" rx="10" fill="#E6F4F1" stroke="#0F766E" stroke-width="1.6" />
+  <text style="--d:0.20s" class="rv" id="asa8d4a31-title-cluster" x="56" y="99" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#0F766E" text-anchor="start">ManagedCluster sno</text>
+  <text style="--d:0.20s" class="rv" id="asa8d4a31-line0-cluster" x="56" y="122" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#1F2937" text-anchor="start">label name=sno</text>
+  <text style="--d:0.20s" class="rv" id="asa8d4a31-line1-cluster" x="56" y="138" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">the only manual step</text>
+  <rect style="--d:0.20s" class="rv" id="asa8d4a31-rect-placement" x="310" y="70" width="250" height="100" rx="10" fill="#E6F4F1" stroke="#0F766E" stroke-width="1.6" />
+  <text style="--d:0.20s" class="rv" id="asa8d4a31-title-placement" x="326" y="99" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#0F766E" text-anchor="start">Placement</text>
+  <text style="--d:0.20s" class="rv" id="asa8d4a31-line0-placement" x="326" y="122" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">labelSelector</text>
+  <text style="--d:0.20s" class="rv" id="asa8d4a31-line1-placement" x="326" y="138" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#1F2937" text-anchor="start">name in [sno, bm]</text>
+  <path style="--d:0.20s" class="rv" id="asa8d4a31-flow-cluster-placement" d="M 292 120 L 306 120" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-0F766E)" />
+  <rect style="--d:0.70s" class="rv" id="asa8d4a31-ns-policies" x="40" y="196" width="520" height="464" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2" />
+  <text style="--d:0.70s" class="rv" id="asa8d4a31-label-ns-policies" x="56" y="220" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="700" fill="#0F766E" text-anchor="start">acm-policies</text>
+  <rect style="--d:0.70s" class="rv" id="asa8d4a31-rect-policy" x="56" y="232" width="488" height="412" rx="10" fill="#E6F4F1" stroke="#0F766E" stroke-width="1.6" />
+  <text style="--d:0.70s" class="rv" id="asa8d4a31-title-policy" x="72" y="261" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#0F766E" text-anchor="start">Policy gitops-bootstrap</text>
+  <text style="--d:0.70s" class="rv" id="asa8d4a31-line0-policy" x="72" y="282" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">enforce · templates applied in order, each one waits</text>
+  <text style="--d:0.70s" class="rv" id="asa8d4a31-line1-policy" x="72" y="298" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">until the previous one is compliant</text>
+  <rect style="--d:1.30s" class="rv" id="asa8d4a31-rect-tpl1" x="72" y="316" width="456" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.4" />
+  <circle style="--d:1.30s" class="rv" id="asa8d4a31-badge-tpl1" cx="96" cy="342" r="12" fill="#0F766E" />
+  <text style="--d:1.30s" class="rv" id="asa8d4a31-badge-tpl1-text" x="96" y="346.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+  <text style="--d:1.30s" class="rv" id="asa8d4a31-title-tpl1" x="120" y="338" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">Namespace</text>
+  <text style="--d:1.30s" class="rv" id="asa8d4a31-line0-tpl1" x="120" y="356" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">openshift-gitops-operator</text>
+  <rect style="--d:1.70s" class="rv" id="asa8d4a31-rect-obj1" x="650" y="316" width="320" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text style="--d:1.70s" class="rv" id="asa8d4a31-title-obj1" x="666" y="338" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">Namespace</text>
+  <text style="--d:1.70s" class="rv" id="asa8d4a31-line0-obj1" x="666" y="356" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#4B5563" text-anchor="start">openshift-gitops-operator</text>
+  <path style="--d:1.70s" class="rv" id="asa8d4a31-flow-tpl1" d="M 530 342 L 646 342" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-0F766E)" />
+  <rect style="--d:2.10s" class="rv" id="asa8d4a31-rect-tpl2" x="72" y="380" width="456" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.4" />
+  <circle style="--d:2.10s" class="rv" id="asa8d4a31-badge-tpl2" cx="96" cy="406" r="12" fill="#0F766E" />
+  <text style="--d:2.10s" class="rv" id="asa8d4a31-badge-tpl2-text" x="96" y="410.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">2</text>
+  <text style="--d:2.10s" class="rv" id="asa8d4a31-title-tpl2" x="120" y="402" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">OperatorPolicy</text>
+  <text style="--d:2.10s" class="rv" id="asa8d4a31-line0-tpl2" x="120" y="420" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">OpenShift GitOps, channel gitops-1.22</text>
+  <rect style="--d:2.50s" class="rv" id="asa8d4a31-rect-obj2" x="650" y="380" width="320" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text style="--d:2.50s" class="rv" id="asa8d4a31-title-obj2" x="666" y="402" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">OpenShift GitOps</text>
+  <text style="--d:2.50s" class="rv" id="asa8d4a31-line0-obj2" x="666" y="420" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#4B5563" text-anchor="start">operator and default Argo CD instance</text>
+  <path style="--d:2.50s" class="rv" id="asa8d4a31-flow-tpl2" d="M 530 406 L 646 406" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-0F766E)" />
+  <rect style="--d:2.90s" class="rv" id="asa8d4a31-rect-tpl3" x="72" y="444" width="456" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.4" />
+  <circle style="--d:2.90s" class="rv" id="asa8d4a31-badge-tpl3" cx="96" cy="470" r="12" fill="#0F766E" />
+  <text style="--d:2.90s" class="rv" id="asa8d4a31-badge-tpl3-text" x="96" y="474.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+  <text style="--d:2.90s" class="rv" id="asa8d4a31-title-tpl3" x="120" y="466" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">ClusterRoleBinding</text>
+  <text style="--d:2.90s" class="rv" id="asa8d4a31-line0-tpl3" x="120" y="484" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">rights for the local application-controller</text>
+  <rect style="--d:3.30s" class="rv" id="asa8d4a31-rect-obj3" x="650" y="444" width="320" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text style="--d:3.30s" class="rv" id="asa8d4a31-title-obj3" x="666" y="466" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">ClusterRoleBinding</text>
+  <text style="--d:3.30s" class="rv" id="asa8d4a31-line0-obj3" x="666" y="484" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#4B5563" text-anchor="start">local controller may deploy</text>
+  <path style="--d:3.30s" class="rv" id="asa8d4a31-flow-tpl3" d="M 530 470 L 646 470" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-0F766E)" />
+  <rect style="--d:3.70s" class="rv" id="asa8d4a31-rect-tpl4" x="72" y="508" width="456" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.4" />
+  <circle style="--d:3.70s" class="rv" id="asa8d4a31-badge-tpl4" cx="96" cy="534" r="12" fill="#0F766E" />
+  <text style="--d:3.70s" class="rv" id="asa8d4a31-badge-tpl4-text" x="96" y="538.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">4</text>
+  <text style="--d:3.70s" class="rv" id="asa8d4a31-title-tpl4" x="120" y="530" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">Repository secret</text>
+  <text style="--d:3.70s" class="rv" id="asa8d4a31-line0-tpl4" x="120" y="548" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">copySecretData from the hub</text>
+  <rect style="--d:4.10s" class="rv" id="asa8d4a31-rect-obj4" x="650" y="508" width="320" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text style="--d:4.10s" class="rv" id="asa8d4a31-title-obj4" x="666" y="530" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">Repository secret</text>
+  <text style="--d:4.10s" class="rv" id="asa8d4a31-line0-obj4" x="666" y="548" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#4B5563" text-anchor="start">Git credentials for the local Argo CD</text>
+  <path style="--d:4.10s" class="rv" id="asa8d4a31-flow-tpl4" d="M 530 534 L 646 534" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-0F766E)" />
+  <rect style="--d:4.50s" class="rv" id="asa8d4a31-rect-tpl5" x="72" y="572" width="456" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.4" />
+  <circle style="--d:4.50s" class="rv" id="asa8d4a31-badge-tpl5" cx="96" cy="598" r="12" fill="#0F766E" />
+  <text style="--d:4.50s" class="rv" id="asa8d4a31-badge-tpl5-text" x="96" y="602.5" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">5</text>
+  <text style="--d:4.50s" class="rv" id="asa8d4a31-title-tpl5" x="120" y="594" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">Root Application</text>
+  <text style="--d:4.50s" class="rv" id="asa8d4a31-line0-tpl5" x="120" y="612" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">path clusters/sno/bootstrap</text>
+  <rect style="--d:4.90s" class="rv" id="asa8d4a31-rect-obj5" x="650" y="572" width="320" height="52" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text style="--d:4.90s" class="rv" id="asa8d4a31-title-obj5" x="666" y="594" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#0F766E" text-anchor="start">Root Application</text>
+  <text style="--d:4.90s" class="rv" id="asa8d4a31-line0-obj5" x="666" y="612" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#4B5563" text-anchor="start">app-of-apps for sno, prune: false</text>
+  <path style="--d:4.90s" class="rv" id="asa8d4a31-flow-tpl5" d="M 530 598 L 646 598" fill="none" stroke="#0F766E" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-0F766E)" />
+  <text id="asa8d4a31-label-applied" x="650" y="306" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="11" font-weight="600" fill="#0F766E" text-anchor="start">applied in order by the policy framework on sno</text>
+  <rect style="--d:3.00s" class="rv" id="asa8d4a31-rect-localargo" x="1010" y="380" width="350" height="100" rx="10" fill="#FDF0E8" stroke="#C2410C" stroke-width="1.6" />
+  <text style="--d:3.00s" class="rv" id="asa8d4a31-title-localargo" x="1026" y="409" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#C2410C" text-anchor="start">Local Argo CD</text>
+  <text style="--d:3.00s" class="rv" id="asa8d4a31-line0-localargo" x="1026" y="432" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">installed by the operator,</text>
+  <text style="--d:3.00s" class="rv" id="asa8d4a31-line1-localargo" x="1026" y="448" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#1F2937" text-anchor="start">reads the repository secret</text>
+  <path style="--d:3.00s" class="rv" id="asa8d4a31-flow-operator-localargo" d="M 972 406 L 1006 406" fill="none" stroke="#C2410C" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-C2410C)" />
+  <rect style="--d:5.40s" class="rv" id="asa8d4a31-rect-rest" x="1010" y="540" width="350" height="110" rx="10" fill="#FFFFFF" stroke="#C2410C" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text style="--d:5.40s" class="rv" id="asa8d4a31-title-rest" x="1026" y="569" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="15" font-weight="700" fill="#C2410C" text-anchor="start">Everything else</text>
+  <text style="--d:5.40s" class="rv" id="asa8d4a31-line0-rest" x="1026" y="592" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">operators, OAuth, RBAC, apps ...</text>
+  <text style="--d:5.40s" class="rv" id="asa8d4a31-line1-rest" x="1026" y="608" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">synced by the local Argo CD</text>
+  <text style="--d:5.40s" class="rv" id="asa8d4a31-line2-rest" x="1026" y="624" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="700" fill="#4B5563" text-anchor="start">from clusters/sno/</text>
+  <path style="--d:5.40s" class="rv" id="asa8d4a31-flow-root-rest" d="M 972 598 L 1006 598" fill="none" stroke="#C2410C" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-C2410C)" />
+  <path style="--d:5.40s" class="rv" id="asa8d4a31-flow-localargo-rest" d="M 1185 482 L 1185 536" fill="none" stroke="#C2410C" stroke-width="2" stroke-linejoin="round" marker-end="url(#asa8d4a31-arrow-C2410C)" />
+  <rect style="--d:6.00s" class="rv" id="asa8d4a31-rect-owner" x="650" y="80" width="710" height="96" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.2" stroke-dasharray="6 4" />
+  <text style="--d:6.00s" class="rv" id="asa8d4a31-owner1" x="670" y="110" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13" font-weight="600" fill="#0F766E" text-anchor="start">The policy owns the five objects on the left.</text>
+  <text style="--d:6.00s" class="rv" id="asa8d4a31-owner2" x="670" y="132" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="13" font-weight="600" fill="#C2410C" text-anchor="start">Argo CD owns everything the root Application brings in.</text>
+  <text style="--d:6.00s" class="rv" id="asa8d4a31-owner3" x="670" y="154" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12.5" font-weight="400" fill="#4B5563" text-anchor="start">Never manage the same object from both sides.</text>
+  <rect id="asa8d4a31-legend-you" x="40" y="692" width="22" height="14" rx="3" fill="#E6F4F1" stroke="#0F766E" stroke-width="1.6" />
+  <text id="asa8d4a31-legend-you-text" x="70" y="704" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">created by you</text>
+  <rect id="asa8d4a31-legend-acm" x="194.609375" y="692" width="22" height="14" rx="3" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text id="asa8d4a31-legend-acm-text" x="224.609375" y="704" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">generated by ACM</text>
+  <rect id="asa8d4a31-legend-argo" x="370.5625" y="692" width="22" height="14" rx="3" fill="#FFFFFF" stroke="#C2410C" stroke-width="1.6" stroke-dasharray="6 4" />
+  <text id="asa8d4a31-legend-argo-text" x="400.5625" y="704" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">generated by Argo CD</text>
+  <rect id="asa8d4a31-legend-platform" x="566.984375" y="692" width="22" height="14" rx="3" fill="#F1F5F9" stroke="#4B5563" stroke-width="1.6" />
+  <text id="asa8d4a31-legend-platform-text" x="596.984375" y="704" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="400" fill="#1F2937" text-anchor="start">platform component</text>
+  <text id="asa8d4a31-legend-extra" x="1380" y="704" font-family="Inter, 'Liberation Sans', Arial, sans-serif" font-size="12" font-weight="600" fill="#4B5563" text-anchor="end">Build-up order = order of the policy templates</text>
+<circle class="flow-dot" style="--d:0.20s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 292 120 L 306 120" begin="indefinite" data-begin="0.20" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:1.70s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 530 342 L 646 342" begin="indefinite" data-begin="1.70" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:2.50s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 530 406 L 646 406" begin="indefinite" data-begin="2.50" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:3.30s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 530 470 L 646 470" begin="indefinite" data-begin="3.30" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:4.10s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 530 534 L 646 534" begin="indefinite" data-begin="4.10" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:4.90s" visibility="hidden" r="4.5" fill="#0F766E" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 530 598 L 646 598" begin="indefinite" data-begin="4.90" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:3.00s" visibility="hidden" r="4.5" fill="#C2410C" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 972 406 L 1006 406" begin="indefinite" data-begin="3.00" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:5.40s" visibility="hidden" r="4.5" fill="#C2410C" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 972 598 L 1006 598" begin="indefinite" data-begin="5.40" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  <circle class="flow-dot" style="--d:5.40s" visibility="hidden" r="4.5" fill="#C2410C" stroke="#FFFFFF" stroke-width="1.5"><animateMotion path="M 1185 482 L 1185 536" begin="indefinite" data-begin="5.40" dur="1.40s" repeatCount="indefinite" calcMode="linear"/></circle>
+  </svg>
+</div>
+  <div class="title">Bootstrap policy: the templates are applied in order, then the local Argo CD takes over</div>
+</div>
+
+</div>
+<div class="paragraph">
+<p>We extend our repository with:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-text hljs" data-lang="text">acm-policies/
+└── input
+    └── gitops-bootstrap
+        ├── 01-namespace.yaml          # openshift-gitops-operator
+        ├── 02-operatorpolicy.yaml     # OpenShift GitOps Operator
+        ├── 03-controller-rbac.yaml    # rights for the local controller
+        ├── 04-repo-credentials.yaml   # Git credentials, copied from the hub
+        └── 05-root-application.yaml   # app-of-apps for this cluster</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The first file creates the namespace for the Operator. The OperatorPolicy in the next step expects it to exist:</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">input/gitops-bootstrap/01-namespace.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-gitops-operator</code></pre>
+</div>
+</div>
+<div class="listingblock linenums">
+<div class="title">input/gitops-bootstrap/02-operatorpolicy.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: policy.open-cluster-management.io/v1beta1
+kind: OperatorPolicy <i class="conum" data-value="1"></i><b>(1)</b>
+metadata:
+  name: openshift-gitops-operator
+spec:
+  remediationAction: enforce
+  severity: high
+  complianceType: musthave
+  subscription:
+    name: openshift-gitops-operator
+    namespace: openshift-gitops-operator
+    channel: gitops-1.22 <i class="conum" data-value="2"></i><b>(2)</b>
+    source: redhat-operators
+    sourceNamespace: openshift-marketplace
+  upgradeApproval: Automatic</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The PolicyGenerator adds OperatorPolicy manifests unchanged as a policy template, no extra wrapping.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Pin the channel. Moving to the next version is a one-line pull request.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The root Application is the app-of-apps that contains the Application for every cluster.</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">input/gitops-bootstrap/05-root-application.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tjungbauer/openshift-clusterconfig-gitops.git
+    targetRevision: main
+    path: &#39;{{hub printf &#34;clusters/%s/bootstrap&#34; .ManagedClusterName hub}}&#39; <i class="conum" data-value="1"></i><b>(1)</b>
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: false <i class="conum" data-value="2"></i><b>(2)</b>
+      selfHeal: true</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>A hub template, resolved on the hub for every cluster: <code>sno</code> gets <code>clusters/sno/bootstrap</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Never prune on the root Application. A broken path would otherwise remove everything below it.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>The local Argo CD must be allowed to create whatever the root Application brings in. <code>03-controller-rbac.yaml</code> grants its application-controller cluster-admin rights, the same as in the pull model of <a href="/gitopscollection/2026-10-23-acm-gitops-push-pull-agent/">Ep.19</a>:</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">input/gitops-bootstrap/03-controller-rbac.yaml</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argo-admin
+subjects:
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-application-controller <i class="conum" data-value="1"></i><b>(1)</b>
+    namespace: openshift-gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin <i class="conum" data-value="2"></i><b>(2)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The service account of the default instance <code>openshift-gitops</code>, which the Operator creates after the installation.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Simple and usually fine for platform configuration. For application teams, prefer namespaces labelled with <code>argocd.argoproj.io/managed-by</code>.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>And the generator configuration ties it together:</p>
+</div>
+<div class="listingblock linenums">
+<div class="title">policy-generator.yaml (excerpt)</div>
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">policies:
+  - name: gitops-bootstrap
+    remediationAction: enforce
+    orderManifests: true <i class="conum" data-value="1"></i><b>(1)</b>
+    consolidateManifests: false
+    placement:
+      labelSelector:
+        matchExpressions:
+          - key: name <i class="conum" data-value="2"></i><b>(2)</b>
+            operator: In
+            values:
+              - sno
+              - bm
+    manifests:
+      - path: input/gitops-bootstrap/01-namespace.yaml
+      - path: input/gitops-bootstrap/02-operatorpolicy.yaml
+      - path: input/gitops-bootstrap/03-controller-rbac.yaml
+      - path: input/gitops-bootstrap/04-repo-credentials.yaml
+      - path: input/gitops-bootstrap/05-root-application.yaml</code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tbody><tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>The order matters: the Application CRD only exists after the operator is installed. With <code>orderManifests</code>, the root Application is only created when the operator policy is compliant.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>The same selection as for the other policies: the clusters <code>sno</code> and <code>bm</code>, selected by the <code>name</code> label that ACM sets on every ManagedCluster. In a larger fleet, a dedicated label such as <code>gitops=enabled</code> makes the bootstrap an opt-in per cluster.</td>
+</tr>
+</tbody></table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Pattern B is meant for clusters that get their Argo CD from this policy. If you followed the pull or agent part of Ep.19, the GitOps add-on of ACM has already installed OpenShift GitOps on <code>sno</code> and <code>bm</code>, and the policy and the add-on would then manage the same operator. Decide which of the two owns the operator before you enforce this policy, or test Pattern B on a cluster without the add-on.
+</td>
+</tr>
+</tbody></table>
+</div>
+<div class="paragraph">
+<p>Who owns what afterwards? The policy owns exactly five objects: the namespace, the operator, the ClusterRoleBinding, the repository secret and the root Application. Everything the root Application brings in belongs to Argo CD. Keep it that way: if you also manage the OpenShift GitOps Subscription with Argo CD on the spoke, the two will fight.</p>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_the_result_in_acm_argo_cd">The result in ACM &amp; Argo CD</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Once Argo CD has synced the repository, the policies show up in the ACM console under <strong>Governance</strong>.</p>
+</div>
+<div class="paragraph">
+<p>The list of <strong>Policies</strong> shows the three policies of this article in the namespace <code>acm-policies</code>: <code>service-mesh</code>, <code>no-kubeadmin</code> and <code>gitops-bootstrap</code>. For each policy you see the remediation action (inform or enforce), the cluster violations and the policy set, if there is one.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/ep-20/acm-governance-policies.png?width=80%" alt="ACM Governance policies"/>
+</div>
+<div class="title">Figure 1. Policies in the namespace acm-policies</div>
+</div>
+<div class="paragraph">
+<p>A click on a policy opens the details. The <strong>Details</strong> tab shows the policy templates, here the ConfigurationPolicies and the OperatorPolicy that the PolicyGenerator created from the plain manifests, and the Placement with the selected clusters <code>sno</code> and <code>bm</code>.</p>
+</div>
+<div class="paragraph">
+<p>The <code>no-kubeadmin</code> policy is a good example for <code>inform</code>: ACM only reports that the secret <code>kubeadmin</code> still exists, it does not delete it.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/ep-20/acm-policy-no-kubeadmin-results.png?width=80%" alt="Results of the policy no-kubeadmin"/>
+</div>
+<div class="title">Figure 2. Results of the policy no-kubeadmin</div>
+</div>
+<div class="paragraph">
+<p>In the Argo CD UI we can also verify the status (including the resource tree).</p>
+</div>
+<div class="paragraph">
+<p>The Application <code>acm-policies</code> shows the status <strong>Degraded</strong>. This is because the policy <code>no-kubeadmin</code> is non-compliant …​ the secrets are still present.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/ep-20/policy-gitops-acm-policies-tile.png?width=50%" alt="Application acm-policies in Argo CD"/>
+</div>
+<div class="title">Figure 3. Application acm-policies in Argo CD</div>
+</div>
+<div class="paragraph">
+<p>The resource tree proves this:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="/gitopscollection/images/ep-20/policy-gitops-acm-policies-tree.png?width=80%" alt="Resource tree of the application acm-policies"/>
+</div>
+<div class="title">Figure 4. Resource tree of the application acm-policies</div>
+</div>
+<hr/>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_summary">Summary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>That concludes the mini-series. ACM decides <em>where</em> and checks <em>compliance</em>, Argo CD decides <em>what</em> and keeps it <em>in sync</em>, and Git is the only place where changes are made.</p>
+</div>
+<div class="paragraph">
+<p>And as always: <strong>If it is not in Git, it does not exist.</strong> That includes your ACM policies.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tbody><tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The diagrams in this article have been manually drawn on a whiteboard. AI then generated the SVGs from photos and made them look equal in all articles.
+</td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_references">References</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/2.17/html/gitops/gitops-overview" rel="noopener" target="_blank">ACM 2.17: GitOps (managing policy definitions with OpenShift GitOps, Policy Generator integration)</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/2.17/html/governance/index" rel="noopener" target="_blank">ACM 2.17: Governance (Policy Generator, OperatorPolicy, hub templates)</a></p>
+</li>
+<li>
+<p><a href="https://github.com/open-cluster-management-io/policy-collection" rel="noopener" target="_blank">Open Cluster Management: policy collection</a></p>
+</li>
+<li>
+<p><a href="/gitopscollection/2024-04-02-configure_app_of_apps/">[Ep.4] Configure App-of-Apps</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>]]></content:encoded></item><item><title>ValidatingAdmissionPolicy and how to use it</title><link>https://blog.stderr.at/openshift-platform/security/compliance/2026-10-15-namespace-labels-validating-admission-policy/</link><guid isPermaLink="true">https://blog.stderr.at/openshift-platform/security/compliance/2026-10-15-namespace-labels-validating-admission-policy/</guid><pubDate>Thu, 15 Oct 2026 00:00:00 +0200</pubDate><dc:creator>Articles by Thomas Jungbauer</dc:creator><category>OpenShift</category><category>Security</category><category>Compliance</category><description>Enforce mandatory ownership labels on OpenShift namespaces with a CEL ValidatingAdmissionPolicy—and block removal of those labels after creation.</description><content:encoded><![CDATA[<div class="paragraph">
 <p>In my last article about the Compliance Operator, <a href="/openshift-platform/security/compliance/2026-10-09-compliance-operator-customrules-cel/">Compliance Operator: Writing Your Own Checks with CEL and CustomRules</a>, we discussed <code>CustomRule</code> and how they can enhance the Compliance Operator. CustomRules are good for defining your own policies, for example to check whether a namespace is created with the correct labels. But they cannot stop someone from changing something on the cluster.</p>
 </div>
 <div class="paragraph">
