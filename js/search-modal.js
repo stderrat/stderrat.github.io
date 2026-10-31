@@ -24,6 +24,7 @@
     let input = null;
     let isOpen = false;
     let pagefindAvailable = false;
+    let pagefindStarted = false;
     let recentSearchesContainer = null;
     let activeFilter = 'all';
     let pagefindInstance = null;
@@ -112,9 +113,35 @@
         `;
         
         document.body.appendChild(modal);
-        
-        // Try to initialize Pagefind, or show fallback
-        initPagefind();
+        recentSearchesContainer = modal.querySelector('.recent-searches');
+        // Pagefind UI is loaded and initialised on the first open (see openModal)
+    }
+
+    /**
+     * Load /pagefind/pagefind-ui.js and its stylesheet once, on demand.
+     * Resolves also on error, initPagefind() then shows the fallback form.
+     */
+    let pagefindLoading = null;
+    function loadPagefindUI() {
+        if (typeof PagefindUI !== 'undefined') return Promise.resolve();
+        if (pagefindLoading) return pagefindLoading;
+        pagefindLoading = new Promise(function(resolve) {
+            if (!document.querySelector('link[href="/pagefind/pagefind-ui.css"]')) {
+                const css = document.createElement('link');
+                css.rel = 'stylesheet';
+                css.href = '/pagefind/pagefind-ui.css';
+                document.head.appendChild(css);
+            }
+            const script = document.createElement('script');
+            script.src = '/pagefind/pagefind-ui.js';
+            script.onload = resolve;
+            script.onerror = function() {
+                console.warn('Pagefind UI could not be loaded');
+                resolve();
+            };
+            document.head.appendChild(script);
+        });
+        return pagefindLoading;
     }
 
     /**
@@ -607,6 +634,18 @@
         modal.classList.add('active');
         document.body.classList.add('search-modal-open');
         
+        // First open: load Pagefind UI, then initialise it (or the fallback form)
+        if (!pagefindStarted) {
+            pagefindStarted = true;
+            loadPagefindUI().then(function() {
+                initPagefind();
+                // initPagefind looks up the input after 100 ms
+                setTimeout(function() {
+                    if (isOpen && input) input.focus();
+                }, 150);
+            });
+        }
+
         // Show recent searches if input is empty
         showRecentSearches();
         
